@@ -1,0 +1,5 @@
+- Make the settings language select do something.
+- Make the settings debug setting do something or remove it.
+- Review text and then translate to Danish
+- (Optional) Append a parenthesis with variation attributes to name
+- (Optional) Add a logo to scanpay payment settings
