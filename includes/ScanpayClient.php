@@ -1,8 +1,8 @@
 <?php
+namespace Scanpay;
 if (!defined('ABSPATH')) { 
     exit;
 }
-namespace Scanpay;
 class Client {
     protected $apikey;
     protected $host;
@@ -13,7 +13,7 @@ class Client {
 
     public function GetPaymentURL($data, $opts = []) {
         $data = json_encode($data, JSON_UNESCAPED_UNICODE);
-
+        error_log(print_R($data, TRUE));
         /* Create a curl request towards the api endpoint */
         $ch = curl_init('https://' . $this->{'host'} . '/v1/new');
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');

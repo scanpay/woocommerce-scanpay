@@ -1,8 +1,8 @@
 <?php
+namespace Scanpay;
 if (!defined('ABSPATH')) { 
     exit;
 }
-namespace Scanpay;
 class Money {
     protected static $currencies = [
         'AED' => [ 784,  2, 'UAE Dirham' ],

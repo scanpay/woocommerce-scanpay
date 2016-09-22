@@ -18,57 +18,69 @@ class ScanpayGateway extends WC_Payment_Gateway {
         $this->init_form_fields();
         $this->init_settings();
         $this->title = $this->get_option('title');
+        $this->language = $this->get_option('language');
         $this->client = new Client([
             'host' => 'api.scanpay.dk',
             'apikey' => $this->get_option('apikey'),
         ]);
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
     }
-    
+
     public function process_payment($orderid) {
     	global $woocommerce;
     	$order = new WC_Order($orderid);
 
-    	// Mark as on-hold (we're awaiting the cheque)
-
         $data = [
-            'orderid' => strval($orderid),
+            'orderid'  => strval($orderid),
+            'language' => $this->language,
+            'billing'  => array_filter([
+                'name'    => $order->billing_first_name . ' ' . $order->billing_last_name,
+                'email'   => $order->billing_email,
+                'phone'   => preg_replace('/\s+/', '', $order->billing_phone),
+                'address' => array_filter([$order->billing_address_1, $order->billing_address_2]),
+                'city'    => $order->billing_city,
+                'zip'     => $order->billing_postcode,
+                'country' => $order->billing_country,
+                'state'   => $order->billing_state,
+                'company' => $order->billing_company,
+                'vatin'   => '',
+                'gln'     => '',
+            ]),
+            'shipping' => array_filter([
+                'name'    => $order->shipping_first_name . ' ' . $order->shipping_last_name,
+                'address' => array_filter([$order->shipping_address_1, $order->shipping_address_2]),
+                'city'    => $order->shipping_city,
+                'zip'     => $order->shipping_postcode,
+                'country' => $order->shipping_country,
+                'state'   => $order->shipping_state,
+                'company' => $order->shipping_company,
+            ]),
         ];
-        /* Add billing address to data */
-        $data['billing'] = array_filter([
-            'name'    => $order->billing_first_name . ' ' . $order->billing_last_name,
-            'email'   => $order->billing_email,
-            'phone'   => preg_replace('/\s+/', '', $order->billing_phone),
-            'address' => array_filter([$order->billing_address_1, $order->billing_address_2]),
-            'city'    => $order->billing_city,
-            'zip'     => $order->billing_postcode,
-            'country' => $order->billing_country,
-            'state'   => $order->billing_state,
-            'company' => $order->billing_company,
-            'vatin'   => '',
-            'gln'     => '',
-        ]);
-
-        /* Add shipping address to data */
-        $data['shipping'] = array_filter([
-            'name'    => $order->shipping_first_name . ' ' . $order->shipping_last_name,
-            'address' => array_filter([$order->shipping_address_1, $order->shipping_address_2]),
-            'city'    => $order->shipping_city,
-            'zip'     => $order->shipping_postcode,
-            'country' => $order->shipping_country,
-            'state'   => $order->shipping_state,
-            'company' => $order->shipping_company,
-        ]);
+        /* Add the requested items to the request data */
         foreach ($order->get_items('line_item') as $wooitem) {
-            $amount = new Money($order->get_item_total($wooitem), $order->get_order_currency());
+            $itemprice = $order->get_item_total($wooitem, true);
+            if ($itemprice < 0) {
+                error_log('Cannot handle negative price for item');
+                throw new \Exception(__('Internal serve error'));
+            }
             $data['items'][] = [
                 'name' => $wooitem['name'],
                 'quantity' => intval($wooitem['qty']),
-                'price' => $amount->print(),
+                'price' => (new Money($itemprice, $order->get_order_currency()))->print(),
                 'sku' => $wooitem['product_id'],
             ];
         }
-        error_log($_SERVER['REMOTE_ADDR']);
+        /* Add shipping costs */
+        $shippingcost = $order->get_total_shipping() + $order->get_shipping_tax();
+        if ($shippingcost > 0) {
+            $method = $order->get_shipping_method();
+            $data['items'][] = [
+                'name' => isset($method) ? $method : __('Shipping'),
+                'quantity' => 1,
+                'price' => (new Money($shippingcost, $order->get_order_currency()))->print(),
+            ];
+        }
+
         try {
             $paymenturl = $this->client->GetPaymentURL(array_filter($data), ['cardholderIP' => $_SERVER['REMOTE_ADDR']]);
         } catch (\Exception $e) {
@@ -115,7 +127,7 @@ class ScanpayGateway extends WC_Payment_Gateway {
 				'title'    => __( 'Language', 'woocommerce-scanpay' ),
 				'type'     => 'select',
 				'options'  => [
-                    'auto' => __( 'Automatic', 'woocommerce-scanpay' ),
+                    '' => __( 'Automatic', 'woocommerce-scanpay' ),
 					'en'   => 'English',
 					'da'   => 'Danish',
                 ],
@@ -123,11 +135,14 @@ class ScanpayGateway extends WC_Payment_Gateway {
 				'default'     => 'auto',
             ],
 			'apikey' => [
-				'title'       => __( 'API key', 'woocommerce-scanpay' ),
-				'type'        => 'text',
-				'description' => __( 'Copy your API key from the <a href="https://dashboard.scanpay.dk/settings/api">dashboard API settings</a>.', 'woocommerce-scanpay' ),
-				'default'     => '',
-				'placeholder' => __( 'Required', 'woocommerce-scanpay' )
+				'title'             => __( 'API key', 'woocommerce-scanpay' ),
+				'type'              => 'text',
+				'description'       => __( 'Copy your API key from the <a href="https://dashboard.scanpay.dk/settings/api">dashboard API settings</a>.', 'woocommerce-scanpay' ),
+				'default'           => '',
+				'placeholder'       => __( 'Required', 'woocommerce-scanpay' ),
+                'custom_attributes' => [
+                    'autocomplete' => 'off',
+                ],
             ],
 			'debug' => [
 				'title'   => __( 'Debug', 'woocommerce-scanpay' ),
