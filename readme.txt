@@ -1,4 +1,4 @@
-=== Plugin Name ===
+=== Scanpay for WooCommerce ===
 Contributors: scanpay
 Tags: ecommerce, scanpay, woocommerce
 Requires at least: 4.0
@@ -24,4 +24,3 @@ Note that you must capture and refund transactions in the Scanpay dashboard.
 
 = 0.01 =
 Initial version.
-
