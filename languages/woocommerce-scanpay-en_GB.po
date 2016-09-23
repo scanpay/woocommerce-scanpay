@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-09-22 17:44+0200\n"
+"POT-Creation-Date: 2016-09-23 19:52+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,79 +17,79 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: includes/Gateway.php:62 includes/Gateway.php:86
+#: includes/Gateway.php:64 includes/Gateway.php:88
 msgid "Internal serve error"
 msgstr ""
 
-#: includes/Gateway.php:76
+#: includes/Gateway.php:78
 msgid "Shipping"
 msgstr ""
 
-#: includes/Gateway.php:90
+#: includes/Gateway.php:92
 msgid "Awaiting payment"
 msgstr ""
 
-#: includes/Gateway.php:107
+#: includes/Gateway.php:109
 msgid "Enable/Disable"
 msgstr ""
 
-#: includes/Gateway.php:109
+#: includes/Gateway.php:111
 msgid "Enable Scanpay"
 msgstr ""
 
-#: includes/Gateway.php:113
+#: includes/Gateway.php:115
 msgid "Title"
 msgstr ""
 
-#: includes/Gateway.php:115
+#: includes/Gateway.php:117
 msgid "This controls the title which the user sees during checkout."
 msgstr ""
 
-#: includes/Gateway.php:119
+#: includes/Gateway.php:121
 msgid "Description"
 msgstr ""
 
-#: includes/Gateway.php:121
+#: includes/Gateway.php:123
 msgid "This controls the description which the user sees during checkout."
 msgstr ""
 
-#: includes/Gateway.php:122
+#: includes/Gateway.php:124
 msgid "Pay via Scanpay using credit card or mobile payment."
 msgstr ""
 
-#: includes/Gateway.php:125
+#: includes/Gateway.php:127
 msgid "Language"
 msgstr ""
 
-#: includes/Gateway.php:128
+#: includes/Gateway.php:130
 msgid "Automatic"
 msgstr ""
 
-#: includes/Gateway.php:132
+#: includes/Gateway.php:134
 msgid ""
 "Set the payment window language. 'Automatic' allows Scanpay to choose a "
 "language based on the browser of the customer."
 msgstr ""
 
-#: includes/Gateway.php:136
+#: includes/Gateway.php:138
 msgid "API key"
 msgstr ""
 
-#: includes/Gateway.php:138
+#: includes/Gateway.php:140
 msgid ""
 "Copy your API key from the <a href=\"https://dashboard.scanpay.dk/settings/"
 "api\">dashboard API settings</a>."
 msgstr ""
 
-#: includes/Gateway.php:140
+#: includes/Gateway.php:142
 msgid "Required"
 msgstr ""
 
-#: includes/Gateway.php:146
+#: includes/Gateway.php:148
 msgid "Debug"
 msgstr ""
 
-#: includes/Gateway.php:148
+#: includes/Gateway.php:150
 msgid "Enable error logging (<code>woocommerce/logs/scanpay.txt</code>)"
 msgstr ""
 
