@@ -29,11 +29,11 @@ class ScanpayGateway extends WC_Payment_Gateway {
     public function process_payment($orderid) {
     	global $woocommerce;
     	$order = new WC_Order($orderid);
-
         $data = [
-            'orderid'  => strval($orderid),
-            'language' => $this->language,
-            'billing'  => array_filter([
+            'orderid'    => strval($orderid),
+            'language'   => $this->language,
+            'successurl' => $this->get_return_url($order),
+            'billing'    => array_filter([
                 'name'    => $order->billing_first_name . ' ' . $order->billing_last_name,
                 'email'   => $order->billing_email,
                 'phone'   => preg_replace('/\s+/', '', $order->billing_phone),
@@ -46,7 +46,7 @@ class ScanpayGateway extends WC_Payment_Gateway {
                 'vatin'   => '',
                 'gln'     => '',
             ]),
-            'shipping' => array_filter([
+            'shipping'   => array_filter([
                 'name'    => $order->shipping_first_name . ' ' . $order->shipping_last_name,
                 'address' => array_filter([$order->shipping_address_1, $order->shipping_address_2]),
                 'city'    => $order->shipping_city,
