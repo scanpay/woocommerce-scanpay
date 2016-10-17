@@ -1,8 +1,9 @@
 <?php
 namespace Scanpay;
-if (!defined('ABSPATH')) { 
+if (!defined('ABSPATH')) {
     exit;
 }
+
 class Money {
     protected static $currencies = [
         'AED' => [ 784,  2, 'UAE Dirham' ],
@@ -188,21 +189,27 @@ class Money {
     protected $amount;
     protected $currency;
 
-    public function __construct($amount, $currency) {
+    public function __construct($amount, $currency)
+    {
         $currency = strtoupper($currency);
         if (!array_key_exists($currency, Money::$currencies)) {
             throw new \Exception('invalid currency ' . $currency);
         }
+
         $curObj = Money::$currencies[$currency];
         $prec = $curObj[1];
         if ($prec < 0) { $prec = 0; }
         $this->amount = round($amount, $prec);
         $this->currency = $currency;
     }
-    public function __toString() {
+
+    public function __toString()
+    {
         return $this->amount . ' ' . $this->currency;
     }
-    public function print() {
+
+    public function print()
+    {
         return (string)$this;
     }
 }

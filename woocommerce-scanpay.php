@@ -16,7 +16,7 @@
  */
 
 // Exit if accessed directly
-if (!defined('ABSPATH')) { 
+if (!defined('ABSPATH')) {
     exit;
 }
 
@@ -25,7 +25,8 @@ if (!in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get
     exit;
 }
 
-function initScanpay() {
+function initScanpay()
+{
     load_plugin_textdomain('woocommerce-scanpay', false, plugin_basename(dirname(__FILE__)) . '/languages');
 	include_once(plugin_basename('includes/Gateway.php'));
 	include_once(plugin_basename('includes/Money.php'));
@@ -34,14 +35,16 @@ function initScanpay() {
 add_action('plugins_loaded', 'initScanpay', 0);
 
 
-function addScanpayGateway($methods) {
+function addScanpayGateway($methods)
+{
 	$methods[] = 'ScanpayGateway';
 	return $methods;
 }
 add_filter('woocommerce_payment_gateways', 'addScanpayGateway');
 
 /* Add a link to settings in the plugin overview */
-function addScanpayPluginLinks($links) {    
+function addScanpayPluginLinks($links)
+{
 	$mylinks [] ='<a href="'.admin_url('admin.php?page=wc-settings&tab=checkout&section=scanpay' ) . '">' . __( 'Settings', 'woocommerce-scanpay' ) . '</a>';
 	// Merge our new link with the default ones
 	return array_merge($mylinks, $links);

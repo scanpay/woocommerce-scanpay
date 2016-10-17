@@ -1,13 +1,14 @@
 <?php
 // Exit if accessed directly
-if (!defined('ABSPATH')) { 
+if (!defined('ABSPATH')) {
     exit;
 }
 use Scanpay\Money as Money;
 use Scanpay\Client as Client;
 
 class ScanpayGateway extends WC_Payment_Gateway {
-    public function __construct() {
+    public function __construct()
+    {
         /* Set WC_Payment_Gateway parameters */
         $this->id = 'scanpay';
         //$this->icon = '';
@@ -26,7 +27,8 @@ class ScanpayGateway extends WC_Payment_Gateway {
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
     }
 
-    public function process_payment($orderid) {
+    public function process_payment($orderid)
+    {
     	global $woocommerce;
     	$order = new WC_Order($orderid);
         $data = [
@@ -87,7 +89,7 @@ class ScanpayGateway extends WC_Payment_Gateway {
             error_log('scanpay client exception: ' . $e->getMessage());
             throw new \Exception(__('Internal serve error'));
         }
-        
+
         /* Update order */
     	$order->update_status('on-hold', __( 'Awaiting payment', 'woocommerce' ));
 
@@ -102,7 +104,8 @@ class ScanpayGateway extends WC_Payment_Gateway {
         ];
     }
 
-	public function init_form_fields() {
+	public function init_form_fields()
+    {
 
 		$this->form_fields = [
 			'enabled' => [
