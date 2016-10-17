@@ -6,7 +6,8 @@ if (!defined('ABSPATH')) {
 use Scanpay\Money as Money;
 use Scanpay\Client as Client;
 
-class ScanpayGateway extends WC_Payment_Gateway {
+class ScanpayGateway extends WC_Payment_Gateway
+{
     public function __construct()
     {
         /* Set WC_Payment_Gateway parameters */

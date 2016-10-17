@@ -4,7 +4,8 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class Money {
+class Money
+{
     protected static $currencies = [
         'AED' => [ 784,  2, 'UAE Dirham' ],
         'AFN' => [ 971,  2, 'Afghani' ],
