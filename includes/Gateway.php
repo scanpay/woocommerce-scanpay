@@ -8,6 +8,9 @@ use Scanpay\Client as Client;
 
 class ScanpayGateway extends WC_Payment_Gateway
 {
+    const API_PING_URL = 'scanpay/ping';
+
+    protected $apikey;
     public function __construct()
     {
         /* Set WC_Payment_Gateway parameters */
@@ -20,11 +23,16 @@ class ScanpayGateway extends WC_Payment_Gateway
         $this->init_form_fields();
         $this->init_settings();
         $this->title = $this->get_option('title');
+        $this->description = $this->get_option('description');
         $this->language = $this->get_option('language');
+        $this->apikey = $this->get_option('apikey');
+        $this->pingurl = WC()->api_request_url(self::API_PING_URL);
         $this->client = new Client([
             'host' => 'api.scanpay.dk',
-            'apikey' => $this->get_option('apikey'),
+            'apikey' => $this->apikey,
         ]);
+        error_log($this->pingurl);
+        add_action('woocommerce_api_scanpay/ping', array($this, 'handle_pings'));
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
     }
 
@@ -59,13 +67,15 @@ class ScanpayGateway extends WC_Payment_Gateway
                 'company' => $order->shipping_company,
             ]),
         ];
+
         /* Add the requested items to the request data */
         foreach ($order->get_items('line_item') as $wooitem) {
             $itemprice = $order->get_item_total($wooitem, true);
             if ($itemprice < 0) {
                 error_log('Cannot handle negative price for item');
-                throw new \Exception(__('Internal serve error'));
+                throw new \Exception(__('Internal server error'));
             }
+
             $data['items'][] = [
                 'name' => $wooitem['name'],
                 'quantity' => intval($wooitem['qty']),
@@ -73,6 +83,7 @@ class ScanpayGateway extends WC_Payment_Gateway
                 'sku' => $wooitem['product_id'],
             ];
         }
+
         /* Add shipping costs */
         $shippingcost = $order->get_total_shipping() + $order->get_shipping_tax();
         if ($shippingcost > 0) {
@@ -88,7 +99,7 @@ class ScanpayGateway extends WC_Payment_Gateway
             $paymenturl = $this->client->GetPaymentURL(array_filter($data), ['cardholderIP' => $_SERVER['REMOTE_ADDR']]);
         } catch (\Exception $e) {
             error_log('scanpay client exception: ' . $e->getMessage());
-            throw new \Exception(__('Internal serve error'));
+            throw new \Exception(__('Internal server error'));
         }
 
         /* Update order */
@@ -105,56 +116,66 @@ class ScanpayGateway extends WC_Payment_Gateway
         ];
     }
 
+    public function handle_pings()
+    {
+        if (!isset($_SERVER['X-Signature'])) {
+            wp_send_json(['error' => 'invalid signature']);
+            return;
+        }
+    
+        $localSig = base64_encode(hash_hmac('sha256', $HTTP_RAW_POST_DATA, $this->apikey, true));
+        if ($localSig !== $_SERVER['X-Signature']) { 
+            wp_send_json(['error' => 'invalid signature from Scanpay server']);
+            return;
+        }
+
+        /* Attempt to decode the json response */
+        $jsonres = @json_decode($HTTP_RAW_POST_DATA, true);
+        if ($jsonres === null) {
+            wp_send_json(['error' => 'invalid json from Scanpay server']);
+            return;
+        }
+
+        $remoteSeq = $jsonreq['seq'];
+        if (!isset($remoteSeq) || !is_int($remoteSeq)) { return; }
+
+        $localSeqObj = $this->sequencer->load();
+        if (!$localSeqObj) {
+            $this->logger->error('unable to load scanpay sequence number');
+            return;
+        }
+
+        $localSeq = $localSeqObj['seq'];
+
+        while ($localSeq < $remoteSeq) {
+            try {
+                $resobj = $this->client->getUpdatedTransactions($localSeq);
+            } catch (\Magento\Framework\Exception\LocalizedException $e) {
+                $this->logger->error('scanpay client exception: ' . $e->getMessage());
+                return;
+            }
+
+            $localSeq = $resobj['seq'];
+            if (!$this->orderUpdater->updateAll($remoteSeq, $resobj['changes'])) {
+                $this->logger->error('error updating orders with Scanpay changes');
+                return;
+            }
+
+            if (!$this->sequencer->save($localSeq)) {
+                return;
+            }
+
+        }
+
+    }
+
 	public function init_form_fields()
     {
-
-		$this->form_fields = [
-			'enabled' => [
-				'title'   => __( 'Enable/Disable', 'woocommerce-scanpay' ),
-				'type'    => 'checkbox',
-				'label'   => __( 'Enable Scanpay', 'woocommerce-scanpay' ),
-				'default' => 'yes',
-            ],
-			'title' => [
-				'title'       => __( 'Title', 'woocommerce-scanpay' ),
-				'type'        => 'text',
-				'description' => __( 'This controls the title which the user sees during checkout.', 'woocommerce-scanpay' ),
-				'default'     => 'Scanpay',
-            ],
-			'description' => [
-				'title'       => __( 'Description', 'woocommerce-scanpay' ),
-				'type'        => 'textarea',
-				'description' => __( 'This controls the description which the user sees during checkout.', 'woocommerce-scanpay' ),
-				'default'     => __( "Pay via Scanpay using credit card or mobile payment.", 'woocommerce-scanpay' )
-            ],
-			'language' => [
-				'title'    => __( 'Language', 'woocommerce-scanpay' ),
-				'type'     => 'select',
-				'options'  => [
-                    '' => __( 'Automatic', 'woocommerce-scanpay' ),
-					'en'   => 'English',
-					'da'   => 'Danish',
-                ],
-				'description' => __( 'Set the payment window language. \'Automatic\' allows Scanpay to choose a language based on the browser of the customer.', 'woocommerce-scanpay' ),
-				'default'     => 'auto',
-            ],
-			'apikey' => [
-				'title'             => __( 'API key', 'woocommerce-scanpay' ),
-				'type'              => 'text',
-				'description'       => __( 'Copy your API key from the <a href="https://dashboard.scanpay.dk/settings/api">dashboard API settings</a>.', 'woocommerce-scanpay' ),
-				'default'           => '',
-				'placeholder'       => __( 'Required', 'woocommerce-scanpay' ),
-                'custom_attributes' => [
-                    'autocomplete' => 'off',
-                ],
-            ],
-			'debug' => [
-				'title'   => __( 'Debug', 'woocommerce-scanpay' ),
-				'type'    => 'checkbox',
-				'label'   => __( 'Enable error logging (<code>woocommerce/logs/scanpay.txt</code>)', 'woocommerce-scanpay' ),
-				'default' => 'yes',
-            ]
+        $block = [
+            'pingurl' => WC()->api_request_url(self::API_PING_URL),
+            'lastpingtime'  => time(),
         ];
+        $this->form_fields = buildSettings($block);
 	}
 
 }

@@ -14,23 +14,33 @@ class Client
         $this->host = $arg['host'];
     }
 
-    public function GetPaymentURL($data, $opts = [])
+    public function req($url, $data, $opts = [])
     {
-        $data = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-
         /* Create a curl request towards the api endpoint */
         $ch = curl_init('https://' . $this->{'host'} . '/v1/new');
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-        curl_setopt($ch, CURLOPT_USERPWD, $this->{'apikey'});
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-        if (isset($opts['cardholderIP'])) {
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ['X-Cardholder-Ip: ' . $opts['cardholderIP']]);
+        if ($data != null) {
+            $data = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
         }
 
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+
+        global $woocommerce_for_scanpay_plugin_version;
+        $headers = [
+            'Authorization: Basic ' . base64_encode($this->apikey),
+            'X-Shop-System: Magento 2',
+            'X-Extension-Version: ' . $woocommerce_for_scanpay_plugin_version, //$plugin_data['Version'],
+        ];
+
+        if (!isset($opts['cardholderIP'])) {
+            $headers = array_merge($headers, [ 'X-Cardholder-Ip: ' . $opts['cardholderIP'] ]);
+        }
+
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         $result = curl_exec($ch);
-        if ($result === FALSE) {
+        if (!$result) {
             $errstr = 'unknown error';
             if ($errno = curl_errno($ch)) {
                 $errstr = curl_strerror($errno);
@@ -41,37 +51,52 @@ class Client
         }
 
         /* Retrieve the http status code */
-        $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        if ($httpcode !== 200) {
-            if ($httpcode === 403) {
+        if ($code !== 200) {
+            if ($code === 403) {
                 throw new \Exception('Invalid API-key');
             }
-            throw new \Exception('Unexpected http response code: ' . $httpcode);
+            throw new \Exception('Unexpected http response code: ' . $code);
         }
 
         /* Attempt to decode the json response */
-        $jsonres = @json_decode($result);
-        if ($jsonres === null) {
+        $resobj = @json_decode($result, true);
+        if ($resobj === null) {
             throw new \Exception('unable to json-decode response');
         }
 
         /* Check if error field is present */
-        if (isset($jsonres->{'error'})) {
-            throw new \Exception('server returned error: ' . $jsonres->{'error'});
+        if (isset($resobj['error'])) {
+            throw new \Exception('server returned error: ' . $resobj['error']);
         }
+        return $resobj;
+    }
+
+    public function GetPaymentURL($data, $opts = [])
+    {
+        $resobj = $this->req('/v1/new', $data, $opts);
 
         /* Check the existence of the server and the payid field */
-        if (!isset($jsonres->{'url'})) {
+        if (!isset($resobj['url'])) {
             throw new \Exception('missing json fields in server response');
         }
 
-        if (filter_var($jsonres->{'url'}, FILTER_VALIDATE_URL) === FALSE) {
+        if (!filter_var($resobj['url'], FILTER_VALIDATE_URL)) {
             throw new \Exception('invalid url in server response');
         }
 
         /* Generate the payment URL link from the server and payid */
-        return $jsonres->{'url'};
+        return $resobj['url'];
     }
+    
+    public function getUpdatedTransactions($seq) {
+        $resobj = $this->req('/v1/seq/' . $seq, null, null);
+        if (!isset($resobj['seq']) || !isset($resobj['changes'])) {
+            throw new LocalizedException(__('missing json fields in server response'));
+        }
+        return $resobj;
+    }
+
 }

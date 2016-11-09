@@ -1,0 +1,132 @@
+<?php
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+function fmtDeltaTime($dt)
+{
+    $minute = 60;
+    $hour = $minute * 60;
+    $day = $hour * 24;
+    if ($dt <= 1) {
+        return '1 second ago';
+    } else if ($dt < $minute) {
+        return (string)$dt . ' seconds ago';
+    } else if ($dt < $minute + 30) {
+        return '1 minute ago';
+    } else if ($dt < $hour) {
+        return (string)round((float)$dt / $minute) . ' minutes ago';
+    } else if ($dt < $hour + 30 * $minute) {
+        return '1 hour ago';
+    } else if ($dt < $day){
+        return (string)round((float)$dt / $hour) . ' hours ago';
+    } else if ($dt < $day + 12 * $hour) {
+        return '1 day ago';
+    } else {
+        return (string)round((float)$dt / $day) . ' days ago';
+    }
+}
+
+function getPingUrlStatus($mtime) {
+    $t = time();
+    if ($mtime > $t) {
+        $this->logger->error('last modified time is in the future');
+        return;
+    }
+
+    $status = '';
+    if ($t < $mtime + 900) {
+        return 'ok';
+    } else if ($t < $mtime + 3600) {
+        return 'warning';
+    } else if ($mtime > 0) {
+        return 'error';
+    } else {
+        return 'never--pinged';
+    }
+}
+
+$pingdt = time() - $block['lastpingtime'];
+$pingurl_status = getPingUrlStatus($block['lastpingtime']);
+$pingdt_desc = fmtDeltaTime($pingdt);
+
+    $statusStyle = 'display: none;'    .
+        'position: relative;'          .
+        'margin-bottom: 6px;'             .
+        'padding: 5px 10px 10px 0px;'  .
+        'text-align: left;'            .
+        'font-size: 13px;'             .
+        'padding-top: 5px;'            .
+        'width: 350px;'                .
+        "font: 400 13px 'Open Sans', sans-serif";
+    $hstyle = 'font-size: 15px;'       .
+        'padding: 0;';
+    $hideStyle = 'line-height:0;'      .
+        'height: 0;'                    .
+        'overflow: hidden;';
+
+?>
+</p>
+<div class="scanpay--pingurl pp-buttons-container">
+  <div>
+    <div style="<?php if ($pingurl_status !== 'ok') { echo $hideStyle; } ?>">
+      <table style="background: #dff0d8; border-left: 5px #3c763d solid; <?php echo $statusStyle ?>">
+        <tr>
+          <td style="width: 26px; padding: 0; vertical-align: top; text-align: center">&#x2713;</td>
+          <td style="padding: 0">
+            <div style="font-size: 15px; font-weight: 600;">Ok!</div>
+            <div style="font-size: 13px;">
+              Received last ping <?php echo $pingdt_desc ?>.
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+    <div style="<?php if ($pingurl_status !== 'warning') { echo $hideStyle; } ?>">
+      <table style="background: #fff4cc; border-left: 5px #ffe070 solid; <?php echo $statusStyle ?>">
+        <tr>
+          <td style="width: 26px; padding: 0; vertical-align: top; text-align: center">&#x26a0;</td>
+          <td style="padding: 0">
+            <div style="font-size: 15px; font-weight: 600;">Warning!</div>
+            <div style="font-size: 13px;">
+              Received last ping <?php echo $pingdt_desc ?>, please check that the URL above matches the URL set in
+              <a href="https://dashboard.scanpay.dk/settings/api">Scanpay dashboard</a>.
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+    <div style="<?php if ($pingurl_status !== 'error') { echo $hideStyle; } ?>">
+      <table style="background: #fad7d4; border-left: 5px #f08a81 solid; <?php echo $statusStyle ?>">
+        <tr>
+          <td style="width: 26px; padding: 0; vertical-align: top; text-align: center">X</td>
+          <td style="padding: 0">
+            <div style="font-size: 15px; font-weight: 600;">Error!</div>
+            <div style="font-size: 13px;">
+              Received last ping <?php echo $pingdt_desc ?>, please check that the URL above matches the URL set in
+              <a href="https://dashboard.scanpay.dk/settings/api">Scanpay dashboard</a>
+              and check your error logs.</div>
+          </td>
+        </tr>
+      </table>
+    </div>
+    <div style="<?php if ($pingurl_status !== 'never--pinged') { echo $hideStyle; } ?>">
+      <table style="background: #fff4cc; border-left: 5px #ffe070 solid; <?php echo $statusStyle ?>">
+        <tr>
+          <td style="width: 26px; padding: 0; vertical-align: top; text-align: center">&#x26a0;</td>
+          <td style="padding: 0">
+            <div style="font-size: 15px; font-weight: 600;">Awaiting pings!</div>
+            <div style="font-size: 13px;">
+              Never received any pings from Scanpay, please check that the URL above matches the URL set in
+              <a href="https://dashboard.scanpay.dk/settings/api">Scanpay dashboard</a>
+              and check your error logs.
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
+  <textarea style="cursor: pointer; background-color: white" rows="2" cols="46" onfocus="this.select()" readonly><?php echo $block['pingurl'] ?></textarea>
+</div>
+<p>
+    

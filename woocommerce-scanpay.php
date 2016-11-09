@@ -24,13 +24,21 @@ if (!defined('ABSPATH')) {
 if (!in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
     exit;
 }
+if ( ! function_exists( 'get_plugins' ) ) {
+    require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+}
 
+$woocommerce_for_scanpay_plugin_version = get_plugin_data( __FILE__ )['Version'];
+$woocommerce_for_scanpay_dir = rtrim(plugin_dir_path(__FILE__), '/');
+error_log('basename = ' . $woocommerce_for_scanpay_dir);
 function initScanpay()
 {
+    global $woocommerce_for_scanpay_dir;
     load_plugin_textdomain('woocommerce-scanpay', false, plugin_basename(dirname(__FILE__)) . '/languages');
-	include_once(plugin_basename('includes/Gateway.php'));
-	include_once(plugin_basename('includes/Money.php'));
-	include_once(plugin_basename('includes/ScanpayClient.php'));
+	include_once($woocommerce_for_scanpay_dir . '/includes/Gateway.php');
+	include_once($woocommerce_for_scanpay_dir . '/includes/Money.php');
+	include_once($woocommerce_for_scanpay_dir . '/includes/ScanpayClient.php');
+    include_once($woocommerce_for_scanpay_dir . '/includes/Settings.php');
 }
 add_action('plugins_loaded', 'initScanpay', 0);
 
