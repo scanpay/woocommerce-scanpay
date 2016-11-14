@@ -190,16 +190,45 @@ class Money
     protected $amount;
     protected $currency;
 
-    public function __construct($amount, $currency)
+    public static function validate($amount, $currency = false)
     {
+        try {
+            new Money($amount, $currency);
+        } catch (LocalizedException $e) {
+            return false;
+        }
+        return true;
+    }
+
+    public function __construct($amount, $currency = false)
+    {
+        if (!$currency) {
+            $str = $amount;
+            if (!is_string($str)) {
+                throw new LocalizedException(__('invalid money string'));
+            }
+            $i = strlen($str);
+            while ($i > 0 && !is_numeric($str[$i - 1])) { $i--; }
+            $amount = substr($str, 0, $i);
+            $currency = trim(substr($str, $i));
+            $arr = explode('.', $amount, 2);
+            if (!ctype_digit($arr[0]) || (count($arr) > 0 && !ctype_digit($arr[0]))) {
+                throw new LocalizedException(__('invalid money string'));
+            }
+            $amount = (float)$amount;
+        }
+
         $currency = strtoupper($currency);
         if (!array_key_exists($currency, Money::$currencies)) {
-            throw new \Exception('invalid currency ' . $currency);
+            throw new LocalizedException(__('invalid currency ' . $currency));
         }
 
         $curObj = Money::$currencies[$currency];
         $prec = $curObj[1];
-        if ($prec < 0) { $prec = 0; }
+        if ($prec < 0) {
+            $prec = 0;
+        }
+
         $this->amount = round($amount, $prec);
         $this->currency = $currency;
     }
@@ -213,4 +242,9 @@ class Money
     {
         return (string)$this;
     }
+
+    public function number() {
+        return $this->amount;
+    }
+
 }
