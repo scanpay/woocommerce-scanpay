@@ -29,7 +29,7 @@ if ( ! function_exists( 'get_plugins' ) ) {
 
 $woocommerce_for_scanpay_plugin_version = get_plugin_data( __FILE__ )['Version'];
 $woocommerce_for_scanpay_dir = rtrim(plugin_dir_path(__FILE__), '/');
-error_log('basename = ' . $woocommerce_for_scanpay_dir);
+
 function initScanpay()
 {
     global $woocommerce_for_scanpay_dir;
@@ -38,6 +38,7 @@ function initScanpay()
 	include_once($woocommerce_for_scanpay_dir . '/includes/Money.php');
 	include_once($woocommerce_for_scanpay_dir . '/includes/ScanpayClient.php');
     include_once($woocommerce_for_scanpay_dir . '/includes/GlobalSequencer.php');
+    include_once($woocommerce_for_scanpay_dir . '/includes/OrderUpdater.php');
     include_once($woocommerce_for_scanpay_dir . '/includes/Settings.php');
 }
 add_action('plugins_loaded', 'initScanpay', 0);

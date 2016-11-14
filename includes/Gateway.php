@@ -8,10 +8,10 @@ use Scanpay\Money as Money;
 class ScanpayGateway extends WC_Payment_Gateway
 {
     const API_PING_URL = 'scanpay/ping';
-
     protected $apikey;
-    protected $client;
+    protected $orderUpdater;
     protected $sequencer;
+    protected $client;
 
     public function __construct()
     {
@@ -31,8 +31,8 @@ class ScanpayGateway extends WC_Payment_Gateway
         $this->pingurl = WC()->api_request_url(self::API_PING_URL);
 
         /* Subclasses */
-        global $wpdb;
-        $this->sequencer = new Scanpay\GlobalSequencer($wpdb);
+        $this->orderUpdater = new Scanpay\OrderUpdater();
+        $this->sequencer = new Scanpay\GlobalSequencer();
         $this->client = new Scanpay\Client(['apikey' => $this->apikey]);
         $shopId = explode(':', $this->apikey)[0];
         if (ctype_digit($shopId)) {
@@ -41,13 +41,17 @@ class ScanpayGateway extends WC_Payment_Gateway
             $this->shopid = null;
         }
 
-        error_log($this->pingurl);
         add_action('woocommerce_api_scanpay/ping', array($this, 'handle_pings'));
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
     }
 
     public function process_payment($orderid)
     {
+        if ($this->shopid === null) {
+            error_log('invalid api key format');
+            throw new \Exception(__('Internal server error', 'woocommerce'));
+        }
+
     	$order = wc_get_order($orderid);
         $data = [
             'orderid'    => strval($orderid),
@@ -113,6 +117,7 @@ class ScanpayGateway extends WC_Payment_Gateway
 
         /* Update order */
     	$order->update_status('wc-pending');
+        update_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, $this->shopid);
 
     	/* Reduce stock levels */
     	$order->reduce_order_stock();
@@ -126,45 +131,38 @@ class ScanpayGateway extends WC_Payment_Gateway
         ];
     }
 
-    /*
-    
-update_post_meta( $order->id, 'custom_key', 'custom_value' );
-
-when you need to add a custom data, and:
-
-$my_value = get_post_meta( $order->id, 'custom_key', true );
-
-    */
-
     public function handle_pings()
     {
-        if (!isset($_SERVER['X-Signature'])) {
+        if (!isset($_SERVER['HTTP_X_SIGNATURE'])) {
             wp_send_json(['error' => 'invalid signature']);
             return;
         }
 
-        $localSig = base64_encode(hash_hmac('sha256', $HTTP_RAW_POST_DATA, $this->apikey, true));
-        if ($localSig !== $_SERVER['X-Signature']) { 
-            wp_send_json(['error' => 'invalid signature from Scanpay server']);
+        $body = file_get_contents('php://input');
+        $localSig = base64_encode(hash_hmac('sha256', $body, $this->apikey, true));
+        if ($localSig !== $_SERVER['HTTP_X_SIGNATURE']) { 
+            wp_send_json(['error' => 'invalid signature']);
             return;
         }
         if ($this->shopid === null) {
             wp_send_json(['error' => 'invalid Scanpay API-key']);
             return;
         }
+
         /* Attempt to decode the json response */
-        $jsonres = @json_decode($HTTP_RAW_POST_DATA, true);
-        if ($jsonres === null) {
+        $jsonreq = @json_decode($body, true);
+        if ($jsonreq === null) {
             wp_send_json(['error' => 'invalid json from Scanpay server']);
             return;
         }
-        $remoteSeq = $jsonreq['seq'];
-        if (!isset($remoteSeq) || !is_int($remoteSeq)) { return; }
 
-        $localSeqObj = $this->sequencer->load($shopId);
+        if (!isset($jsonreq['seq']) || !is_int($jsonreq['seq'])) { return; }
+        $remoteSeq = $jsonreq['seq'];
+
+        $localSeqObj = $this->sequencer->load($this->shopid);
         if (!$localSeqObj) {
-            $this->sequencer->insert($shopId);
-            $localSeqObj = $this->sequencer->load($shopId);
+            $this->sequencer->insert($this->shopid);
+            $localSeqObj = $this->sequencer->load($this->shopid);
             if (!$localSeqObj) {
                 error_log('unable to load scanpay sequence number');
                 return;
@@ -173,34 +171,45 @@ $my_value = get_post_meta( $order->id, 'custom_key', true );
 
         $localSeq = $localSeqObj['seq'];
         if ($localSeq === $remoteSeq) {
-            $this->sequencer->updateMtime($shopId);
+            $this->sequencer->updateMtime($this->shopid);
         }
 
         while ($localSeq < $remoteSeq) {
             try {
-                $resobj = $client->getUpdatedTransactions($localSeq);
+                $resobj = $this->client->getUpdatedTransactions($localSeq);
             } catch (\Exception $e) {
                 wp_send_json('scanpay client exception: ' . $e->getMessage());
                 return;
             }
 
             $localSeq = $resobj['seq'];
-            if (!$this->orderUpdater->updateAll($shopId, $resobj['changes'])) {
+            if (!$this->orderUpdater->updateAll($this->shopid, $resobj['changes'])) {
                 wp_send_json('error updating orders with Scanpay changes');
                 return;
             }
 
-            if (!$this->sequencer->save($shopId, $localSeq)) {
+            if (!$this->sequencer->save($this->shopid, $localSeq)) {
                 return;
             }
         }
     }
 
+    /* This function is called before __construct(), and thus cannot use the definitions from there */
 	public function init_form_fields()
     {
+        $localSeqObj;
+        $apikey = $this->get_option('apikey');
+        $shopId = explode(':', $apikey)[0];
+        if (ctype_digit($shopId)) {
+            $sequencer = new Scanpay\GlobalSequencer();
+            $localSeqObj = $sequencer->load($shopId);
+            if (!$localSeqObj) { $localSeqObj = [ 'mtime' => 0 ]; }
+        } else {
+            $localSeqObj = [ 'mtime' => 0 ];
+        }
         $block = [
             'pingurl' => WC()->api_request_url(self::API_PING_URL),
-            'lastpingtime'  => time(),
+            'lastpingtime'  => $localSeqObj['mtime'],
         ];
         $this->form_fields = buildSettings($block);
 	}

@@ -16,7 +16,7 @@ class Client
     public function req($url, $data, $opts = [])
     {
         /* Create a curl request towards the api endpoint */
-        $ch = curl_init('https://' . self::HOST . '/v1/new');
+        $ch = curl_init('https://' . self::HOST . $url);
         if ($data != null) {
             $data = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');

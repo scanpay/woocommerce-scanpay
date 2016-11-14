@@ -1,6 +1,9 @@
 <?php
-
 namespace Scanpay;
+
+if (!defined('ABSPATH')) {
+    exit;
+}
 
 use Scanpay\Money as Money;
 
@@ -40,18 +43,20 @@ class OrderUpdater
             error_log('Received transaction #' . $trnId . ' without orderid');
             return true;
         }
+
+        $orderid = $data['orderid'];
         $order = wc_get_order($orderid);
         if (!$order) {
-            error_log('Order #' . $data['orderid'] . ' not in system');
+            error_log('Order #' . $orderid . ' not in system');
             return true;
         }
 
         $newSeq = $data['seq'];
-        $orderShopId = (int)get_post_meta($order->get_id(), self::ORDER_DATA_SHOPID, true );
-        $oldSeq = (int)get_post_meta($order->get_id(), self::ORDER_DATA_SEQ, true );
+        $orderShopId = (int)get_post_meta($orderid, self::ORDER_DATA_SHOPID, true );
+        $oldSeq = (int)get_post_meta($orderid, self::ORDER_DATA_SEQ, true );
 
         if ($shopId !== $orderShopId) {
-            error_log('Order #' . $data['orderid'] . ' shopid (' .
+            error_log('Order #' . $orderid . ' shopid (' .
                 $orderShopId . ') does not match current shopid (' .
                 $shopId . '()');
             return true;
@@ -64,13 +69,13 @@ class OrderUpdater
         $auth = $data['totals']['authorized'];
 
         /* Check if the transaciton is already registered */
-        if ($order->status === 'wc-pending') {
+        if ($order->get_status() === 'pending') {
             $order->payment_complete($trnId);
             $order->add_order_note(sprintf(__('The authorized amount is %s.', 'woocommerce' ), $auth));
         }
 
         if (isset($data['acts']) && is_array($data['acts'])) {
-            $nacts = (int)$order->getData(self::ORDER_DATA_NACTS);
+            $nacts = (int)get_post_meta($orderid, self::ORDER_DATA_NACTS, true);
             for ($i = $nacts; $i < count($data['acts']); $i++) {
                 $act = $data['acts'][$i];
             	$actArgs = array(
@@ -93,19 +98,20 @@ class OrderUpdater
                     break;
                 }
             }
-            update_post_meta($order->get_id(), self::ORDER_DATA_NACTS, count($data['acts']));
+            update_post_meta($orderid, self::ORDER_DATA_NACTS, count($data['acts']));
 
             if (isset($data['totals']['captured']) && Money::validate($data['totals']['captured'])) {
                 $captured = (new Money($data['totals']['captured']))->number();
-                update_post_meta($order->get_id(), self::ORDER_DATA_CAPTURED, $captured);
+                update_post_meta($orderid, self::ORDER_DATA_CAPTURED, $captured);
             }
 
             if (isset($data['totals']['refunded']) && Money::validate($data['totals']['refunded'])) {
-                $captured = (new Money($data['totals']['refunded']))->number();
-                update_post_meta($order->get_id(), self::ORDER_DATA_REFUNDED, $captured);
+                $refunded = (new Money($data['totals']['refunded']))->number();
+                update_post_meta($orderid, self::ORDER_DATA_REFUNDED, $refunded);
             }
         }
-        update_post_meta($order->get_id(), self::ORDER_DATA_SEQ, $data['seq']);
+
+        update_post_meta($orderid, self::ORDER_DATA_SEQ, $data['seq']);
         return true;
     }
 
