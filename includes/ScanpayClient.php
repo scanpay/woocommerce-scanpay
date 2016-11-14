@@ -6,18 +6,17 @@ if (!defined('ABSPATH')) {
 
 class Client
 {
+    const HOST = 'api.scanpay.dk';
     protected $apikey;
-    protected $host;
     public function __construct($arg)
     {
         $this->apikey = $arg['apikey'];
-        $this->host = $arg['host'];
     }
 
     public function req($url, $data, $opts = [])
     {
         /* Create a curl request towards the api endpoint */
-        $ch = curl_init('https://' . $this->{'host'} . '/v1/new');
+        $ch = curl_init('https://' . self::HOST . '/v1/new');
         if ($data != null) {
             $data = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
@@ -30,8 +29,7 @@ class Client
         global $woocommerce_for_scanpay_plugin_version;
         $headers = [
             'Authorization: Basic ' . base64_encode($this->apikey),
-            'X-Shop-System: Magento 2',
-            'X-Extension-Version: ' . $woocommerce_for_scanpay_plugin_version, //$plugin_data['Version'],
+            'X-Shop-Plugin'       => 'woocommerce/' . $woocommerce_for_scanpay_plugin_version,
         ];
 
         if (!isset($opts['cardholderIP'])) {
@@ -83,14 +81,14 @@ class Client
             throw new \Exception('missing json fields in server response');
         }
 
-        if (!filter_var($resobj['url'], FILTER_VALIDATE_URL)) {
+        if (filter_var($resobj['url'], FILTER_VALIDATE_URL) === false) {
             throw new \Exception('invalid url in server response');
         }
 
         /* Generate the payment URL link from the server and payid */
         return $resobj['url'];
     }
-    
+
     public function getUpdatedTransactions($seq) {
         $resobj = $this->req('/v1/seq/' . $seq, null, null);
         if (!isset($resobj['seq']) || !isset($resobj['changes'])) {

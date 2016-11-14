@@ -20,7 +20,6 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-
 if (!in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
     exit;
 }
@@ -38,6 +37,7 @@ function initScanpay()
 	include_once($woocommerce_for_scanpay_dir . '/includes/Gateway.php');
 	include_once($woocommerce_for_scanpay_dir . '/includes/Money.php');
 	include_once($woocommerce_for_scanpay_dir . '/includes/ScanpayClient.php');
+    include_once($woocommerce_for_scanpay_dir . '/includes/GlobalSequencer.php');
     include_once($woocommerce_for_scanpay_dir . '/includes/Settings.php');
 }
 add_action('plugins_loaded', 'initScanpay', 0);

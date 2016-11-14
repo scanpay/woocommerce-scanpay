@@ -4,13 +4,15 @@ if (!defined('ABSPATH')) {
     exit;
 }
 use Scanpay\Money as Money;
-use Scanpay\Client as Client;
 
 class ScanpayGateway extends WC_Payment_Gateway
 {
     const API_PING_URL = 'scanpay/ping';
 
     protected $apikey;
+    protected $client;
+    protected $sequencer;
+
     public function __construct()
     {
         /* Set WC_Payment_Gateway parameters */
@@ -27,10 +29,18 @@ class ScanpayGateway extends WC_Payment_Gateway
         $this->language = $this->get_option('language');
         $this->apikey = $this->get_option('apikey');
         $this->pingurl = WC()->api_request_url(self::API_PING_URL);
-        $this->client = new Client([
-            'host' => 'api.scanpay.dk',
-            'apikey' => $this->apikey,
-        ]);
+
+        /* Subclasses */
+        global $wpdb;
+        $this->sequencer = new Scanpay\GlobalSequencer($wpdb);
+        $this->client = new Scanpay\Client(['apikey' => $this->apikey]);
+        $shopId = explode(':', $this->apikey)[0];
+        if (ctype_digit($shopId)) {
+            $this->shopid = (int)$shopId;
+        } else {
+            $this->shopid = null;
+        }
+
         error_log($this->pingurl);
         add_action('woocommerce_api_scanpay/ping', array($this, 'handle_pings'));
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
@@ -38,8 +48,7 @@ class ScanpayGateway extends WC_Payment_Gateway
 
     public function process_payment($orderid)
     {
-    	global $woocommerce;
-    	$order = new WC_Order($orderid);
+    	$order = wc_get_order($orderid);
         $data = [
             'orderid'    => strval($orderid),
             'language'   => $this->language,
@@ -73,7 +82,7 @@ class ScanpayGateway extends WC_Payment_Gateway
             $itemprice = $order->get_item_total($wooitem, true);
             if ($itemprice < 0) {
                 error_log('Cannot handle negative price for item');
-                throw new \Exception(__('Internal server error'));
+                throw new \Exception(__('Internal server error', 'woocommerce'));
             }
 
             $data['items'][] = [
@@ -89,7 +98,7 @@ class ScanpayGateway extends WC_Payment_Gateway
         if ($shippingcost > 0) {
             $method = $order->get_shipping_method();
             $data['items'][] = [
-                'name' => isset($method) ? $method : __('Shipping'),
+                'name' => isset($method) ? $method : __('Shipping', 'woocommerce'),
                 'quantity' => 1,
                 'price' => (new Money($shippingcost, $order->get_order_currency()))->print(),
             ];
@@ -99,16 +108,17 @@ class ScanpayGateway extends WC_Payment_Gateway
             $paymenturl = $this->client->GetPaymentURL(array_filter($data), ['cardholderIP' => $_SERVER['REMOTE_ADDR']]);
         } catch (\Exception $e) {
             error_log('scanpay client exception: ' . $e->getMessage());
-            throw new \Exception(__('Internal server error'));
+            throw new \Exception(__('Internal server error', 'woocommerce'));
         }
 
         /* Update order */
-    	$order->update_status('on-hold', __( 'Awaiting payment', 'woocommerce' ));
+    	$order->update_status('wc-pending');
 
     	/* Reduce stock levels */
     	$order->reduce_order_stock();
 
     	/* Remove cart */
+    	global $woocommerce;
     	$woocommerce->cart->empty_cart();
     	return [
     		'result' => 'success',
@@ -116,57 +126,74 @@ class ScanpayGateway extends WC_Payment_Gateway
         ];
     }
 
+    /*
+    
+update_post_meta( $order->id, 'custom_key', 'custom_value' );
+
+when you need to add a custom data, and:
+
+$my_value = get_post_meta( $order->id, 'custom_key', true );
+
+    */
+
     public function handle_pings()
     {
         if (!isset($_SERVER['X-Signature'])) {
             wp_send_json(['error' => 'invalid signature']);
             return;
         }
-    
+
         $localSig = base64_encode(hash_hmac('sha256', $HTTP_RAW_POST_DATA, $this->apikey, true));
         if ($localSig !== $_SERVER['X-Signature']) { 
             wp_send_json(['error' => 'invalid signature from Scanpay server']);
             return;
         }
-
+        if ($this->shopid === null) {
+            wp_send_json(['error' => 'invalid Scanpay API-key']);
+            return;
+        }
         /* Attempt to decode the json response */
         $jsonres = @json_decode($HTTP_RAW_POST_DATA, true);
         if ($jsonres === null) {
             wp_send_json(['error' => 'invalid json from Scanpay server']);
             return;
         }
-
         $remoteSeq = $jsonreq['seq'];
         if (!isset($remoteSeq) || !is_int($remoteSeq)) { return; }
 
-        $localSeqObj = $this->sequencer->load();
+        $localSeqObj = $this->sequencer->load($shopId);
         if (!$localSeqObj) {
-            $this->logger->error('unable to load scanpay sequence number');
-            return;
+            $this->sequencer->insert($shopId);
+            $localSeqObj = $this->sequencer->load($shopId);
+            if (!$localSeqObj) {
+                error_log('unable to load scanpay sequence number');
+                return;
+            }
         }
 
         $localSeq = $localSeqObj['seq'];
+        if ($localSeq === $remoteSeq) {
+            $this->sequencer->updateMtime($shopId);
+        }
 
         while ($localSeq < $remoteSeq) {
             try {
-                $resobj = $this->client->getUpdatedTransactions($localSeq);
-            } catch (\Magento\Framework\Exception\LocalizedException $e) {
-                $this->logger->error('scanpay client exception: ' . $e->getMessage());
+                $resobj = $client->getUpdatedTransactions($localSeq);
+            } catch (\Exception $e) {
+                wp_send_json('scanpay client exception: ' . $e->getMessage());
                 return;
             }
 
             $localSeq = $resobj['seq'];
-            if (!$this->orderUpdater->updateAll($remoteSeq, $resobj['changes'])) {
-                $this->logger->error('error updating orders with Scanpay changes');
+            if (!$this->orderUpdater->updateAll($shopId, $resobj['changes'])) {
+                wp_send_json('error updating orders with Scanpay changes');
                 return;
             }
 
-            if (!$this->sequencer->save($localSeq)) {
+            if (!$this->sequencer->save($shopId, $localSeq)) {
                 return;
             }
-
         }
-
     }
 
 	public function init_form_fields()

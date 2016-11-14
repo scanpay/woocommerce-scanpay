@@ -30,7 +30,7 @@ function fmtDeltaTime($dt)
 function getPingUrlStatus($mtime) {
     $t = time();
     if ($mtime > $t) {
-        $this->logger->error('last modified time is in the future');
+        error_log('last modified time is in the future');
         return;
     }
 
