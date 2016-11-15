@@ -12,7 +12,7 @@ class GlobalSequencer
     public function __construct()
     {
         global $wpdb;
-        $this->tablename = $wpdb->prefix . 'scanpay_seq';
+        $this->tablename = $wpdb->prefix . 'woocommerce_scanpay_seq';
         if ($wpdb->get_var("SHOW TABLES LIKE '$this->tablename'") != $this->tablename) {
         	$sql = "CREATE TABLE $this->tablename (
         		shopid BIGINT UNSIGNED NOT NULL PRIMARY KEY UNIQUE COMMENT 'Shop Id',
