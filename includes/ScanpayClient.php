@@ -89,7 +89,8 @@ class Client
         return $resobj['url'];
     }
 
-    public function getUpdatedTransactions($seq) {
+    public function getUpdatedTransactions($seq)
+    {
         $resobj = $this->req('/v1/seq/' . $seq, null, null);
         if (!isset($resobj['seq']) || !isset($resobj['changes'])) {
             throw new LocalizedException(__('missing json fields in server response'));

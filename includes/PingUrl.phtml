@@ -30,7 +30,8 @@ if (!function_exists('fmtDeltaTime')) {
 }
 
 if (!function_exists('getPingUrlStatus')) {
-    function getPingUrlStatus($mtime) {
+    function getPingUrlStatus($mtime)
+    {
         $t = time();
         if ($mtime > $t) {
             error_log('last modified time is in the future');

@@ -243,7 +243,8 @@ class Money
         return (string)$this;
     }
 
-    public function number() {
+    public function number()
+    {
         return $this->amount;
     }
 
