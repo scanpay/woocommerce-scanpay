@@ -41,7 +41,7 @@ class ScanpayGateway extends WC_Payment_Gateway
             $this->shopid = null;
         }
 
-        add_action('woocommerce_api_scanpay/ping', array($this, 'handle_pings'));
+        add_action('woocommerce_api_' . self::API_PING_URL, array($this, 'handle_pings'));
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
     }
 
@@ -88,6 +88,15 @@ class ScanpayGateway extends WC_Payment_Gateway
                 error_log('Cannot handle negative price for item');
                 throw new \Exception(__('Internal server error', 'woocommerce'));
             }
+
+            /* Variation handling will be added at a later date
+             *if (isset($wooitem['variation_id'])) {
+             *   $product = $order->get_product_from_item($wooitem);
+             *   $variation = $product->get_child($wooitem['variation_id']);
+             *   if ($variation !== false) {
+             *       error_log('fmtattr: ' . $variation->get_formatted_variation_attributes(true));
+             *   }
+             */}
 
             $data['items'][] = [
                 'name' => $wooitem['name'],
