@@ -89,14 +89,16 @@ class ScanpayGateway extends WC_Payment_Gateway
                 throw new \Exception(__('Internal server error', 'woocommerce'));
             }
 
-            /* Variation handling will be added at a later date
+            /*
+             * Variation handling will be added at a later date
              *if (isset($wooitem['variation_id'])) {
              *   $product = $order->get_product_from_item($wooitem);
              *   $variation = $product->get_child($wooitem['variation_id']);
              *   if ($variation !== false) {
              *       error_log('fmtattr: ' . $variation->get_formatted_variation_attributes(true));
              *   }
-             */}
+             *}
+             */
 
             $data['items'][] = [
                 'name' => $wooitem['name'],
