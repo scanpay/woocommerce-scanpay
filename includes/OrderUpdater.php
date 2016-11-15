@@ -28,26 +28,26 @@ class OrderUpdater
     {
         /* Ignore errornous transactions */
         if (isset($data['error'])) {
-            error_log('Received error entry in seq upater: ' . $data['error']);
+            scanpay_log('Received error entry in seq upater: ' . $data['error']);
             return true;
         }
 
         if (!$this->dataIsValid($data)) {
-            error_log('Received invalid order data from Scanpay');
+            scanpay_log('Received invalid order data from Scanpay');
             return false;
         }
 
         $trnId = $data['id'];
         /* Ignore transactions without order ids */
         if (!isset($data['orderid']) || $data['orderid'] === "") {
-            error_log('Received transaction #' . $trnId . ' without orderid');
+            scanpay_log('Received transaction #' . $trnId . ' without orderid');
             return true;
         }
 
         $orderid = $data['orderid'];
         $order = wc_get_order($orderid);
         if (!$order) {
-            error_log('Order #' . $orderid . ' not in system');
+            scanpay_log('Order #' . $orderid . ' not in system');
             return true;
         }
 
@@ -56,7 +56,7 @@ class OrderUpdater
         $oldSeq = (int)get_post_meta($orderid, self::ORDER_DATA_SEQ, true );
 
         if ($shopId !== $orderShopId) {
-            error_log('Order #' . $orderid . ' shopid (' .
+            scanpay_log('Order #' . $orderid . ' shopid (' .
                 $orderShopId . ') does not match current shopid (' .
                 $shopId . '()');
             return true;

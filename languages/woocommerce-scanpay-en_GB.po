@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-09-23 19:52+0200\n"
+"POT-Creation-Date: 2016-11-15 17:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,82 +17,26 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: includes/Gateway.php:64 includes/Gateway.php:88
-msgid "Internal serve error"
+#: includes/Gateway.php:52 includes/Gateway.php:89 includes/Gateway.php:126
+msgid "Internal server error"
 msgstr ""
 
-#: includes/Gateway.php:78
+#: includes/Gateway.php:116
 msgid "Shipping"
 msgstr ""
 
-#: includes/Gateway.php:92
-msgid "Awaiting payment"
+#: includes/Money.php:208 includes/Money.php:216
+msgid "invalid money string"
 msgstr ""
 
-#: includes/Gateway.php:109
-msgid "Enable/Disable"
+#: includes/Money.php:223
+msgid "invalid currency "
 msgstr ""
 
-#: includes/Gateway.php:111
-msgid "Enable Scanpay"
+#: includes/ScanpayClient.php:96
+msgid "missing json fields in server response"
 msgstr ""
 
-#: includes/Gateway.php:115
-msgid "Title"
-msgstr ""
-
-#: includes/Gateway.php:117
-msgid "This controls the title which the user sees during checkout."
-msgstr ""
-
-#: includes/Gateway.php:121
-msgid "Description"
-msgstr ""
-
-#: includes/Gateway.php:123
-msgid "This controls the description which the user sees during checkout."
-msgstr ""
-
-#: includes/Gateway.php:124
-msgid "Pay via Scanpay using credit card or mobile payment."
-msgstr ""
-
-#: includes/Gateway.php:127
-msgid "Language"
-msgstr ""
-
-#: includes/Gateway.php:130
-msgid "Automatic"
-msgstr ""
-
-#: includes/Gateway.php:134
-msgid ""
-"Set the payment window language. 'Automatic' allows Scanpay to choose a "
-"language based on the browser of the customer."
-msgstr ""
-
-#: includes/Gateway.php:138
-msgid "API key"
-msgstr ""
-
-#: includes/Gateway.php:140
-msgid ""
-"Copy your API key from the <a href=\"https://dashboard.scanpay.dk/settings/"
-"api\">dashboard API settings</a>."
-msgstr ""
-
-#: includes/Gateway.php:142
-msgid "Required"
-msgstr ""
-
-#: includes/Gateway.php:148
-msgid "Debug"
-msgstr ""
-
-#: includes/Gateway.php:150
-msgid "Enable error logging (<code>woocommerce/logs/scanpay.txt</code>)"
-msgstr ""
-
-#: woocommerce-scanpay.php:45
+#: woocommerce-scanpay.php:57
 msgid "Settings"
 msgstr ""

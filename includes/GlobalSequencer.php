@@ -36,7 +36,7 @@ class GlobalSequencer
     {
         global $wpdb;
         if (!is_int($shopId) || $shopId <= 0) {
-            error_log('ShopId argument is not an unsigned int');
+            scanpay_log('ShopId argument is not an unsigned int');
             return false;
         }
         $q = $wpdb->prepare("INSERT IGNORE INTO `$this->tablename`" .
@@ -48,12 +48,12 @@ class GlobalSequencer
     {
         global $wpdb;
         if (!is_int($shopId) || $shopId <= 0) {
-            error_log('ShopId argument is not an unsigned int');
+            scanpay_log('ShopId argument is not an unsigned int');
             return false;
         }
 
         if (!is_int($seq) || $seq < 0) {
-            error_log('Sequence argument is not an unsigned int');
+            scanpay_log('Sequence argument is not an unsigned int');
             return false;
         }
 

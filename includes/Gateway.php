@@ -48,7 +48,7 @@ class ScanpayGateway extends WC_Payment_Gateway
     public function process_payment($orderid)
     {
         if ($this->shopid === null) {
-            error_log('invalid api key format');
+            scanpay_log('invalid api key format');
             throw new \Exception(__('Internal server error', 'woocommerce'));
         }
 
@@ -85,7 +85,7 @@ class ScanpayGateway extends WC_Payment_Gateway
         foreach ($order->get_items('line_item') as $wooitem) {
             $itemprice = $order->get_item_total($wooitem, true);
             if ($itemprice < 0) {
-                error_log('Cannot handle negative price for item');
+                scanpay_log('Cannot handle negative price for item');
                 throw new \Exception(__('Internal server error', 'woocommerce'));
             }
 
@@ -95,7 +95,7 @@ class ScanpayGateway extends WC_Payment_Gateway
              *   $product = $order->get_product_from_item($wooitem);
              *   $variation = $product->get_child($wooitem['variation_id']);
              *   if ($variation !== false) {
-             *       error_log('fmtattr: ' . $variation->get_formatted_variation_attributes(true));
+             *       scanpay_log('fmtattr: ' . $variation->get_formatted_variation_attributes(true));
              *   }
              *}
              */
@@ -122,7 +122,7 @@ class ScanpayGateway extends WC_Payment_Gateway
         try {
             $paymenturl = $this->client->GetPaymentURL(array_filter($data), ['cardholderIP' => $_SERVER['REMOTE_ADDR']]);
         } catch (\Exception $e) {
-            error_log('scanpay client exception: ' . $e->getMessage());
+            scanpay_log('scanpay client exception: ' . $e->getMessage());
             throw new \Exception(__('Internal server error', 'woocommerce'));
         }
 
@@ -175,7 +175,7 @@ class ScanpayGateway extends WC_Payment_Gateway
             $this->sequencer->insert($this->shopid);
             $localSeqObj = $this->sequencer->load($this->shopid);
             if (!$localSeqObj) {
-                error_log('unable to load scanpay sequence number');
+                scanpay_log('unable to load scanpay sequence number');
                 return;
             }
         }

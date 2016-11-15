@@ -6,6 +6,7 @@ if (!defined('ABSPATH')) {
 
 function buildSettings($block)
 {
+    global $woocommerce_for_scanpay_logfile;
     global $woocommerce_for_scanpay_dir;
 
     ob_start();
@@ -65,8 +66,11 @@ function buildSettings($block)
         'debug' => [
         	'title'   => __( 'Debug', 'woocommerce-scanpay' ),
         	'type'    => 'checkbox',
-        	'label'   => __( 'Enable error logging (<code>woocommerce/logs/scanpay.txt</code>)', 'woocommerce-scanpay' ),
+        	'label'   => __( 'Enable error logging', 'woocommerce-scanpay' ) . "(<code>$woocommerce_for_scanpay_logfile</code>)",
         	'default' => 'yes',
+            'custom_attributes' => [
+                'disabled' => '',
+            ],
         ]
     ];
     return $form_fields;
