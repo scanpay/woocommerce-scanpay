@@ -92,8 +92,8 @@ class Client
     public function getUpdatedTransactions($seq)
     {
         $resobj = $this->req('/v1/seq/' . $seq, null, null);
-        if (!isset($resobj['seq']) || !isset($resobj['changes']) ||
-            !is_array($resobj['changes'])) {
+        if (!isset($resobj['seq']) || !is_int($resobj['seq']) ||
+            !isset($resobj['changes']) ||!is_array($resobj['changes'])) {
             throw new \Exception('missing json fields in server response');
         }
         return $resobj;
