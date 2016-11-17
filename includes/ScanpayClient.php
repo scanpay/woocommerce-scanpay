@@ -72,7 +72,7 @@ class Client
         return $resobj;
     }
 
-    public function GetPaymentURL($data, $opts = [])
+    public function getPaymentURL($data, $opts = [])
     {
         $resobj = $this->req('/v1/new', $data, $opts);
 

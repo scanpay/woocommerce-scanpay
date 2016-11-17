@@ -120,7 +120,7 @@ class ScanpayGateway extends WC_Payment_Gateway
         }
 
         try {
-            $paymenturl = $this->client->GetPaymentURL(array_filter($data), ['cardholderIP' => $_SERVER['REMOTE_ADDR']]);
+            $paymenturl = $this->client->getPaymentURL(array_filter($data), ['cardholderIP' => $_SERVER['REMOTE_ADDR']]);
         } catch (\Exception $e) {
             scanpay_log('scanpay client exception: ' . $e->getMessage());
             throw new \Exception(__('Internal server error', 'woocommerce'));
