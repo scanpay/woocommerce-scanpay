@@ -13,7 +13,7 @@ class Client
         $this->apikey = $arg['apikey'];
     }
 
-    public function req($url, $data, $opts = [])
+    protected function req($url, $data, $opts = [])
     {
         /* Create a curl request towards the api endpoint */
         $ch = curl_init('https://' . self::HOST . $url);
@@ -32,7 +32,7 @@ class Client
             'X-Shop-Plugin'       => 'woocommerce/' . $woocommerce_for_scanpay_plugin_version,
         ];
 
-        if (!isset($opts['cardholderIP'])) {
+        if (isset($opts['cardholderIP'])) {
             $headers = array_merge($headers, [ 'X-Cardholder-Ip: ' . $opts['cardholderIP'] ]);
         }
 
@@ -93,7 +93,7 @@ class Client
     {
         $resobj = $this->req('/v1/seq/' . $seq, null, null);
         if (!isset($resobj['seq']) || !isset($resobj['changes'])) {
-            throw new LocalizedException(__('missing json fields in server response'));
+            throw new \Exception('missing json fields in server response');
         }
         return $resobj;
     }
