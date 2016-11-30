@@ -74,7 +74,7 @@ class GlobalSequencer
         if (!$row) {
             return false;
         }
-        return [ 'shopid' => $row['shopid'], 'seq' => $row['seq'], 'mtime' => $row['mtime'] ];
+        return [ 'shopid' => (int)$row['shopid'], 'seq' => (int)$row['seq'], 'mtime' => (int)$row['mtime'] ];
     }
 
 }
