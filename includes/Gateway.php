@@ -151,7 +151,7 @@ class ScanpayGateway extends WC_Payment_Gateway
 
         $body = file_get_contents('php://input');
         $localSig = base64_encode(hash_hmac('sha256', $body, $this->apikey, true));
-        if ($localSig !== $_SERVER['HTTP_X_SIGNATURE']) { 
+        if (!hash_equals($localSig, $_SERVER['HTTP_X_SIGNATURE'])) { 
             wp_send_json(['error' => 'invalid signature']);
             return;
         }
