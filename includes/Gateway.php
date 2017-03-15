@@ -3,7 +3,6 @@
 if (!defined('ABSPATH')) {
     exit;
 }
-use Scanpay\Money as Money;
 
 class ScanpayGateway extends WC_Payment_Gateway
 {
@@ -103,7 +102,7 @@ class ScanpayGateway extends WC_Payment_Gateway
             $data['items'][] = [
                 'name' => $wooitem['name'],
                 'quantity' => intval($wooitem['qty']),
-                'price' => (new Money($itemprice, $order->get_order_currency()))->print(),
+                'price' => $itemprice . ' ' . $order->get_order_currency(),
                 'sku' => $wooitem['product_id'],
             ];
         }
@@ -115,7 +114,7 @@ class ScanpayGateway extends WC_Payment_Gateway
             $data['items'][] = [
                 'name' => isset($method) ? $method : __('Shipping', 'woocommerce'),
                 'quantity' => 1,
-                'price' => (new Money($shippingcost, $order->get_order_currency()))->print(),
+                'price' => $shippingcost . ' ' . $order->get_order_currency(),
             ];
         }
 
@@ -184,15 +183,13 @@ class ScanpayGateway extends WC_Payment_Gateway
         if ($localSeq === $remoteSeq) {
             $this->sequencer->updateMtime($this->shopid);
         }
-
         while ($localSeq < $remoteSeq) {
             try {
                 $resobj = $this->client->getUpdatedTransactions($localSeq);
             } catch (\Exception $e) {
-                wp_send_json('scanpay client exception: ' . $e->getMessage());
+                scanpay_log('scanpay client exception: ' . $e->getMessage());
                 return;
             }
-
             $localSeq = $resobj['seq'];
             if (!$this->orderUpdater->updateAll($this->shopid, $resobj['changes'])) {
                 wp_send_json('error updating orders with Scanpay changes');

@@ -5,12 +5,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-use Scanpay\Money as Money;
-
 class OrderUpdater
 {
     const ORDER_DATA_SHOPID = '_scanpay_shopid';
-    const ORDER_DATA_SEQ = '_scanpay_seq';
+    const ORDER_DATA_REV = '_scanpay_rev';
     const ORDER_DATA_NACTS = '_scanpay_nacts';
     const ORDER_DATA_CAPTURED = '_scanpay_captured';
     const ORDER_DATA_REFUNDED = '_scanpay_refunded';
@@ -20,15 +18,14 @@ class OrderUpdater
         return isset($data['id']) && is_int($data['id']) &&
             isset($data['totals']) && is_array($data['totals']) &&
             isset($data['totals']['authorized']) &&
-            Money::validate($data['totals']['authorized']) &&
-            isset($data['seq']) && is_int($data['seq']);
+            isset($data['rev']) && is_int($data['rev']);
     }
 
     public function update($shopId, $data)
     {
         /* Ignore errornous transactions */
         if (isset($data['error'])) {
-            scanpay_log('Received error entry in seq upater: ' . $data['error']);
+            scanpay_log('Received error entry in order updater: ' . $data['error']);
             return true;
         }
 
@@ -51,9 +48,9 @@ class OrderUpdater
             return true;
         }
 
-        $newSeq = $data['seq'];
+        $newRev = $data['rev'];
         $orderShopId = (int)get_post_meta($orderid, self::ORDER_DATA_SHOPID, true );
-        $oldSeq = (int)get_post_meta($orderid, self::ORDER_DATA_SEQ, true );
+        $oldRev = (int)get_post_meta($orderid, self::ORDER_DATA_REV, true );
 
         if ($shopId !== $orderShopId) {
             scanpay_log('Order #' . $orderid . ' shopid (' .
@@ -62,7 +59,7 @@ class OrderUpdater
             return true;
         }
 
-        if ($newSeq <= $oldSeq) {
+        if ($newRev <= $oldRev) {
             return true;
         }
 
@@ -100,25 +97,25 @@ class OrderUpdater
             }
             update_post_meta($orderid, self::ORDER_DATA_NACTS, count($data['acts']));
 
-            if (isset($data['totals']['captured']) && Money::validate($data['totals']['captured'])) {
-                $captured = (new Money($data['totals']['captured']))->number();
+            if (isset($data['totals']['captured'])) {
+                $captured = explode(' ', $data['totals']['captured'])[0];
                 update_post_meta($orderid, self::ORDER_DATA_CAPTURED, $captured);
             }
 
-            if (isset($data['totals']['refunded']) && Money::validate($data['totals']['refunded'])) {
-                $refunded = (new Money($data['totals']['refunded']))->number();
+            if (isset($data['totals']['refunded'])) {
+				$refunded = explode(' ', $data['totals']['refunded'])[0];
                 update_post_meta($orderid, self::ORDER_DATA_REFUNDED, $refunded);
             }
         }
 
-        update_post_meta($orderid, self::ORDER_DATA_SEQ, $data['seq']);
+        update_post_meta($orderid, self::ORDER_DATA_REV, $data['rev']);
         return true;
     }
 
-    public function updateAll($shopId, $dataArr)
+    public function updateAll($shopId, $changes)
     {
-        foreach ($dataArr as $data) {
-            if (!$this->update($shopId, $data)) {
+        foreach ($changes as $trn) {
+            if (!$this->update($shopId, $trn)) {
                 return false;
             }
         }
