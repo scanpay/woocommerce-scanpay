@@ -6,7 +6,7 @@ if (!defined('ABSPATH')) {
 
 class Client
 {
-    const HOST = 'api.test.scanpay.dk';
+    const HOST = 'api.scanpay.dk';
     protected $apikey;
     public function __construct($arg)
     {
