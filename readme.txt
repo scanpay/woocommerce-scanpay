@@ -3,7 +3,7 @@ Contributors: scanpay
 Tags: ecommerce, scanpay, woocommerce
 Requires at least: 4.0
 Tested up to: 4.6
-Stable tag: 0.02
+Stable tag: 0.03
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
 
@@ -24,3 +24,9 @@ Note that you must capture and refund transactions in the Scanpay dashboard.
 
 = 0.01 =
 Initial version.
+
+= 0.02 =
+Fixes.
+
+= 0.03 =
+Sku field now a string.
