@@ -103,7 +103,7 @@ class ScanpayGateway extends WC_Payment_Gateway
                 'name' => $wooitem['name'],
                 'quantity' => intval($wooitem['qty']),
                 'price' => $itemprice . ' ' . $order->get_order_currency(),
-                'sku' => $wooitem['product_id'],
+                'sku' => strval($wooitem['product_id']),
             ];
         }
 
