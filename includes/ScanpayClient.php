@@ -53,10 +53,7 @@ class Client
         curl_close($ch);
 
         if ($code !== 200) {
-            if ($code === 403) {
-                throw new \Exception('Invalid API-key');
-            }
-            throw new \Exception('Unexpected http response code: ' . $code);
+            throw new \Exception(explode("\n", $result)[0]);
         }
 
         /* Attempt to decode the json response */
