@@ -28,6 +28,7 @@ class ScanpayGateway extends WC_Payment_Gateway
         $this->language = $this->get_option('language');
         $this->apikey = $this->get_option('apikey');
         $this->pingurl = WC()->api_request_url(self::API_PING_URL);
+        $this->autocapture = $this->get_option('autocapture') === 'yes';
 
         /* Subclasses */
         $this->orderUpdater = new Scanpay\OrderUpdater();
@@ -50,13 +51,13 @@ class ScanpayGateway extends WC_Payment_Gateway
             scanpay_log('invalid api key format');
             throw new \Exception(__('Internal server error', 'woocommerce'));
         }
-
     	$order = wc_get_order($orderid);
         $data = [
-            'orderid'    => strval($orderid),
-            'language'   => $this->language,
-            'successurl' => $this->get_return_url($order),
-            'billing'    => array_filter([
+            'orderid'     => strval($orderid),
+            'language'    => $this->language,
+            'successurl'  => $this->get_return_url($order),
+            'autocapture' => (bool)$this->autocapture,
+            'billing'     => array_filter([
                 'name'    => $order->billing_first_name . ' ' . $order->billing_last_name,
                 'email'   => $order->billing_email,
                 'phone'   => preg_replace('/\s+/', '', $order->billing_phone),
@@ -69,7 +70,7 @@ class ScanpayGateway extends WC_Payment_Gateway
                 'vatin'   => '',
                 'gln'     => '',
             ]),
-            'shipping'   => array_filter([
+            'shipping'    => array_filter([
                 'name'    => $order->shipping_first_name . ' ' . $order->shipping_last_name,
                 'address' => array_filter([$order->shipping_address_1, $order->shipping_address_2]),
                 'city'    => $order->shipping_city,
@@ -117,7 +118,6 @@ class ScanpayGateway extends WC_Payment_Gateway
                 'price' => $shippingcost . ' ' . $order->get_order_currency(),
             ];
         }
-
         try {
             $paymenturl = $this->client->getPaymentURL(array_filter($data), ['cardholderIP' => $_SERVER['REMOTE_ADDR']]);
         } catch (\Exception $e) {
@@ -144,14 +144,14 @@ class ScanpayGateway extends WC_Payment_Gateway
     public function handle_pings()
     {
         if (!isset($_SERVER['HTTP_X_SIGNATURE'])) {
-            wp_send_json(['error' => 'invalid signature']);
+            wp_send_json(['error' => 'invalid signature'], 403);
             return;
         }
 
         $body = file_get_contents('php://input');
         $localSig = base64_encode(hash_hmac('sha256', $body, $this->apikey, true));
         if (!hash_equals($localSig, $_SERVER['HTTP_X_SIGNATURE'])) { 
-            wp_send_json(['error' => 'invalid signature']);
+            wp_send_json(['error' => 'invalid signature'], 403);
             return;
         }
         if ($this->shopid === null) {
@@ -162,7 +162,7 @@ class ScanpayGateway extends WC_Payment_Gateway
         /* Attempt to decode the json response */
         $jsonreq = @json_decode($body, true);
         if ($jsonreq === null) {
-            wp_send_json(['error' => 'invalid json from Scanpay server']);
+            wp_send_json(['error' => 'invalid json from Scanpay server'], 400);
             return;
         }
 
@@ -175,6 +175,7 @@ class ScanpayGateway extends WC_Payment_Gateway
             $localSeqObj = $this->sequencer->load($this->shopid);
             if (!$localSeqObj) {
                 scanpay_log('unable to load scanpay sequence number');
+                wp_send_json(['error' => 'unable to load scanpay sequence number'], 500);
                 return;
             }
         }
@@ -188,18 +189,21 @@ class ScanpayGateway extends WC_Payment_Gateway
                 $resobj = $this->client->getUpdatedTransactions($localSeq);
             } catch (\Exception $e) {
                 scanpay_log('scanpay client exception: ' . $e->getMessage());
+                wp_send_json(['error' => 'scanpay client exception: ' . $e->getMessage()], 500);
                 return;
             }
             $localSeq = $resobj['seq'];
             if (!$this->orderUpdater->updateAll($this->shopid, $resobj['changes'])) {
-                wp_send_json('error updating orders with Scanpay changes');
+                wp_send_json(['error' => 'error updating orders with Scanpay changes'], 500);
                 return;
             }
 
             if (!$this->sequencer->save($this->shopid, $localSeq)) {
+                wp_send_json(['error' => 'error saving Scanpay changes'], 500);
                 return;
             }
         }
+        wp_send_json_success();
     }
 
     /* This function is called before __construct(), and thus cannot use the definitions from there */

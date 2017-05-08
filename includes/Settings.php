@@ -63,6 +63,13 @@ function buildSettings($block)
             ],
             'css' => 'display: none;',
         ],
+        'autocapture' => [
+        	'title'   => __( 'Auto-capture', 'woocommerce-scanpay' ),
+        	'type'    => 'checkbox',
+        	'label'   => __( 'Enable auto-capture', 'woocommerce-scanpay' ),
+        	'default' => 'no',
+            'description' => __( 'Automatically capture transactions upon authorization. <i><b>Only enable this if you sell services or immaterial goods.</b></i>', 'woocommerce-scanpay' ),
+        ],
         'debug' => [
         	'title'   => __( 'Debug', 'woocommerce-scanpay' ),
         	'type'    => 'checkbox',
