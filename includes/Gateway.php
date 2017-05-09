@@ -192,16 +192,18 @@ class ScanpayGateway extends WC_Payment_Gateway
                 wp_send_json(['error' => 'scanpay client exception: ' . $e->getMessage()], 500);
                 return;
             }
-            $localSeq = $resobj['seq'];
             if (!$this->orderUpdater->updateAll($this->shopid, $resobj['changes'])) {
                 wp_send_json(['error' => 'error updating orders with Scanpay changes'], 500);
                 return;
             }
 
-            if (!$this->sequencer->save($this->shopid, $localSeq)) {
-                wp_send_json(['error' => 'error saving Scanpay changes'], 500);
-                return;
+            if (!$this->sequencer->save($this->shopid, $resobj['seq'])) {
+                if ($resobj['seq']!== $localSeq) {
+                    wp_send_json(['error' => 'error saving Scanpay changes'], 500);
+                }
+                break;
             }
+            $localSeq = $resobj['seq'];
         }
         wp_send_json_success();
     }
