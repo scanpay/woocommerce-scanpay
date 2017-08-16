@@ -7,6 +7,7 @@ if (!defined('ABSPATH')) {
 class ScanpayGateway extends WC_Payment_Gateway
 {
     const API_PING_URL = 'scanpay/ping';
+    const DASHBOARD_URL = 'https://dashboard.scanpay.dk';
     protected $apikey;
     protected $orderUpdater;
     protected $sequencer;
@@ -43,13 +44,14 @@ class ScanpayGateway extends WC_Payment_Gateway
 
         add_action('woocommerce_api_' . self::API_PING_URL, array($this, 'handle_pings'));
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
+        add_action('woocommerce_admin_order_data_after_order_details', array($this, 'display_scanpay_info'));
     }
 
     public function process_payment($orderid)
     {
         if ($this->shopid === null) {
             scanpay_log('invalid api key format');
-            throw new \Exception(__('Internal server error', 'woocommerce'));
+            throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
         }
     	$order = wc_get_order($orderid);
         $data = [
@@ -86,7 +88,7 @@ class ScanpayGateway extends WC_Payment_Gateway
             $itemprice = $order->get_item_total($wooitem, true);
             if ($itemprice < 0) {
                 scanpay_log('Cannot handle negative price for item');
-                throw new \Exception(__('Internal server error', 'woocommerce'));
+                throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
             }
 
             /*
@@ -113,7 +115,7 @@ class ScanpayGateway extends WC_Payment_Gateway
         if ($shippingcost > 0) {
             $method = $order->get_shipping_method();
             $data['items'][] = [
-                'name' => isset($method) ? $method : __('Shipping', 'woocommerce'),
+                'name' => isset($method) ? $method : __('Shipping', 'woocommerce-scanpay'),
                 'quantity' => 1,
                 'price' => $shippingcost . ' ' . $order->get_order_currency(),
             ];
@@ -122,7 +124,7 @@ class ScanpayGateway extends WC_Payment_Gateway
             $paymenturl = $this->client->getPaymentURL(array_filter($data), ['cardholderIP' => $_SERVER['REMOTE_ADDR']]);
         } catch (\Exception $e) {
             scanpay_log('scanpay client exception: ' . $e->getMessage());
-            throw new \Exception(__('Internal server error', 'woocommerce'));
+            throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
         }
 
         /* Update order */
@@ -227,5 +229,47 @@ class ScanpayGateway extends WC_Payment_Gateway
         ];
         $this->form_fields = buildSettings($block);
 	}
+
+    // display the extra data in the order admin panel
+    public function display_scanpay_info($order)
+    {
+        $shopId = get_post_meta($order->id, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, true);
+        if ($shopId === '') {
+            return;
+        }
+        $trnId = $order->get_transaction_id();
+        $cur = $order->get_currency ? $order->get_currency() :  $order->get_order_currency();
+        $auth = wc_price(get_post_meta($order->id, Scanpay\OrderUpdater::ORDER_DATA_AUTHORIZED, true), array( 'currency' => $cur));
+        $captured = wc_price(get_post_meta($order->id, Scanpay\OrderUpdater::ORDER_DATA_CAPTURED, true), array( 'currency' => $cur));
+        $refunded = wc_price(get_post_meta($order->id, Scanpay\OrderUpdater::ORDER_DATA_REFUNDED, true), array( 'currency' => $cur));
+        $trnURL = self::DASHBOARD_URL . '/' . addslashes($shopId) . '/' . addslashes($trnId);
+        ?>
+        </div>
+        <div class="order_data_column">
+            <h3><?php echo __('Scanpay Details', 'woocommerce-scanpay'); ?></h3>
+            <p>
+                <strong><?php echo __('Transaction ID', 'woocommerce-scanpay') ?>:</strong>
+                <?php echo '<a style="text-decoration:none; float:right" href="' . $trnURL . '" target="_blank">' . htmlspecialchars($trnId) ?>
+                <span class="dashicons dashicons-arrow-right-alt"></span></a>
+            </p>
+            <p>
+                <strong><?php echo __('Authorized', 'woocommerce-scanpay')?>:</strong>
+                <span style="float: right">
+                    <?php echo $auth ?>
+                    <span class="dashicons"></span>
+                </span>
+            </p>
+            <p>
+                <strong><?php echo __('Captured', 'woocommerce-scanpay')?>:</strong>
+                <?php echo '<a style="text-decoration:none; float:right" href="' . $trnURL . '/capture" target="_blank">' . $captured ?>
+                <span class="dashicons dashicons-plus-alt"></span></a>
+            <p>
+                <strong><?php echo __('Refunded', 'woocommerce-scanpay')?>:</strong>
+                <?php echo '<a style="text-decoration:none; float:right" href="' . $trnURL . '/refund" target="_blank">' . $refunded ?>
+                <span class="dashicons dashicons-dismiss"></span></a>
+            </p>
+        </div><div style="display: none">
+        <?php
+    }
 
 }

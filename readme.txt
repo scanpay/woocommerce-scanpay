@@ -3,7 +3,7 @@ Contributors: scanpay
 Tags: ecommerce, scanpay, woocommerce
 Requires at least: 4.0
 Tested up to: 4.6.1
-Stable tag: 0.04
+Stable tag: 0.05
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
 
@@ -33,3 +33,6 @@ Sku field now a string.
 
 = 0.04 =
 Autocapture option added. Improved error reporting.
+
+= 0.05 =
+Added Scanpay Details panel to orders that have been processed by Scanpay.

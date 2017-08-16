@@ -10,10 +10,12 @@ class OrderUpdater
     const ORDER_DATA_SHOPID = '_scanpay_shopid';
     const ORDER_DATA_REV = '_scanpay_rev';
     const ORDER_DATA_NACTS = '_scanpay_nacts';
+
+    const ORDER_DATA_AUTHORIZED = '_scanpay_authorized';
     const ORDER_DATA_CAPTURED = '_scanpay_captured';
     const ORDER_DATA_REFUNDED = '_scanpay_refunded';
 
-    public function dataIsValid($data)
+    private function dataIsValid($data)
     {
         return isset($data['id']) && is_int($data['id']) &&
             isset($data['totals']) && is_array($data['totals']) &&
@@ -69,6 +71,7 @@ class OrderUpdater
         if ($order->get_status() === 'pending') {
             $order->payment_complete($trnId);
             $order->add_order_note(sprintf(__('The authorized amount is %s.', 'woocommerce' ), $auth));
+            update_post_meta($orderid, self::ORDER_DATA_AUTHORIZED, explode(' ', $auth)[0]);
         }
 
         if (isset($data['acts']) && is_array($data['acts'])) {
