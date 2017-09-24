@@ -131,12 +131,6 @@ class ScanpayGateway extends WC_Payment_Gateway
     	$order->update_status('wc-pending');
         update_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, $this->shopid);
 
-    	/* Reduce stock levels */
-    	$order->reduce_order_stock();
-
-    	/* Remove cart */
-    	global $woocommerce;
-    	$woocommerce->cart->empty_cart();
     	return [
     		'result' => 'success',
     		'redirect' => $paymenturl,
@@ -238,7 +232,7 @@ class ScanpayGateway extends WC_Payment_Gateway
             return;
         }
         $trnId = $order->get_transaction_id();
-        $cur = $order->get_currency ? $order->get_currency() :  $order->get_order_currency();
+        $cur = version_compare(WC_VERSION, '3.0.0', '<') ? $order->get_order_currency() : $order->get_currency();
         $auth = wc_price(get_post_meta($order->id, Scanpay\OrderUpdater::ORDER_DATA_AUTHORIZED, true), array( 'currency' => $cur));
         $captured = wc_price(get_post_meta($order->id, Scanpay\OrderUpdater::ORDER_DATA_CAPTURED, true), array( 'currency' => $cur));
         $refunded = wc_price(get_post_meta($order->id, Scanpay\OrderUpdater::ORDER_DATA_REFUNDED, true), array( 'currency' => $cur));

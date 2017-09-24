@@ -3,7 +3,7 @@ Contributors: scanpay
 Tags: ecommerce, scanpay, woocommerce
 Requires at least: 4.0
 Tested up to: 4.6.1
-Stable tag: 0.05
+Stable tag: trunk
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
 
@@ -36,3 +36,7 @@ Autocapture option added. Improved error reporting.
 
 = 0.05 =
 Added Scanpay Details panel to orders that have been processed by Scanpay.
+
+= 0.06 =
+Cart now emptied only after payment is complete (before it was emptied at payment redirect).
+Item stocks now reduced upon first ping rather than on redirect.
