@@ -40,3 +40,6 @@ Added Scanpay Details panel to orders that have been processed by Scanpay.
 = 0.06 =
 Cart now emptied only after payment is complete (before it was emptied at payment redirect).
 Item stocks now reduced upon first ping rather than on redirect.
+
+= 0.07 =
+Fixed debug log warnings.

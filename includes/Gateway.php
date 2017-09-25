@@ -60,28 +60,30 @@ class ScanpayGateway extends WC_Payment_Gateway
             'successurl'  => $this->get_return_url($order),
             'autocapture' => (bool)$this->autocapture,
             'billing'     => array_filter([
-                'name'    => $order->billing_first_name . ' ' . $order->billing_last_name,
-                'email'   => $order->billing_email,
-                'phone'   => preg_replace('/\s+/', '', $order->billing_phone),
-                'address' => array_filter([$order->billing_address_1, $order->billing_address_2]),
-                'city'    => $order->billing_city,
-                'zip'     => $order->billing_postcode,
-                'country' => $order->billing_country,
-                'state'   => $order->billing_state,
-                'company' => $order->billing_company,
+                'name'    => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
+                'email'   => $order->get_billing_email(),
+                'phone'   => preg_replace('/\s+/', '', $order->get_billing_phone()),
+                'address' => array_filter([$order->get_billing_address_1(), $order->get_billing_address_2()]),
+                'city'    => $order->get_billing_city(),
+                'zip'     => $order->get_billing_postcode(),
+                'country' => $order->get_billing_country(),
+                'state'   => $order->get_billing_state(),
+                'company' => $order->get_billing_company(),
                 'vatin'   => '',
                 'gln'     => '',
             ]),
             'shipping'    => array_filter([
-                'name'    => $order->shipping_first_name . ' ' . $order->shipping_last_name,
-                'address' => array_filter([$order->shipping_address_1, $order->shipping_address_2]),
-                'city'    => $order->shipping_city,
-                'zip'     => $order->shipping_postcode,
-                'country' => $order->shipping_country,
-                'state'   => $order->shipping_state,
-                'company' => $order->shipping_company,
+                'name'    => $order->get_shipping_first_name() . ' ' . $order->get_shipping_last_name(),
+                'address' => array_filter([$order->get_shipping_address_1(), $order->get_shipping_address_2()]),
+                'city'    => $order->get_shipping_city(),
+                'zip'     => $order->get_shipping_postcode(),
+                'country' => $order->get_shipping_country(),
+                'state'   => $order->get_shipping_state(),
+                'company' => $order->get_shipping_company(),
             ]),
         ];
+
+        $cur = version_compare(WC_VERSION, '3.0.0', '<') ? $order->get_order_currency() : $order->get_currency();
 
         /* Add the requested items to the request data */
         foreach ($order->get_items('line_item') as $wooitem) {
@@ -105,7 +107,7 @@ class ScanpayGateway extends WC_Payment_Gateway
             $data['items'][] = [
                 'name' => $wooitem['name'],
                 'quantity' => intval($wooitem['qty']),
-                'price' => $itemprice . ' ' . $order->get_order_currency(),
+                'price' => $itemprice . ' ' . $cur,
                 'sku' => strval($wooitem['product_id']),
             ];
         }
@@ -117,7 +119,7 @@ class ScanpayGateway extends WC_Payment_Gateway
             $data['items'][] = [
                 'name' => isset($method) ? $method : __('Shipping', 'woocommerce-scanpay'),
                 'quantity' => 1,
-                'price' => $shippingcost . ' ' . $order->get_order_currency(),
+                'price' => $shippingcost . ' ' . $cur,
             ];
         }
         try {
@@ -227,15 +229,15 @@ class ScanpayGateway extends WC_Payment_Gateway
     // display the extra data in the order admin panel
     public function display_scanpay_info($order)
     {
-        $shopId = get_post_meta($order->id, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, true);
+        $shopId = get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_SHOPID, true);
         if ($shopId === '') {
             return;
         }
         $trnId = $order->get_transaction_id();
         $cur = version_compare(WC_VERSION, '3.0.0', '<') ? $order->get_order_currency() : $order->get_currency();
-        $auth = wc_price(get_post_meta($order->id, Scanpay\OrderUpdater::ORDER_DATA_AUTHORIZED, true), array( 'currency' => $cur));
-        $captured = wc_price(get_post_meta($order->id, Scanpay\OrderUpdater::ORDER_DATA_CAPTURED, true), array( 'currency' => $cur));
-        $refunded = wc_price(get_post_meta($order->id, Scanpay\OrderUpdater::ORDER_DATA_REFUNDED, true), array( 'currency' => $cur));
+        $auth = wc_price(get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_AUTHORIZED, true), array( 'currency' => $cur));
+        $captured = wc_price(get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_CAPTURED, true), array( 'currency' => $cur));
+        $refunded = wc_price(get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_REFUNDED, true), array( 'currency' => $cur));
         $trnURL = self::DASHBOARD_URL . '/' . addslashes($shopId) . '/' . addslashes($trnId);
         ?>
         </div>
