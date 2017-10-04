@@ -26,10 +26,9 @@ class Client
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
 
-        global $woocommerce_for_scanpay_plugin_version;
         $headers = [
             'Authorization: Basic ' . base64_encode($this->apikey),
-            'X-Shop-Plugin'       => 'woocommerce/' . $woocommerce_for_scanpay_plugin_version,
+            'X-Shop-Plugin'       => 'woocommerce/' . WC_SCANPAY_PLUGIN_VERSION,
         ];
 
         if (isset($opts['cardholderIP'])) {

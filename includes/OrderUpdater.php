@@ -80,11 +80,11 @@ class OrderUpdater
             $nacts = (int)get_post_meta($orderid, self::ORDER_DATA_NACTS, true);
             for ($i = $nacts; $i < count($data['acts']); $i++) {
                 $act = $data['acts'][$i];
-            	$actArgs = array(
-            		'amount'     => $act['total'],
-            		'reason'     => null,
-            		'order_id'   => $orderid,
-            	);
+                $actArgs = array(
+                    'amount'     => $act['total'],
+                    'reason'     => null,
+                    'order_id'   => $orderid,
+                );
                 switch ($act['act']) {
                 case 'capture':
                     if (isset($act['total']) && is_string($act['total'])) {
@@ -108,7 +108,7 @@ class OrderUpdater
             }
 
             if (isset($data['totals']['refunded'])) {
-				$refunded = explode(' ', $data['totals']['refunded'])[0];
+                $refunded = explode(' ', $data['totals']['refunded'])[0];
                 update_post_meta($orderid, self::ORDER_DATA_REFUNDED, $refunded);
             }
         }

@@ -32,41 +32,40 @@ if (!function_exists('get_home_path')) {
     require_once( ABSPATH . 'wp-admin/includes/file.php' );
 }
 
-$woocommerce_for_scanpay_plugin_version = get_plugin_data( __FILE__ )['Version'];
-$woocommerce_for_scanpay_dir = rtrim(plugin_dir_path(__FILE__), '/');
-$woocommerce_for_scanpay_logfile = get_home_path() . 'wp-content/scanpay-for-woocommerce.log';
+define('WC_SCANPAY_PLUGIN_VERSION', get_plugin_data( __FILE__ )['Version']);
+define('WC_SCANPAY_FOR_WOOCOMMERCE_DIR', rtrim(plugin_dir_path(__FILE__), '/'));
+define('WC_SCANPAY_FOR_WOOCOMMERCE_LOGFILE', get_home_path() . 'wp-content/scanpay-for-woocommerce.log');
+
 function scanpay_log($msg)
 {
-    global $woocommerce_for_scanpay_logfile;
     $header = date("Y-m-d H:i:s");
-    error_log($header . ' - ' . $msg . "\n", 3, $woocommerce_for_scanpay_logfile);
+    error_log($header . ' - ' . $msg . "\n", 3, WC_SCANPAY_FOR_WOOCOMMERCE_LOGFILE);
 }
 
 function initScanpay()
 {
-    global $woocommerce_for_scanpay_dir;
     load_plugin_textdomain('woocommerce-scanpay', false, plugin_basename(dirname(__FILE__)) . '/languages');
-	include_once($woocommerce_for_scanpay_dir . '/includes/Gateway.php');
-	include_once($woocommerce_for_scanpay_dir . '/includes/ScanpayClient.php');
-    include_once($woocommerce_for_scanpay_dir . '/includes/GlobalSequencer.php');
-    include_once($woocommerce_for_scanpay_dir . '/includes/OrderUpdater.php');
-    include_once($woocommerce_for_scanpay_dir . '/includes/Settings.php');
+    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/Gateway.php');
+    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/ScanpayClient.php');
+    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/GlobalSequencer.php');
+    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/OrderUpdater.php');
+    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/Settings.php');
 }
 add_action('plugins_loaded', 'initScanpay', 0);
 
 
 function addScanpayGateway($methods)
 {
-	$methods[] = 'ScanpayGateway';
-	return $methods;
+    $methods[] = 'ScanpayGateway';
+    return $methods;
 }
 add_filter('woocommerce_payment_gateways', 'addScanpayGateway');
 
 /* Add a link to settings in the plugin overview */
 function addScanpayPluginLinks($links)
 {
-	$mylinks [] ='<a href="'.admin_url('admin.php?page=wc-settings&tab=checkout&section=scanpay' ) . '">' . __( 'Settings', 'woocommerce-scanpay' ) . '</a>';
-	// Merge our new link with the default ones
-	return array_merge($mylinks, $links);
+    $mylinks [] ='<a href="'.admin_url('admin.php?page=wc-settings&tab=checkout&section=scanpay' ) . '">' . __( 'Settings', 'woocommerce-scanpay' ) . '</a>';
+    // Merge our new link with the default ones
+    return array_merge($mylinks, $links);
 }
 add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'addScanpayPluginLinks');

@@ -53,7 +53,7 @@ class ScanpayGateway extends WC_Payment_Gateway
             scanpay_log('invalid api key format');
             throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
         }
-    	$order = wc_get_order($orderid);
+        $order = wc_get_order($orderid);
         $data = [
             'orderid'     => strval($orderid),
             'language'    => $this->language,
@@ -130,12 +130,12 @@ class ScanpayGateway extends WC_Payment_Gateway
         }
 
         /* Update order */
-    	$order->update_status('wc-pending');
+        $order->update_status('wc-pending');
         update_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, $this->shopid);
 
-    	return [
-    		'result' => 'success',
-    		'redirect' => $paymenturl,
+        return [
+            'result' => 'success',
+            'redirect' => $paymenturl,
         ];
     }
 
@@ -207,7 +207,7 @@ class ScanpayGateway extends WC_Payment_Gateway
     }
 
     /* This function is called before __construct(), and thus cannot use the definitions from there */
-	public function init_form_fields()
+    public function init_form_fields()
     {
         $localSeqObj;
         $apikey = $this->get_option('apikey');
@@ -224,7 +224,7 @@ class ScanpayGateway extends WC_Payment_Gateway
             'lastpingtime'  => $localSeqObj['mtime'],
         ];
         $this->form_fields = buildSettings($block);
-	}
+    }
 
     // display the extra data in the order admin panel
     public function display_scanpay_info($order)

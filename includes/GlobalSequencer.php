@@ -14,13 +14,13 @@ class GlobalSequencer
         global $wpdb;
         $this->tablename = $wpdb->prefix . 'woocommerce_scanpay_seq';
         if ($wpdb->get_var("SHOW TABLES LIKE '$this->tablename'") != $this->tablename) {
-        	$sql = "CREATE TABLE $this->tablename (
-        		shopid BIGINT UNSIGNED NOT NULL PRIMARY KEY UNIQUE COMMENT 'Shop Id',
-        		seq BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Scanpay Events Sequence Number',
+            $sql = "CREATE TABLE $this->tablename (
+                shopid BIGINT UNSIGNED NOT NULL PRIMARY KEY UNIQUE COMMENT 'Shop Id',
+                seq BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Scanpay Events Sequence Number',
                 mtime BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Modification Time'
-        	) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;";
-        	require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        	dbDelta($sql);
+            ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;";
+            require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+            dbDelta($sql);
         }
     }
 
