@@ -1,6 +1,9 @@
 SRCS=\
 	includes/Gateway.php\
+	includes/OrderUpdater.php\
 	includes/ScanpayClient.php\
+	includes/Settings.php\
+	includes/gateways/Mobilepay.php\
 	woocommerce-scanpay.php\
 
 LANGS=\
