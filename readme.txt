@@ -43,3 +43,6 @@ Item stocks now reduced upon first ping rather than on redirect.
 
 = 0.07 =
 Fixed debug log warnings.
+
+= 0.09 =
+Added MobilePay support.
