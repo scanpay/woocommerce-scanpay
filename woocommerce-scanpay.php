@@ -50,15 +50,21 @@ function initScanpay()
     include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/GlobalSequencer.php');
     include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/OrderUpdater.php');
     include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/Settings.php');
+
+    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/gateways/Parent.php');
+    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/gateways/Mobilepay.php');
+
 }
 add_action('plugins_loaded', 'initScanpay', 0);
 
 
 function addScanpayGateway($methods)
 {
-    $methods[] = 'ScanpayGateway';
+    $methods[] = 'WC_Scanpay';
+    $methods[] = 'WC_Scanpay_Mobilepay';
     return $methods;
 }
+
 add_filter('woocommerce_payment_gateways', 'addScanpayGateway');
 
 /* Add a link to settings in the plugin overview */

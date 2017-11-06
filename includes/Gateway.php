@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class ScanpayGateway extends WC_Payment_Gateway
+class WC_Scanpay extends WC_Payment_Gateway
 {
     const API_PING_URL = 'scanpay/ping';
     const DASHBOARD_URL = 'https://dashboard.scanpay.dk';
@@ -13,7 +13,7 @@ class ScanpayGateway extends WC_Payment_Gateway
     protected $sequencer;
     protected $client;
 
-    public function __construct()
+    public function __construct($extended = false)
     {
         /* Set WC_Payment_Gateway parameters */
         $this->id = 'scanpay';
@@ -21,9 +21,15 @@ class ScanpayGateway extends WC_Payment_Gateway
         $this->has_fields = false;
         $this->method_title = 'Scanpay';
         $this->method_description = 'Scanpay is a Nordic based payment gateway offering card and mobile based payment.';
-        /* Call the required WC_Payment_Gateway functions */
+
+
         $this->init_form_fields();
         $this->init_settings();
+        /* Call the required WC_Payment_Gateway functions */
+        if (!$extended && is_admin()) {
+            add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
+        }
+
         $this->title = $this->get_option('title');
         $this->description = $this->get_option('description');
         $this->language = $this->get_option('language');
@@ -43,7 +49,6 @@ class ScanpayGateway extends WC_Payment_Gateway
         }
 
         add_action('woocommerce_api_' . self::API_PING_URL, array($this, 'handle_pings'));
-        add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
         add_action('woocommerce_admin_order_data_after_order_details', array($this, 'display_scanpay_info'));
     }
 
