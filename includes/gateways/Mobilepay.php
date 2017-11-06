@@ -17,10 +17,8 @@ class WC_Scanpay_Mobilepay extends WC_Scanpay_Parent
     public function process_payment($orderid)
     {
         $obj = parent::process_payment($orderid);
-        return [
-            'result' => 'success',
-            'redirect' => $paymenturl . '?go=mobilepay',
-        ];
+        $obj['redirect'] .= '?go=mobilepay';
+        return $obj;
     }
 
     function init_form_fields()
