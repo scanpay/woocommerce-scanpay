@@ -28,6 +28,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         /* Call the required WC_Payment_Gateway functions */
         if (!$extended && is_admin()) {
             add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
+            add_action('woocommerce_admin_order_data_after_order_details', array($this, 'display_scanpay_info'));
         }
 
         $this->title = $this->get_option('title');
@@ -49,7 +50,6 @@ class WC_Scanpay extends WC_Payment_Gateway
         }
 
         add_action('woocommerce_api_' . self::API_PING_URL, array($this, 'handle_pings'));
-        add_action('woocommerce_admin_order_data_after_order_details', array($this, 'display_scanpay_info'));
     }
 
     public function process_payment($orderid)

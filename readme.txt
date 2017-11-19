@@ -46,3 +46,6 @@ Fixed debug log warnings.
 
 = 0.09 =
 Added MobilePay support.
+
+= 0.10 =
+Fixed double Scanpay order display.
