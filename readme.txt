@@ -49,3 +49,6 @@ Added MobilePay support.
 
 = 0.10 =
 Fixed double Scanpay order display.
+
+= 0.11 =
+Now uses item line total instead of item price for Scanpay API.

@@ -27,6 +27,7 @@ class WC_Scanpay_Mobilepay extends WC_Scanpay_Parent
             'enabled' => [
                 'title'   => __( 'Enable/Disable', 'woocommerce-scanpay' ),
                 'type'    => 'checkbox',
+                'description' => __( 'This controls whether MobilePay is shown in checkout. You MUST enable MobilePay in the Scanpay dashboard for this to work.' ),
                 'label'   => __( 'Enable MobilePay', 'woocommerce-scanpay' ),
                 'default' => 'yes',
             ],

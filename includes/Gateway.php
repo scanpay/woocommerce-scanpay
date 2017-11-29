@@ -92,8 +92,8 @@ class WC_Scanpay extends WC_Payment_Gateway
 
         /* Add the requested items to the request data */
         foreach ($order->get_items('line_item') as $wooitem) {
-            $itemprice = $order->get_item_total($wooitem, true);
-            if ($itemprice < 0) {
+            $itemtotal = $order->get_line_total($wooitem, true);
+            if ($itemtotal < 0) {
                 scanpay_log('Cannot handle negative price for item');
                 throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
             }
@@ -112,7 +112,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             $data['items'][] = [
                 'name' => $wooitem['name'],
                 'quantity' => intval($wooitem['qty']),
-                'price' => $itemprice . ' ' . $cur,
+                'total' => $itemtotal . ' ' . $cur,
                 'sku' => strval($wooitem['product_id']),
             ];
         }
@@ -124,7 +124,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             $data['items'][] = [
                 'name' => isset($method) ? $method : __('Shipping', 'woocommerce-scanpay'),
                 'quantity' => 1,
-                'price' => $shippingcost . ' ' . $cur,
+                'total' => $shippingcost . ' ' . $cur,
             ];
         }
         try {

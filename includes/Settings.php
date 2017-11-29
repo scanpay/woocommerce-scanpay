@@ -15,14 +15,15 @@ function buildSettings($block)
         'enabled' => [
             'title'   => __( 'Enable/Disable', 'woocommerce-scanpay' ),
             'type'    => 'checkbox',
-            'label'   => __( 'Enable Scanpay', 'woocommerce-scanpay' ),
+            'label'   => __( 'Enable Card Payments', 'woocommerce-scanpay' ),
+            'description' => __( 'This controls whether Scanpay debit/credit card payment is shown in checkout.<br>Set up an acquirer in the Scanpay dashboard for this to work.' ),
             'default' => 'yes',
         ],
         'title' => [
             'title'       => __( 'Title', 'woocommerce-scanpay' ),
             'type'        => 'text',
             'description' => __( 'This controls the title which the user sees during checkout.', 'woocommerce-scanpay' ),
-            'default'     => 'Scanpay',
+            'default'     => 'Credit Card / Debit Card',
         ],
         'description' => [
             'title'       => __( 'Description', 'woocommerce-scanpay' ),
