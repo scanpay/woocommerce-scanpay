@@ -52,3 +52,6 @@ Fixed double Scanpay order display.
 
 = 0.11 =
 Now uses item line total instead of item price for Scanpay API.
+
+= 0.12 =
+Fixed double stock reduction.
