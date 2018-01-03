@@ -72,8 +72,6 @@ class OrderUpdater
             $order->payment_complete($trnId);
             $order->add_order_note(sprintf(__('The authorized amount is %s.', 'woocommerce' ), $auth));
             update_post_meta($orderid, self::ORDER_DATA_AUTHORIZED, explode(' ', $auth)[0]);
-            /* Reduce stock levels */
-            version_compare(WC_VERSION, '3.0.0', '<') ? $order->reduce_order_stock() : wc_reduce_stock_levels($orderid);
         }
 
         if (isset($data['acts']) && is_array($data['acts'])) {
