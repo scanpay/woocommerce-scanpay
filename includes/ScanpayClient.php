@@ -28,7 +28,7 @@ class Client
 
         $headers = [
             'Authorization: Basic ' . base64_encode($this->apikey),
-            'X-Shop-Plugin'       => 'woocommerce/' . WC_SCANPAY_PLUGIN_VERSION,
+            'X-Shop-Plugin: woocommerce/' . WC_SCANPAY_PLUGIN_VERSION,
         ];
 
         if (isset($opts['cardholderIP'])) {

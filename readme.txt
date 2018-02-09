@@ -2,7 +2,7 @@
 Contributors: scanpay
 Tags: ecommerce, scanpay, woocommerce
 Requires at least: 4.0
-Tested up to: 4.6.1
+Tested up to: 4.9.4
 Stable tag: trunk
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
@@ -55,3 +55,6 @@ Now uses item line total instead of item price for Scanpay API.
 
 = 0.12 =
 Fixed double stock reduction.
+
+= 1.0.0 =
+Updated version compatibility.

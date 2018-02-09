@@ -203,6 +203,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             if (!$this->sequencer->save($this->shopid, $resobj['seq'])) {
                 if ($resobj['seq']!== $localSeq) {
                     wp_send_json(['error' => 'error saving Scanpay changes'], 500);
+                    return;
                 }
                 break;
             }
