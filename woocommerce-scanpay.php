@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
 }
 
 if (!in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
-    exit;
+    return;
 }
 
 if (!function_exists('get_plugins')) {
