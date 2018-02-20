@@ -58,3 +58,6 @@ Fixed double stock reduction.
 
 = 1.0.0 =
 Updated version compatibility.
+
+= 1.0.2 =
+No longer exits if woocommerce is disabled.
