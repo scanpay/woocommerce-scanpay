@@ -61,3 +61,6 @@ Updated version compatibility.
 
 = 1.0.2 =
 No longer exits if woocommerce is disabled.
+
+= 1.0.3 =
+Added 'woocommerce_scanpay_newurl_data' filter to allow plugins to customize payment link parameters.
