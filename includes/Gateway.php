@@ -127,6 +127,7 @@ class WC_Scanpay extends WC_Payment_Gateway
                 'total' => $shippingcost . ' ' . $cur,
             ];
         }
+        $data = apply_filters('woocommerce_scanpay_newurl_data', $data);
         try {
             $paymenturl = $this->client->getPaymentURL(array_filter($data), ['cardholderIP' => $_SERVER['REMOTE_ADDR']]);
         } catch (\Exception $e) {
