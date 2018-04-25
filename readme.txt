@@ -64,3 +64,6 @@ No longer exits if woocommerce is disabled.
 
 = 1.0.3 =
 Added 'woocommerce_scanpay_newurl_data' filter to allow plugins to customize payment link parameters.
+
+= 1.0.4 =
+Item fees are now considered.

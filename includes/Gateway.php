@@ -110,10 +110,24 @@ class WC_Scanpay extends WC_Payment_Gateway
              */
 
             $data['items'][] = [
-                'name' => $wooitem['name'],
+                'name' => $wooitem->get_name(),
                 'quantity' => intval($wooitem['qty']),
                 'total' => $itemtotal . ' ' . $cur,
                 'sku' => strval($wooitem['product_id']),
+            ];
+        }
+
+        /* Add fees */
+        foreach ($order->get_items('fee') as $wooitem) {
+            $itemtotal = $wooitem->get_total();
+            if ($itemtotal < 0) {
+                scanpay_log('Cannot handle negative price for fee');
+                throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
+            }
+            $data['items'][] = [
+                'name' => $wooitem->get_name(),
+                'quantity' => 1,
+                'total' => $itemtotal . ' ' . $cur,
             ];
         }
 
@@ -154,7 +168,7 @@ class WC_Scanpay extends WC_Payment_Gateway
 
         $body = file_get_contents('php://input');
         $localSig = base64_encode(hash_hmac('sha256', $body, $this->apikey, true));
-        if (!hash_equals($localSig, $_SERVER['HTTP_X_SIGNATURE'])) { 
+        if (!hash_equals($localSig, $_SERVER['HTTP_X_SIGNATURE'])) {
             wp_send_json(['error' => 'invalid signature'], 403);
             return;
         }

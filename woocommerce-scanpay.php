@@ -3,7 +3,7 @@
  * Plugin Name: Scanpay for Woocommerce
  * Plugin URI: https://wordpress.org/plugins/scanpay-for-woocommerce/
  * Description: Provides a Scanpay payment method for Woocommerce checkout.
- * Version: 1.0.3
+ * Version: 1.0.4
  * Author: Scanpay
  * Author URI: https://scanpay.dk
  * Developer: Christian Thorseth Blach
