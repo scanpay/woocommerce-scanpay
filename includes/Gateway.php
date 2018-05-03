@@ -6,7 +6,7 @@ if (!defined('ABSPATH')) {
 
 class WC_Scanpay extends WC_Payment_Gateway
 {
-    const API_PING_URL = 'scanpay/ping';
+    const API_PING_URL = 'wc_scanpay';
     const DASHBOARD_URL = 'https://dashboard.scanpay.dk';
     protected $apikey;
     protected $orderUpdater;
@@ -49,7 +49,10 @@ class WC_Scanpay extends WC_Payment_Gateway
             $this->shopid = null;
         }
 
-        add_action('woocommerce_api_' . self::API_PING_URL, array($this, 'handle_pings'));
+        /* Support for legacy ping url format */
+        add_action('woocommerce_api_' . 'scanpay/ping', [$this, 'handle_pings']);
+        /* New ping url format */
+        add_action('woocommerce_api_' . self::API_PING_URL, [$this, 'handle_pings']);
     }
 
     public function process_payment($orderid)
