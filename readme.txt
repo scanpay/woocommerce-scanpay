@@ -2,7 +2,7 @@
 Contributors: scanpay
 Tags: ecommerce, scanpay, woocommerce
 Requires at least: 4.0
-Tested up to: 4.9.4
+Tested up to: 4.9.5
 Stable tag: trunk
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
@@ -22,48 +22,51 @@ Note that you must capture and refund transactions in the Scanpay dashboard.
 
 == Changelog ==
 
-= 0.01 =
-Initial version.
+= 1.0.5 =
+Added new ping endpoint to remove slashes, kept support for old one.
 
-= 0.02 =
-Fixes.
+= 1.0.4 =
+Item fees are now considered.
 
-= 0.03 =
-Sku field now a string.
+= 1.0.3 =
+Added 'woocommerce_scanpay_newurl_data' filter to allow plugins to customize payment link parameters.
 
-= 0.04 =
-Autocapture option added. Improved error reporting.
+= 1.0.2 =
+No longer exits if woocommerce is disabled.
 
-= 0.05 =
-Added Scanpay Details panel to orders that have been processed by Scanpay.
+= 1.0.0 =
+Updated version compatibility.
+
+= 0.12 =
+Fixed double stock reduction.
+
+= 0.11 =
+Now uses item line total instead of item price for Scanpay API.
+
+= 0.10 =
+Fixed double Scanpay order display.
+
+= 0.09 =
+Added MobilePay support.
+
+= 0.07 =
+Fixed debug log warnings.
 
 = 0.06 =
 Cart now emptied only after payment is complete (before it was emptied at payment redirect).
 Item stocks now reduced upon first ping rather than on redirect.
 
-= 0.07 =
-Fixed debug log warnings.
+= 0.05 =
+Added Scanpay Details panel to orders that have been processed by Scanpay.
 
-= 0.09 =
-Added MobilePay support.
+= 0.04 =
+Autocapture option added. Improved error reporting.
 
-= 0.10 =
-Fixed double Scanpay order display.
+= 0.03 =
+Sku field now a string.
 
-= 0.11 =
-Now uses item line total instead of item price for Scanpay API.
+= 0.02 =
+Fixes.
 
-= 0.12 =
-Fixed double stock reduction.
-
-= 1.0.0 =
-Updated version compatibility.
-
-= 1.0.2 =
-No longer exits if woocommerce is disabled.
-
-= 1.0.3 =
-Added 'woocommerce_scanpay_newurl_data' filter to allow plugins to customize payment link parameters.
-
-= 1.0.4 =
-Item fees are now considered.
+= 0.01 =
+Initial version.
