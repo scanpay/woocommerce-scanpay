@@ -2,7 +2,7 @@
 Contributors: scanpay
 Tags: ecommerce, scanpay, woocommerce
 Requires at least: 4.0
-Tested up to: 4.9.5
+Tested up to: 4.9.6
 Stable tag: trunk
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
@@ -21,6 +21,9 @@ Note that you must capture and refund transactions in the Scanpay dashboard.
 3. Use the Settings->Plugin Name screen to configure the plugin with a valid API-key.
 
 == Changelog ==
+
+= 1.0.6 =
+Updated supported wordpress/woocommerce versions.
 
 = 1.0.5 =
 Added new ping endpoint to remove slashes, kept support for old one.
