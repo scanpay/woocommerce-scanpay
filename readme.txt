@@ -19,8 +19,12 @@ Note that you must capture and refund transactions in the Scanpay dashboard.
 1. Upload the plugin files to the `/wp-content/plugins/woocommerce-scanpay` directory, or install the plugin through the WordPress plugins screen directly.
 2. Activate the plugin through the 'Plugins' screen in WordPress
 3. Use the Settings->Plugin Name screen to configure the plugin with a valid API-key.
+4. Copy the ping URL from the Scanpay plugin settings to your Scanpay dasboard API settings.
 
 == Changelog ==
+
+= 1.0.8 =
+Added tax to item fees.
 
 = 1.0.7 =
 Verified to work with woocommerce 3.5.0.

@@ -122,7 +122,7 @@ class WC_Scanpay extends WC_Payment_Gateway
 
         /* Add fees */
         foreach ($order->get_items('fee') as $wooitem) {
-            $itemtotal = $wooitem->get_total();
+            $itemtotal = $wooitem->get_total() + $wooitem->get_total_tax();
             if ($itemtotal < 0) {
                 scanpay_log('Cannot handle negative price for fee');
                 throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
