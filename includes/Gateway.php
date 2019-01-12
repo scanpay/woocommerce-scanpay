@@ -145,6 +145,29 @@ class WC_Scanpay extends WC_Payment_Gateway
             ];
         }
         $data = apply_filters('woocommerce_scanpay_newurl_data', $data);
+
+        /* Compensate if total hook is used which makes total differ from sum of items */
+        $itemtotal = 0;
+        foreach ($data['items'] as $item) {
+            /* Exploit that PHP only considers prefixed numbers in addition */
+            $itemtotal += $item['total'];
+        }
+        $woototal = (float)$order->order_total;
+        if ($itemtotal !== $woototal) {
+            unset($data['items']);
+            if ($grandtotal < $woototal) {
+                $data['items'][] = [
+                    'name' => 'Discounted cart',
+                    'total' => $woototal . ' ' . $cur,
+                ];
+            } else {
+                $data['items'][] = [
+                    'name' => 'Cart with increased price',
+                    'total' => $woototal. ' ' . $cur,
+                ];
+            }
+        }
+
         try {
             $paymenturl = $this->client->getPaymentURL(array_filter($data), ['cardholderIP' => $_SERVER['REMOTE_ADDR']]);
         } catch (\Exception $e) {
@@ -155,7 +178,6 @@ class WC_Scanpay extends WC_Payment_Gateway
         /* Update order */
         $order->update_status('wc-pending');
         update_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, $this->shopid);
-
         return [
             'result' => 'success',
             'redirect' => $paymenturl,

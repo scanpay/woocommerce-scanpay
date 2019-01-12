@@ -3,18 +3,18 @@
  * Plugin Name: Scanpay for Woocommerce
  * Plugin URI: https://wordpress.org/plugins/scanpay-for-woocommerce/
  * Description: Provides a Scanpay payment method for Woocommerce checkout.
- * Version: 1.0.8
+ * Version: 1.0.9
  * Author: Scanpay
  * Author URI: https://scanpay.dk
  * Developer: Christian Thorseth Blach
  * Text Domain: woocommerce-extension
  * Domain Path: /languages
  *
- * Copyright: © 2018 Scanpay.
+ * Copyright: © 2019 Scanpay.
  * License: MIT License
  * License URI: https://opensource.org/licenses/MIT
  * WC requires at least: 3.0.0
- * WC tested up to: 3.5.1
+ * WC tested up to: 3.5.3
  */
 
 // Exit if accessed directly

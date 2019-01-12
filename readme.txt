@@ -2,7 +2,7 @@
 Contributors: scanpay
 Tags: ecommerce, scanpay, woocommerce
 Requires at least: 4.0
-Tested up to: 4.9.8
+Tested up to: 5.0.2
 Stable tag: trunk
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
@@ -22,6 +22,9 @@ Note that you must capture and refund transactions in the Scanpay dashboard.
 4. Copy the ping URL from the Scanpay plugin settings to your Scanpay dasboard API settings.
 
 == Changelog ==
+
+= 1.0.9 =
+Added support for hooks changing total. This will make coupon plugins that modifies the grand total also change the actualy paid amount.
 
 = 1.0.8 =
 Added tax to item fees.
