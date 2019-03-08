@@ -152,18 +152,17 @@ class WC_Scanpay extends WC_Payment_Gateway
             /* Exploit that PHP only considers prefixed numbers in addition */
             $itemtotal += $item['total'];
         }
-        $woototal = (float)$order->order_total;
-        if ($itemtotal !== $woototal) {
+        if ($itemtotal != $order->order_total) {
             unset($data['items']);
-            if ($grandtotal < $woototal) {
+            if ($itemtotal > $order->order_total) {
                 $data['items'][] = [
                     'name' => 'Discounted cart',
-                    'total' => $woototal . ' ' . $cur,
+                    'total' => $order->order_total . ' ' . $cur,
                 ];
             } else {
                 $data['items'][] = [
                     'name' => 'Cart with increased price',
-                    'total' => $woototal. ' ' . $cur,
+                    'total' => $order->order_total . ' ' . $cur,
                 ];
             }
         }

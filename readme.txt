@@ -23,6 +23,9 @@ Note that you must capture and refund transactions in the Scanpay dashboard.
 
 == Changelog ==
 
+= 1.0.10 =
+Fixed some cases where the code added in 1.0.9 would kick in when it should not.
+
 = 1.0.9 =
 Added support for hooks changing total. This will make coupon plugins that modifies the grand total also change the actualy paid amount.
 
