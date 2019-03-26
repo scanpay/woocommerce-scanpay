@@ -54,7 +54,7 @@ function buildSettings($block)
         ],
         'pingurl' => [
             'title'             => __( 'Ping URL', 'woocommerce-scanpay' ),
-            'description'       => $pingUrlContent . __( 'This is the URL Scanpay can use to notify Magento of changes in transaction status.', 'woocommerce-scanpay' ),
+            'description'       => $pingUrlContent . __( 'This is the URL Scanpay can use to notify Woocommerce of changes in transaction status.', 'woocommerce-scanpay' ),
             'default'           => 'sdsd',
             'custom_attributes' => [
                 'disabled' => '',

@@ -94,7 +94,7 @@ $pingdt_desc = fmtDeltaTime($pingdt);
           <td style="padding: 0">
             <div style="font-size: 15px; font-weight: 600;">Warning!</div>
             <div style="font-size: 13px;">
-              Received last ping <?php echo $pingdt_desc ?>, please check that the URL above matches the URL set in
+              Received last ping <?php echo $pingdt_desc ?>, please check that the URL below matches the URL set in
               <a href="https://dashboard.scanpay.dk/settings/api">Scanpay dashboard</a>.
             </div>
           </td>
@@ -108,7 +108,7 @@ $pingdt_desc = fmtDeltaTime($pingdt);
           <td style="padding: 0">
             <div style="font-size: 15px; font-weight: 600;">Error!</div>
             <div style="font-size: 13px;">
-              Received last ping <?php echo $pingdt_desc ?>, please check that the URL above matches the URL set in
+              Received last ping <?php echo $pingdt_desc ?>, please check that the URL below matches the URL set in
               <a href="https://dashboard.scanpay.dk/settings/api">Scanpay dashboard</a>
               and check your error logs.</div>
           </td>
@@ -122,7 +122,7 @@ $pingdt_desc = fmtDeltaTime($pingdt);
           <td style="padding: 0">
             <div style="font-size: 15px; font-weight: 600;">Awaiting pings!</div>
             <div style="font-size: 13px;">
-              Never received any pings from Scanpay, please check that the URL above matches the URL set in
+              Never received any pings from Scanpay, please check that the URL below matches the URL set in
               <a href="https://dashboard.scanpay.dk/settings/api">Scanpay dashboard</a>
               and check your error logs.
             </div>
@@ -134,4 +134,3 @@ $pingdt_desc = fmtDeltaTime($pingdt);
   <textarea style="cursor: pointer; background-color: white" rows="2" cols="46" onfocus="this.select()" readonly><?php echo $block['pingurl'] ?></textarea>
 </div>
 <p>
-    
