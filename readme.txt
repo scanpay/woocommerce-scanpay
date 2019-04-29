@@ -2,7 +2,7 @@
 Contributors: scanpay
 Tags: ecommerce, scanpay, woocommerce
 Requires at least: 4.0
-Tested up to: 5.0.2
+Tested up to: 5.2
 Stable tag: trunk
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
