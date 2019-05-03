@@ -8,6 +8,7 @@ class WC_Scanpay extends WC_Payment_Gateway
 {
     const API_PING_URL = 'wc_scanpay';
     const DASHBOARD_URL = 'https://dashboard.scanpay.dk';
+    protected $shopid;
     protected $apikey;
     protected $orderUpdater;
     protected $sequencer;
@@ -41,18 +42,22 @@ class WC_Scanpay extends WC_Payment_Gateway
         /* Subclasses */
         $this->orderUpdater = new Scanpay\OrderUpdater();
         $this->sequencer = new Scanpay\GlobalSequencer();
-        $this->client = new Scanpay\Client(['apikey' => $this->apikey]);
-        $shopId = explode(':', $this->apikey)[0];
-        if (ctype_digit($shopId)) {
-            $this->shopid = (int)$shopId;
+        $this->client = new Scanpay\Scanpay($this->apikey);
+        $shopid = explode(':', $this->apikey)[0];
+        if (ctype_digit($shopid)) {
+            $this->shopid = (int)$shopid;
         } else {
             $this->shopid = null;
         }
+        $this->supports('products', 'subscriptions');
 
         /* Support for legacy ping url format */
         add_action('woocommerce_api_' . 'scanpay/ping', [$this, 'handle_pings']);
         /* New ping url format */
         add_action('woocommerce_api_' . self::API_PING_URL, [$this, 'handle_pings']);
+        /* Subscription charge hook */
+        add_action('woocommerce_scheduled_subscription_payment_' . $this->id,
+                   [$this, 'scheduled_subscription_payment'], 10, 2);
     }
 
     public function process_payment($orderid)
@@ -144,6 +149,15 @@ class WC_Scanpay extends WC_Payment_Gateway
                 'total' => $shippingcost . ' ' . $cur,
             ];
         }
+
+        /* Handle subscriptions */
+        if (class_exists('WC_Subscriptions_Order') && wcs_order_contains_subscription($orderid)) {
+            assert(!isset($data['items']));
+            $data['subscriber'] = [
+                'ref' => $orderid,
+            ];
+        }
+
         $data = apply_filters('woocommerce_scanpay_newurl_data', $data);
 
         /* Compensate if total hook is used which makes total differ from sum of items */
@@ -167,8 +181,14 @@ class WC_Scanpay extends WC_Payment_Gateway
             }
         }
 
+        $opts = [
+            'headers' => [
+                'cardholderIP' => $_SERVER['REMOTE_ADDR'],
+            ],
+        ];
+
         try {
-            $paymenturl = $this->client->getPaymentURL(array_filter($data), ['cardholderIP' => $_SERVER['REMOTE_ADDR']]);
+            $paymenturl = $this->client->newURL(array_filter($data), $opts);
         } catch (\Exception $e) {
             scanpay_log('scanpay client exception: ' . $e->getMessage());
             throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
@@ -176,11 +196,48 @@ class WC_Scanpay extends WC_Payment_Gateway
 
         /* Update order */
         $order->update_status('wc-pending');
-        update_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, $this->shopid);
+        update_post_meta($orderid, Scanpay\EntUpdater::ORDER_DATA_SHOPID, $this->shopid);
         return [
             'result' => 'success',
             'redirect' => $paymenturl,
         ];
+    }
+
+    private function seq($local_seq = null) {
+        if ($local_seq === null) {
+            $local_seqobj = $this->sequencer->load($this->shopid);
+            if (!$local_seqobj) {
+                $this->sequencer->insert($this->shopid);
+                $local_seqobj = $this->sequencer->load($this->shopid);
+                if (!$local_seqobj) {
+                    return 'unable to load scanpay sequence number';
+                }
+            }
+            $local_seq = $local_seqobj['seq'];
+        }
+
+        while (1) {
+            try {
+                $resobj = $this->client->seq($local_seq);
+            } catch (\Exception $e) {
+                return 'scanpay client exception: ' . $e->getMessage();
+            }
+            if (count($resobj['changes']) == 0) {
+                break;
+            }
+            if (!$this->orderUpdater->update_all($this->shopid, $resobj['changes'])) {
+                return 'error updating orders with Scanpay changes';
+            }
+            $r = $this->sequencer->save($this->shopid, $resobj['seq']);
+            if (!$r) {
+                if ($r == false) {
+                    return 'error saving Scanpay changes';
+                }
+                break;
+            }
+            $local_seq = $resobj['seq'];
+        }
+        return '';
     }
 
     public function handle_pings()
@@ -191,8 +248,8 @@ class WC_Scanpay extends WC_Payment_Gateway
         }
 
         $body = file_get_contents('php://input');
-        $localSig = base64_encode(hash_hmac('sha256', $body, $this->apikey, true));
-        if (!hash_equals($localSig, $_SERVER['HTTP_X_SIGNATURE'])) {
+        $localsig = base64_encode(hash_hmac('sha256', $body, $this->apikey, true));
+        if (!hash_equals($localsig, $_SERVER['HTTP_X_SIGNATURE'])) {
             wp_send_json(['error' => 'invalid signature'], 403);
             return;
         }
@@ -209,44 +266,29 @@ class WC_Scanpay extends WC_Payment_Gateway
         }
 
         if (!isset($jsonreq['seq']) || !is_int($jsonreq['seq'])) { return; }
-        $remoteSeq = $jsonreq['seq'];
-
-        $localSeqObj = $this->sequencer->load($this->shopid);
-        if (!$localSeqObj) {
+        $remote_seq = $jsonreq['seq'];
+        $local_seqobj = $this->sequencer->load($this->shopid);
+        if (!$local_seqobj) {
             $this->sequencer->insert($this->shopid);
-            $localSeqObj = $this->sequencer->load($this->shopid);
-            if (!$localSeqObj) {
+            $local_seqobj = $this->sequencer->load($this->shopid);
+            if (!$local_seqobj) {
                 scanpay_log('unable to load scanpay sequence number');
                 wp_send_json(['error' => 'unable to load scanpay sequence number'], 500);
                 return;
             }
         }
 
-        $localSeq = $localSeqObj['seq'];
-        if ($localSeq === $remoteSeq) {
+        $local_seq = $local_seqobj['seq'];
+        if ($local_seq >= $remote_seq) {
             $this->sequencer->updateMtime($this->shopid);
+            wp_send_json_success();
+            return;
         }
-        while ($localSeq < $remoteSeq) {
-            try {
-                $resobj = $this->client->getUpdatedTransactions($localSeq);
-            } catch (\Exception $e) {
-                scanpay_log('scanpay client exception: ' . $e->getMessage());
-                wp_send_json(['error' => 'scanpay client exception: ' . $e->getMessage()], 500);
-                return;
-            }
-            if (!$this->orderUpdater->updateAll($this->shopid, $resobj['changes'])) {
-                wp_send_json(['error' => 'error updating orders with Scanpay changes'], 500);
-                return;
-            }
-
-            if (!$this->sequencer->save($this->shopid, $resobj['seq'])) {
-                if ($resobj['seq']!== $localSeq) {
-                    wp_send_json(['error' => 'error saving Scanpay changes'], 500);
-                    return;
-                }
-                break;
-            }
-            $localSeq = $resobj['seq'];
+        $r = $this->seq($local_seq);
+        if (!empty($r)) {
+            scanpay_log($r);
+            wp_send_json(['error' => $r], 500);
+            return;
         }
         wp_send_json_success();
     }
@@ -254,19 +296,19 @@ class WC_Scanpay extends WC_Payment_Gateway
     /* This function is called before __construct(), and thus cannot use the definitions from there */
     public function init_form_fields()
     {
-        $localSeqObj;
+        $local_seqobj;
         $apikey = $this->get_option('apikey');
-        $shopId = explode(':', $apikey)[0];
-        if (ctype_digit($shopId)) {
+        $shopid = explode(':', $apikey)[0];
+        if (ctype_digit($shopid)) {
             $sequencer = new Scanpay\GlobalSequencer();
-            $localSeqObj = $sequencer->load($shopId);
-            if (!$localSeqObj) { $localSeqObj = [ 'mtime' => 0 ]; }
+            $local_seqobj = $sequencer->load($shopid);
+            if (!$local_seqobj) { $local_seqobj = [ 'mtime' => 0 ]; }
         } else {
-            $localSeqObj = [ 'mtime' => 0 ];
+            $local_seqobj = [ 'mtime' => 0 ];
         }
         $block = [
             'pingurl' => WC()->api_request_url(self::API_PING_URL),
-            'lastpingtime'  => $localSeqObj['mtime'],
+            'lastpingtime'  => $local_seqobj['mtime'],
         ];
         $this->form_fields = buildSettings($block);
     }
@@ -274,23 +316,23 @@ class WC_Scanpay extends WC_Payment_Gateway
     // display the extra data in the order admin panel
     public function display_scanpay_info($order)
     {
-        $shopId = get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_SHOPID, true);
-        if ($shopId === '') {
+        $shopid = get_post_meta($order->get_id(), Scanpay\EntUpdater::ORDER_DATA_SHOPID, true);
+        if ($shopid === '') {
             return;
         }
-        $trnId = $order->get_transaction_id();
+        $trnid = $order->get_transaction_id();
         $cur = version_compare(WC_VERSION, '3.0.0', '<') ? $order->get_order_currency() : $order->get_currency();
-        $auth = wc_price(get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_AUTHORIZED, true), array( 'currency' => $cur));
-        $captured = wc_price(get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_CAPTURED, true), array( 'currency' => $cur));
-        $refunded = wc_price(get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_REFUNDED, true), array( 'currency' => $cur));
-        $trnURL = self::DASHBOARD_URL . '/' . addslashes($shopId) . '/' . addslashes($trnId);
+        $auth = wc_price(get_post_meta($order->get_id(), Scanpay\EntUpdater::ORDER_DATA_AUTHORIZED, true), ['currency' => $cur]);
+        $captured = wc_price(get_post_meta($order->get_id(), Scanpay\EntUpdater::ORDER_DATA_CAPTURED, true), ['currency' => $cur]);
+        $refunded = wc_price(get_post_meta($order->get_id(), Scanpay\EntUpdater::ORDER_DATA_REFUNDED, true), ['currency' => $cur]);
+        $trnURL = self::DASHBOARD_URL . '/' . addslashes($shopid) . '/' . addslashes($trnid);
         ?>
         </div>
         <div class="order_data_column">
             <h3><?php echo __('Scanpay Details', 'woocommerce-scanpay'); ?></h3>
             <p>
                 <strong><?php echo __('Transaction ID', 'woocommerce-scanpay') ?>:</strong>
-                <?php echo '<a style="text-decoration:none; float:right" href="' . $trnURL . '" target="_blank">' . htmlspecialchars($trnId) ?>
+                <?php echo '<a style="text-decoration:none; float:right" href="' . $trnURL . '" target="_blank">' . htmlspecialchars($trnid) ?>
                 <span class="dashicons dashicons-arrow-right-alt"></span></a>
             </p>
             <p>
@@ -313,4 +355,94 @@ class WC_Scanpay extends WC_Payment_Gateway
         <?php
     }
 
+    private function suberr($renewal_order, $err)
+    {
+        WC_Subscriptions_Manager::process_subscription_payment_failure_on_order($renewal_order);
+        $renewal_order->add_order_note($err);
+        scanpay_log($err);
+    }
+
+    public function scheduled_subscription_payment($amount = 0.0, $renewal_order)
+    {
+        /* meta data is automatically copied from the shop_subscription to the $renewal order */
+        $renewal_orderid = $renewal_order->get_id();
+        $subid = get_post_meta($renewal_order, Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_ID, true);
+        if (empty($subid)) {
+            $this->suberr($renewal_order, 'Failed to retrieve Scanpay subscriber id from order');
+            return;
+        }
+        $shopid = (int)get_post_meta($renewal_order, Scanpay\EntUpdater::ORDER_DATA_SHOPID, true);
+        if (empty($shopid) || $shopid !== $this->shopid) {
+            $this->suberr($renewal_order, 'API-key shopid does not match stored subscriber shopid');
+            return;
+        }
+        $data = [
+            "orderid" => $renewal_orderid,
+            "items" => [
+                ["total" => $amount . ' ' . $renewal_order->get_order_currency()],
+            ],
+            'billing'     => array_filter([
+                'name'    => $renewal_order->get_billing_first_name() . ' ' . $renewal_order->get_billing_last_name(),
+                'email'   => $renewal_order->get_billing_email(),
+                'phone'   => preg_replace('/\s+/', '', $renewal_order->get_billing_phone()),
+                'address' => array_filter([$renewal_order->get_billing_address_1(), $renewal_order->get_billing_address_2()]),
+                'city'    => $renewal_order->get_billing_city(),
+                'zip'     => $renewal_order->get_billing_postcode(),
+                'country' => $renewal_order->get_billing_country(),
+                'state'   => $renewal_order->get_billing_state(),
+                'company' => $renewal_order->get_billing_company(),
+                'vatin'   => '',
+                'gln'     => '',
+            ]),
+            'shipping'    => array_filter([
+                'name'    => $renewal_order->get_shipping_first_name() . ' ' . $renewal_order->get_shipping_last_name(),
+                'address' => array_filter([$renewal_order->get_shipping_address_1(), $renewal_order->get_shipping_address_2()]),
+                'city'    => $renewal_order->get_shipping_city(),
+                'zip'     => $renewal_order->get_shipping_postcode(),
+                'country' => $renewal_order->get_shipping_country(),
+                'state'   => $renewal_order->get_shipping_state(),
+                'company' => $renewal_order->get_shipping_company(),
+            ]),
+        ];
+        $maxretries = 5;
+        $idemkey = get_post_meta($renewal_order, Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_CHARGE_IDEMKEY, $idemkey);
+        if (!empty($idemkey)) {
+            $idemtime = get_post_meta($renewal_order, Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_CHARGE_IDEMTIME, $idemkey);
+            if ($idemtime + 23 * 60 * 60 > time()) {
+                /* idempotency key expired, attempt to seq */
+                $r = $this->seq();
+                if (!empty($r)) {
+                    $this->suberr($r);
+                    return;
+                }
+                /* surely we are now up to date, reset idempotency key */
+                $idemkey = '';
+            }
+        }
+        $lasterr = '';
+        for ($i = 0; $i < $maxretries; $i++) {
+            if (empty($idemkey)) {
+                $idemkey = $this->client->generateIdempotencyKey();
+                update_post_meta($renewal_order, Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_CHARGE_IDEMTIME, time());
+                update_post_meta($renewal_order, Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_CHARGE_IDEMKEY, $idemkey);
+                if (empty($idemkey)) {
+                    $this->suberr($renewal_order, 'Failed to generate idempotency key');
+                    return;
+                }
+            }
+            try {
+                $this->client->charge($parent_orderid, $data, ['headers' => ['Idempotency-Key' => $idemkey]]);
+                break;
+            } catch (Scanpay\IdempotentResponseException $e) {
+                $lasterr = $e->getMessage();
+            } catch (\Exception $e) {}
+            sleep($i + 1);
+        }
+        if ($i === $maxretries) {
+            $this->suberr($renewal_order, "Encountered scanpay error upon charging sub #$subid: " . $lasterr);
+            return;
+        } else {
+            WC_Subscriptions_Manager::process_subscription_payments_on_order($renewal_order);
+        }
+    }
 }
