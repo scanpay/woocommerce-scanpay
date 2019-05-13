@@ -6,9 +6,9 @@ if (!defined('ABSPATH')) {
 
 abstract class WC_Scanpay_Parent extends WC_Scanpay
 {
-    public function __construct()
+    public function __construct($support_subscriptions)
     {
-        parent::__construct(true);
+        parent::__construct(true, $support_subscriptions);
     }
 
     public function setup()

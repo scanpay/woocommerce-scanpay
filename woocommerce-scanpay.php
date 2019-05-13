@@ -38,9 +38,12 @@ define('WC_SCANPAY_PLUGIN_VERSION', get_plugin_data( __FILE__ )['Version']);
 define('WC_SCANPAY_FOR_WOOCOMMERCE_DIR', rtrim(plugin_dir_path(__FILE__), '/'));
 define('WC_SCANPAY_FOR_WOOCOMMERCE_LOGFILE', get_home_path() . 'wp-content/scanpay-for-woocommerce.log');
 
-function scanpay_log($msg)
+function scanpay_log($msg, $caller=null)
 {
-    $header = date("Y-m-d H:i:s");
+    if (is_null($caller)) {
+        $caller = debug_backtrace(FALSE, 1)[0];
+    }
+    $header = date("Y-m-d H:i:s") . ' ' . basename($caller['file']) . ':' . $caller['line'];
     error_log($header . ' - ' . $msg . "\n", 3, WC_SCANPAY_FOR_WOOCOMMERCE_LOGFILE);
 }
 

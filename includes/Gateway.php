@@ -14,7 +14,7 @@ class WC_Scanpay extends WC_Payment_Gateway
     protected $sequencer;
     protected $client;
 
-    public function __construct($extended = false)
+    public function __construct($extended = false, $support_subscriptions = true)
     {
         /* Set WC_Payment_Gateway parameters */
         $this->id = 'scanpay';
@@ -49,7 +49,21 @@ class WC_Scanpay extends WC_Payment_Gateway
         } else {
             $this->shopid = null;
         }
-        $this->supports('products', 'subscriptions');
+        $this->supports = ['products'];
+        if ($support_subscriptions) {
+            $this->supports = array_merge($this->supports, [
+                'subscriptions',
+                'subscription_cancellation',
+                'subscription_reactivation',
+                'subscription_suspension',
+                'subscription_amount_changes',
+                'subscription_date_changes',
+                'subscription_payment_method_change_admin',
+                'subscription_payment_method_change_customer',
+                'multiple_subscriptions',
+                'pre-orders',
+            ]);
+        }
 
         /* Support for legacy ping url format */
         add_action('woocommerce_api_' . 'scanpay/ping', [$this, 'handle_pings']);
@@ -150,16 +164,6 @@ class WC_Scanpay extends WC_Payment_Gateway
             ];
         }
 
-        /* Handle subscriptions */
-        if (class_exists('WC_Subscriptions_Order') && wcs_order_contains_subscription($orderid)) {
-            assert(!isset($data['items']));
-            $data['subscriber'] = [
-                'ref' => $orderid,
-            ];
-        }
-
-        $data = apply_filters('woocommerce_scanpay_newurl_data', $data);
-
         /* Compensate if total hook is used which makes total differ from sum of items */
         $itemtotal = 0;
         foreach ($data['items'] as $item) {
@@ -180,6 +184,19 @@ class WC_Scanpay extends WC_Payment_Gateway
                 ];
             }
         }
+
+        /* Handle subscriptions */
+        if (class_exists('WC_Subscriptions_Order') && wcs_order_contains_subscription($orderid)) {
+            assert(!isset($data['items']));
+            $data['subscriber'] = [
+                'ref' => $orderid,
+            ];
+            unset($data['items']);
+            foreach (wcs_get_subscriptions_for_order($orderid) as $subscription) {
+                update_post_meta($subscription->id, Scanpay\EntUpdater::ORDER_DATA_SHOPID, $this->shopid);
+            }
+        }
+        $data = apply_filters('woocommerce_scanpay_newurl_data', $data);
 
         $opts = [
             'headers' => [
@@ -225,8 +242,8 @@ class WC_Scanpay extends WC_Payment_Gateway
             if (count($resobj['changes']) == 0) {
                 break;
             }
-            if (!$this->orderUpdater->update_all($this->shopid, $resobj['changes'])) {
-                return 'error updating orders with Scanpay changes';
+            if (!is_null($errmsg = $this->orderUpdater->update_all($this->shopid, $resobj['changes']))) {
+                return $errmsg;
             }
             $r = $this->sequencer->save($this->shopid, $resobj['seq']);
             if (!$r) {
@@ -237,7 +254,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             }
             $local_seq = $resobj['seq'];
         }
-        return '';
+        return null;
     }
 
     public function handle_pings()
@@ -284,10 +301,10 @@ class WC_Scanpay extends WC_Payment_Gateway
             wp_send_json_success();
             return;
         }
-        $r = $this->seq($local_seq);
-        if (!empty($r)) {
-            scanpay_log($r);
-            wp_send_json(['error' => $r], 500);
+        $errmsg = $this->seq($local_seq);
+        if (!is_null($errmsg)) {
+            scanpay_log($errmsg);
+            wp_send_json(['error' => $errmsg], 500);
             return;
         }
         wp_send_json_success();
@@ -359,26 +376,26 @@ class WC_Scanpay extends WC_Payment_Gateway
     {
         WC_Subscriptions_Manager::process_subscription_payment_failure_on_order($renewal_order);
         $renewal_order->add_order_note($err);
-        scanpay_log($err);
+        scanpay_log('subscriber err: ' . $err, debug_backtrace(FALSE, 1)[0]);
     }
 
     public function scheduled_subscription_payment($amount = 0.0, $renewal_order)
     {
         /* meta data is automatically copied from the shop_subscription to the $renewal order */
         $renewal_orderid = $renewal_order->get_id();
-        $subid = get_post_meta($renewal_order, Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_ID, true);
+        $subid = get_post_meta($renewal_orderid, Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_ID, true);
         if (empty($subid)) {
             $this->suberr($renewal_order, 'Failed to retrieve Scanpay subscriber id from order');
             return;
         }
-        $shopid = (int)get_post_meta($renewal_order, Scanpay\EntUpdater::ORDER_DATA_SHOPID, true);
+        $shopid = (int)get_post_meta($renewal_orderid, Scanpay\EntUpdater::ORDER_DATA_SHOPID, true);
         if (empty($shopid) || $shopid !== $this->shopid) {
             $this->suberr($renewal_order, 'API-key shopid does not match stored subscriber shopid');
             return;
         }
         $data = [
-            "orderid" => $renewal_orderid,
-            "items" => [
+            'orderid' => $renewal_orderid,
+            'items' => [
                 ["total" => $amount . ' ' . $renewal_order->get_order_currency()],
             ],
             'billing'     => array_filter([
@@ -431,11 +448,14 @@ class WC_Scanpay extends WC_Payment_Gateway
                 }
             }
             try {
-                $this->client->charge($parent_orderid, $data, ['headers' => ['Idempotency-Key' => $idemkey]]);
+                $this->client->charge($subid, $data, ['headers' => ['Idempotency-Key' => $idemkey]]);
                 break;
             } catch (Scanpay\IdempotentResponseException $e) {
+                $lasterr = $e->getMessage() . ' (idem)';
+                $idemkey = '';
+            } catch (\Exception $e) {
                 $lasterr = $e->getMessage();
-            } catch (\Exception $e) {}
+            }
             sleep($i + 1);
         }
         if ($i === $maxretries) {

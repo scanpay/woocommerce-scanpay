@@ -41,29 +41,26 @@ abstract class EntUpdater
         /* Ignore errornous transactions */
         if (isset($d['error'])) {
             scanpay_log('Received error entry in order updater: ' . $d['error']);
-            return true;
+            return null;
         }
         if (!$this->isvalid($d)) {
-            scanpay_log('Received invalid transaction data from Scanpay');
-            return false;
+            return 'Received invalid ' . $this->type() . ' data from Scanpay';
         }
         if (!isset($d['id']) || !is_int($d['id'])) {
-            scanpay_log('Missing "id" in change');
-            return false;
+            return 'Missing "id" in change';
         }
         if (!isset($d['rev']) || !is_int($d['rev'])) {
-            scanpay_log('Missing "rev" in change');
-            return false;
+            return 'Missing "rev" in change';
         }
-        if ($this->orderid === NULL) {
+        if ($this->orderid === null) {
             scanpay_log('Received ' . $this->type() . ' #' . $d['id'] . ' without orderid');
-            return true;
+            return null;
         }
 
         $this->order = wc_get_order($this->orderid);
         if (!$this->order) {
             scanpay_log('Order #' . $this->orderid . ' not in system');
-            return true;
+            return null;
         }
 
         $newRev = $d['rev'];
@@ -73,11 +70,11 @@ abstract class EntUpdater
             scanpay_log('Order #' . $this->orderid . ' shopid (' .
                 $orderShopId . ') does not match current shopid (' .
                 $this->shopid . '()');
-            return true;
+            return null;
         }
 
         if ($newRev <= $oldRev) {
-            return true;
+            return null;
         }
 
         $this->before_acts();
@@ -90,7 +87,7 @@ abstract class EntUpdater
         }
         $this->after_acts();
         update_post_meta($this->orderid, self::ORDER_DATA_REV, $d['rev']);
-        return true;
+        return null;
     }
 }
 
@@ -108,7 +105,7 @@ class TrnUpdater extends EntUpdater
 
     protected function getorderid()
     {
-        if (!isset($this->data['orderid'])) { return NULL; }
+        if (!isset($this->data['orderid'])) { return null; }
         return $this->data['orderid'];
     }
 
@@ -171,15 +168,14 @@ class ChargeUpdater extends TrnUpdater
     }
 
     protected function isvalid() {
-        return parent::isvalid() && isset($data['subscriber']) &&
-            is_array($data['subscriber']) && isset($data['subscriber']['id']);
+        return parent::isvalid() && isset($this->data['subscriber']) &&
+            is_array($this->data['subscriber']) && isset($this->data['subscriber']['id']);
     }
 
     protected function before_acts()
     {
-        $auth = $d['totals']['authorized'];
         if ($this->order->needs_payment()) {
-            WC_Subscriptions_Manager::process_subscription_payments_on_order($this->order);
+            $this->order->payment_complete($this->data['id']);
             update_post_meta($this->orderid, self::ORDER_DATA_AUTHORIZED, explode(' ', $auth)[0]);
         }
     }
@@ -192,32 +188,33 @@ class SubscriberUpdater extends EntUpdater
     }
 
     protected function isvalid() {
-        return isset($data['time']) && is_array($data['time']) &&
-            isset($data['time']['created']) && is_int($data['time']['created']);
+        return isset($this->data['time']) && isset($this->data['time']['authorized']);
     }
 
     protected function getorderid()
     {
-        if (!isset($this->data['ref'])) { return NULL; }
+        if (!isset($this->data['ref'])) { return null; }
         return $this->data['ref'];
     }
 
     private function savesubscriber($tchanged) {
-        $oldSubTime = (int)get_post_meta($this->orderid, self::ORDER_DATA_SUBSCRIBER_TIME, true);
-        $oldSubId = get_post_meta($this->orderid, self::ORDER_DATA_SUBSCRIBER_ID, true);
-        if (empty($oldSubId) || $tchanged > $oldSubTime){
-            update_post_meta($this->orderid, self::ORDER_DATA_SUBSCRIBER_TIME, $tcreated);
-            update_post_meta($this->orderid, self::ORDER_DATA_SUBSCRIBER_ID, $this->data['id']);
-            if (empty($oldSubId)) {
-                $this->order->add_order_note(__('Subscription payment method added', 'woocommerce' ));
-            } else {
-                $this->order->add_order_note(__('Subscription payment method renewed', 'woocommerce' ));
+        foreach (wcs_get_subscriptions_for_order($this->orderid) as $subscription) {
+            $oldSubTime = (int)get_post_meta($subscription->id, self::ORDER_DATA_SUBSCRIBER_TIME, true);
+            $oldSubId = get_post_meta($subscription->id, self::ORDER_DATA_SUBSCRIBER_ID, true);
+            if ($tchanged > $oldSubTime){
+                update_post_meta($subscription->id, self::ORDER_DATA_SUBSCRIBER_TIME, $tcreated);
+                update_post_meta($subscription->id, self::ORDER_DATA_SUBSCRIBER_ID, $this->data['id']);
+                if (empty($oldSubId)) {
+                    $this->order->add_order_note(__('Subscription payment method added', 'woocommerce' ));
+                } else {
+                    $this->order->add_order_note(__('Subscription payment method renewed', 'woocommerce' ));
+                }
             }
         }
     }
 
     protected function before_acts() {
-        $this->savesubscriber($this->data['time']['created']);
+        $this->savesubscriber($this->data['time']['authorized']);
     }
 
     protected function handle_act($act)
@@ -232,7 +229,8 @@ class SubscriberUpdater extends EntUpdater
     }
 
     protected function after_acts() {
-        if ($this->order->get_status() === 'pending') {
+        $status = $this->order->get_status();
+        if ($status === 'pending' || $status === 'cancelled') {
             $this->order->payment_complete();
         }
     }
@@ -259,15 +257,14 @@ class OrderUpdater
                 continue;
             }
             try {
-            if (!$updater->update()) {
-                return false;
-            }
+                if (!is_null($errmsg = $updater->update())) {
+                    return 'order update failed: ' . $errmsg;
+                }
             } catch (\Exception $e) {
-                scanpay_log($e->getMessage());
-                return false;
+                return 'order update exception: ' . $e->getMessage();
             }
         }
-        return true;
+        return null;
     }
 }
 
