@@ -64,9 +64,16 @@ function buildSettings($block)
         'autocapture' => [
             'title'   => __( 'Auto-capture', 'woocommerce-scanpay' ),
             'type'    => 'checkbox',
-            'label'   => __( 'Enable auto-capture', 'woocommerce-scanpay' ),
+            'label'   => __( 'Enable auto-capture of all orders', 'woocommerce-scanpay' ),
             'default' => 'no',
-            'description' => __( 'Automatically capture transactions upon authorization. <i><b>Only enable this if you sell services or immaterial goods.</b></i>', 'woocommerce-scanpay' ),
+            'description' => __( 'Automatically capture all orders upon authorization regardless of product types.', 'woocommerce-scanpay' ),
+        ],
+        'autocapture_virtual' => [
+            'title'   => __( 'Auto-capture virtual orders', 'woocommerce-scanpay' ),
+            'type'    => 'checkbox',
+            'label'   => __( 'Enable auto-capture of virtual orders', 'woocommerce-scanpay' ),
+            'default' => 'no',
+            'description' => __( 'Automatically capture orders that only contain virtual products. <i><b>This option is ignored if the above auto-capture option is enabled.</b></i>', 'woocommerce-scanpay' ),
         ],
         'debug' => [
             'title'   => __( 'Debug', 'woocommerce-scanpay' ),

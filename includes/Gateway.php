@@ -37,7 +37,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         $this->language = $this->get_option('language');
         $this->apikey = $this->get_option('apikey');
         $this->pingurl = WC()->api_request_url(self::API_PING_URL);
-        $this->autocapture = $this->get_option('autocapture') === 'yes';
+        $this->autocapture = (bool)($this->get_option('autocapture') === 'yes');
 
         /* Subclasses */
         $this->orderUpdater = new Scanpay\OrderUpdater();
@@ -85,7 +85,6 @@ class WC_Scanpay extends WC_Payment_Gateway
             'orderid'     => strval($orderid),
             'language'    => $this->language,
             'successurl'  => $this->get_return_url($order),
-            'autocapture' => (bool)$this->autocapture,
             'billing'     => array_filter([
                 'name'    => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
                 'email'   => $order->get_billing_email(),
@@ -111,6 +110,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         ];
 
         $cur = version_compare(WC_VERSION, '3.0.0', '<') ? $order->get_order_currency() : $order->get_currency();
+        $has_nonvirtual = false;
 
         /* Add the requested items to the request data */
         foreach ($order->get_items('line_item') as $wooitem) {
@@ -137,6 +137,20 @@ class WC_Scanpay extends WC_Payment_Gateway
                 'total' => $itemtotal . ' ' . $cur,
                 'sku' => strval($wooitem['product_id']),
             ];
+            if (!$wooitem->get_product()->is_virtual()) {
+                $has_nonvirtual = true;
+            }
+        }
+
+        /* Determine if order should be auto-captured */
+        if ($has_nonvirtual) {
+            $data['autocapture'] = $this->autocapture;
+        } else {
+            $data['autocapture'] = $this->autocapture || $this->get_option('autocapture_virtual') === 'yes';
+            scanpay_log('$this->autocapture=' . var_export($this->autocapture, true));
+            scanpay_log('$this->get_option(\'autocapture_virtual\') === \'yes\' = ' . var_export($this->get_option('autocapture_virtual') === 'yes', true));
+            scanpay_log('aata[utocapture]=' . var_export($data['autocapture'], true));
+
         }
 
         /* Add fees */
@@ -462,7 +476,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             $this->suberr($renewal_order, "Encountered scanpay error upon charging sub #$subid: " . $lasterr);
             return;
         } else {
-            WC_Subscriptions_Manager::process_subscription_payments_on_order($renewal_order);
+            $renewal_order->payment_complete();
         }
     }
 }
