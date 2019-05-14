@@ -23,21 +23,12 @@ class WC_Scanpay extends WC_Payment_Gateway
         $this->method_title = 'Scanpay';
         $this->method_description = 'Scanpay is a Nordic based payment gateway offering card and mobile based payment.';
 
-
         $this->init_form_fields();
         $this->init_settings();
-        /* Call the required WC_Payment_Gateway functions */
-        if (!$extended && is_admin()) {
-            add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
-            add_action('woocommerce_admin_order_data_after_order_details', array($this, 'display_scanpay_info'));
-        }
-
         $this->title = $this->get_option('title');
         $this->description = $this->get_option('description');
-        $this->language = $this->get_option('language');
         $this->apikey = $this->get_option('apikey');
         $this->pingurl = WC()->api_request_url(self::API_PING_URL);
-        $this->autocapture = (bool)($this->get_option('autocapture') === 'yes');
 
         /* Subclasses */
         $this->orderUpdater = new Scanpay\OrderUpdater();
@@ -64,14 +55,20 @@ class WC_Scanpay extends WC_Payment_Gateway
                 'pre-orders',
             ]);
         }
+        if (!$extended) {
+            if (is_admin()) {
+                add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
+                add_action('woocommerce_admin_order_data_after_order_details', array($this, 'display_scanpay_info'));
+            }
 
-        /* Support for legacy ping url format */
-        add_action('woocommerce_api_' . 'scanpay/ping', [$this, 'handle_pings']);
-        /* New ping url format */
-        add_action('woocommerce_api_' . self::API_PING_URL, [$this, 'handle_pings']);
-        /* Subscription charge hook */
-        add_action('woocommerce_scheduled_subscription_payment_' . $this->id,
-                   [$this, 'scheduled_subscription_payment'], 10, 2);
+            /* Support for legacy ping url format */
+            add_action('woocommerce_api_' . 'scanpay/ping', [$this, 'handle_pings']);
+            /* New ping url format */
+            add_action('woocommerce_api_' . self::API_PING_URL, [$this, 'handle_pings']);
+            /* Subscription charge hook */
+            add_action('woocommerce_scheduled_subscription_payment_' . $this->id,
+                       [$this, 'scheduled_subscription_payment'], 10, 2);
+        }
     }
 
     public function process_payment($orderid)
@@ -83,7 +80,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         $order = wc_get_order($orderid);
         $data = [
             'orderid'     => strval($orderid),
-            'language'    => $this->language,
+            'language'    => $this->get_option('language'),
             'successurl'  => $this->get_return_url($order),
             'billing'     => array_filter([
                 'name'    => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
@@ -144,13 +141,9 @@ class WC_Scanpay extends WC_Payment_Gateway
 
         /* Determine if order should be auto-captured */
         if ($has_nonvirtual) {
-            $data['autocapture'] = $this->autocapture;
+            $data['autocapture'] = $this->get_option('autocapture') === 'yes';
         } else {
-            $data['autocapture'] = $this->autocapture || $this->get_option('autocapture_virtual') === 'yes';
-            scanpay_log('$this->autocapture=' . var_export($this->autocapture, true));
-            scanpay_log('$this->get_option(\'autocapture_virtual\') === \'yes\' = ' . var_export($this->get_option('autocapture_virtual') === 'yes', true));
-            scanpay_log('aata[utocapture]=' . var_export($data['autocapture'], true));
-
+            $data['autocapture'] = $this->get_option('autocapture') === 'yes' || $this->get_option('autocapture_virtual') === 'yes';
         }
 
         /* Add fees */
@@ -395,6 +388,7 @@ class WC_Scanpay extends WC_Payment_Gateway
 
     public function scheduled_subscription_payment($amount = 0.0, $renewal_order)
     {
+        scanpay_log('scheduled_subscription_payment');
         /* meta data is automatically copied from the shop_subscription to the $renewal order */
         $renewal_orderid = $renewal_order->get_id();
         $subid = get_post_meta($renewal_orderid, Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_ID, true);
