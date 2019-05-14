@@ -462,7 +462,7 @@ class WC_Scanpay extends WC_Payment_Gateway
                 }
             }
             try {
-                $this->client->charge($subid, $data, ['headers' => ['Idempotency-Key' => $idemkey]]);
+                $chargeResponse = $this->client->charge($subid, $data, ['headers' => ['Idempotency-Key' => $idemkey]]);
                 break;
             } catch (Scanpay\IdempotentResponseException $e) {
                 $lasterr = $e->getMessage() . ' (idem)';
@@ -476,7 +476,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             $this->suberr($renewal_order, "Encountered scanpay error upon charging sub #$subid: " . $lasterr);
             return;
         } else {
-            $renewal_order->payment_complete();
+            $renewal_order->payment_complete($chargeResponse['id']);
         }
     }
 }
