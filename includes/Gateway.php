@@ -31,7 +31,6 @@ class WC_Scanpay extends WC_Payment_Gateway
         $this->pingurl = WC()->api_request_url(self::API_PING_URL);
 
         /* Subclasses */
-        $this->orderUpdater = new Scanpay\OrderUpdater();
         $this->sequencer = new Scanpay\GlobalSequencer();
         $this->client = new Scanpay\Scanpay($this->apikey);
         $shopid = explode(':', $this->apikey)[0];
@@ -240,6 +239,10 @@ class WC_Scanpay extends WC_Payment_Gateway
             $local_seq = $local_seqobj['seq'];
         }
 
+        $opts = [
+            'autocomplete_virtual' => $this->get_option('autocomplete_virtual'),
+        ];
+
         while (1) {
             try {
                 $resobj = $this->client->seq($local_seq);
@@ -249,7 +252,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             if (count($resobj['changes']) == 0) {
                 break;
             }
-            if (!is_null($errmsg = $this->orderUpdater->update_all($this->shopid, $resobj['changes']))) {
+            if (!is_null($errmsg = Scanpay\OrderUpdater::update_all($this->shopid, $resobj['changes'], $opts))) {
                 return $errmsg;
             }
             $r = $this->sequencer->save($this->shopid, $resobj['seq']);
