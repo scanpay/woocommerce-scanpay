@@ -29,6 +29,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         $this->description = $this->get_option('description');
         $this->apikey = $this->get_option('apikey');
         $this->pingurl = WC()->api_request_url(self::API_PING_URL);
+        $this->autocomplete_virtual = $this->get_option('autocomplete_virtual') === 'yes';
 
         /* Subclasses */
         $this->sequencer = new Scanpay\GlobalSequencer();
@@ -176,17 +177,17 @@ class WC_Scanpay extends WC_Payment_Gateway
             /* Exploit that PHP only considers prefixed numbers in addition */
             $itemtotal += $item['total'];
         }
-        if ($itemtotal != $order->order_total) {
+        if ($itemtotal != $order->get_total()) {
             unset($data['items']);
-            if ($itemtotal > $order->order_total) {
+            if ($itemtotal > $order->get_total()) {
                 $data['items'][] = [
                     'name' => 'Discounted cart',
-                    'total' => $order->order_total . ' ' . $cur,
+                    'total' => $order->get_total() . ' ' . $cur,
                 ];
             } else {
                 $data['items'][] = [
                     'name' => 'Cart with increased price',
-                    'total' => $order->order_total . ' ' . $cur,
+                    'total' => $order->get_total() . ' ' . $cur,
                 ];
             }
         }
@@ -226,8 +227,8 @@ class WC_Scanpay extends WC_Payment_Gateway
         ];
     }
 
-    private function seq($local_seq = null) {
-        if ($local_seq === null) {
+    public function seq($local_seq, $seqtypes=false) {
+        if (is_null($local_seq)) {
             $local_seqobj = $this->sequencer->load($this->shopid);
             if (!$local_seqobj) {
                 $this->sequencer->insert($this->shopid);
@@ -240,7 +241,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         }
 
         $opts = [
-            'autocomplete_virtual' => $this->get_option('autocomplete_virtual'),
+            'autocomplete_virtual' => $this->autocomplete_virtual,
         ];
 
         while (1) {
@@ -252,15 +253,17 @@ class WC_Scanpay extends WC_Payment_Gateway
             if (count($resobj['changes']) == 0) {
                 break;
             }
-            if (!is_null($errmsg = Scanpay\OrderUpdater::update_all($this->shopid, $resobj['changes'], $opts))) {
+            if (!is_null($errmsg = Scanpay\OrderUpdater::update_all($this->shopid, $resobj['changes'], $this, $seqtypes))) {
                 return $errmsg;
             }
-            $r = $this->sequencer->save($this->shopid, $resobj['seq']);
-            if (!$r) {
-                if ($r == false) {
-                    return 'error saving Scanpay changes';
+            if (empty($seqtypes)) {
+                $r = $this->sequencer->save($this->shopid, $resobj['seq']);
+                if (!$r) {
+                    if ($r == false) {
+                        return 'error saving Scanpay changes';
+                    }
+                    break;
                 }
-                break;
             }
             $local_seq = $resobj['seq'];
         }
@@ -382,7 +385,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         <?php
     }
 
-    private function suberr($renewal_order, $err)
+    private static function suberr($renewal_order, $err)
     {
         WC_Subscriptions_Manager::process_subscription_payment_failure_on_order($renewal_order);
         $renewal_order->add_order_note($err);
@@ -391,25 +394,26 @@ class WC_Scanpay extends WC_Payment_Gateway
 
     public function scheduled_subscription_payment($amount = 0.0, $renewal_order)
     {
-        scanpay_log('scheduled_subscription_payment');
+        if (!$renewal_order->needs_payment()) { return; }
+
         /* meta data is automatically copied from the shop_subscription to the $renewal order */
         $renewal_orderid = $renewal_order->get_id();
         $subid = get_post_meta($renewal_orderid, Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_ID, true);
         if (empty($subid)) {
-            $this->suberr($renewal_order, 'Failed to retrieve Scanpay subscriber id from order');
+            self::suberr($renewal_order, 'Failed to retrieve Scanpay subscriber id from order');
             return;
         }
         $shopid = (int)get_post_meta($renewal_orderid, Scanpay\EntUpdater::ORDER_DATA_SHOPID, true);
         if (empty($shopid) || $shopid !== $this->shopid) {
-            $this->suberr($renewal_order, 'API-key shopid does not match stored subscriber shopid');
+            self::suberr($renewal_order, 'API-key shopid does not match stored subscriber shopid');
             return;
         }
         $data = [
-            'orderid' => $renewal_orderid,
-            'items' => [
-                ["total" => $amount . ' ' . $renewal_order->get_order_currency()],
+            'orderid'  => $renewal_orderid,
+            'items'    => [
+                ['total' => $amount . ' ' . $renewal_order->get_order_currency()],
             ],
-            'billing'     => array_filter([
+            'billing'  => array_filter([
                 'name'    => $renewal_order->get_billing_first_name() . ' ' . $renewal_order->get_billing_last_name(),
                 'email'   => $renewal_order->get_billing_email(),
                 'phone'   => preg_replace('/\s+/', '', $renewal_order->get_billing_phone()),
@@ -422,7 +426,7 @@ class WC_Scanpay extends WC_Payment_Gateway
                 'vatin'   => '',
                 'gln'     => '',
             ]),
-            'shipping'    => array_filter([
+            'shipping' => array_filter([
                 'name'    => $renewal_order->get_shipping_first_name() . ' ' . $renewal_order->get_shipping_last_name(),
                 'address' => array_filter([$renewal_order->get_shipping_address_1(), $renewal_order->get_shipping_address_2()]),
                 'city'    => $renewal_order->get_shipping_city(),
@@ -433,30 +437,62 @@ class WC_Scanpay extends WC_Payment_Gateway
             ]),
         ];
         $maxretries = 5;
-        $idemkey = get_post_meta($renewal_order, Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_CHARGE_IDEMKEY, $idemkey);
-        if (!empty($idemkey)) {
-            $idemtime = get_post_meta($renewal_order, Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_CHARGE_IDEMTIME, $idemkey);
-            if ($idemtime + 23 * 60 * 60 > time()) {
-                /* idempotency key expired, attempt to seq */
-                $r = $this->seq();
-                if (!empty($r)) {
-                    $this->suberr($r);
-                    return;
-                }
-                /* surely we are now up to date, reset idempotency key */
-                $idemkey = '';
-            }
-        }
         $lasterr = '';
         for ($i = 0; $i < $maxretries; $i++) {
-            if (empty($idemkey)) {
-                $idemkey = $this->client->generateIdempotencyKey();
-                update_post_meta($renewal_order, Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_CHARGE_IDEMTIME, time());
-                update_post_meta($renewal_order, Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_CHARGE_IDEMKEY, $idemkey);
-                if (empty($idemkey)) {
-                    $this->suberr($renewal_order, 'Failed to generate idempotency key');
-                    return;
+
+            /* Attempt to load idempotency 10 times */
+            for ($j = 0; $j < 10; $j++) {
+                $idem = get_post_meta($renewal_order->get_id(), Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_CHARGE_IDEM, true);
+                if (empty($idem)) {
+                    if ($idem != '') {
+                        self::suberr($renewal_order, 'Unexpected metadata error loading idempotency key');
+                        return;
+                    }
+                    /* order did not contain an idempotency key, generate one*/
+                    $idemtime = time();
+                    $idemkey = $this->client->generateIdempotencyKey();
+                    $idem = $idemtime . '-' . $idemkey;
+                    $r = update_post_meta($renewal_order->get_id(), Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_CHARGE_IDEM, $idem, '');
+                    if ($r === false) {
+                        continue;
+                    }
+                } else {
+                    /* idempotency key did exist on order */
+                    $idemarr = explode('-', $idem, 2);
+                    $idemtime = $idemarr[0];
+                    if (count($idemarr) != 2 || !($idemtime = filter_var($idemtime, FILTER_VALIDATE_INT))) {
+                        self::suberr($renewal_order, 'Invalid idempotency key stored in order');
+                        return;
+                    }
+                    $idemkey = $idemarr[1];
+
+                    if ($idemtime + 23 * 60 * 60 > time()) {
+                        /* idempotency key expired, attempt to seq (only charges) */
+                        $r = $this->seq(null, ['charge']);
+                        if (!empty($r)) {
+                            self::suberr($renewal_order, $r);
+                            return;
+                        }
+                        /* surely we are now up to date, check if order is paid */
+                        if (!$renewal_order->needs_payment()) {
+                            return;
+                        }
+                        /* regenerate idempotency key */
+                        $idemtime = time();
+                        $idemkey = $this->client->generateIdempotencyKey();
+                        $oldidem = $idem;
+                        $idem = $idemtime . '-' . $idemkey;
+                        $r = update_post_meta($renewal_order->get_id(), Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_CHARGE_IDEM, $idem, $oldidem);
+                        if ($r === false) {
+                            continue;
+                        }
+                    }
                 }
+                break;
+            }
+            if ($j === 10) {
+                self::suberr($renewal_order, 'Failed to load idempotency key 10 times');
+                return;
             }
             try {
                 $chargeResponse = $this->client->charge($subid, $data, ['headers' => ['Idempotency-Key' => $idemkey]]);
@@ -470,9 +506,9 @@ class WC_Scanpay extends WC_Payment_Gateway
             sleep($i + 1);
         }
         if ($i === $maxretries) {
-            $this->suberr($renewal_order, "Encountered scanpay error upon charging sub #$subid: " . $lasterr);
+            self::suberr($renewal_order, "Encountered scanpay error upon charging sub #$subid: " . $lasterr);
             return;
-        } else {
+        } else if ($renewal_order->needs_payment()) {
             $renewal_order->payment_complete($chargeResponse['id']);
         }
     }

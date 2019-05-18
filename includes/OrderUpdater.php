@@ -15,13 +15,12 @@ abstract class EntUpdater
     const ORDER_DATA_REFUNDED = '_scanpay_refunded';
     const ORDER_DATA_SUBSCRIBER_TIME = '_scanpay_subscriber_time';
     const ORDER_DATA_SUBSCRIBER_ID = '_scanpay_subscriber_id';
-    const ORDER_DATA_SUBSCRIBER_CHARGE_IDEMKEY = '_scanpay_subscriber_charge_idemkey';
-    const ORDER_DATA_SUBSCRIBER_CHARGE_IDEMTIME = '_scanpay_subscriber_charge_idemtime';
+    const ORDER_DATA_SUBSCRIBER_CHARGE_IDEM = '_scanpay_subscriber_charge_idem';
     protected $orderid;
     protected $order;
     protected $shopid;
     protected $data;
-    protected $autocomplete_virtual;
+    protected $scanpay;
     abstract protected function type();
     abstract protected function isvalid();
     abstract protected function getorderid();
@@ -29,12 +28,12 @@ abstract class EntUpdater
     abstract protected function handle_act($act);
     abstract protected function after_acts();
 
-    function __construct($shopid, $data, $opts = [])
+    function __construct($shopid, $data, $scanpayinstance)
     {
         $this->shopid = $shopid;
         $this->data = $data;
         $this->orderid = $this->getorderid();
-        $this->autocomplete_virtual = isset($opts['autocomplete_virtual']) ? (bool)$opts['autocomplete_virtual'] : false;
+        $this->scanpay = $scanpayinstance;
     }
 
     public function update()
@@ -91,6 +90,22 @@ abstract class EntUpdater
         update_post_meta($this->orderid, self::ORDER_DATA_REV, $d['rev']);
         return null;
     }
+
+    protected function autocomplete()
+    {
+        /*  autocomplete virtual orders */
+        if ($this->scanpay->autocomplete_virtual && $this->order->get_status() === 'processing') {
+            $has_nonvirtual = false;
+            foreach ($this->order->get_items('line_item') as $item) {
+                if (!$item->get_product()->is_virtual()) {
+                    $has_nonvirtual = true;
+                }
+            }
+            if (!$has_nonvirtual) {
+                $this->order->update_status('completed', __('Automatically completed virtual order.', 'woocommerce-scanpay'), false);
+            }
+        }
+    }
 }
 
 class TrnUpdater extends EntUpdater
@@ -119,19 +134,7 @@ class TrnUpdater extends EntUpdater
             $this->order->add_order_note(sprintf(__('The authorized amount is %s.', 'woocommerce-scanpay' ), $auth));
             update_post_meta($this->orderid, self::ORDER_DATA_AUTHORIZED, explode(' ', $auth)[0]);
         }
-
-        /*  autocomplete virtual orders */
-        if ($this->autocomplete_virtual && $this->order->get_status() === 'processing') {
-            $has_nonvirtual = false;
-            foreach ($this->order->get_items('line_item') as $item) {
-                if (!$item->get_product()->is_virtual()) {
-                    $has_nonvirtual = true;
-                }
-            }
-            if (!$has_nonvirtual) {
-                $this->order->update_status('completed', __('Automatically completed virtual order.', 'woocommerce-scanpay'), false);
-            }
-        }
+        $this->autocomplete();
     }
 
     protected function handle_act($act)
@@ -203,12 +206,16 @@ class SubscriberUpdater extends EntUpdater
             $oldSubTime = (int)get_post_meta($subscription->id, self::ORDER_DATA_SUBSCRIBER_TIME, true);
             $oldSubId = get_post_meta($subscription->id, self::ORDER_DATA_SUBSCRIBER_ID, true);
             if ($tchanged > $oldSubTime){
+                update_post_meta($this->orderid, self::ORDER_DATA_SUBSCRIBER_TIME, $tcreated);
+                update_post_meta($this->orderid, self::ORDER_DATA_SUBSCRIBER_ID, $this->data['id']);
                 update_post_meta($subscription->id, self::ORDER_DATA_SUBSCRIBER_TIME, $tcreated);
                 update_post_meta($subscription->id, self::ORDER_DATA_SUBSCRIBER_ID, $this->data['id']);
                 if (empty($oldSubId)) {
-                    $this->order->add_order_note(__('Subscription payment method added', 'woocommerce-scanpay' ));
+                    $this->order->add_order_note(__('Subscription payment method added', 'woocommerce-scanpay' ) .
+                                                    "(id={$this->data['id']})");
                 } else {
-                    $this->order->add_order_note(__('Subscription payment method renewed', 'woocommerce-scanpay' ));
+                    $this->order->add_order_note(__('Subscription payment method renewed', 'woocommerce-scanpay' ) .
+                                                    "(id={$this->data['id']})");
                 }
             }
         }
@@ -230,28 +237,36 @@ class SubscriberUpdater extends EntUpdater
     }
 
     protected function after_acts() {
-        $status = $this->order->get_status();
-        if ($status === 'pending' || $status === 'cancelled') {
-            $this->order->payment_complete();
+        if ($this->order->needs_payment()) {
+            if ($this->order->get_total() > 0) {
+                $this->scanpay->scheduled_subscription_payment($this->order->get_total(), $this->order);
+                /* no need to set success/failure, the above method will handle that */
+            } else {
+                $this->order->payment_complete();
+            }
         }
+        $this->autocomplete();
     }
 
 }
 
 class OrderUpdater
 {
-    public static function update_all($shopid, $changes, $opts)
+    public static function update_all($shopid, $changes, $scanpayinstance, $seqtypes)
     {
         foreach ($changes as $change) {
+            if (!empty($seqtypes) && !in_array($seqtypes, $change['type'])) {
+                continue;
+            }
             switch ($change['type']) {
             case 'transaction':
-                $updater = new TrnUpdater($shopid, $change, $opts);
+                $updater = new TrnUpdater($shopid, $change, $scanpayinstance);
                 break;
             case 'charge':
-                $updater = new ChargeUpdater($shopid, $change, $opts);
+                $updater = new ChargeUpdater($shopid, $change, $scanpayinstance);
                 break;
             case 'subscriber':
-                $updater = new SubscriberUpdater($shopid, $change, $opts);
+                $updater = new SubscriberUpdater($shopid, $change, $scanpayinstance);
                 break;
             default:
                 scanpay_log('Unknown change type ' . $change['type']);
