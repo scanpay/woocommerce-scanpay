@@ -128,7 +128,7 @@ class TrnUpdater extends EntUpdater
 
     protected function before_acts()
     {
-        $auth = $d['totals']['authorized'];
+        $auth = $this->data['totals']['authorized'];
         if ($this->order->needs_payment()) {
             $this->order->payment_complete($this->data['id']);
             $this->order->add_order_note(sprintf(__('The authorized amount is %s.', 'woocommerce-scanpay' ), $auth));

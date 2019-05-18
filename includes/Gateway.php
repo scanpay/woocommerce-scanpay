@@ -351,38 +351,13 @@ class WC_Scanpay extends WC_Payment_Gateway
             return;
         }
         $trnid = $order->get_transaction_id();
+        $subid = get_post_meta($order->get_id(), Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_ID, true);
         $cur = version_compare(WC_VERSION, '3.0.0', '<') ? $order->get_order_currency() : $order->get_currency();
         $auth = wc_price(get_post_meta($order->get_id(), Scanpay\EntUpdater::ORDER_DATA_AUTHORIZED, true), ['currency' => $cur]);
         $captured = wc_price(get_post_meta($order->get_id(), Scanpay\EntUpdater::ORDER_DATA_CAPTURED, true), ['currency' => $cur]);
         $refunded = wc_price(get_post_meta($order->get_id(), Scanpay\EntUpdater::ORDER_DATA_REFUNDED, true), ['currency' => $cur]);
-        $trnURL = self::DASHBOARD_URL . '/' . addslashes($shopid) . '/' . addslashes($trnid);
-        ?>
-        </div>
-        <div class="order_data_column">
-            <h3><?php echo __('Scanpay Details', 'woocommerce-scanpay'); ?></h3>
-            <p>
-                <strong><?php echo __('Transaction ID', 'woocommerce-scanpay') ?>:</strong>
-                <?php echo '<a style="text-decoration:none; float:right" href="' . $trnURL . '" target="_blank">' . htmlspecialchars($trnid) ?>
-                <span class="dashicons dashicons-arrow-right-alt"></span></a>
-            </p>
-            <p>
-                <strong><?php echo __('Authorized', 'woocommerce-scanpay')?>:</strong>
-                <span style="float: right">
-                    <?php echo $auth ?>
-                    <span class="dashicons"></span>
-                </span>
-            </p>
-            <p>
-                <strong><?php echo __('Captured', 'woocommerce-scanpay')?>:</strong>
-                <?php echo '<a style="text-decoration:none; float:right" href="' . $trnURL . '/capture" target="_blank">' . $captured ?>
-                <span class="dashicons dashicons-plus-alt"></span></a>
-            <p>
-                <strong><?php echo __('Refunded', 'woocommerce-scanpay')?>:</strong>
-                <?php echo '<a style="text-decoration:none; float:right" href="' . $trnURL . '/refund" target="_blank">' . $refunded ?>
-                <span class="dashicons dashicons-dismiss"></span></a>
-            </p>
-        </div><div style="display: none">
-        <?php
+        $trnURL = self::DASHBOARD_URL . '/' . $shopid . '/' . $trnid;
+	    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/OrderInfo.phtml');
     }
 
     private static function suberr($renewal_order, $err)
