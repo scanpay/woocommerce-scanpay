@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-abstract class EntUpdater
+class OrderUpdater
 {
     const ORDER_DATA_SHOPID = '_scanpay_shopid';
     const ORDER_DATA_REV = '_scanpay_rev';
@@ -16,272 +16,226 @@ abstract class EntUpdater
     const ORDER_DATA_SUBSCRIBER_TIME = '_scanpay_subscriber_time';
     const ORDER_DATA_SUBSCRIBER_ID = '_scanpay_subscriber_id';
     const ORDER_DATA_SUBSCRIBER_CHARGE_IDEM = '_scanpay_subscriber_charge_idem';
-    protected $orderid;
-    protected $order;
-    protected $shopid;
-    protected $data;
-    protected $scanpay;
-    abstract protected function type();
-    abstract protected function isvalid();
-    abstract protected function getorderid();
-    abstract protected function before_acts();
-    abstract protected function handle_act($act);
-    abstract protected function after_acts();
 
-    function __construct($shopid, $data, $scanpayinstance)
+    private $shopid;
+    private $scanpay;
+
+    function __construct($shopid, $scanpayinstance)
     {
         $this->shopid = $shopid;
-        $this->data = $data;
-        $this->orderid = $this->getorderid();
         $this->scanpay = $scanpayinstance;
     }
 
-    public function update()
+    private function autocomplete($order)
     {
-        $d = $this->data;
-        /* Ignore errornous transactions */
-        if (isset($d['error'])) {
-            scanpay_log('Received error entry in order updater: ' . $d['error']);
-            return null;
-        }
-        if (!$this->isvalid($d)) {
-            return 'Received invalid ' . $this->type() . ' data from Scanpay';
-        }
-        if (!isset($d['id']) || !is_int($d['id'])) {
-            return 'Missing "id" in change';
-        }
-        if (!isset($d['rev']) || !is_int($d['rev'])) {
-            return 'Missing "rev" in change';
-        }
-        if ($this->orderid === null) {
-            scanpay_log('Received ' . $this->type() . ' #' . $d['id'] . ' without orderid');
-            return null;
-        }
-
-        $this->order = wc_get_order($this->orderid);
-        if (!$this->order) {
-            scanpay_log('Order #' . $this->orderid . ' not in system');
-            return null;
-        }
-
-        $newRev = $d['rev'];
-        $orderShopId = (int)get_post_meta($this->orderid, self::ORDER_DATA_SHOPID, true);
-        $oldRev = (int)get_post_meta($this->orderid, self::ORDER_DATA_REV, true);
-        if ($this->shopid !== $orderShopId) {
-            scanpay_log('Order #' . $this->orderid . ' shopid (' .
-                $orderShopId . ') does not match current shopid (' .
-                $this->shopid . '()');
-            return null;
-        }
-
-        if ($newRev <= $oldRev) {
-            return null;
-        }
-
-        $this->before_acts();
-        if (isset($d['acts']) && is_array($d['acts'])) {
-            $nacts = (int)get_post_meta($this->orderid, self::ORDER_DATA_NACTS, true);
-            for ($i = $nacts; $i < count($d['acts']); $i++) {
-                $this->handle_act($d['acts'][$i]);
-            }
-            update_post_meta($this->orderid, self::ORDER_DATA_NACTS, count($d['acts']));
-        }
-        $this->after_acts();
-        update_post_meta($this->orderid, self::ORDER_DATA_REV, $d['rev']);
-        return null;
-    }
-
-    protected function autocomplete()
-    {
-        /*  autocomplete virtual orders */
-        if ($this->scanpay->autocomplete_virtual && $this->order->get_status() === 'processing') {
+        if ($this->scanpay->autocomplete_virtual && $order->get_status() === 'processing') {
             $has_nonvirtual = false;
-            foreach ($this->order->get_items('line_item') as $item) {
+            foreach ($order->get_items('line_item') as $item) {
                 if (!$item->get_product()->is_virtual()) {
                     $has_nonvirtual = true;
                 }
             }
             if (!$has_nonvirtual) {
-                $this->order->update_status('completed', __('Automatically completed virtual order.', 'woocommerce-scanpay'), false);
+                $order->update_status('completed', __('Automatically completed virtual order.', 'woocommerce-scanpay'), false);
             }
         }
     }
-}
 
-class TrnUpdater extends EntUpdater
-{
-    protected function type() {
-        return 'transaction';
-    }
-
-    protected function isvalid()
+    private function updatetrn($d)
     {
-        return isset($this->data['totals']) && is_array($this->data['totals']) &&
-            isset($this->data['totals']['authorized']);
-    }
-
-    protected function getorderid()
-    {
-        if (!isset($this->data['orderid'])) { return null; }
-        return $this->data['orderid'];
-    }
-
-    protected function before_acts()
-    {
-        $auth = $this->data['totals']['authorized'];
-        if ($this->order->needs_payment()) {
-            $this->order->payment_complete($this->data['id']);
-            $this->order->add_order_note(sprintf(__('The authorized amount is %s.', 'woocommerce-scanpay' ), $auth));
-            update_post_meta($this->orderid, self::ORDER_DATA_AUTHORIZED, explode(' ', $auth)[0]);
+        if (!isset($d['id']) || !is_int($d['id'])) {
+            return 'Missing "id" in change';
         }
-        $this->autocomplete();
-    }
+        /* Ignore errornous transactions */
+        if (isset($d['error'])) {
+            scanpay_log("Received error transaction[id=$d[id]] in order updater: $d[error]");
+            return null;
+        }
+        if (!isset($d['rev']) || !is_int($d['rev'])) {
+            return 'Missing "rev" in change';
+        }
+        if (!isset($d['totals']) || !is_array($d['totals']) ||
+            !isset($d['totals']['authorized'])) {
+            return 'Missing "totals.authorized" in change';
+        }
+        if (!isset($d['acts']) || !is_array($d['acts'])) {
+            return 'Missing "acts" in change';
+        }
+        if (!isset($d['orderid'])) {
+            scanpay_log('Received ' . $d['type'] . ' #' . $d['id'] . ' without orderid');
+            return null;
+        }
+        $orderid = $d['orderid'];
+        $order = wc_get_order($orderid);
+        if (!$order) {
+            scanpay_log('Order #' . $orderid . ' not in system');
+            return null;
+        }
 
-    protected function handle_act($act)
-    {
-        $actArgs = array(
-            'amount'     => $act['total'],
-            'reason'     => null,
-            'order_id'   => $this->orderid,
-        );
-        switch ($act['act']) {
-        case 'capture':
-            if (isset($act['total']) && is_string($act['total'])) {
-                $this->order->add_order_note(sprintf(__('Captured %s.', 'woocommerce-scanpay'), $act['total']));
+        /* Skip the order, if it's registered with a different shop */
+        $orderShopId = (int)get_post_meta($orderid, self::ORDER_DATA_SHOPID, true);
+        $oldrev = (int)get_post_meta($orderid, self::ORDER_DATA_REV, true);
+        if ($this->shopid !== $orderShopId) {
+            scanpay_log('Order #' . $orderid . ' shopid (' .
+                $orderShopId . ') does not match current shopid (' .
+                $this->shopid . ')');
+            return null;
+        }
+        /* Skip the order, if it's not a new revision */
+        if ($d['rev'] <= $oldrev) {
+            return null;
+        }
+
+        $nacts = (int)get_post_meta($orderid, self::ORDER_DATA_NACTS, true);
+        for ($i = $nacts; $i < count($d['acts']); $i++) {
+            switch ($act['act']) {
+            case 'capture':
+                if (isset($act['total']) && is_string($act['total'])) {
+                    $order->add_order_note(sprintf(__('Captured %s.', 'woocommerce-scanpay'), $act['total']));
+                }
+                break;
+            case 'refund':
+                wc_create_refund($actArgs);
+                if (isset($act['total']) && is_string($act['total'])) {
+                    $order->add_order_note(sprintf(__('Refunded %s.', 'woocommerce-scanpay'), $act['total']));
+                }
+                break;
+            case 'void':
+                if (isset($act['total']) && is_string($act['total'])) {
+                    $order->add_order_note(sprintf(__('Voided %s.', 'woocommerce-scanpay'), $act['total']));
+                }
+                break;
             }
-            break;
-        case 'refund':
-            wc_create_refund($actArgs);
-            if (isset($act['total']) && is_string($act['total'])) {
-                $this->order->add_order_note(sprintf(__('Refunded %s.', 'woocommerce-scanpay'), $act['total']));
-            }
-            break;
-        case 'void':
-            if (isset($act['total']) && is_string($act['total'])) {
-                $this->order->add_order_note(sprintf(__('Voided %s.', 'woocommerce-scanpay'), $act['total']));
-            }
-            break;
         }
+        update_post_meta($orderid, self::ORDER_DATA_NACTS, count($d['acts']));
+        if (isset($d['totals']['captured'])) {
+            $captured = explode(' ', $data['totals']['captured'])[0];
+            update_post_meta($orderid, self::ORDER_DATA_CAPTURED, $captured);
+        }
+
+        if (isset($d['totals']['refunded'])) {
+            $refunded = explode(' ', $d['totals']['refunded'])[0];
+            update_post_meta($orderid, self::ORDER_DATA_REFUNDED, $refunded);
+        }
+        if ($order->needs_payment()) {
+            $order->payment_complete($d['id']);
+            $order->add_order_note(sprintf(__('The authorized amount is %s.', 'woocommerce-scanpay' ), $d['totals']['authorized']));
+            update_post_meta($orderid, self::ORDER_DATA_AUTHORIZED, explode(' ', $d['totals']['authorized'])[0]);
+        }
+        $this->autocomplete($order);
+        update_post_meta($orderid, self::ORDER_DATA_REV, $d['rev']);
+        return null;
     }
 
-    protected function after_acts()
+    private function updatesub($d)
     {
-        if (isset($this->data['totals']['captured'])) {
-            $captured = explode(' ', $this->data['totals']['captured'])[0];
-            update_post_meta($this->orderid, self::ORDER_DATA_CAPTURED, $captured);
+        if (!isset($d['id']) || !is_int($d['id'])) {
+            return 'Missing "id" in change';
+        }
+        /* Ignore errornous transactions */
+        if (isset($d['error'])) {
+            scanpay_log("Received error transaction[id=$d[id]] in order updater: $d[error]");
+            return null;
+        }
+        if (!isset($d['rev']) || !is_int($d['rev'])) {
+            return 'Missing "rev" in change';
+        }
+        if (!isset($d['acts']) || !is_array($d['acts'])) {
+            return 'Missing "acts" in change';
+        }
+        if (!isset($d['ref'])) {
+            scanpay_log('Received subscriber #' . $d['id'] . ' without ref');
+            return null;
+        }
+        if (!class_exists('WC_Subscriptions')) {
+            scanpay_log('Received subscriber #' . $d['id'] . ', but Woocommerce Subscriptions is not enabled');
+            return null;
+        }
+        $orderid = $d['ref'];
+        $order = wc_get_order($orderid);
+        if (!$order) {
+            scanpay_log('Order #' . $orderid . ' not in system');
+            return null;
         }
 
-        if (isset($this->data['totals']['refunded'])) {
-            $refunded = explode(' ', $this->data['totals']['refunded'])[0];
-            update_post_meta($this->orderid, self::ORDER_DATA_REFUNDED, $refunded);
+        /* Get the time of the last authorize/renew action */
+        $tchanged = $d['time']['authorized'];
+        for ($i = 0; $i < count($d['acts']); $i++) {
+            $act = $d['acts'][$i];
+            switch ($act['act']) {
+            case 'renew':
+                if (isset($act['time']) && is_int($act['time'])) {
+                    $tchanged = $act['time'];
+                }
+                break;
+            }
         }
-    }
-}
 
-class ChargeUpdater extends TrnUpdater
-{
-    protected function type() {
-        return 'charge';
-    }
-}
+        foreach (wcs_get_subscriptions_for_order($orderid) as $sub) {
+            $oldSubTime = (int)get_post_meta($sub->id, self::ORDER_DATA_SUBSCRIBER_TIME, true);
+            $oldSubId = get_post_meta($sub->id, self::ORDER_DATA_SUBSCRIBER_ID, true);
+            if ($tchanged > $oldSubTime) {
+                update_post_meta($sub->id, self::ORDER_DATA_SHOPID, $this->shopid);
+                update_post_meta($sub->id, self::ORDER_DATA_SUBSCRIBER_TIME, $tchanged);
+                update_post_meta($sub->id, self::ORDER_DATA_SUBSCRIBER_ID, $d['id']);
 
-class SubscriberUpdater extends EntUpdater
-{
-    protected function type() {
-        return 'subscriber';
-    }
+                /*
+                 * Set the subscriber info for the parent order (since it will not be copied from subscription
+                 * to this order, as the parent order obviously is already created. This is is essential for the
+                 * inital payment made below this loop.
+                 */
+                update_post_meta($orderid, self::ORDER_DATA_SUBSCRIBER_TIME, $tchanged);
+                update_post_meta($orderid, self::ORDER_DATA_SUBSCRIBER_ID, $d['id']);
 
-    protected function isvalid() {
-        return isset($this->data['time']) && isset($this->data['time']['authorized']);
-    }
-
-    protected function getorderid()
-    {
-        if (!isset($this->data['ref'])) { return null; }
-        return $this->data['ref'];
-    }
-
-    private function savesubscriber($tchanged) {
-        foreach (wcs_get_subscriptions_for_order($this->orderid) as $subscription) {
-            $oldSubTime = (int)get_post_meta($subscription->id, self::ORDER_DATA_SUBSCRIBER_TIME, true);
-            $oldSubId = get_post_meta($subscription->id, self::ORDER_DATA_SUBSCRIBER_ID, true);
-            if ($tchanged > $oldSubTime){
-                update_post_meta($this->orderid, self::ORDER_DATA_SUBSCRIBER_TIME, $tcreated);
-                update_post_meta($this->orderid, self::ORDER_DATA_SUBSCRIBER_ID, $this->data['id']);
-                update_post_meta($subscription->id, self::ORDER_DATA_SUBSCRIBER_TIME, $tcreated);
-                update_post_meta($subscription->id, self::ORDER_DATA_SUBSCRIBER_ID, $this->data['id']);
                 if (empty($oldSubId)) {
-                    $this->order->add_order_note(__('Subscription payment method added', 'woocommerce-scanpay' ) .
-                                                    "(id={$this->data['id']})");
+                    $order->add_order_note(__('Subscription payment method added', 'woocommerce-scanpay' ) .
+                                              "(id=$d[id])");
                 } else {
-                    $this->order->add_order_note(__('Subscription payment method renewed', 'woocommerce-scanpay' ) .
-                                                    "(id={$this->data['id']})");
+                    $order->add_order_note(__('Subscription payment method renewed', 'woocommerce-scanpay' ) .
+                                              "(id=$d[id])");
                 }
             }
         }
-    }
 
-    protected function before_acts() {
-        $this->savesubscriber($this->data['time']['authorized']);
-    }
-
-    protected function handle_act($act)
-    {
-        switch ($act['act']) {
-        case 'renew':
-            if (isset($act['time']) && is_int($act['time'])) {
-                $this->savesubscriber($act['time']);
-            }
-            break;
-        }
-    }
-
-    protected function after_acts() {
-        if ($this->order->needs_payment()) {
-            if ($this->order->get_total() > 0) {
-                $this->scanpay->scheduled_subscription_payment($this->order->get_total(), $this->order);
+        if ($order->needs_payment()) {
+            if ($order->get_total() > 0) {
+                $this->scanpay->scheduled_subscription_payment($order->get_total(), $order);
                 /* no need to set success/failure, the above method will handle that */
             } else {
-                $this->order->payment_complete();
+                $order->payment_complete();
             }
         }
-        $this->autocomplete();
+        $this->autocomplete($order);
+        return null;
     }
 
-}
-
-class OrderUpdater
-{
-    public static function update_all($shopid, $changes, $scanpayinstance, $seqtypes)
+    public function update_all($changes, $seqtypes)
     {
+        $shopid = $this->shopid;
         foreach ($changes as $change) {
             if (!empty($seqtypes) && !in_array($seqtypes, $change['type'])) {
                 continue;
             }
-            switch ($change['type']) {
-            case 'transaction':
-                $updater = new TrnUpdater($shopid, $change, $scanpayinstance);
-                break;
-            case 'charge':
-                $updater = new ChargeUpdater($shopid, $change, $scanpayinstance);
-                break;
-            case 'subscriber':
-                $updater = new SubscriberUpdater($shopid, $change, $scanpayinstance);
-                break;
-            default:
-                scanpay_log('Unknown change type ' . $change['type']);
-                continue;
-            }
             try {
-                if (!is_null($errmsg = $updater->update())) {
-                    return 'order update failed: ' . $errmsg;
+                switch ($change['type']) {
+                case 'transaction':
+                case 'charge':
+                    $errmsg = $this->updatetrn($change);
+                    break;
+                case 'subscriber':
+                    $errmsg = $this->updatesub($change);
+                    break;
+                default:
+                    scanpay_log('Unknown change type ' . $change['type']);
+                    continue;
                 }
             } catch (\Exception $e) {
                 return 'order update exception: ' . $e->getMessage();
+            }
+            if (!is_null($errmsg)) {
+                return 'order update failed: ' . $errmsg;
             }
         }
         return null;
     }
 }
-
-

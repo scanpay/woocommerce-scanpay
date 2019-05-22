@@ -31,15 +31,17 @@ class WC_Scanpay extends WC_Payment_Gateway
         $this->pingurl = WC()->api_request_url(self::API_PING_URL);
         $this->autocomplete_virtual = $this->get_option('autocomplete_virtual') === 'yes';
 
-        /* Subclasses */
-        $this->sequencer = new Scanpay\GlobalSequencer();
-        $this->client = new Scanpay\Scanpay($this->apikey);
         $shopid = explode(':', $this->apikey)[0];
         if (ctype_digit($shopid)) {
             $this->shopid = (int)$shopid;
         } else {
             $this->shopid = null;
         }
+        /* Subclasses */
+        $this->sequencer = new Scanpay\GlobalSequencer();
+        $this->client = new Scanpay\Scanpay($this->apikey);
+        $this->orderupdater = new Scanpay\OrderUpdater($this->shopid, $this);
+
         $this->supports = ['products'];
         if ($support_subscriptions) {
             $this->supports = array_merge($this->supports, [
@@ -131,7 +133,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             $data['items'][] = [
                 'name' => $wooitem->get_name(),
                 'quantity' => intval($wooitem['qty']),
-                'total' => $itemtotal . ' ' . $cur,
+                'total' => $itemtotal,
                 'sku' => strval($wooitem['product_id']),
             ];
             if (!$wooitem->get_product()->is_virtual()) {
@@ -156,7 +158,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             $data['items'][] = [
                 'name' => $wooitem->get_name(),
                 'quantity' => 1,
-                'total' => $itemtotal . ' ' . $cur,
+                'total' => $itemtotal,
             ];
         }
 
@@ -167,15 +169,15 @@ class WC_Scanpay extends WC_Payment_Gateway
             $data['items'][] = [
                 'name' => isset($method) ? $method : __('Shipping', 'woocommerce-scanpay'),
                 'quantity' => 1,
-                'total' => $shippingcost . ' ' . $cur,
+                'total' => $shippingcost,
             ];
         }
 
         /* Compensate if total hook is used which makes total differ from sum of items */
         $itemtotal = 0;
-        foreach ($data['items'] as $item) {
-            /* Exploit that PHP only considers prefixed numbers in addition */
+        foreach ($data['items'] as $i => $item) {
             $itemtotal += $item['total'];
+            $data['items'][$i]['total'] .= " $cur"; /* add currency to item totals */
         }
         if ($itemtotal != $order->get_total()) {
             unset($data['items']);
@@ -192,24 +194,38 @@ class WC_Scanpay extends WC_Payment_Gateway
             }
         }
 
-        /* Handle subscriptions */
-        if (class_exists('WC_Subscriptions_Order') && wcs_order_contains_subscription($orderid)) {
-            assert(!isset($data['items']));
-            $data['subscriber'] = [
-                'ref' => $orderid,
-            ];
-            unset($data['items']);
-            foreach (wcs_get_subscriptions_for_order($orderid) as $subscription) {
-                update_post_meta($subscription->id, Scanpay\EntUpdater::ORDER_DATA_SHOPID, $this->shopid);
-            }
-        }
-        $data = apply_filters('woocommerce_scanpay_newurl_data', $data);
-
         $opts = [
             'headers' => [
                 'cardholderIP' => $_SERVER['REMOTE_ADDR'],
             ],
         ];
+
+        /* Handle subscriptions */
+        if (class_exists('WC_Subscriptions')) {
+            if (wcs_is_subscription($orderid)) {
+                $allowed = ['language', 'successurl'];
+                $data = array_intersect_key($data, array_flip($allowed));
+                try {
+                    $paymenturl = $this->client->renew($orderid, array_filter($data), $opts);
+                } catch (\Exception $e) {
+                    scanpay_log('scanpay client exception: ' . $e->getMessage());
+                    throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
+                }
+                return;
+            } else if (wcs_order_contains_subscription($orderid)) {
+                $data['subscriber'] = [
+                    'ref' => $orderid,
+                ];
+                unset($data['items']);
+                $nsub = 0;
+                foreach (wcs_get_subscriptions_for_order($orderid, ['order_type' => ['parent']]) as $subscription) {
+                    update_post_meta($subscription->id, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, $this->shopid);
+                    $nsub++;
+                }
+                if ($nsub !== 1) { throw new \Exception("order with subscription contains $n parent orders"); }
+            }
+        }
+        $data = apply_filters('woocommerce_scanpay_newurl_data', $data);
 
         try {
             $paymenturl = $this->client->newURL(array_filter($data), $opts);
@@ -220,7 +236,7 @@ class WC_Scanpay extends WC_Payment_Gateway
 
         /* Update order */
         $order->update_status('wc-pending');
-        update_post_meta($orderid, Scanpay\EntUpdater::ORDER_DATA_SHOPID, $this->shopid);
+        update_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, $this->shopid);
         return [
             'result' => 'success',
             'redirect' => $paymenturl,
@@ -253,7 +269,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             if (count($resobj['changes']) == 0) {
                 break;
             }
-            if (!is_null($errmsg = Scanpay\OrderUpdater::update_all($this->shopid, $resobj['changes'], $this, $seqtypes))) {
+            if (!is_null($errmsg = $this->orderupdater->update_all($resobj['changes'], $seqtypes))) {
                 return $errmsg;
             }
             if (empty($seqtypes)) {
@@ -346,16 +362,16 @@ class WC_Scanpay extends WC_Payment_Gateway
     // display the extra data in the order admin panel
     public function display_scanpay_info($order)
     {
-        $shopid = get_post_meta($order->get_id(), Scanpay\EntUpdater::ORDER_DATA_SHOPID, true);
+        $shopid = get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_SHOPID, true);
         if ($shopid === '') {
             return;
         }
         $trnid = $order->get_transaction_id();
-        $subid = get_post_meta($order->get_id(), Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_ID, true);
+        $subid = get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_ID, true);
         $cur = version_compare(WC_VERSION, '3.0.0', '<') ? $order->get_order_currency() : $order->get_currency();
-        $auth = wc_price(get_post_meta($order->get_id(), Scanpay\EntUpdater::ORDER_DATA_AUTHORIZED, true), ['currency' => $cur]);
-        $captured = wc_price(get_post_meta($order->get_id(), Scanpay\EntUpdater::ORDER_DATA_CAPTURED, true), ['currency' => $cur]);
-        $refunded = wc_price(get_post_meta($order->get_id(), Scanpay\EntUpdater::ORDER_DATA_REFUNDED, true), ['currency' => $cur]);
+        $auth = wc_price(get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_AUTHORIZED, true), ['currency' => $cur]);
+        $captured = wc_price(get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_CAPTURED, true), ['currency' => $cur]);
+        $refunded = wc_price(get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_REFUNDED, true), ['currency' => $cur]);
         $trnURL = self::DASHBOARD_URL . '/' . $shopid . '/' . $trnid;
 	    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/OrderInfo.phtml');
     }
@@ -373,12 +389,12 @@ class WC_Scanpay extends WC_Payment_Gateway
 
         /* meta data is automatically copied from the shop_subscription to the $renewal order */
         $renewal_orderid = $renewal_order->get_id();
-        $subid = get_post_meta($renewal_orderid, Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_ID, true);
+        $subid = get_post_meta($renewal_orderid, Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_ID, true);
         if (empty($subid)) {
             self::suberr($renewal_order, 'Failed to retrieve Scanpay subscriber id from order');
             return;
         }
-        $shopid = (int)get_post_meta($renewal_orderid, Scanpay\EntUpdater::ORDER_DATA_SHOPID, true);
+        $shopid = (int)get_post_meta($renewal_orderid, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, true);
         if (empty($shopid) || $shopid !== $this->shopid) {
             self::suberr($renewal_order, 'API-key shopid does not match stored subscriber shopid');
             return;
@@ -417,7 +433,7 @@ class WC_Scanpay extends WC_Payment_Gateway
 
             /* Attempt to load idempotency 10 times */
             for ($j = 0; $j < 10; $j++) {
-                $idem = get_post_meta($renewal_order->get_id(), Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_CHARGE_IDEM, true);
+                $idem = get_post_meta($renewal_order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_CHARGE_IDEM, true);
                 if (empty($idem)) {
                     if ($idem != '') {
                         self::suberr($renewal_order, 'Unexpected metadata error loading idempotency key');
@@ -427,7 +443,7 @@ class WC_Scanpay extends WC_Payment_Gateway
                     $idemtime = time();
                     $idemkey = $this->client->generateIdempotencyKey();
                     $idem = $idemtime . '-' . $idemkey;
-                    $r = update_post_meta($renewal_order->get_id(), Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_CHARGE_IDEM, $idem, '');
+                    $r = update_post_meta($renewal_order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_CHARGE_IDEM, $idem, '');
                     if ($r === false) {
                         continue;
                     }
@@ -457,7 +473,7 @@ class WC_Scanpay extends WC_Payment_Gateway
                         $idemkey = $this->client->generateIdempotencyKey();
                         $oldidem = $idem;
                         $idem = $idemtime . '-' . $idemkey;
-                        $r = update_post_meta($renewal_order->get_id(), Scanpay\EntUpdater::ORDER_DATA_SUBSCRIBER_CHARGE_IDEM, $idem, $oldidem);
+                        $r = update_post_meta($renewal_order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_CHARGE_IDEM, $idem, $oldidem);
                         if ($r === false) {
                             continue;
                         }
