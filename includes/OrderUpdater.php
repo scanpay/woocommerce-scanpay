@@ -172,12 +172,13 @@ class OrderUpdater
         }
 
         foreach (wcs_get_subscriptions_for_order($orderid) as $sub) {
-            $oldSubTime = (int)get_post_meta($sub->id, self::ORDER_DATA_SUBSCRIBER_TIME, true);
-            $oldSubId = get_post_meta($sub->id, self::ORDER_DATA_SUBSCRIBER_ID, true);
+            $subid = $sub->get_id();
+            $oldSubTime = (int)get_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_TIME, true);
+            $oldSubId = get_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_ID, true);
             if ($tchanged > $oldSubTime) {
-                update_post_meta($sub->id, self::ORDER_DATA_SHOPID, $this->shopid);
-                update_post_meta($sub->id, self::ORDER_DATA_SUBSCRIBER_TIME, $tchanged);
-                update_post_meta($sub->id, self::ORDER_DATA_SUBSCRIBER_ID, $d['id']);
+                update_post_meta($subid, self::ORDER_DATA_SHOPID, $this->shopid);
+                update_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_TIME, $tchanged);
+                update_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_ID, $d['id']);
 
                 /*
                  * Set the subscriber info for the parent order (since it will not be copied from subscription

@@ -71,6 +71,15 @@ class WC_Scanpay extends WC_Payment_Gateway
             add_action('woocommerce_scheduled_subscription_payment_' . $this->id,
                        [$this, 'scheduled_subscription_payment'], 10, 2);
         }
+
+        /*
+         * Fix that WC_Subscriptions_Change_Payment_Gateway::can_subscription_be_updated_to_new_payment_method
+         * wont fail, because totals is set to 0 ($subscription->get_total() == 0 will cause it to fail
+         */
+        if (class_exists('WC_Subscriptions_Change_Payment_Gateway') && WC_Subscriptions_Change_Payment_Gateway::$is_request_to_change_payment) {
+            remove_filter( 'woocommerce_subscription_get_total', 'WC_Subscriptions_Change_Payment_Gateway::maybe_zero_total', 11 );
+        }
+
     }
 
     public function process_payment($orderid)
@@ -202,16 +211,21 @@ class WC_Scanpay extends WC_Payment_Gateway
 
         /* Handle subscriptions */
         if (class_exists('WC_Subscriptions')) {
+            /* Handle resubscriptions (change of payment) */
             if (wcs_is_subscription($orderid)) {
                 $allowed = ['language', 'successurl'];
                 $data = array_intersect_key($data, array_flip($allowed));
                 try {
-                    $paymenturl = $this->client->renew($orderid, array_filter($data), $opts);
+                    $renewurl = $this->client->renew($orderid, array_filter($data), $opts);
                 } catch (\Exception $e) {
                     scanpay_log('scanpay client exception: ' . $e->getMessage());
                     throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
                 }
-                return;
+                return [
+                    'result' => 'success',
+                    'redirect' => $renewurl,
+                ];
+            /* Handle new subscriptions */
             } else if (wcs_order_contains_subscription($orderid)) {
                 $data['subscriber'] = [
                     'ref' => $orderid,
@@ -219,7 +233,7 @@ class WC_Scanpay extends WC_Payment_Gateway
                 unset($data['items']);
                 $nsub = 0;
                 foreach (wcs_get_subscriptions_for_order($orderid, ['order_type' => ['parent']]) as $subscription) {
-                    update_post_meta($subscription->id, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, $this->shopid);
+                    update_post_meta($subscription->get_id(), Scanpay\OrderUpdater::ORDER_DATA_SHOPID, $this->shopid);
                     $nsub++;
                 }
                 if ($nsub !== 1) { throw new \Exception("order with subscription contains $n parent orders"); }
