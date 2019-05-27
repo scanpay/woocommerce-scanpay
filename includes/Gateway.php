@@ -212,11 +212,21 @@ class WC_Scanpay extends WC_Payment_Gateway
         /* Handle subscriptions */
         if (class_exists('WC_Subscriptions')) {
             /* Handle resubscriptions (change of payment) */
-            if (wcs_is_subscription($orderid)) {
+            if (wcs_is_subscription($order)) {
+                $shopid = (int)get_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, true);
+                if ($shopid !== $this->shopid ) {
+                    scanpay_log("subscription #$orderid scanpay shopid ($shopid) does not match shopid from apikey ({$this->shopid})");
+                    throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
+                }
+                $subid = (int)get_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_ID, true);
+                if (empty($subid)) {
+                    scanpay_log("subscription #$orderid has empty transactionid");
+                    throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
+                }
                 $allowed = ['language', 'successurl'];
                 $data = array_intersect_key($data, array_flip($allowed));
                 try {
-                    $renewurl = $this->client->renew($orderid, array_filter($data), $opts);
+                    $renewurl = $this->client->renew($subid, array_filter($data), $opts);
                 } catch (\Exception $e) {
                     scanpay_log('scanpay client exception: ' . $e->getMessage());
                     throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
@@ -390,8 +400,16 @@ class WC_Scanpay extends WC_Payment_Gateway
 	    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/OrderInfo.phtml');
     }
 
-    private static function suberr($renewal_order, $err)
+    private static function suberr($renewal_order, $err, $isidempotent=true)
     {
+        $renewal_order->load();
+        if (!$renewal_order->needs_payment()) { return; }
+        /* Attempt to weed out races, if the response is not idempotent */
+        if (!$isidempotent) {
+            sleep(5);
+            $renewal_order->load();
+            if (!$renewal_order->needs_payment()) { return; }
+        }
         WC_Subscriptions_Manager::process_subscription_payment_failure_on_order($renewal_order);
         $renewal_order->add_order_note($err);
         scanpay_log('subscriber err: ' . $err, debug_backtrace(FALSE, 1)[0]);
@@ -479,6 +497,7 @@ class WC_Scanpay extends WC_Payment_Gateway
                             return;
                         }
                         /* surely we are now up to date, check if order is paid */
+                        $renewal_order->load();
                         if (!$renewal_order->needs_payment()) {
                             return;
                         }
@@ -499,22 +518,23 @@ class WC_Scanpay extends WC_Payment_Gateway
                 self::suberr($renewal_order, 'Failed to load idempotency key 10 times');
                 return;
             }
+            $errisidem = false;
             try {
                 $chargeResponse = $this->client->charge($subid, $data, ['headers' => ['Idempotency-Key' => $idemkey]]);
                 break;
             } catch (Scanpay\IdempotentResponseException $e) {
                 $lasterr = $e->getMessage() . ' (idem)';
                 $idemkey = '';
+                $errisidem = true;
             } catch (\Exception $e) {
                 $lasterr = $e->getMessage();
             }
             sleep($i + 1);
         }
         if ($i === $maxretries) {
-            self::suberr($renewal_order, "Encountered scanpay error upon charging sub #$subid: " . $lasterr);
+            self::suberr($renewal_order, "Encountered scanpay error upon charging sub #$subid: " . $lasterr, $errisidem);
             return;
-        } else if ($renewal_order->needs_payment()) {
-            $renewal_order->payment_complete($chargeResponse['id']);
         }
+        $renewal_order->payment_complete($chargeResponse['id']);
     }
 }

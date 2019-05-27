@@ -16,6 +16,7 @@ class OrderUpdater
     const ORDER_DATA_SUBSCRIBER_TIME = '_scanpay_subscriber_time';
     const ORDER_DATA_SUBSCRIBER_ID = '_scanpay_subscriber_id';
     const ORDER_DATA_SUBSCRIBER_CHARGE_IDEM = '_scanpay_subscriber_charge_idem';
+    const ORDER_DATA_SUBSCRIBER_INITIALPAYMENT_NTRIES = '_scanpay_subscriber_initialpayment_ntries';
 
     private $shopid;
     private $scanpay;
@@ -200,7 +201,9 @@ class OrderUpdater
 
         if ($order->needs_payment()) {
             if ($order->get_total() > 0) {
-                $this->scanpay->scheduled_subscription_payment($order->get_total(), $order);
+                if (update_post_meta($orderid, self::ORDER_DATA_SUBSCRIBER_INITIALPAYMENT_NTRIES, '1', '')) {
+                    $this->scanpay->scheduled_subscription_payment($order->get_total(), $order);
+                }
                 /* no need to set success/failure, the above method will handle that */
             } else {
                 $order->payment_complete();
