@@ -20,6 +20,7 @@ class OrderUpdater
 
     private $shopid;
     private $scanpay;
+    private $queuedchargedb;
 
     function __construct($shopid, $scanpayinstance)
     {
@@ -201,10 +202,7 @@ class OrderUpdater
 
         if ($order->needs_payment()) {
             if ($order->get_total() > 0) {
-                if (update_post_meta($orderid, self::ORDER_DATA_SUBSCRIBER_INITIALPAYMENT_NTRIES, '1', '')) {
-                    $this->scanpay->scheduled_subscription_payment($order->get_total(), $order);
-                }
-                /* no need to set success/failure, the above method will handle that */
+                $this->scanpay->queuedchargedb->save($orderid);
             } else {
                 $order->payment_complete();
             }

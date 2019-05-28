@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class GlobalSequencer
+class ShopSeqDB
 {
     protected $tablename;
 

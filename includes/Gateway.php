@@ -10,9 +10,10 @@ class WC_Scanpay extends WC_Payment_Gateway
     const DASHBOARD_URL = 'https://dashboard.scanpay.dk';
     protected $shopid;
     protected $apikey;
-    protected $orderUpdater;
-    protected $sequencer;
     protected $client;
+    protected $orderUpdater;
+    protected $shopseqdb;
+    public $queuedchargedb;
 
     public function __construct($extended = false, $support_subscriptions = true)
     {
@@ -38,9 +39,10 @@ class WC_Scanpay extends WC_Payment_Gateway
             $this->shopid = null;
         }
         /* Subclasses */
-        $this->sequencer = new Scanpay\GlobalSequencer();
         $this->client = new Scanpay\Scanpay($this->apikey);
         $this->orderupdater = new Scanpay\OrderUpdater($this->shopid, $this);
+        $this->shopseqdb = new Scanpay\ShopSeqDB();
+        $this->queuedchargedb = new Scanpay\QueuedChargeDB();
 
         $this->supports = ['products'];
         if ($support_subscriptions) {
@@ -269,10 +271,10 @@ class WC_Scanpay extends WC_Payment_Gateway
 
     public function seq($local_seq, $seqtypes=false) {
         if (is_null($local_seq)) {
-            $local_seqobj = $this->sequencer->load($this->shopid);
+            $local_seqobj = $this->shopseqdb->load($this->shopid);
             if (!$local_seqobj) {
-                $this->sequencer->insert($this->shopid);
-                $local_seqobj = $this->sequencer->load($this->shopid);
+                $this->shopseqdb->insert($this->shopid);
+                $local_seqobj = $this->shopseqdb->load($this->shopid);
                 if (!$local_seqobj) {
                     return 'unable to load scanpay sequence number';
                 }
@@ -297,7 +299,7 @@ class WC_Scanpay extends WC_Payment_Gateway
                 return $errmsg;
             }
             if (empty($seqtypes)) {
-                $r = $this->sequencer->save($this->shopid, $resobj['seq']);
+                $r = $this->shopseqdb->save($this->shopid, $resobj['seq']);
                 if (!$r) {
                     if ($r == false) {
                         return 'error saving Scanpay changes';
@@ -337,10 +339,10 @@ class WC_Scanpay extends WC_Payment_Gateway
 
         if (!isset($jsonreq['seq']) || !is_int($jsonreq['seq'])) { return; }
         $remote_seq = $jsonreq['seq'];
-        $local_seqobj = $this->sequencer->load($this->shopid);
+        $local_seqobj = $this->shopseqdb->load($this->shopid);
         if (!$local_seqobj) {
-            $this->sequencer->insert($this->shopid);
-            $local_seqobj = $this->sequencer->load($this->shopid);
+            $this->shopseqdb->insert($this->shopid);
+            $local_seqobj = $this->shopseqdb->load($this->shopid);
             if (!$local_seqobj) {
                 scanpay_log('unable to load scanpay sequence number');
                 wp_send_json(['error' => 'unable to load scanpay sequence number'], 500);
@@ -349,16 +351,23 @@ class WC_Scanpay extends WC_Payment_Gateway
         }
 
         $local_seq = $local_seqobj['seq'];
-        if ($local_seq >= $remote_seq) {
-            $this->sequencer->updateMtime($this->shopid);
-            wp_send_json_success();
-            return;
-        }
-        $errmsg = $this->seq($local_seq);
-        if (!is_null($errmsg)) {
-            scanpay_log($errmsg);
-            wp_send_json(['error' => $errmsg], 500);
-            return;
+        if ($local_seq < $remote_seq) {
+            $errmsg = $this->seq($local_seq);
+            if (!is_null($errmsg)) {
+                scanpay_log($errmsg);
+                wp_send_json(['error' => $errmsg], 500);
+                return;
+            }
+            $queuedcharges = $this->queuedchargedb->loadall();
+            foreach ($queuedcharges as $orderid) {
+                $order = wc_get_order($orderid);
+                if (update_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_INITIALPAYMENT_NTRIES, '1', '')) {
+                    $this->scheduled_subscription_payment($order->get_total(), $order);
+                }
+                $this->queuedchargedb->delete($orderid);
+            }
+        } else {
+            $this->shopseqdb->updateMtime($this->shopid);
         }
         wp_send_json_success();
     }
@@ -370,8 +379,8 @@ class WC_Scanpay extends WC_Payment_Gateway
         $apikey = $this->get_option('apikey');
         $shopid = explode(':', $apikey)[0];
         if (ctype_digit($shopid)) {
-            $sequencer = new Scanpay\GlobalSequencer();
-            $local_seqobj = $sequencer->load($shopid);
+            $shopseqdb = new Scanpay\ShopSeqDB();
+            $local_seqobj = $shopseqdb->load($shopid);
             if (!$local_seqobj) { $local_seqobj = [ 'mtime' => 0 ]; }
         } else {
             $local_seqobj = [ 'mtime' => 0 ];

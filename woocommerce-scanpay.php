@@ -52,7 +52,8 @@ function initScanpay()
     load_plugin_textdomain('woocommerce-scanpay', false, plugin_basename(dirname(__FILE__)) . '/languages');
     include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/Gateway.php');
     include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/ScanpayClient.php');
-    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/GlobalSequencer.php');
+    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/ShopSeqDB.php');
+    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/QueuedChargeDB.php');
     include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/OrderUpdater.php');
     include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/Settings.php');
 
