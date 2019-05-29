@@ -173,7 +173,7 @@ class OrderUpdater
             }
         }
 
-        foreach (wcs_get_subscriptions_for_order($orderid) as $sub) {
+        foreach (wcs_get_subscriptions_for_order($order, ['order_type' => ['parent']]) as $sub) {
             $subid = $sub->get_id();
             $oldSubTime = (int)get_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_TIME, true);
             $oldSubId = get_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_ID, true);

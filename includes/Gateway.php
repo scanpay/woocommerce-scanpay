@@ -118,7 +118,6 @@ class WC_Scanpay extends WC_Payment_Gateway
                 'company' => $order->get_shipping_company(),
             ]),
         ];
-
         $cur = version_compare(WC_VERSION, '3.0.0', '<') ? $order->get_order_currency() : $order->get_currency();
         $has_nonvirtual = false;
 
@@ -238,17 +237,17 @@ class WC_Scanpay extends WC_Payment_Gateway
                     'redirect' => $renewurl,
                 ];
             /* Handle new subscriptions */
-            } else if (wcs_order_contains_subscription($orderid)) {
+            } else if (wcs_order_contains_subscription($order)) {
                 $data['subscriber'] = [
                     'ref' => $orderid,
                 ];
                 unset($data['items']);
                 $nsub = 0;
-                foreach (wcs_get_subscriptions_for_order($orderid, ['order_type' => ['parent']]) as $subscription) {
+                foreach (wcs_get_subscriptions_for_order($order, ['order_type' => ['parent']]) as $subscription) {
                     update_post_meta($subscription->get_id(), Scanpay\OrderUpdater::ORDER_DATA_SHOPID, $this->shopid);
                     $nsub++;
                 }
-                if ($nsub !== 1) { throw new \Exception("order with subscription contains $n parent orders"); }
+                if ($nsub < 1) { throw new \Exception("order with subscription contains 0 parent orders"); }
             }
         }
         $data = apply_filters('woocommerce_scanpay_newurl_data', $data);
