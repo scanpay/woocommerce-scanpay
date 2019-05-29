@@ -90,6 +90,7 @@ class OrderUpdater
 
         $nacts = (int)get_post_meta($orderid, self::ORDER_DATA_NACTS, true);
         for ($i = $nacts; $i < count($d['acts']); $i++) {
+            $act = $d['acts'][$i];
             switch ($act['act']) {
             case 'capture':
                 if (isset($act['total']) && is_string($act['total'])) {
@@ -111,7 +112,7 @@ class OrderUpdater
         }
         update_post_meta($orderid, self::ORDER_DATA_NACTS, count($d['acts']));
         if (isset($d['totals']['captured'])) {
-            $captured = explode(' ', $data['totals']['captured'])[0];
+            $captured = explode(' ', $d['totals']['captured'])[0];
             update_post_meta($orderid, self::ORDER_DATA_CAPTURED, $captured);
         }
 
@@ -173,7 +174,7 @@ class OrderUpdater
             }
         }
 
-        foreach (wcs_get_subscriptions_for_order($order, ['order_type' => ['parent']]) as $sub) {
+        foreach (wcs_get_subscriptions_for_order($order, ['order_type' => ['parent', 'switch']]) as $sub) {
             $subid = $sub->get_id();
             $oldSubTime = (int)get_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_TIME, true);
             $oldSubId = get_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_ID, true);

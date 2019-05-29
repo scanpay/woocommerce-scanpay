@@ -243,8 +243,8 @@ class WC_Scanpay extends WC_Payment_Gateway
                 ];
                 unset($data['items']);
                 $nsub = 0;
-                foreach (wcs_get_subscriptions_for_order($order, ['order_type' => ['parent']]) as $subscription) {
-                    update_post_meta($subscription->get_id(), Scanpay\OrderUpdater::ORDER_DATA_SHOPID, $this->shopid);
+                foreach (wcs_get_subscriptions_for_order($order, ['order_type' => ['parent', 'switch']]) as $sub) {
+                    update_post_meta($sub->get_id(), Scanpay\OrderUpdater::ORDER_DATA_SHOPID, $this->shopid);
                     $nsub++;
                 }
                 if ($nsub < 1) { throw new \Exception("order with subscription contains 0 parent orders"); }
