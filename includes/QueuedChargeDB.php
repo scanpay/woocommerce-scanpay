@@ -43,7 +43,7 @@ class QueuedChargeDB
     public function delete($orderid)
     {
         global $wpdb;
-        $q = $wpdb->prepare("DELETE FROM `$this->tablename`" .
+        $q = $wpdb->prepare("DELETE IGNORE FROM `$this->tablename`" .
             'WHERE `orderid` = %d ' , $orderid);
         $wpdb->query($q);
     }

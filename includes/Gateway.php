@@ -358,16 +358,16 @@ class WC_Scanpay extends WC_Payment_Gateway
                 wp_send_json(['error' => $errmsg], 500);
                 return;
             }
-            $queuedcharges = $this->queuedchargedb->loadall();
-            foreach ($queuedcharges as $orderid) {
-                $order = wc_get_order($orderid);
-                if (update_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_INITIALPAYMENT_NTRIES, '1', '')) {
-                    $this->scheduled_subscription_payment($order->get_total(), $order);
-                }
-                $this->queuedchargedb->delete($orderid);
-            }
         } else {
             $this->shopseqdb->updateMtime($this->shopid);
+        }
+        $queuedcharges = $this->queuedchargedb->loadall();
+        foreach ($queuedcharges as $orderid) {
+            $order = wc_get_order($orderid);
+            if (update_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_INITIALPAYMENT_NTRIES, '1', '')) {
+                $this->scheduled_subscription_payment($order->get_total(), $order);
+            }
+            $this->queuedchargedb->delete($orderid);
         }
         wp_send_json_success();
     }
