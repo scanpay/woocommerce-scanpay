@@ -216,7 +216,7 @@ class OrderUpdater
     {
         $shopid = $this->shopid;
         foreach ($changes as $change) {
-            if (!empty($seqtypes) && !in_array($seqtypes, $change['type'])) {
+            if (!empty($seqtypes) && !in_array($change['type'], $seqtypes)) {
                 continue;
             }
             try {

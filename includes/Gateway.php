@@ -72,6 +72,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             /* Subscription charge hook */
             add_action('woocommerce_scheduled_subscription_payment_' . $this->id,
                        [$this, 'scheduled_subscription_payment'], 10, 2);
+            add_action('woocommerce_before_thankyou', [$this, 'after_subscribe']);
         }
 
         /*
@@ -317,7 +318,6 @@ class WC_Scanpay extends WC_Payment_Gateway
             wp_send_json(['error' => 'invalid signature'], 403);
             return;
         }
-
         $body = file_get_contents('php://input');
         $localsig = base64_encode(hash_hmac('sha256', $body, $this->apikey, true));
         if (!hash_equals($localsig, $_SERVER['HTTP_X_SIGNATURE'])) {
@@ -408,14 +408,55 @@ class WC_Scanpay extends WC_Payment_Gateway
 	    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/OrderInfo.phtml');
     }
 
+    public function after_subscribe($orderid)
+    {
+        /* Attempt to charge initial payments from subscriptions */
+        if (!class_exists('WC_Subscriptions')) {
+            return;
+        }
+        $order = wc_get_order($orderid);
+        if (!$order) {
+            return;
+        }
+        if (substr_compare($order->get_payment_method(), $this->id, 0, strlen('scanpay')) != 0) {
+            return;
+        }
+        if (!wcs_order_contains_subscription($order)) {
+            return;
+        }
+        if (!$order->needs_payment() || $order->get_total() == 0) {
+            return;
+        }
+        for ($i = 0; $i < 5; $i++) {
+            $subid = get_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_ID, true);
+            if (!empty($subid)) { break; }
+            if ($i != 5) { usleep(500000); }
+        }
+        if (empty($subid)) { return; }
+        if (update_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_INITIALPAYMENT_NTRIES, '1', '')) {
+            $this->scheduled_subscription_payment($order->get_total(), $order);
+        } else {
+            if (!wc_get_order($orderid)->needs_payment()) {
+                return;
+            }
+            sleep(1);
+            if (!wc_get_order($orderid)->needs_payment()) {
+                return;
+            }
+            $this->seq(null, ['subscriber']);
+        }
+    }
+
     private static function suberr($renewal_order, $err, $isidempotent=true)
     {
-        $renewal_order->load();
+        /* reload order */
+        $renewal_order = wc_get_order($renewal_order->get_id());
         if (!$renewal_order->needs_payment()) { return; }
         /* Attempt to weed out races, if the response is not idempotent */
         if (!$isidempotent) {
             sleep(5);
-            $renewal_order->load();
+            /* reload order */
+            $renewal_order = wc_get_order($renewal_order->get_id());
             if (!$renewal_order->needs_payment()) { return; }
         }
         WC_Subscriptions_Manager::process_subscription_payment_failure_on_order($renewal_order);
@@ -467,7 +508,7 @@ class WC_Scanpay extends WC_Payment_Gateway
                 'company' => $renewal_order->get_shipping_company(),
             ]),
         ];
-        $maxretries = 5;
+        $maxretries = 3;
         $lasterr = '';
         for ($i = 0; $i < $maxretries; $i++) {
 
@@ -504,8 +545,8 @@ class WC_Scanpay extends WC_Payment_Gateway
                             self::suberr($renewal_order, $r);
                             return;
                         }
-                        /* surely we are now up to date, check if order is paid */
-                        $renewal_order->load();
+                        /* surely we are now up to date, check if order is paid. Reload order: */
+                        $renewal_order = wc_get_order($renewal_order->get_id());
                         if (!$renewal_order->needs_payment()) {
                             return;
                         }
@@ -537,7 +578,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             } catch (\Exception $e) {
                 $lasterr = $e->getMessage();
             }
-            sleep($i + 1);
+            if ($i !== $maxretries - 1) { sleep($i * 2 + 1); }
         }
         if ($i === $maxretries) {
             self::suberr($renewal_order, "Encountered scanpay error upon charging sub #$subid: " . $lasterr, $errisidem);

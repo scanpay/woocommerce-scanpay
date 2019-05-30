@@ -35,7 +35,7 @@ class QueuedChargeDB
         global $wpdb;
         $col = $wpdb->get_col("SELECT `orderid` FROM `$this->tablename`");
         if (!$col) {
-            return false;
+            return [];
         }
         return $col;
     }
