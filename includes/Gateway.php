@@ -39,7 +39,11 @@ class WC_Scanpay extends WC_Payment_Gateway
             $this->shopid = null;
         }
         /* Subclasses */
-        $this->client = new Scanpay\Scanpay($this->apikey);
+        $this->client = new Scanpay\Scanpay($this->apikey, [
+            'headers' => [
+                'X-Shop-Plugin' => 'woocommerce/' . WC_VERSION . '/' . WC_SCANPAY_PLUGIN_VERSION,
+            ],
+        ]);
         $this->orderupdater = new Scanpay\OrderUpdater($this->shopid, $this);
         $this->shopseqdb = new Scanpay\ShopSeqDB();
         $this->queuedchargedb = new Scanpay\QueuedChargeDB();

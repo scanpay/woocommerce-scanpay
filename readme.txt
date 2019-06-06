@@ -2,7 +2,7 @@
 Contributors: scanpay
 Tags: ecommerce, scanpay, woocommerce
 Requires at least: 4.0
-Tested up to: 5.0.2
+Tested up to: 5.2.2
 Stable tag: trunk
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
@@ -22,6 +22,11 @@ Note that you must capture and refund transactions in the Scanpay dashboard.
 4. Copy the ping URL from the Scanpay plugin settings to your Scanpay dasboard API settings.
 
 == Changelog ==
+
+= 1.1.0 =
+Added support for subscriptions. Requires use of the WooCommerce Subscriptions plugin.
+Added support for autocapture of orders with virtual goods.
+Added support for autocompletion of orders with virtual goods.
 
 = 1.0.10 =
 Fixed some cases where the code added in 1.0.9 would kick in when it should not.

@@ -9,8 +9,9 @@ class Scanpay {
     protected $apikey;
     protected $idemstatus;
     protected $useidem;
+    protected $opts;
 
-    public function __construct($apikey = '') {
+    public function __construct($apikey = '', $opts=[]) {
         // Check if libcurl is enabled
         if (!function_exists('curl_init')) {
             die("ERROR: Please enable php-curl\n");
@@ -20,7 +21,6 @@ class Scanpay {
         $this->ch = curl_init();
         $this->headers = [
             'authorization' => 'Authorization: Basic ' . base64_encode($apikey),
-            'X-Shop-Plugin: woocommerce/' . WC_SCANPAY_PLUGIN_VERSION,
             'x-sdk' => 'X-SDK: PHP-1.5.0/'. PHP_VERSION,
             'content-type' => 'Content-Type: application/json',
             'expect' => 'Expect: ',
@@ -28,6 +28,7 @@ class Scanpay {
         /* The 'Expect' header will disable libcurl's expect-logic,
             which will save us a HTTP roundtrip on POSTs >1024b. */
         $this->apikey = $apikey;
+        $this->opts = $opts;
     }
 
     /* Create indexed array from associative array ($this->headers).
@@ -48,12 +49,13 @@ class Scanpay {
     protected function handleHeaders($curl, $hdr) {
         $arr = explode(':', $hdr, 2);
         if (count($arr) === 2 && strtolower(trim($arr[0])) === 'idempotency-status') {
-            $this->$idemstatus = strtoupper(trim($arr[1]));
+            $this->idemstatus = strtoupper(trim($arr[1]));
         }
         return strlen($hdr);
     }
 
     protected function request($path, $opts=[], $data=null) {
+        $opts = array_merge($this->opts, $opts);
         $hostname = (isset($opts['hostname'])) ? $opts['hostname'] : 'api.scanpay.dk';
         $this->useidem = false;
         $this->idemstatus = null;
@@ -103,7 +105,9 @@ class Scanpay {
                 $err = 'Server returned unknown idempotency status ' . $this->idemstatus;
                 break;
             }
-            throw new \Exception($err . ". Scanpay returned $statusCode - " . explode("\n", $result)[0]);
+            if (!is_null($err)) {
+                throw new \Exception($err . ". Scanpay returned $statusCode - " . explode("\n", $result)[0]);
+            }
         }
         if ($statusCode !== 200) {
             throw new IdempotentResponseException('Scanpay returned "' . explode("\n", $result)[0] . '"');

@@ -14,16 +14,12 @@
  * License: MIT License
  * License URI: https://opensource.org/licenses/MIT
  * WC requires at least: 3.0.0
- * WC tested up to: 3.5.3
+ * WC tested up to: 3.7.0
  */
 
 // Exit if accessed directly
 if (!defined('ABSPATH')) {
     exit;
-}
-
-if (!in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
-    return;
 }
 
 if (!function_exists('get_plugins')) {
@@ -49,6 +45,13 @@ function scanpay_log($msg, $caller=null)
 
 function initScanpay()
 {
+    add_filter('woocommerce_payment_gateways', 'addScanpayGateway');
+}
+add_action('plugins_loaded', 'initScanpay', 0);
+
+
+function addScanpayGateway($methods)
+{
     load_plugin_textdomain('woocommerce-scanpay', false, plugin_basename(dirname(__FILE__)) . '/languages');
     include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/Gateway.php');
     include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/ScanpayClient.php');
@@ -56,22 +59,12 @@ function initScanpay()
     include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/QueuedChargeDB.php');
     include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/OrderUpdater.php');
     include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/Settings.php');
-
     include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/gateways/Parent.php');
     include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/gateways/Mobilepay.php');
-
-}
-add_action('plugins_loaded', 'initScanpay', 0);
-
-
-function addScanpayGateway($methods)
-{
     $methods[] = 'WC_Scanpay';
     $methods[] = 'WC_Scanpay_Mobilepay';
     return $methods;
 }
-
-add_filter('woocommerce_payment_gateways', 'addScanpayGateway');
 
 /* Add a link to settings in the plugin overview */
 function addScanpayPluginLinks($links)
