@@ -542,7 +542,7 @@ class WC_Scanpay extends WC_Payment_Gateway
                     }
                     $idemkey = $idemarr[1];
 
-                    if ($idemtime + 23 * 60 * 60 > time()) {
+                    if (time() > $idemtime + 23 * 60 * 60) {
                         /* idempotency key expired, attempt to seq (only charges) */
                         $r = $this->seq(null, ['charge']);
                         if (!empty($r)) {
@@ -576,8 +576,9 @@ class WC_Scanpay extends WC_Payment_Gateway
                 $chargeResponse = $this->client->charge($subid, $data, ['headers' => ['Idempotency-Key' => $idemkey]]);
                 break;
             } catch (Scanpay\IdempotentResponseException $e) {
-                $lasterr = $e->getMessage() . ' (idem)';
-                $idemkey = '';
+                $lasterr = $e->getMessage() . ' (idempotent)';
+                /* Reset stored idempotency data */
+                update_post_meta($renewal_order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_CHARGE_IDEM, '', $idem);
                 $errisidem = true;
             } catch (\Exception $e) {
                 $lasterr = $e->getMessage();
