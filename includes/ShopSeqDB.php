@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class GlobalSequencer
+class ShopSeqDB
 {
     protected $tablename;
 
@@ -60,10 +60,14 @@ class GlobalSequencer
         $q = $wpdb->prepare("UPDATE `$this->tablename` SET `seq` = %d, `mtime` = %d " .
             'WHERE `shopid` = %d AND `seq` < %d', $seq, time(), $shopId, $seq);
         $ret = $wpdb->query($q);
+        if ($ret == false) {
+            scanpay_log('Failed saving seq to database');
+            return false;
+        }
         if ($ret === 0) {
             $this->updateMtime($shopId);
         }
-        return !!$ret;
+        return (int)!!$ret;
     }
 
     public function load($shopId)

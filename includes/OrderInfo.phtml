@@ -1,0 +1,41 @@
+<?php
+if (!defined('ABSPATH')) {
+    exit;
+}
+?>
+</div>
+<div class="order_data_column">
+    <h3><?php echo __('Scanpay Details', 'woocommerce-scanpay'); ?></h3>
+<?php if(!empty($subid)): ?>
+    <p>
+        <strong><?php echo __('Subscriber ID', 'woocommerce-scanpay') ?>:</strong>
+        <span style="float: right">
+            <?php echo $subid ?>
+            <span class="dashicons"></span>
+        </span>
+    </p>
+<?php endif; ?>
+<?php if(!empty($trnid)): ?>
+    <p>
+        <strong><?php echo __('Transaction ID', 'woocommerce-scanpay') ?>:</strong>
+        <?php echo '<a style="text-decoration:none; float:right" href="' . $trnURL . '" target="_blank">' . htmlspecialchars($trnid) ?>
+        <span class="dashicons dashicons-arrow-right-alt"></span></a>
+    </p>
+    <p>
+        <strong><?php echo __('Authorized', 'woocommerce-scanpay')?>:</strong>
+        <span style="float: right">
+            <?php echo $auth ?>
+            <span class="dashicons"></span>
+        </span>
+    </p>
+    <p>
+        <strong><?php echo __('Captured', 'woocommerce-scanpay')?>:</strong>
+        <?php echo '<a style="text-decoration:none; float:right" href="' . $trnURL . '/capture" target="_blank">' . $captured ?>
+        <span class="dashicons dashicons-plus-alt"></span></a>
+    <p>
+        <strong><?php echo __('Refunded', 'woocommerce-scanpay')?>:</strong>
+        <?php echo '<a style="text-decoration:none; float:right" href="' . $trnURL . '/refund" target="_blank">' . $refunded ?>
+        <span class="dashicons dashicons-dismiss"></span></a>
+    </p>
+<?php endif; ?>
+</div><div style="display: none">

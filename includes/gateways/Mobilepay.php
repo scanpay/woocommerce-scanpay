@@ -8,7 +8,7 @@ class WC_Scanpay_Mobilepay extends WC_Scanpay_Parent
 {
     public function __construct()
     {
-        parent::__construct();
+        parent::__construct(false);
         $this->id = 'scanpay_mobilepay';
         $this->setup();
         $this->method_title = 'Scanpay - MobilePay';
