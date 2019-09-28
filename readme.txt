@@ -24,9 +24,8 @@ Note that you must capture and refund transactions in the Scanpay dashboard.
 == Changelog ==
 
 = 1.1.0 =
-Added support for subscriptions. Requires use of the WooCommerce Subscriptions plugin.
-Added support for autocapture of orders with virtual goods.
-Added support for autocompletion of orders with virtual goods.
+Added BETA support for subscriptions. Requires the use of the WooCommerce Subscriptions plugin.
+Added support for autocompletion (including autocapture) of orders with virtual goods.
 
 = 1.0.10 =
 Fixed some cases where the code added in 1.0.9 would kick in when it should not.

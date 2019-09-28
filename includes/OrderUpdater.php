@@ -30,7 +30,8 @@ class OrderUpdater
 
     private function autocomplete($order)
     {
-        if ($this->scanpay->autocomplete_virtual && $order->get_status() === 'processing') {
+        $isprocessing = $order->get_status() === 'processing';
+        if ($isprocessing && $this->scanpay->autocomplete_virtual) {
             $has_nonvirtual = false;
             foreach ($order->get_items('line_item') as $item) {
                 if (!$item->get_product()->is_virtual()) {
@@ -39,7 +40,11 @@ class OrderUpdater
             }
             if (!$has_nonvirtual) {
                 $order->update_status('completed', __('Automatically completed virtual order.', 'woocommerce-scanpay'), false);
+                $isprocessing = false;
             }
+        }
+        if ($isprocessing && $this->scanpay->autocomplete_renewalorders && class_exists('WC_Subscriptions') && wcs_order_contains_renewal($order)) {
+            $order->update_status('completed', __('Automatically completed renewal order order.', 'woocommerce-scanpay'), false);
         }
     }
 

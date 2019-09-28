@@ -31,6 +31,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         $this->apikey = $this->get_option('apikey');
         $this->pingurl = WC()->api_request_url(self::API_PING_URL);
         $this->autocomplete_virtual = $this->get_option('autocomplete_virtual') === 'yes';
+        $this->autocomplete_renewalorders = $this->get_option('autocomplete_renewalorders') === 'yes';
 
         $shopid = explode(':', $this->apikey)[0];
         if (ctype_digit($shopid)) {
@@ -49,7 +50,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         $this->queuedchargedb = new Scanpay\QueuedChargeDB();
 
         $this->supports = ['products'];
-        if ($support_subscriptions) {
+        if ($support_subscriptions && $this->get_option('subscriptions_enabled') === 'yes') {
             $this->supports = array_merge($this->supports, [
                 'subscriptions',
                 'subscription_cancellation',
@@ -77,6 +78,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             add_action('woocommerce_scheduled_subscription_payment_' . $this->id,
                        [$this, 'scheduled_subscription_payment'], 10, 2);
             add_action('woocommerce_before_thankyou', [$this, 'after_subscribe']);
+            add_action('woocommerce_order_status_completed', [$this, 'woocommerce_order_status_completed']);
         }
 
         /*
@@ -160,7 +162,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         if ($has_nonvirtual) {
             $data['autocapture'] = $this->get_option('autocapture') === 'yes';
         } else {
-            $data['autocapture'] = $this->get_option('autocapture') === 'yes' || $this->get_option('autocapture_virtual') === 'yes';
+            $data['autocapture'] = $this->get_option('autocapture') === 'yes' || $this->autocomplete_virtual;
         }
 
         /* Add fees */
@@ -273,6 +275,23 @@ class WC_Scanpay extends WC_Payment_Gateway
         ];
     }
 
+    public function woocommerce_order_status_completed($orderid) {
+        return;
+        /* Coming soon */
+        $order = wc_get_order($orderid);
+        if (!$order || $this->get_option('capture_on_complete') !== 'yes' ||
+            (class_exists('WC_Subscriptions') && wcs_is_subscription($order)) ||
+            (int)get_post_meta($orderid, self::ORDER_DATA_SHOPID, true) !== $this->shopid) {
+            return;
+        }
+        $cur = version_compare(WC_VERSION, '3.0.0', '<') ? $order->get_order_currency() : $order->get_currency();
+        $data = [
+            'total' => "{$order->get_total()} $cur",
+            'index' => 0,
+        ];
+        $this->client->capture($order->get_transaction_id(), $data);
+    }
+
     public function seq($local_seq, $seqtypes=false) {
         if (is_null($local_seq)) {
             $local_seqobj = $this->shopseqdb->load($this->shopid);
@@ -285,10 +304,6 @@ class WC_Scanpay extends WC_Payment_Gateway
             }
             $local_seq = $local_seqobj['seq'];
         }
-
-        $opts = [
-            'autocomplete_virtual' => $this->autocomplete_virtual,
-        ];
 
         while (1) {
             try {
@@ -520,7 +535,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             for ($j = 0; $j < 10; $j++) {
                 $idem = get_post_meta($renewal_order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_CHARGE_IDEM, true);
                 if (empty($idem)) {
-                    if ($idem != '') {
+                    if ($idem === false) {
                         self::suberr($renewal_order, 'Unexpected metadata error loading idempotency key');
                         return;
                     }

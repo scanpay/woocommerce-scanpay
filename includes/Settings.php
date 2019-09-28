@@ -68,19 +68,12 @@ function buildSettings($block)
             'default' => 'no',
             'description' => __( 'Automatically capture all orders upon authorization regardless of product types.', 'woocommerce-scanpay' ),
         ],
-        'autocapture_virtual' => [
-            'title'   => __( 'Auto-capture virtual orders', 'woocommerce-scanpay' ),
-            'type'    => 'checkbox',
-            'label'   => __( 'Enable auto-capture of virtual orders', 'woocommerce-scanpay' ),
-            'default' => 'no',
-            'description' => __( 'Automatically capture orders that only contain virtual products. <i><b>This option is ignored if the above auto-capture option is enabled.</b></i>', 'woocommerce-scanpay' ),
-        ],
         'autocomplete_virtual' => [
             'title'   => __( 'Auto-complete virtual orders', 'woocommerce-scanpay' ),
             'type'    => 'checkbox',
             'label'   => __( 'Enable automatic completion of virtual orders after payment', 'woocommerce-scanpay' ),
             'default' => 'no',
-            'description' => __( 'Automatically set order status to "Completed" after payment for orders that only contain virtual products.', 'woocommerce-scanpay' ),
+            'description' => __( 'Automatically capture and set order status to "Completed" for paid orders that only contain virtual products.', 'woocommerce-scanpay' ),
         ],
         'debug' => [
             'title'   => __( 'Debug', 'woocommerce-scanpay' ),
@@ -90,7 +83,24 @@ function buildSettings($block)
             'custom_attributes' => [
                 'disabled' => '',
             ],
-        ]
+        ],
+        '_subscriptions' => [
+            'type' => 'title',
+            'title' => __( 'Subscriptions', 'woocommerce-scanpay' ),
+        ],
+        'subscriptions_enabled' => [
+            'title'   => __( 'Enable/Disable Subscriptions', 'woocommerce-scanpay' ),
+            'type'    => 'checkbox',
+            'label'   => __( 'Enable Subscription Payments Support (BETA)', 'woocommerce-scanpay' ),
+            'description' => __( 'This option adds support for subscriptions provided by Woocommerce Subscriptions.' ),
+            'default' => 'no',
+        ],
+        'autocomplete_renewalorders' => [
+            'title'   => __( 'Auto-complete  renewal orders', 'woocommerce-scanpay' ),
+            'type'    => 'checkbox',
+            'label'   => __( 'Enable automatic completion of subscription renewal orders', 'woocommerce-scanpay' ),
+            'default' => 'no',
+        ],
     ];
     return $form_fields;
 }
