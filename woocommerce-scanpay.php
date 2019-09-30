@@ -3,7 +3,7 @@
  * Plugin Name: Scanpay for Woocommerce
  * Plugin URI: https://wordpress.org/plugins/scanpay-for-woocommerce/
  * Description: Provides a Scanpay payment method for Woocommerce checkout.
- * Version: 1.1.0
+ * Version: 1.1.1
  * Author: Scanpay
  * Author URI: https://scanpay.dk
  * Developer: Christian Thorseth Blach
@@ -45,26 +45,28 @@ function scanpay_log($msg, $caller=null)
 
 function initScanpay()
 {
-    add_filter('woocommerce_payment_gateways', 'addScanpayGateway');
+    load_plugin_textdomain('woocommerce-scanpay', false, plugin_basename(dirname(__FILE__)) . '/languages');
+    if (!class_exists('WooCommerce')) {
+        return;
+    }
+    require_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/Gateway.php');
+    require_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/ScanpayClient.php');
+    require_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/ShopSeqDB.php');
+    require_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/QueuedChargeDB.php');
+    require_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/OrderUpdater.php');
+    require_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/Settings.php');
+    require_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/gateways/Parent.php');
+    require_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/gateways/Mobilepay.php');
 }
 add_action('plugins_loaded', 'initScanpay', 0);
 
-
 function addScanpayGateway($methods)
 {
-    load_plugin_textdomain('woocommerce-scanpay', false, plugin_basename(dirname(__FILE__)) . '/languages');
-    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/Gateway.php');
-    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/ScanpayClient.php');
-    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/ShopSeqDB.php');
-    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/QueuedChargeDB.php');
-    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/OrderUpdater.php');
-    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/Settings.php');
-    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/gateways/Parent.php');
-    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/gateways/Mobilepay.php');
     $methods[] = 'WC_Scanpay';
     $methods[] = 'WC_Scanpay_Mobilepay';
     return $methods;
 }
+add_filter('woocommerce_payment_gateways', 'addScanpayGateway');
 
 /* Add a link to settings in the plugin overview */
 function addScanpayPluginLinks($links)

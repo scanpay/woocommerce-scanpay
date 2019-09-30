@@ -23,6 +23,10 @@ Note that you must capture and refund transactions in the Scanpay dashboard.
 
 == Changelog ==
 
+= 1.1.1 =
+Fixed scanpay client header merge.
+Fixed plugin load order.
+
 = 1.1.0 =
 Added BETA support for subscriptions. Requires the use of the WooCommerce Subscriptions plugin.
 Added support for autocompletion (including autocapture) of orders with virtual goods.

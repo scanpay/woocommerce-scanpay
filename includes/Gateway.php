@@ -213,7 +213,7 @@ class WC_Scanpay extends WC_Payment_Gateway
 
         $opts = [
             'headers' => [
-                'cardholderIP' => $_SERVER['REMOTE_ADDR'],
+                'X-Cardholder-IP' => $_SERVER['REMOTE_ADDR'],
             ],
         ];
 
