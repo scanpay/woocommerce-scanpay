@@ -125,7 +125,7 @@ class WC_Scanpay extends WC_Payment_Gateway
                 'company' => $order->get_shipping_company(),
             ]),
         ];
-        $cur = version_compare(WC_VERSION, '3.0.0', '<') ? $order->get_order_currency() : $order->get_currency();
+        $cur = $order->get_currency();
         $has_nonvirtual = false;
 
         /* Add the requested items to the request data */
@@ -276,20 +276,48 @@ class WC_Scanpay extends WC_Payment_Gateway
     }
 
     public function woocommerce_order_status_completed($orderid) {
-        return;
-        /* Coming soon */
         $order = wc_get_order($orderid);
-        if (!$order || $this->get_option('capture_on_complete') !== 'yes' ||
-            (class_exists('WC_Subscriptions') && wcs_is_subscription($order)) ||
-            (int)get_post_meta($orderid, self::ORDER_DATA_SHOPID, true) !== $this->shopid) {
+        if (!$order) { return; }
+        /* Verify that capture on complete is enabled */
+        if ($this->get_option('capture_on_complete') !== 'yes') {
             return;
         }
-        $cur = version_compare(WC_VERSION, '3.0.0', '<') ? $order->get_order_currency() : $order->get_currency();
+        /* Return if order is a subscription */
+        if (class_exists('WC_Subscriptions') && wcs_is_subscription($order)) {
+            return;
+        }
+        /* Return if order has no Scanpay shopid */
+        $shopid = (int)get_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, true) ;
+        if (empty($shopid)) {
+            return;
+        }
+        if ($shopid !== $this->shopid) {
+            $order->add_order_note(__('Capture failed: Order shopid does not match apikey shopid', 'woocommerce-scanpay'));
+            return;
+        }
+        /* Return if order is already captured */
+        $captured = (int)get_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_CAPTURED, true);
+        if ($captured) {
+            $order->add_order_note(__('Capture failed: A capture has already been performed on this order', 'woocommerce-scanpay'));
+            return;
+        }
+        $trnid = $order->get_transaction_id();
+        if (!$trnid) {
+            $trnid = get_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_TRANSACTION_ID, true);
+            if (!$trnid) {
+                $order->add_order_note(__('Capture failed: Order not authorized', 'woocommerce-scanpay'));
+                return;
+            }
+        }
         $data = [
-            'total' => "{$order->get_total()} $cur",
-            'index' => 0,
+            'total' => "{$order->get_total()} {$order->get_currency()}",
+            'index' => (int)get_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_NACTS, true),
         ];
-        $this->client->capture($order->get_transaction_id(), $data);
+        try {
+            $this->client->capture($trnid, $data);
+        } catch (\Exception $e) {
+            $order->add_order_note(sprintf(__('Capture failed: %s', 'woocommerce-scanpay'), $e->getMessage()));
+        }
     }
 
     public function seq($local_seq, $seqtypes=false) {
@@ -419,7 +447,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         }
         $trnid = $order->get_transaction_id();
         $subid = get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_ID, true);
-        $cur = version_compare(WC_VERSION, '3.0.0', '<') ? $order->get_order_currency() : $order->get_currency();
+        $cur = $order->get_currency();
         $auth = wc_price(get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_AUTHORIZED, true), ['currency' => $cur]);
         $captured = wc_price(get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_CAPTURED, true), ['currency' => $cur]);
         $refunded = wc_price(get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_REFUNDED, true), ['currency' => $cur]);

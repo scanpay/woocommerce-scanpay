@@ -61,6 +61,12 @@ function buildSettings($block)
             ],
             'css' => 'display: none;',
         ],
+        'capture_on_complete' => [
+            'title'   => __( 'Capture on Complete', 'woocommerce-scanpay' ),
+            'type'    => 'checkbox',
+            'label'   => __( 'Enable capture of orders upon completion', 'woocommerce-scanpay' ),
+            'default' => 'no',
+        ],
         'autocapture' => [
             'title'   => __( 'Auto-capture', 'woocommerce-scanpay' ),
             'type'    => 'checkbox',

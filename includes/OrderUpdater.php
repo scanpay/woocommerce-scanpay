@@ -8,6 +8,7 @@ if (!defined('ABSPATH')) {
 class OrderUpdater
 {
     const ORDER_DATA_SHOPID = '_scanpay_shopid';
+    const ORDER_DATA_TRANSACTION_ID = '_scanpay_transaction_id';
     const ORDER_DATA_REV = '_scanpay_rev';
     const ORDER_DATA_NACTS = '_scanpay_nacts';
     const ORDER_DATA_AUTHORIZED = '_scanpay_authorized';
@@ -126,8 +127,10 @@ class OrderUpdater
             update_post_meta($orderid, self::ORDER_DATA_REFUNDED, $refunded);
         }
         if ($order->needs_payment()) {
+            update_post_meta($orderid, self::ORDER_DATA_TRANSACTION_ID, $d['id']);
             $order->payment_complete($d['id']);
-            $order->add_order_note(sprintf(__('The authorized amount is %s.', 'woocommerce-scanpay' ), $d['totals']['authorized']));
+            $order->add_order_note(sprintf(__('The authorized amount is %s', 'woocommerce-scanpay' ),
+                                   $d['totals']['authorized']));
             update_post_meta($orderid, self::ORDER_DATA_AUTHORIZED, explode(' ', $d['totals']['authorized'])[0]);
         }
         $this->autocomplete($order);
