@@ -30,9 +30,11 @@ class WC_Scanpay extends WC_Payment_Gateway
         $this->description = $this->get_option('description');
         $this->apikey = $this->get_option('apikey');
         $this->pingurl = WC()->api_request_url(self::API_PING_URL);
+        $this->autocapture = $this->get_option('autocapture') === 'yes';
         $this->autocomplete_virtual = $this->get_option('autocomplete_virtual') === 'yes';
         $this->autocomplete_renewalorders = $this->get_option('autocomplete_renewalorders') === 'yes';
-
+        $this->capture_on_complete = $this->get_option('capture_on_complete') === 'yes';
+        $this->language = $this->get_option('language');
         $shopid = explode(':', $this->apikey)[0];
         if (ctype_digit($shopid)) {
             $this->shopid = (int)$shopid;
@@ -100,7 +102,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         $order = wc_get_order($orderid);
         $data = [
             'orderid'     => strval($orderid),
-            'language'    => $this->get_option('language'),
+            'language'    => $this->language,
             'successurl'  => $this->get_return_url($order),
             'billing'     => array_filter([
                 'name'    => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
@@ -160,9 +162,9 @@ class WC_Scanpay extends WC_Payment_Gateway
 
         /* Determine if order should be auto-captured */
         if ($has_nonvirtual) {
-            $data['autocapture'] = $this->get_option('autocapture') === 'yes';
+            $data['autocapture'] = $this->autocapture;
         } else {
-            $data['autocapture'] = $this->get_option('autocapture') === 'yes' || $this->autocomplete_virtual;
+            $data['autocapture'] = $this->autocapture || $this->autocomplete_virtual;
         }
 
         /* Add fees */
@@ -279,7 +281,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         $order = wc_get_order($orderid);
         if (!$order) { return; }
         /* Verify that capture on complete is enabled */
-        if ($this->get_option('capture_on_complete') !== 'yes') {
+        if (!$this->capture_on_complete) {
             return;
         }
         /* Return if order is a subscription */
@@ -422,8 +424,7 @@ class WC_Scanpay extends WC_Payment_Gateway
     public function init_form_fields()
     {
         $local_seqobj;
-        $apikey = $this->get_option('apikey');
-        $shopid = explode(':', $apikey)[0];
+        $shopid = explode(':', $this->apikey)[0];
         if (ctype_digit($shopid)) {
             $shopseqdb = new Scanpay\ShopSeqDB();
             $local_seqobj = $shopseqdb->load($shopid);
