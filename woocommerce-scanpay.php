@@ -14,7 +14,7 @@
  * License: MIT License
  * License URI: https://opensource.org/licenses/MIT
  * WC requires at least: 3.0.0
- * WC tested up to: 3.8.0
+ * WC tested up to: 3.9.1
  */
 
 // Exit if accessed directly
