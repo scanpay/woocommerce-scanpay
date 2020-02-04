@@ -23,6 +23,9 @@ Note that you must capture and refund transactions in the Scanpay dashboard.
 
 == Changelog ==
 
+= 1.2.1 =
+Fixed bug causing "time since last pingurl" to display wrongly in settings.
+
 = 1.2.0 =
 Added support for capture on complete.
 

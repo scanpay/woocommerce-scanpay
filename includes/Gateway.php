@@ -23,9 +23,6 @@ class WC_Scanpay extends WC_Payment_Gateway
         $this->has_fields = false;
         $this->method_title = 'Scanpay';
         $this->method_description = 'Scanpay is a Nordic based payment gateway offering card and mobile based payment.';
-
-        $this->init_form_fields();
-        $this->init_settings();
         $this->title = $this->get_option('title');
         $this->description = $this->get_option('description');
         $this->apikey = $this->get_option('apikey');
@@ -90,7 +87,8 @@ class WC_Scanpay extends WC_Payment_Gateway
         if (class_exists('WC_Subscriptions_Change_Payment_Gateway') && WC_Subscriptions_Change_Payment_Gateway::$is_request_to_change_payment) {
             remove_filter( 'woocommerce_subscription_get_total', 'WC_Subscriptions_Change_Payment_Gateway::maybe_zero_total', 11 );
         }
-
+        $this->init_form_fields();
+        $this->init_settings();
     }
 
     public function process_payment($orderid)
