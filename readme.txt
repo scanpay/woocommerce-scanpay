@@ -2,7 +2,7 @@
 Contributors: scanpay
 Tags: ecommerce, scanpay, woocommerce
 Requires at least: 4.0
-Tested up to: 5.3.2
+Tested up to: 5.3.3
 Stable tag: trunk
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
@@ -10,9 +10,8 @@ License URI: https://opensource.org/licenses/MIT
 This plugin adds Scanpay as a checkout payment method.
 
 == Description ==
-Scanpay is a new innovative payment gateway with a focus on conversion and security.
+Scanpay is a Scandinavian payment gateway with a focus on conversion and security.
 This plugin allows you to integrate with Scanpay without writing a single line of code yourself.
-Note that you must capture and refund transactions in the Scanpay dashboard.
 
 == Installation ==
 
