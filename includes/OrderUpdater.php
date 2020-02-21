@@ -238,7 +238,7 @@ class OrderUpdater
                     break;
                 default:
                     scanpay_log('Unknown change type ' . $change['type']);
-                    continue;
+                    continue 2;
                 }
             } catch (\Exception $e) {
                 return 'order update exception: ' . $e->getMessage();

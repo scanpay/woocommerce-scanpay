@@ -26,6 +26,9 @@ Please follow the steps in the installation and configuration guide: [docs.scanp
 
 == Changelog ==
 
+= 1.2.2 =
+Fixed switch statement warning.
+
 = 1.2.1 =
 Fixed bug causing "time since last pingurl" to display wrongly in settings.
 
