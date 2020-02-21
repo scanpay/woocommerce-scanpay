@@ -22,6 +22,9 @@ This plugin allows you to integrate with Scanpay without writing a single line o
 
 == Changelog ==
 
+= 1.2.3 =
+Fixed an issue where Scanpay details sometimes would not show.
+
 = 1.2.2 =
 Fixed switch statement warning.
 

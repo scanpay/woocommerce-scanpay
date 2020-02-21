@@ -444,7 +444,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         if ($shopid === '') {
             return;
         }
-        $trnid = $order->get_transaction_id();
+        $trnid = get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_TRANSACTION_ID, true);
         $subid = get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_ID, true);
         $cur = $order->get_currency();
         $auth = wc_price(get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_AUTHORIZED, true), ['currency' => $cur]);
