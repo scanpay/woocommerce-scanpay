@@ -1,24 +1,28 @@
 === Scanpay for WooCommerce ===
 Contributors: scanpay
-Tags: ecommerce, scanpay, woocommerce
+Tags: ecommerce, woocommerce, payments, subscriptions
 Requires at least: 4.0
 Tested up to: 5.3.3
 Stable tag: trunk
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
 
-This plugin adds Scanpay as a checkout payment method.
+Accept payments in WooCommerce with Scanpay payment gateway.
 
 == Description ==
-Scanpay is a Scandinavian payment gateway with a focus on conversion and security.
-This plugin allows you to integrate with Scanpay without writing a single line of code yourself.
+
+With this plugin you can quickly and easily accept payments in WooCommerce through our payment gateway. The plugin works with WooCommerce Subscriptions. We support the following payment methods:
+
+* Dankort
+* Visa, Mastercard and Maestro
+* JCB, American Express and Diners
+* MobilePay
+
+This is an official plugin, developed by Scanpay ApS in Copenhagen. We are a PCI DSS certified payment gateway with a focus on Scandinavian e-commerce. You can create a scanpay account [here](https://scanpay.dk/opret).
 
 == Installation ==
 
-1. Upload the plugin files to the `/wp-content/plugins/woocommerce-scanpay` directory, or install the plugin through the WordPress plugins screen directly.
-2. Activate the plugin through the 'Plugins' screen in WordPress
-3. Use the Settings->Plugin Name screen to configure the plugin with a valid API-key.
-4. Copy the ping URL from the Scanpay plugin settings to your Scanpay dasboard API settings.
+Please follow the steps in the installation and configuration guide: [docs.scanpay.dk/modules/woocommerce](https://docs.scanpay.dk/modules/woocommerce").
 
 == Changelog ==
 
