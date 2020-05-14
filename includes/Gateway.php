@@ -77,12 +77,12 @@ class WC_Scanpay extends WC_Payment_Gateway
                 add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
                 add_action('woocommerce_admin_order_data_after_order_details', array($this, 'display_scanpay_info'));
             }
+            add_action('woocommerce_order_status_completed', [$this, 'woocommerce_order_status_completed']);
             /* Support for legacy ping url format */
             add_action('woocommerce_api_' . 'scanpay/ping', [$this, 'handle_pings']);
             /* New ping url format */
             add_action('woocommerce_api_' . self::API_PING_URL, [$this, 'handle_pings']);
         }
-        add_action('woocommerce_order_status_completed', [$this, 'woocommerce_order_status_completed']);
 
         /*
          * Fix that WC_Subscriptions_Change_Payment_Gateway::can_subscription_be_updated_to_new_payment_method

@@ -2,7 +2,7 @@
 Contributors: scanpay
 Tags: ecommerce, scanpay, woocommerce
 Requires at least: 4.0
-Tested up to: 5.3.3
+Tested up to: 5.4.1
 Stable tag: trunk
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
@@ -22,6 +22,9 @@ This plugin allows you to integrate with Scanpay without writing a single line o
 
 == Changelog ==
 
+= 1.2.4 =
+Fixed payment method change upon failed subscriptions[[.
+]]
 = 1.2.3 =
 Fixed an issue where Scanpay details sometimes would not show.
 
