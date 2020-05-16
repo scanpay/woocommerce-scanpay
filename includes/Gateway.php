@@ -74,8 +74,8 @@ class WC_Scanpay extends WC_Payment_Gateway
         }
         if (!$extended) {
             if (is_admin()) {
-                add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
-                add_action('woocommerce_admin_order_data_after_order_details', array($this, 'display_scanpay_info'));
+                add_action('woocommerce_update_options_payment_gateways_' . $this->id, [$this, 'process_admin_options']);
+                add_action('woocommerce_admin_order_data_after_order_details', [$this, 'display_scanpay_info']);
             }
             add_action('woocommerce_order_status_completed', [$this, 'woocommerce_order_status_completed']);
             /* Support for legacy ping url format */

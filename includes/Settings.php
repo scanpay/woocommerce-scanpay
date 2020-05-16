@@ -43,18 +43,18 @@ function buildSettings($block)
             'default' => 'Pay with credit card or debit card through Scanpay.',
         ],
         'card_icons' => [
-            'title' => 'Credit card icons ',
+            'title' => 'Credit card icons',
             'type' => 'multiselect',
             'description' => 'Show card icons on the checkout page.',
-            'options' => array(
+            'options' => [
                 'unionpay' => 'UnionPay',
                 'jcb' => 'JCB',
                 'amex' => 'American Express',
                 'mastercard' => 'Mastercard',
                 'visa' => 'Visa',
                 'dankort' => 'Dankort',
-            ),
-            'default' => '',
+            ],
+            'default' => ['visa', 'mastercard'],
             'class' => 'wc-enhanced-select',
         ],
         'language' => [
