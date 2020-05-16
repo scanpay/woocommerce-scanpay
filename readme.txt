@@ -7,7 +7,7 @@ Stable tag: trunk
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
 
-Accept payments in WooCommerce with Scanpay payment gateway.
+Accept payments in WooCommerce with a secure and innovative payment gateway.
 
 == Description ==
 
@@ -25,6 +25,10 @@ This is an official plugin, developed by Scanpay ApS in Copenhagen. We are a PCI
 Please follow the steps in the installation and configuration guide: [docs.scanpay.dk/modules/woocommerce](https://docs.scanpay.dk/modules/woocommerce").
 
 == Changelog ==
+
+= 1.3.0 =
+Added support for card icons in checkout.
+Improved plugin settings and setup guide.
 
 = 1.2.2 =
 Fixed switch statement warning.

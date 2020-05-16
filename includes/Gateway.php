@@ -22,7 +22,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         //$this->icon = '';
         $this->has_fields = false;
         $this->method_title = 'Scanpay';
-        $this->method_description = 'Scanpay is a Nordic based payment gateway offering card and mobile based payment.';
+        $this->method_description = 'Secure and innovative payment gateway.';
         $this->title = $this->get_option('title');
         $this->description = $this->get_option('description');
         $this->apikey = $this->get_option('apikey');
@@ -80,6 +80,8 @@ class WC_Scanpay extends WC_Payment_Gateway
             add_action('woocommerce_order_status_completed', [$this, 'woocommerce_order_status_completed']);
         }
 
+        add_filter('woocommerce_gateway_icon', [ $this, 'add_card_icons' ], 2, 3 );
+
         /*
          * Fix that WC_Subscriptions_Change_Payment_Gateway::can_subscription_be_updated_to_new_payment_method
          * wont fail, because totals is set to 0 ($subscription->get_total() == 0 will cause it to fail
@@ -90,6 +92,24 @@ class WC_Scanpay extends WC_Payment_Gateway
         $this->init_form_fields();
         $this->init_settings();
     }
+
+
+    public function add_card_icons($icons, $id)
+    {
+        if ($id == $this->id) {
+            $array = $this->get_option('card_icons');
+            if (!empty($array)) {
+                $icons = '<span class="scanpay-cards">';
+                foreach ($array as $key => $card) {
+                    $icon_url = WC_HTTPS::force_https_url(plugin_dir_url(__DIR__) . 'assets/images/' . $card . '.svg');
+                    $icons .= '<img height="21" src="' . $icon_url . '" class="scanpay-'. $card .'" style="margin: 3px 0 0 5px">';
+                }
+                $icons .= '</span>';
+            }
+        }
+        return $icons;
+    }
+
 
     public function process_payment($orderid)
     {
