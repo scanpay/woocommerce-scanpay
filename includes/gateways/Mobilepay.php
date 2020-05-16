@@ -11,7 +11,8 @@ class WC_Scanpay_Mobilepay extends WC_Scanpay_Parent
         parent::__construct(false);
         $this->id = 'scanpay_mobilepay';
         $this->setup();
-        $this->method_title = 'Scanpay - MobilePay';
+        $this->method_title = 'MobilePay (Scanpay)';
+        $this->method_description = 'MobilePay Online through Scanpay.';
     }
 
     public function process_payment($orderid)
@@ -25,7 +26,7 @@ class WC_Scanpay_Mobilepay extends WC_Scanpay_Parent
     {
         $this->form_fields = [
             'enabled' => [
-                'title'   => __( 'Enable/Disable', 'woocommerce-scanpay' ),
+                'title'   => __( 'Enable', 'woocommerce-scanpay' ),
                 'type'    => 'checkbox',
                 'description' => __( 'This controls whether MobilePay is shown in checkout. You MUST enable MobilePay in the Scanpay dashboard for this to work.' ),
                 'label'   => __( 'Enable MobilePay', 'woocommerce-scanpay' ),
