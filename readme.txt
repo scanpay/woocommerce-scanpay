@@ -2,7 +2,7 @@
 Contributors: scanpay
 Tags: ecommerce, woocommerce, payments, subscriptions
 Requires at least: 4.0
-Tested up to: 5.3.3
+Tested up to: 5.4.1
 Stable tag: trunk
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
@@ -29,6 +29,12 @@ Please follow the steps in the installation and configuration guide: [docs.scanp
 = 1.3.0 =
 Added support for card icons in checkout.
 Improved plugin settings and setup guide.
+
+= 1.2.4 =
+Fixed payment method change upon failed subscriptions
+
+= 1.2.3 =
+Fixed an issue where Scanpay details sometimes would not show.
 
 = 1.2.2 =
 Fixed switch statement warning.

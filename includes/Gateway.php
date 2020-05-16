@@ -57,27 +57,31 @@ class WC_Scanpay extends WC_Payment_Gateway
                 'subscription_suspension',
                 'subscription_amount_changes',
                 'subscription_date_changes',
+                'subscription_payment_method_change',
                 'subscription_payment_method_change_admin',
                 'subscription_payment_method_change_customer',
                 'multiple_subscriptions',
                 'pre-orders',
             ]);
+            /* Subscription hooks */
+            add_action('woocommerce_scheduled_subscription_payment_' . $this->id,
+                       [$this, 'scheduled_subscription_payment'], 10, 2);
+            add_action('woocommerce_subscription_failing_payment_method_updated_' . $this->id,
+                       [$this, 'update_failing_payment_method'], 10, 2 );
+            add_filter('woocommerce_subscription_payment_meta', [$this, 'add_subscription_payment_meta'], 10, 2);
+            add_filter('woocommerce_subscription_validate_payment_meta', [$this, 'validate_subscription_payment_meta'], 10, 2);
+            add_action('woocommerce_before_thankyou', [$this, 'after_subscribe']);
         }
         if (!$extended) {
             if (is_admin()) {
                 add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
                 add_action('woocommerce_admin_order_data_after_order_details', array($this, 'display_scanpay_info'));
             }
-
+            add_action('woocommerce_order_status_completed', [$this, 'woocommerce_order_status_completed']);
             /* Support for legacy ping url format */
             add_action('woocommerce_api_' . 'scanpay/ping', [$this, 'handle_pings']);
             /* New ping url format */
             add_action('woocommerce_api_' . self::API_PING_URL, [$this, 'handle_pings']);
-            /* Subscription charge hook */
-            add_action('woocommerce_scheduled_subscription_payment_' . $this->id,
-                       [$this, 'scheduled_subscription_payment'], 10, 2);
-            add_action('woocommerce_before_thankyou', [$this, 'after_subscribe']);
-            add_action('woocommerce_order_status_completed', [$this, 'woocommerce_order_status_completed']);
         }
 
         add_filter('woocommerce_gateway_icon', [ $this, 'add_card_icons' ], 2, 3 );
@@ -92,7 +96,6 @@ class WC_Scanpay extends WC_Payment_Gateway
         $this->init_form_fields();
         $this->init_settings();
     }
-
 
     public function add_card_icons($icons, $id)
     {
@@ -110,6 +113,19 @@ class WC_Scanpay extends WC_Payment_Gateway
         return $icons;
     }
 
+    private function get_subscription($order) {
+        if (!class_exists('WC_Subscriptions')) {
+            throw new \Exception("Woocommerce Subscriptions not installed");
+        }
+        $subscriber = null;
+        $nsub = 0;
+        foreach (wcs_get_subscriptions_for_order($order, ['order_type' => ['parent', 'switch', 'renewal']]) as $sub) {
+            $subscriber = $sub;
+            $nsub++;
+        }
+        if ($nsub < 1) { throw new \Exception("order with subscription contains 0 parent orders"); }
+        return $subscriber;
+    }
 
     public function process_payment($orderid)
     {
@@ -200,7 +216,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         }
 
         /* Add shipping costs */
-        $shippingcost = $order->get_total_shipping() + $order->get_shipping_tax();
+        $shippingcost = $order->get_shipping_total() + $order->get_shipping_tax();
         if ($shippingcost > 0) {
             $method = $order->get_shipping_method();
             $data['items'][] = [
@@ -239,6 +255,7 @@ class WC_Scanpay extends WC_Payment_Gateway
 
         /* Handle subscriptions */
         if (class_exists('WC_Subscriptions')) {
+            delete_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_INITIALPAYMENT_NTRIES);
             /* Handle resubscriptions (change of payment) */
             if (wcs_is_subscription($order)) {
                 $shopid = (int)get_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, true);
@@ -259,6 +276,7 @@ class WC_Scanpay extends WC_Payment_Gateway
                     scanpay_log('scanpay client exception: ' . $e->getMessage());
                     throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
                 }
+                update_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, $this->shopid);
                 return [
                     'result' => 'success',
                     'redirect' => $renewurl,
@@ -266,15 +284,16 @@ class WC_Scanpay extends WC_Payment_Gateway
             /* Handle new subscriptions */
             } else if (wcs_order_contains_subscription($order)) {
                 $data['subscriber'] = [
-                    'ref' => $orderid,
+                    'ref' => strval($orderid),
                 ];
                 unset($data['items']);
-                $nsub = 0;
-                foreach (wcs_get_subscriptions_for_order($order, ['order_type' => ['parent', 'switch']]) as $sub) {
-                    update_post_meta($sub->get_id(), Scanpay\OrderUpdater::ORDER_DATA_SHOPID, $this->shopid);
-                    $nsub++;
-                }
-                if ($nsub < 1) { throw new \Exception("order with subscription contains 0 parent orders"); }
+                $sub = $this->get_subscription($order);
+                update_post_meta($sub->get_id(), Scanpay\OrderUpdater::ORDER_DATA_SHOPID, $this->shopid);
+            } else if (wcs_order_contains_renewal($order)) {
+                $data['subscriber'] = [
+                    'ref' => strval($orderid),
+                ];
+                unset($data['items']);
             }
         }
         $data = apply_filters('woocommerce_scanpay_newurl_data', $data);
@@ -430,8 +449,15 @@ class WC_Scanpay extends WC_Payment_Gateway
         $queuedcharges = $this->queuedchargedb->loadall();
         foreach ($queuedcharges as $orderid) {
             $order = wc_get_order($orderid);
+            $sub = null;
+            try {
+                $sub = $this->get_subscription($order);
+            } catch (\Exception $e) {
+                scanpay_log('failed to get subscription from order: ' . $e);
+                continue;
+            }
             if (update_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_INITIALPAYMENT_NTRIES, '1', '')) {
-                $this->scheduled_subscription_payment($order->get_total(), $order);
+                $this->scheduled_subscription_payment($sub->get_total_initial_payment(), $order);
             }
             $this->queuedchargedb->delete($orderid);
         }
@@ -464,14 +490,14 @@ class WC_Scanpay extends WC_Payment_Gateway
         if ($shopid === '') {
             return;
         }
-        $trnid = $order->get_transaction_id();
+        $trnid = get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_TRANSACTION_ID, true);
         $subid = get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_ID, true);
         $cur = $order->get_currency();
         $auth = wc_price(get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_AUTHORIZED, true), ['currency' => $cur]);
         $captured = wc_price(get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_CAPTURED, true), ['currency' => $cur]);
         $refunded = wc_price(get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_REFUNDED, true), ['currency' => $cur]);
         $trnURL = self::DASHBOARD_URL . '/' . $shopid . '/' . $trnid;
-	    include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/OrderInfo.phtml');
+        include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/OrderInfo.phtml');
     }
 
     public function after_subscribe($orderid)
@@ -525,8 +551,8 @@ class WC_Scanpay extends WC_Payment_Gateway
             $renewal_order = wc_get_order($renewal_order->get_id());
             if (!$renewal_order->needs_payment()) { return; }
         }
-        WC_Subscriptions_Manager::process_subscription_payment_failure_on_order($renewal_order);
-        $renewal_order->add_order_note($err);
+        $msg = sprintf(__('Scanpay transaction failed: %s', 'woocommerce-scanpay'), $err);
+        $renewal_order->update_status('failed', $msg);
         scanpay_log('subscriber err: ' . $err, debug_backtrace(FALSE, 1)[0]);
     }
 
@@ -549,7 +575,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         $data = [
             'orderid'  => $renewal_orderid,
             'items'    => [
-                ['total' => $amount . ' ' . $renewal_order->get_order_currency()],
+                ['total' => $amount . ' ' . $renewal_order->get_currency()],
             ],
             'billing'  => array_filter([
                 'name'    => $renewal_order->get_billing_first_name() . ' ' . $renewal_order->get_billing_last_name(),
@@ -653,4 +679,46 @@ class WC_Scanpay extends WC_Payment_Gateway
         }
         $renewal_order->payment_complete($chargeResponse['id']);
     }
+
+    function update_failing_payment_method($oldOrder, $newOrder)
+    {
+        $oldOrderId = $oldOrder->get_id();
+        $newOrderId = $newOrder->get_id();
+        update_post_meta($oldOrderId, Scanpay\OrderUpdater::ORDER_DATA_SHOPID,
+                         get_post_meta($newOrderId, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, true));
+        update_post_meta($oldOrderId, Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_ID,
+                         get_post_meta($newOrderId, Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_ID, true));
+    }
+    function add_subscription_payment_meta($meta, $subscription)
+    {
+        $subId = $subscription->get_id();
+        $meta[$this->id] = [
+            'post_meta' => [
+                Scanpay\OrderUpdater::ORDER_DATA_SHOPID => [
+                    'value' => get_post_meta($subId, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, true),
+                    'label' => 'Scanpay shop id',
+                ],
+                Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_ID => [
+                    'value' => get_post_meta($subId, Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_ID, true),
+                    'label' => 'Scanpay subscriber id',
+                ],
+            ],
+        ];
+        return $meta;
+    }
+
+    public function validate_subscription_payment_meta($methodId, $meta)
+    {
+        if ($this->id === $methodId) {
+            if (!isset($meta['post_meta'][Scanpay\OrderUpdater::ORDER_DATA_SHOPID]) ||
+                empty($meta['post_meta'][Scanpay\OrderUpdater::ORDER_DATA_SHOPID])) {
+                throw new Exception(__('A Scanpay shopid is required.', 'woocommerce-scanpay'));
+            }
+            if (!isset($meta['post_meta'][Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_ID]) ||
+                empty($meta['post_meta'][Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_ID])) {
+                throw new Exception(__('A Scanpay subscriberid is required.', 'woocommerce-scanpay'));
+            }
+        }
+    }
+
 }

@@ -10,11 +10,11 @@
  * Text Domain: woocommerce-extension
  * Domain Path: /languages
  *
- * Copyright: © 2019 Scanpay.
+ * Copyright: © 2020 Scanpay.
  * License: MIT License
  * License URI: https://opensource.org/licenses/MIT
  * WC requires at least: 3.0.0
- * WC tested up to: 3.9.1
+ * WC tested up to: 4.1.0
  */
 
 // Exit if accessed directly
