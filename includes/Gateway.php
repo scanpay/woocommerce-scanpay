@@ -25,6 +25,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         $this->method_description = 'Secure and innovative payment gateway.';
         $this->title = $this->get_option('title');
         $this->description = $this->get_option('description');
+        $this->plugin_dir_url = plugin_dir_url(__DIR__);
         $this->apikey = $this->get_option('apikey');
         $this->pingurl = WC()->api_request_url(self::API_PING_URL);
         $this->autocapture = $this->get_option('autocapture') === 'yes';
@@ -104,7 +105,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             if (!empty($array)) {
                 $icons = '<span class="scanpay-cards">';
                 foreach ($array as $key => $card) {
-                    $icon_url = WC_HTTPS::force_https_url(plugin_dir_url(__DIR__) . 'assets/images/' . $card . '.svg');
+                    $icon_url = WC_HTTPS::force_https_url($this->plugin_dir_url . 'assets/images/' . $card . '.svg');
                     $icons .= '<img height="21" src="' . $icon_url . '" class="scanpay-'. $card .'" style="margin: 3px 0 0 5px">';
                 }
                 $icons .= '</span>';

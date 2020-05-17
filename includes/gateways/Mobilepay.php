@@ -22,6 +22,17 @@ class WC_Scanpay_Mobilepay extends WC_Scanpay_Parent
         return $obj;
     }
 
+    public function add_card_icons($icons, $id)
+    {
+        if ($id == $this->id && $this->get_option('card_icon') === 'yes') {
+            $icons = '<span class="scanpay-cards">';
+            $icon_url = WC_HTTPS::force_https_url($this->plugin_dir_url . 'assets/images/mobilepay.svg');
+            $icons .= '<img height="21" src="' . $icon_url . '" class="scanpay-mobilepay style="margin: 3px 0 0 5px">';
+            $icons .= '</span>';
+        }
+        return $icons;
+    }
+
     function init_form_fields()
     {
         $this->form_fields = [
@@ -42,6 +53,12 @@ class WC_Scanpay_Mobilepay extends WC_Scanpay_Parent
                 'title'       => __( 'Description', 'woocommerce-scanpay' ),
                 'type'        => 'textarea',
                 'description' => __( 'This controls the description which the user sees during checkout.', 'woocommerce-scanpay' ),
+            ],
+            'card_icon' => [
+                'title' => 'MobilePay Icon',
+                'type' => 'checkbox',
+                'description' => 'Show MobilePay icon on the checkout page.',
+                'default' => 'yes',
             ],
         ];
     }
