@@ -255,7 +255,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         ];
 
         /* Handle subscriptions */
-        if (class_exists('WC_Subscriptions')) {
+        if (class_exists('WC_Subscriptions') && in_array($this->supports, 'subscriptions')) {
             delete_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_INITIALPAYMENT_NTRIES);
             /* Handle resubscriptions (change of payment) */
             if (wcs_is_subscription($order)) {
