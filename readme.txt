@@ -26,6 +26,9 @@ Please follow the steps in the installation and configuration guide: [docs.scanp
 
 == Changelog ==
 
+= 1.3.1 =
+Fixed send ping in module settings.
+
 = 1.3.0 =
 Added support for card icons in checkout.
 Improved plugin settings and setup guide.
