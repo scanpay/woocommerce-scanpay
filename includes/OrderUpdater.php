@@ -127,11 +127,13 @@ class OrderUpdater
             update_post_meta($orderid, self::ORDER_DATA_REFUNDED, $refunded);
         }
         if ($order->needs_payment()) {
-            update_post_meta($orderid, self::ORDER_DATA_TRANSACTION_ID, $d['id']);
             $order->payment_complete($d['id']);
+        }
+        if (empty(get_post_meta($orderid, self::ORDER_DATA_TRANSACTION_ID))) {
+            update_post_meta($orderid, self::ORDER_DATA_TRANSACTION_ID, $d['id']);
+            update_post_meta($orderid, self::ORDER_DATA_AUTHORIZED, explode(' ', $d['totals']['authorized'])[0]);
             $order->add_order_note(sprintf(__('The authorized amount is %s', 'woocommerce-scanpay' ),
                                    $d['totals']['authorized']));
-            update_post_meta($orderid, self::ORDER_DATA_AUTHORIZED, explode(' ', $d['totals']['authorized'])[0]);
         }
         $this->autocomplete($order);
         update_post_meta($orderid, self::ORDER_DATA_REV, $d['rev']);

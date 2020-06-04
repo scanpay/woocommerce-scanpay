@@ -26,6 +26,9 @@ Please follow the steps in the installation and configuration guide: [docs.scanp
 
 == Changelog ==
 
+= 1.3.2 =
+Fixed scanpay details not being saved, if order status was changed manually before seq.
+
 = 1.3.1 =
 Fixed send ping in module settings.
 
