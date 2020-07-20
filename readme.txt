@@ -2,7 +2,7 @@
 Contributors: scanpay
 Tags: ecommerce, woocommerce, payments, subscriptions
 Requires at least: 4.0
-Tested up to: 5.4.1
+Tested up to: 5.4.2
 Stable tag: trunk
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
@@ -25,6 +25,9 @@ This is an official plugin, developed by Scanpay ApS in Copenhagen. We are a PCI
 Please follow the steps in the installation and configuration guide: [docs.scanpay.dk/modules/woocommerce](https://docs.scanpay.dk/modules/woocommerce").
 
 == Changelog ==
+
+= 1.3.3 =
+Fixed subscription bug.
 
 = 1.3.2 =
 Fixed scanpay details not being saved, if order status was changed manually before seq.
