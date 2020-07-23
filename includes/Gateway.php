@@ -265,14 +265,18 @@ class WC_Scanpay extends WC_Payment_Gateway
                     throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
                 }
                 $subid = (int)get_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_ID, true);
-                if (empty($subid)) {
-                    scanpay_log("subscription #$orderid has empty transactionid");
-                    throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
-                }
-                $allowed = ['language', 'successurl'];
-                $data = array_intersect_key($data, array_flip($allowed));
                 try {
-                    $renewurl = $this->client->renew($subid, array_filter($data), $opts);
+                    if (empty($subid)) {
+                        $data['subscriber'] = [
+                            'ref' => strval($orderid),
+                        ];
+                        unset($data['items']);
+                        $renewurl = $this->client->newURL(array_filter($data), $opts);
+                    } else {
+                        $allowed = ['language', 'successurl'];
+                        $data = array_intersect_key($data, array_flip($allowed));
+                        $renewurl = $this->client->renew($subid, array_filter($data), $opts);
+                    }
                 } catch (\Exception $e) {
                     scanpay_log('scanpay client exception: ' . $e->getMessage());
                     throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));

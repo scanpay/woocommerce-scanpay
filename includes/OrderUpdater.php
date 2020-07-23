@@ -183,30 +183,35 @@ class OrderUpdater
                 break;
             }
         }
+        if (wcs_is_subscription($order)) {
+            update_post_meta($orderid, self::ORDER_DATA_SHOPID, $this->shopid);
+            update_post_meta($orderid, self::ORDER_DATA_SUBSCRIBER_TIME, $tchanged);
+            update_post_meta($orderid, self::ORDER_DATA_SUBSCRIBER_ID, $d['id']);
+        } else {
+            foreach (wcs_get_subscriptions_for_order($order, ['order_type' => ['parent', 'switch', 'renewal']]) as $sub) {
+                $subid = $sub->get_id();
+                $oldSubTime = (int)get_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_TIME, true);
+                $oldSubId = get_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_ID, true);
+                if ($tchanged > $oldSubTime) {
+                    update_post_meta($subid, self::ORDER_DATA_SHOPID, $this->shopid);
+                    update_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_TIME, $tchanged);
+                    update_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_ID, $d['id']);
 
-        foreach (wcs_get_subscriptions_for_order($order, ['order_type' => ['parent', 'switch', 'renewal']]) as $sub) {
-            $subid = $sub->get_id();
-            $oldSubTime = (int)get_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_TIME, true);
-            $oldSubId = get_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_ID, true);
-            if ($tchanged > $oldSubTime) {
-                update_post_meta($subid, self::ORDER_DATA_SHOPID, $this->shopid);
-                update_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_TIME, $tchanged);
-                update_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_ID, $d['id']);
+                    /*
+                     * Set the subscriber info for the parent order (since it will not be copied from subscription
+                     * to this order, as the parent order obviously is already created. This is is essential for the
+                     * inital payment made below this loop.
+                     */
+                    update_post_meta($orderid, self::ORDER_DATA_SUBSCRIBER_TIME, $tchanged);
+                    update_post_meta($orderid, self::ORDER_DATA_SUBSCRIBER_ID, $d['id']);
 
-                /*
-                 * Set the subscriber info for the parent order (since it will not be copied from subscription
-                 * to this order, as the parent order obviously is already created. This is is essential for the
-                 * inital payment made below this loop.
-                 */
-                update_post_meta($orderid, self::ORDER_DATA_SUBSCRIBER_TIME, $tchanged);
-                update_post_meta($orderid, self::ORDER_DATA_SUBSCRIBER_ID, $d['id']);
-
-                if (empty($oldSubId)) {
-                    $order->add_order_note(__('Subscription payment method added', 'woocommerce-scanpay' ) .
-                                              "(id=$d[id])");
-                } else {
-                    $order->add_order_note(__('Subscription payment method renewed', 'woocommerce-scanpay' ) .
-                                              "(id=$d[id])");
+                    if (empty($oldSubId)) {
+                        $order->add_order_note(__('Subscription payment method added', 'woocommerce-scanpay' ) .
+                                                  "(id=$d[id])");
+                    } else {
+                        $order->add_order_note(__('Subscription payment method renewed', 'woocommerce-scanpay' ) .
+                                                  "(id=$d[id])");
+                    }
                 }
             }
         }

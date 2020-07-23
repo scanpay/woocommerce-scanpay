@@ -26,6 +26,9 @@ Please follow the steps in the installation and configuration guide: [docs.scanp
 
 == Changelog ==
 
+= 1.3.4 =
+Made it possible to change payment method for subscriptions with no scanpay subscriber id registered.
+
 = 1.3.3 =
 Fixed subscription bug.
 
