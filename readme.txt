@@ -22,7 +22,7 @@ This is an official plugin, developed by Scanpay ApS in Copenhagen. We are a PCI
 
 == Installation ==
 
-Please follow the steps in the installation and configuration guide: [docs.scanpay.dk/modules/woocommerce](https://docs.scanpay.dk/modules/woocommerce").
+Please follow the steps in the installation and configuration guide: https://docs.scanpay.dk/modules/woocommerce
 
 == Changelog ==
 
