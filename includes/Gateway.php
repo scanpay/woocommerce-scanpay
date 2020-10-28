@@ -479,9 +479,11 @@ class WC_Scanpay extends WC_Payment_Gateway
             $local_seqobj = $shopseqdb->load($shopid);
             if (!$local_seqobj) { $local_seqobj = [ 'mtime' => 0 ]; }
         } else {
+            $shopid = '';
             $local_seqobj = [ 'mtime' => 0 ];
         }
         $block = [
+            'shopid' => $shopid,
             'pingurl' => WC()->api_request_url(self::API_PING_URL),
             'lastpingtime'  => $local_seqobj['mtime'],
         ];

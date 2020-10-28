@@ -27,7 +27,11 @@ if (!function_exists('lastPing')) {
 
 $lastPingTime = $block['lastpingtime'];
 $pingdt = time() - $lastPingTime;
-$sendping = "https://dashboard.scanpay.dk/settings/api/setup?module=woocommerce&url=" . urlencode($block['pingurl']);
+$shopidstr = '';
+if (!empty($block['shopid'])) {
+    $shopidstr = $block['shopid'] . '/';
+}
+$sendping = 'https://dashboard.scanpay.dk/' . $shopidstr . 'settings/api/setup?module=woocommerce&url=' . urlencode($block['pingurl']);
 $instructions = 'follow the instructions in the <a target="_blank" href="https://docs.scanpay.dk/modules/woocommerce">setup guide</a>' .
                 ' and test your configuration with <i><a target="_blank" href="'. $sendping . '">send ping</a></i>.';
 

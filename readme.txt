@@ -26,6 +26,9 @@ Please follow the steps in the installation and configuration guide: https://doc
 
 == Changelog ==
 
+= 1.3.5 =
+Added shopid to dashboard pingurl configuration url
+
 = 1.3.4 =
 Made it possible to change payment method for subscriptions with no scanpay subscriber id registered.
 
