@@ -11,6 +11,7 @@ class OrderUpdater
     const ORDER_DATA_TRANSACTION_ID = '_scanpay_transaction_id';
     const ORDER_DATA_REV = '_scanpay_rev';
     const ORDER_DATA_NACTS = '_scanpay_nacts';
+    const ORDER_DATA_PAYID = '_scanpay_payid';
     const ORDER_DATA_AUTHORIZED = '_scanpay_authorized';
     const ORDER_DATA_CAPTURED = '_scanpay_captured';
     const ORDER_DATA_REFUNDED = '_scanpay_refunded';

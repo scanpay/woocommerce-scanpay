@@ -38,4 +38,11 @@ if (!defined('ABSPATH')) {
         <span class="dashicons dashicons-dismiss"></span></a>
     </p>
 <?php endif; ?>
+<?php if(!empty($payid)): ?>
+    <p>
+        <strong><?php echo __('Payment history', 'woocommerce-scanpay') ?>:</strong>
+        <?php echo '<a style="text-decoration:none; float:right" href="' . $payidURL . '" target="_blank">' . htmlspecialchars(substr($payid, 0.15)) ?>
+        <span class="dashicons dashicons-arrow-right-alt"></span></a>
+    </p>
+<?php endif; ?>
 </div><div style="display: none">

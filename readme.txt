@@ -2,7 +2,7 @@
 Contributors: scanpay
 Tags: ecommerce, woocommerce, payments, subscriptions
 Requires at least: 4.0
-Tested up to: 5.4.2
+Tested up to: 5.5.3
 Stable tag: trunk
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
@@ -25,6 +25,9 @@ This is an official plugin, developed by Scanpay ApS in Copenhagen. We are a PCI
 Please follow the steps in the installation and configuration guide: https://docs.scanpay.dk/modules/woocommerce
 
 == Changelog ==
+
+= 1.3.6 =
+Added payid link.
 
 = 1.3.5 =
 Added shopid to dashboard pingurl configuration url

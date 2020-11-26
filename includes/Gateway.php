@@ -313,6 +313,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         /* Update order */
         $order->update_status('wc-pending');
         update_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, $this->shopid);
+        update_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_PAYID, basename(parse_url($paymenturl, PHP_URL_PATH)));
         return [
             'result' => 'success',
             'redirect' => $paymenturl,
@@ -504,6 +505,8 @@ class WC_Scanpay extends WC_Payment_Gateway
         $captured = wc_price(get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_CAPTURED, true), ['currency' => $cur]);
         $refunded = wc_price(get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_REFUNDED, true), ['currency' => $cur]);
         $trnURL = self::DASHBOARD_URL . '/' . $shopid . '/' . $trnid;
+        $payid = get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_PAYID, true);
+        $payidURL = 'https://dashboard.scanpay.dk/logs/payids/' . $payid;
         include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/OrderInfo.phtml');
     }
 
