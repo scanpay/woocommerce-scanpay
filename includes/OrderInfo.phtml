@@ -41,8 +41,11 @@ if (!defined('ABSPATH')) {
 <?php if(!empty($payid)): ?>
     <p>
         <strong><?php echo __('Payment history', 'woocommerce-scanpay') ?>:</strong>
-        <?php echo '<a style="text-decoration:none; float:right" href="' . $payidURL . '" target="_blank">' . htmlspecialchars(substr($payid, 0.15)) ?>
-        <span class="dashicons dashicons-arrow-right-alt"></span></a>
+        <a style="text-decoration:none; float:right; white-space: nowrap;"
+        href="<?php echo $payidURL ?>" target="_blank">
+            <span style="display: inline-block; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis"><?php echo htmlspecialchars($payid) ?></span>
+            <span class="dashicons dashicons-arrow-right-alt"></span>
+        </a>
     </p>
 <?php endif; ?>
 </div><div style="display: none">
