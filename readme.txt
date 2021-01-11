@@ -26,6 +26,9 @@ Please follow the steps in the installation and configuration guide: https://doc
 
 == Changelog ==
 
+= 1.3.7 =
+Capture on complete: Try transaction id stored in scanpay table first.
+
 = 1.3.6 =
 Added payid link.
 

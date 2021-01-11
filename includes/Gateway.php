@@ -346,10 +346,10 @@ class WC_Scanpay extends WC_Payment_Gateway
             $order->add_order_note(__('Capture failed: A capture has already been performed on this order', 'woocommerce-scanpay'));
             return;
         }
-        $trnid = $order->get_transaction_id();
-        if (!$trnid) {
-            $trnid = get_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_TRANSACTION_ID, true);
-            if (!$trnid) {
+        $trnid = get_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_TRANSACTION_ID, true);
+        if (empty($trnid)) {
+            $trnid = $order->get_transaction_id();
+            if (empty($trnid)) {
                 $order->add_order_note(__('Capture failed: Order not authorized', 'woocommerce-scanpay'));
                 return;
             }
