@@ -169,8 +169,9 @@ class WC_Scanpay extends WC_Payment_Gateway
         foreach ($order->get_items('line_item') as $wooitem) {
             $itemtotal = $order->get_line_total($wooitem, true);
             if ($itemtotal < 0) {
-                scanpay_log('Cannot handle negative price for item');
-                throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
+                /* This will make the total not match and will make the 'Discounted cart' code kick in */
+                scanpay_log('Observed negative line total for order ' . $orderid . '. Total will be discounted.');
+                continue;
             }
 
             /*
@@ -206,8 +207,9 @@ class WC_Scanpay extends WC_Payment_Gateway
         foreach ($order->get_items('fee') as $wooitem) {
             $itemtotal = $wooitem->get_total() + $wooitem->get_total_tax();
             if ($itemtotal < 0) {
-                scanpay_log('Cannot handle negative price for fee');
-                throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
+                /* This will make the total not match and will make the 'Discounted cart' code kick in */
+                scanpay_log('Observed negative fee for order ' . $orderid . '. Total will be discounted.');
+                continue;
             }
             $data['items'][] = [
                 'name' => $wooitem->get_name(),

@@ -2,7 +2,7 @@
 Contributors: scanpay
 Tags: ecommerce, woocommerce, payments, subscriptions
 Requires at least: 4.0
-Tested up to: 5.5.3
+Tested up to: 5.6
 Stable tag: trunk
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
@@ -25,6 +25,9 @@ This is an official plugin, developed by Scanpay ApS in Copenhagen. We are a PCI
 Please follow the steps in the installation and configuration guide: https://docs.scanpay.dk/modules/woocommerce
 
 == Changelog ==
+
+= 1.3.8 =
+No longer errors on negative items. Instead replaces all items with 'Discounted cart'.
 
 = 1.3.7 =
 Capture on complete: Try transaction id stored in scanpay table first.
