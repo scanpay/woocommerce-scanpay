@@ -236,6 +236,9 @@ class WC_Scanpay extends WC_Payment_Gateway
             $data['items'][$i]['total'] .= " $cur"; /* add currency to item totals */
         }
         if ($itemtotal != $order->get_total()) {
+            scanpay_log("Item total ($itemtotal) does not match Woo total (" .
+                        $order->get_total() . "). Item list used for calculation:\n" .
+                        print_r($data['items'], true));
             unset($data['items']);
             if ($itemtotal > $order->get_total()) {
                 $data['items'][] = [
@@ -248,6 +251,12 @@ class WC_Scanpay extends WC_Payment_Gateway
                     'total' => $order->get_total() . ' ' . $cur,
                 ];
             }
+            $order->add_order_note(sprintf(__('Total mismatch: Calculated total=%s, Woocommerce total=%s. ' .
+                                              'This causes Scanpay to display %s instead of individual items. ' .
+                                              'This is typically caused by another module. ' .
+                                              'Check the logfile %s for details.', 'woocommerce-scanpay'),
+                                           $itemtotal, $order->get_total(), $data['items'][0]['name'],
+                                           WC_SCANPAY_FOR_WOOCOMMERCE_LOGFILE));
         }
 
         $opts = [
