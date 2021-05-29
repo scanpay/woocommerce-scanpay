@@ -2,7 +2,7 @@
 Contributors: scanpay
 Tags: ecommerce, woocommerce, payments, subscriptions
 Requires at least: 4.0
-Tested up to: 5.7.1
+Tested up to: 5.7.2
 Stable tag: trunk
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
@@ -25,6 +25,9 @@ This is an official plugin, developed by Scanpay ApS in Copenhagen. We are a PCI
 Please follow the steps in the installation and configuration guide: https://docs.scanpay.dk/modules/woocommerce
 
 == Changelog ==
+
+= 1.3.10 =
+Fixed total mismatch being triggered sometimes when it should not.
 
 = 1.3.9 =
 Added debug info for total mismatch cases.
