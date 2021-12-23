@@ -26,6 +26,9 @@ Please follow the steps in the installation and configuration guide: https://doc
 
 == Changelog ==
 
+= 1.3.11 =
+Fixed more total mismatch cases.
+
 = 1.3.10 =
 Fixed total mismatch being triggered sometimes when it should not.
 
