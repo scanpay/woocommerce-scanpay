@@ -235,7 +235,13 @@ class WC_Scanpay extends WC_Payment_Gateway
             $itemtotal += $item['total'];
             $data['items'][$i]['total'] .= " $cur"; /* add currency to item totals */
         }
-        if (bccomp($itemtotal, $order->get_total(), WC_ROUNDING_PRECISION) !== 0) {
+        $mismatch = false;
+        if (function_exists('bccomp')) {
+            $mismatch = bccomp($itemtotal, $order->get_total(), WC_ROUNDING_PRECISION) !== 0;
+        } else {
+            $mismatch = rtrim(strval($itemtotal), '0') !== rtrim(strval($order->get_total()), '0');
+        }
+        if ($mismatch) {
             scanpay_log("Item total ($itemtotal) does not match Woo total (" .
                         $order->get_total() . "). Item list used for calculation:\n" .
                         print_r($data['items'], true));
