@@ -114,6 +114,10 @@ class WC_Scanpay extends WC_Payment_Gateway
         return $icons;
     }
 
+    protected function trim_amount($amt) {
+        return preg_replace('/(\.\d*[1-9])0+|(\.0+)$/', '$1', strval($amt));
+    }
+
     private function get_subscription($order) {
         if (!class_exists('WC_Subscriptions')) {
             throw new \Exception("Woocommerce Subscriptions not installed");
@@ -239,7 +243,8 @@ class WC_Scanpay extends WC_Payment_Gateway
         if (function_exists('bccomp')) {
             $mismatch = bccomp($itemtotal, $order->get_total(), WC_ROUNDING_PRECISION) !== 0;
         } else {
-            $mismatch = rtrim(strval($itemtotal), '0') !== rtrim(strval($order->get_total()), '0');
+
+            $mismatch = $this->trim_amount($itemtotal) !== $this->trim_amount($order->get_total());
         }
         if ($mismatch) {
             scanpay_log("Item total ($itemtotal) does not match Woo total (" .
