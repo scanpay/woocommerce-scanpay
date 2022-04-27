@@ -26,6 +26,9 @@ Please follow the steps in the installation and configuration guide: https://doc
 
 == Changelog ==
 
+= 1.3.14 =
+Refined autocapture option.
+
 = 1.3.13 =
 Refined trim method used to compare totals.
 

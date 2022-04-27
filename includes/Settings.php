@@ -93,10 +93,16 @@ function buildSettings($block)
         ],
         'autocapture' => [
             'title' => 'Auto-capture',
-            'type' => 'checkbox',
+            'type' => 'multiselect',
             'label' => 'Enable Auto-capture',
-            'description' => 'Immediately capture all new orders. This is usually not recommended.',
-            'default' => 'no',
+            'description' => 'Immediately capture specified order types.',
+            'options' => [
+                'virtual' => 'Virtual orders',
+                'all' => 'ALL orders',
+                'renewalorders' => 'Renewal orders (charges)',
+            ],
+            'default' => [ 'renewalorders' ],
+            'class' => 'wc-enhanced-select',
         ],
         'subscriptions_enabled' => [
             'title' => 'Enable Subscriptions',
