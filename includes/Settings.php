@@ -99,7 +99,7 @@ function buildSettings($block)
             'options' => [
                 'virtual' => 'Virtual orders',
                 'all' => 'ALL orders',
-                'renewalorders' => 'Renewal orders (charges)',
+                'renewalorders' => 'Renewal orders (Subscription charges)',
             ],
             'default' => [ 'renewalorders' ],
             'class' => 'wc-enhanced-select',
