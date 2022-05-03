@@ -35,6 +35,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         } else if ($this->get_option('autocapture') === 'no') {
             $this->update_option('autocapture', ["renewalorders"]);
         }
+        $this->autocapture = $this->get_option('autocapture') ?: [];
 
         $this->autocomplete_virtual = $this->get_option('autocomplete_virtual') === 'yes';
         $this->autocomplete_renewalorders = $this->get_option('autocomplete_renewalorders') === 'yes';
@@ -208,8 +209,8 @@ class WC_Scanpay extends WC_Payment_Gateway
         }
 
         /* Determine if order should be auto-captured */
-        $data['autocapture'] = in_array('all', $this->get_option('autocapture')) ||
-                               (!$has_nonvirtual && in_array('virtual', $this->get_option('autocapture')));
+        $data['autocapture'] = in_array('all', $this->autocapture) ||
+                               (!$has_nonvirtual && in_array('virtual', $this->autocapture));
 
         /* Add fees */
         foreach ($order->get_items('fee') as $wooitem) {
@@ -610,8 +611,8 @@ class WC_Scanpay extends WC_Payment_Gateway
         }
         $data = [
             'orderid'  => $renewal_orderid,
-            'autocapture' => in_array('all', $this->get_option('autocapture')) ||
-                             in_array('renewalorders', $this->get_option('autocapture')),
+            'autocapture' => in_array('all', $this->autocapture) ||
+                             in_array('renewalorders', $this->autocapture),
             'items'    => [
                 ['total' => $amount . ' ' . $renewal_order->get_currency()],
             ],
