@@ -2,7 +2,7 @@
 Contributors: scanpay
 Tags: ecommerce, woocommerce, payments, subscriptions
 Requires at least: 4.0
-Tested up to: 5.9.3
+Tested up to: 5.9.4
 Stable tag: trunk
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
@@ -11,18 +11,18 @@ Accept payments in WooCommerce with a secure and innovative payment gateway.
 
 == Description ==
 
-With this plugin you can quickly and easily accept payments in WooCommerce through our payment gateway. The plugin works with WooCommerce Subscriptions. We support the following payment methods:
+With this plugin, you can quickly and easily accept payments in WooCommerce through Scanpay's payment gateway. The plugin is compatible with WooCommerce Subscriptions. We support the following payment methods:
 
 * Dankort
 * Visa, Mastercard and Maestro
 * JCB, American Express and Diners
 * MobilePay
 
-This is an official plugin, developed by Scanpay ApS in Copenhagen. We are a PCI DSS certified payment gateway with a focus on Scandinavian e-commerce. You can create a scanpay account [here](https://scanpay.dk/opret).
+This is an official plugin developed by Scanpay ApS in Copenhagen. We are a PCI DSS certified payment gateway focusing on Scandinavian e-commerce. You can create a scanpay account [here](https://scanpay.dk/opret).
 
 == Installation ==
 
-Please follow the steps in the installation and configuration guide: https://docs.scanpay.dk/modules/woocommerce
+Please follow the steps in the [installation and configuration guide](https://github.com/scanpay/woocommerce-scanpay#scanpay-for-woocommerce).
 
 == Changelog ==
 
