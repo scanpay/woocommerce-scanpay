@@ -1,6 +1,7 @@
 <?php
 
 namespace Scanpay;
+
 if (!defined('ABSPATH')) {
     exit;
 }
@@ -27,8 +28,12 @@ class ShopSeqDB
     public function updateMtime($shopId)
     {
         global $wpdb;
-        $q = $wpdb->prepare("UPDATE `$this->tablename` SET `mtime` = %d " .
-            'WHERE `shopid` = %d', time(), $shopId);
+        $q = $wpdb->prepare(
+            "UPDATE `$this->tablename` SET `mtime` = %d " .
+            'WHERE `shopid` = %d',
+            time(),
+            $shopId
+        );
         $wpdb->query($q);
     }
 
@@ -39,8 +44,11 @@ class ShopSeqDB
             scanpay_log('ShopId argument is not an unsigned int');
             return false;
         }
-        $q = $wpdb->prepare("INSERT IGNORE INTO `$this->tablename`" .
-            'SET `shopid` = %d, `seq` = 0, `mtime` = 0 ' , $shopId);
+        $q = $wpdb->prepare(
+            "INSERT IGNORE INTO `$this->tablename`" .
+            'SET `shopid` = %d, `seq` = 0, `mtime` = 0 ',
+            $shopId
+        );
         $wpdb->query($q);
     }
 
@@ -73,12 +81,20 @@ class ShopSeqDB
     public function load($shopId)
     {
         global $wpdb;
-        $q = $wpdb->prepare("SELECT * FROM `$this->tablename` WHERE `shopid` = %d", $shopId);
+        $q = $wpdb->prepare(
+            "SELECT * FROM `$this->tablename` WHERE `shopid` = %d",
+            $shopId
+        );
+
         $row = $wpdb->get_row($q, ARRAY_A);
         if (!$row) {
             return false;
         }
-        return [ 'shopid' => (int)$row['shopid'], 'seq' => (int)$row['seq'], 'mtime' => (int)$row['mtime'] ];
-    }
 
+        return [
+            'shopid' => (int)$row['shopid'],
+            'seq' => (int)$row['seq'],
+            'mtime' => (int)$row['mtime']
+        ];
+    }
 }

@@ -18,7 +18,8 @@ if (!defined('ABSPATH')) {
 <?php if(!empty($trnid)): ?>
     <p>
         <strong><?php echo __('Transaction ID', 'woocommerce-scanpay') ?>:</strong>
-        <?php echo '<a style="text-decoration:none; float:right" href="' . $trnURL . '" target="_blank">' . htmlspecialchars($trnid) ?>
+        <?php echo '<a style="text-decoration:none; float:right" href="' . $trnURL .
+            '" target="_blank">' . htmlspecialchars($trnid) ?>
         <span class="dashicons dashicons-arrow-right-alt"></span></a>
     </p>
     <p>
@@ -30,11 +31,13 @@ if (!defined('ABSPATH')) {
     </p>
     <p>
         <strong><?php echo __('Captured', 'woocommerce-scanpay')?>:</strong>
-        <?php echo '<a style="text-decoration:none; float:right" href="' . $trnURL . '/capture" target="_blank">' . $captured ?>
+        <?php echo '<a style="text-decoration:none; float:right" href="' . $trnURL .
+            '/capture" target="_blank">' . $captured ?>
         <span class="dashicons dashicons-plus-alt"></span></a>
     <p>
         <strong><?php echo __('Refunded', 'woocommerce-scanpay')?>:</strong>
-        <?php echo '<a style="text-decoration:none; float:right" href="' . $trnURL . '/refund" target="_blank">' . $refunded ?>
+        <?php echo '<a style="text-decoration:none; float:right" href="' . $trnURL .
+            '/refund" target="_blank">' . $refunded ?>
         <span class="dashicons dashicons-dismiss"></span></a>
     </p>
 <?php endif; ?>

@@ -1,6 +1,7 @@
 <?php
 
 namespace Scanpay;
+
 if (!defined('ABSPATH')) {
     exit;
 }
@@ -25,15 +26,19 @@ class QueuedChargeDB
     public function save($orderid)
     {
         global $wpdb;
-        $q = $wpdb->prepare("INSERT IGNORE INTO `$this->tablename`" .
-            'SET `orderid` = %d ' , $orderid);
+        $q = $wpdb->prepare(
+            "INSERT IGNORE INTO `$this->tablename`" . 'SET `orderid` = %d ', // TODO: REVIEW
+            $orderid
+        );
         $wpdb->query($q);
     }
 
     public function loadall()
     {
         global $wpdb;
-        $col = $wpdb->get_col("SELECT `orderid` FROM `$this->tablename`");
+        $col = $wpdb->get_col(
+            "SELECT `orderid` FROM `$this->tablename`"
+        );
         if (!$col) {
             return [];
         }
@@ -43,9 +48,10 @@ class QueuedChargeDB
     public function delete($orderid)
     {
         global $wpdb;
-        $q = $wpdb->prepare("DELETE IGNORE FROM `$this->tablename`" .
-            'WHERE `orderid` = %d ' , $orderid);
+        $q = $wpdb->prepare(
+            "DELETE IGNORE FROM `$this->tablename`" . 'WHERE `orderid` = %d ', // TODO: REVIEW
+            $orderid
+        );
         $wpdb->query($q);
     }
-
 }

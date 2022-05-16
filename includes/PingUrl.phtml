@@ -63,7 +63,7 @@ $instructions = 'follow the instructions in the <a target="_blank" href="https:/
   <!-- Everything is perfect! -->
   <div style="background: #dff0d8; border-left: 5px solid #3c763d; padding: 10px 0 9px 15px">
     <div style="font-weight: bold; padding: 0 0 2px;">Success: Your store is synchronized with Scanpay</div>
-    Last ping received <?php echo lastPing($pingdt) ?> ago. Your store will continuously receive updates through our <a target="_blank" href="https://docs.scanpay.dk/synchronization">Sync API</a>.
+    The last ping was received <?php echo lastPing($pingdt) ?> ago. Your store will continuously receive updates through our <a target="_blank" href="https://docs.scanpay.dk/synchronization">Sync API</a>.
   </div>
 
 <?php elseif($pingdt < 1800) : ?>

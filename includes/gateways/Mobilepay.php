@@ -1,4 +1,5 @@
 <?php
+
 // Exit if accessed directly
 if (!defined('ABSPATH')) {
     exit;
@@ -37,22 +38,29 @@ class WC_Scanpay_Mobilepay extends WC_Scanpay_Parent
     {
         $this->form_fields = [
             'enabled' => [
-                'title'   => __( 'Enable', 'woocommerce-scanpay' ),
+                'title'   => __('Enable', 'woocommerce-scanpay'),
                 'type'    => 'checkbox',
-                'description' => __( 'This controls whether MobilePay is shown in checkout. You MUST enable MobilePay in the Scanpay dashboard for this to work.' ),
-                'label'   => __( 'Enable MobilePay', 'woocommerce-scanpay' ),
+                'description' => __('This controls whether MobilePay is shown in checkout. ' .
+                    'You MUST enable MobilePay in the Scanpay dashboard for this to work.'),
+                'label'   => __('Enable MobilePay', 'woocommerce-scanpay'),
                 'default' => 'yes',
             ],
             'title' => [
-                'title'       => __( 'Title', 'woocommerce-scanpay' ),
+                'title'       => __('Title', 'woocommerce-scanpay'),
                 'type'        => 'text',
-                'description' => __( 'This controls the title which the user sees during checkout.', 'woocommerce-scanpay' ),
+                'description' => __(
+                    'This controls the title which the user sees during checkout.',
+                    'woocommerce-scanpay'
+                ),
                 'default'     => 'MobilePay',
             ],
             'description' => [
-                'title'       => __( 'Description', 'woocommerce-scanpay' ),
+                'title'       => __('Description', 'woocommerce-scanpay'),
                 'type'        => 'textarea',
-                'description' => __( 'This controls the description which the user sees during checkout.', 'woocommerce-scanpay' ),
+                'description' => __(
+                    'This controls the description which the user sees during checkout.',
+                    'woocommerce-scanpay'
+                ),
             ],
             'card_icon' => [
                 'title' => 'MobilePay Icon',
@@ -62,6 +70,4 @@ class WC_Scanpay_Mobilepay extends WC_Scanpay_Parent
             ],
         ];
     }
-
-
 }

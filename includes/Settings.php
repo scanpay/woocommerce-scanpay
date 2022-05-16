@@ -1,8 +1,8 @@
 <?php
+
 if (!defined('ABSPATH')) {
     exit;
 }
-
 
 function buildSettings($block)
 {
@@ -107,7 +107,8 @@ function buildSettings($block)
         'subscriptions_enabled' => [
             'title' => 'Enable Subscriptions',
             'type' => 'checkbox',
-            'label' => 'Enable support for <a target="_blank" href="https://woocommerce.com/products/woocommerce-subscriptions/">WooCommerce Subscriptions</a>.',
+            'label' => 'Enable support for <a target="_blank" href="https://woocommerce.com/' .
+                'products/woocommerce-subscriptions/">WooCommerce Subscriptions</a>.',
             'default' => 'no',
         ],
     ];
