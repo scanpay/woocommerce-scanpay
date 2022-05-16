@@ -11,7 +11,7 @@ Follow the description below for a successful installation and configuration in 
 
 1. Install the plugin directly from your WordPress dashboard. Log in to your WordPress dashboard and navigate to `Plugins > Add New`. Search for *"scanpay"* and install the following plugin:
 
-<img src="https://docs.scanpay.dk/img/woocommerce/install-scanpay.png?1" width="700" alt="Install Scanpay for WooCommerce">
+<img src="https://docs.scanpay.dk/img/woocommerce/install-scanpay.png?1" width="700" height="234" alt="Install Scanpay for WooCommerce">
 
 
 2. Activate the plugin after the installation for further configuration. You can also navigate to `Plugins > Installed Plugins` and activate the *"Scanpay for WooCommerce"* plugin under this setting.
@@ -25,7 +25,7 @@ Navigate to `WooCommerce > Settings > Payments` to manage your WooCommerce payme
 
 <br>
 
-<img src="https://docs.scanpay.dk/img/woocommerce/plugin-configuration.png?v1" width="800" alt="Configuration of Scanpay plugin for WooCommerce">
+<img src="https://docs.scanpay.dk/img/woocommerce/plugin-configuration.png?v1" width="800" height="421" alt="Configuration of Scanpay plugin for WooCommerce">
 
 1. Ensure that you have **NOT** enabled *"Scanpay for WooCommerce"* before the configuration is completed.
 2. Generate an API key in Scanpay's dashboard [here](https://dashboard.scanpay.dk/settings/api). Make sure to keep the API key private and secure. 
@@ -48,4 +48,4 @@ Enable MobilePay Online in Scanpay's dashboard by following this [link](https://
 Scanpay's plugin is compatible with [WooCommerce Subscriptions](https://woocommerce.com/products/woocommerce-subscriptions/). 
 To enable WooCommerce Subscriptions navigate to `WooCommerce > Settings > Payments`. Find the *"Scanpay"* option and click *"Set up"* to open the Scanpay configuration page. Go to the bottom at the page and enable WooCommerce Subscriptions. 
 
-<img src="https://docs.scanpay.dk/img/woocommerce/subscriptions.png" width="700" alt="Enable WooCommerce Subscriptions for Scanpay">
+<img src="https://docs.scanpay.dk/img/woocommerce/subscriptions.png" width="700" height="126" alt="Enable WooCommerce Subscriptions for Scanpay">
