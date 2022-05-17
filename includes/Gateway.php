@@ -8,7 +8,6 @@ if (!defined('ABSPATH')) {
 class WC_Scanpay extends WC_Payment_Gateway
 {
     const API_PING_URL = 'wc_scanpay';
-    const DASHBOARD_URL = 'https://dashboard.scanpay.dk';
     protected $shopid;
     protected $apikey;
     protected $client;
@@ -41,18 +40,21 @@ class WC_Scanpay extends WC_Payment_Gateway
         $this->autocomplete_renewalorders = $this->get_option('autocomplete_renewalorders') === 'yes';
         $this->capture_on_complete = $this->get_option('capture_on_complete') === 'yes';
         $this->language = $this->get_option('language');
+
         $shopid = explode(':', $this->apikey)[0];
         if (ctype_digit($shopid)) {
             $this->shopid = (int)$shopid;
         } else {
             $this->shopid = null;
         }
+
         /* Subclasses */
         $this->client = new Scanpay\Scanpay($this->apikey, [
             'headers' => [
                 'X-Shop-Plugin' => 'woocommerce/' . WC_VERSION . '/' . WC_SCANPAY_PLUGIN_VERSION,
             ],
         ]);
+
         $this->orderupdater = new Scanpay\OrderUpdater($this->shopid, $this);
         $this->shopseqdb = new Scanpay\ShopSeqDB();
         $this->queuedchargedb = new Scanpay\QueuedChargeDB();
@@ -75,14 +77,14 @@ class WC_Scanpay extends WC_Payment_Gateway
 
             /* Subscription hooks */
             add_action(
-                'woocommerce_scheduled_subscription_payment_' . $this->id,
+                'woocommerce_scheduled_subscription_payment_scanpay',
                 [$this, 'scheduled_subscription_payment'],
                 10,
                 2
             );
 
             add_action(
-                'woocommerce_subscription_failing_payment_method_updated_' . $this->id,
+                'woocommerce_subscription_failing_payment_method_updated_scanpay',
                 [$this, 'update_failing_payment_method'],
                 10,
                 2
@@ -107,7 +109,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         if (!$extended) {
             if (is_admin()) {
                 add_action(
-                    'woocommerce_update_options_payment_gateways_' . $this->id,
+                    'woocommerce_update_options_payment_gateways_scanpay',
                     [$this, 'process_admin_options']
                 );
                 add_action(
@@ -118,7 +120,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             add_action('woocommerce_order_status_completed', [$this, 'woocommerce_order_status_completed']);
 
             /* Support for legacy ping url format */
-            add_action('woocommerce_api_' . 'scanpay/ping', [$this, 'handle_pings']);
+            add_action('woocommerce_api_scanpay/ping', [$this, 'handle_pings']);
 
             /* New ping url format */
             add_action('woocommerce_api_' . self::API_PING_URL, [$this, 'handle_pings']);
@@ -146,7 +148,7 @@ class WC_Scanpay extends WC_Payment_Gateway
 
     public function add_card_icons($icons, $id)
     {
-        if ($id == $this->id) {
+        if ($id == 'scanpay') {
             $array = $this->get_option('card_icons');
             if (!empty($array)) {
                 $icons = '<span class="scanpay-cards">';
@@ -463,7 +465,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         }
     }
 
-    public function seq($local_seq, $seqtypes = false)
+    public function seqUpdater($local_seq, $seqtypes = false)
     {
         if (is_null($local_seq)) {
             $local_seqobj = $this->shopseqdb->load($this->shopid);
@@ -506,54 +508,50 @@ class WC_Scanpay extends WC_Payment_Gateway
     public function handle_pings()
     {
         if (!isset($_SERVER['HTTP_X_SIGNATURE'])) {
-            wp_send_json(['error' => 'invalid signature'], 403);
-            return;
+            return wp_send_json(['error' => 'missing signature'], 403);
         }
-        $body = file_get_contents('php://input');
-        $localsig = base64_encode(hash_hmac('sha256', $body, $this->apikey, true));
-        if (!hash_equals($localsig, $_SERVER['HTTP_X_SIGNATURE'])) {
-            wp_send_json(['error' => 'invalid signature'], 403);
-            return;
-        }
+
+        // Protect against malicious "pings" when apikey is not set.
         if ($this->shopid === null) {
-            wp_send_json(['error' => 'invalid Scanpay API-key']);
-            return;
+            return wp_send_json(['error' => 'invalid Scanpay API-key']);
         }
 
-        /* Attempt to decode the json response */
-        $jsonreq = @json_decode($body, true);
-        if ($jsonreq === null) {
-            wp_send_json(['error' => 'invalid json from Scanpay server'], 400);
-            return;
+        // Only load the first 256 characters of the "ping"
+        $body = file_get_contents('php://input', false, null, 0, 256);
+        $signature = base64_encode(hash_hmac('sha256', $body, $this->apikey, true));
+        if (!hash_equals($signature, $_SERVER['HTTP_X_SIGNATURE'])) {
+            return wp_send_json(['error' => 'invalid signature'], 403);
         }
 
-        if (!isset($jsonreq['seq']) || !is_int($jsonreq['seq'])) {
-            return;
+        $ping = @json_decode($body, true);
+        if ($ping === null || !isset($ping['seq']) || !is_int($ping['seq'])) {
+            return wp_send_json(['error' => 'invalid JSON from Scanpay server'], 400);
         }
 
-        $remote_seq = $jsonreq['seq'];
-        $local_seqobj = $this->shopseqdb->load($this->shopid);
-        if (!$local_seqobj) {
+        $seqdb = $this->shopseqdb->load($this->shopid);
+        if (!$seqdb) {
             $this->shopseqdb->insert($this->shopid);
-            $local_seqobj = $this->shopseqdb->load($this->shopid);
-            if (!$local_seqobj) {
+            $seqdb = $this->shopseqdb->load($this->shopid);
+            if (!$seqdb) {
                 scanpay_log('unable to load scanpay sequence number');
-                wp_send_json(['error' => 'unable to load scanpay sequence number'], 500);
-                return;
+                return wp_send_json(['error' => 'unable to load scanpay sequence number'], 500);
             }
         }
 
-        $local_seq = $local_seqobj['seq'];
-        if ($local_seq < $remote_seq) {
-            $errmsg = $this->seq($local_seq);
+        if ($seqdb['seq'] < $ping['seq']) {
+            $errmsg = $this->seqUpdater($seqdb['seq']);
             if (!is_null($errmsg)) {
                 scanpay_log($errmsg);
-                wp_send_json(['error' => $errmsg], 500);
-                return;
+                return wp_send_json(['error' => $errmsg], 500);
             }
+        } elseif ($seqdb['seq'] > $ping['seq']) {
+            $errmsg = "local seq ({$seqdb['seq']}) is greater than ping seq ({$ping['seq']})";
+            scanpay_log($errmsg);
+            return wp_send_json(['error' => $errmsg], 500);
         } else {
             $this->shopseqdb->updateMtime($this->shopid);
         }
+
         $queuedcharges = $this->queuedchargedb->loadall();
         foreach ($queuedcharges as $orderid) {
             $order = wc_get_order($orderid);
@@ -624,7 +622,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             true
         ), ['currency' => $cur]);
 
-        $trnURL = self::DASHBOARD_URL . '/' . $shopid . '/' . $trnid;
+        $trnURL = 'https://dashboard.scanpay.dk/' . $shopid . '/' . $trnid;
         $payid = get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_PAYID, true);
         $payidURL = 'https://dashboard.scanpay.dk/' . $shopid . '/logs/payids/' . $payid;
         include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/OrderInfo.phtml');
@@ -640,7 +638,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         if (!$order) {
             return;
         }
-        if (substr_compare($order->get_payment_method(), $this->id, 0, strlen('scanpay')) != 0) {
+        if (substr_compare($order->get_payment_method(), 'scanpay', 0, strlen('scanpay')) != 0) {
             return;
         }
         if (!wcs_order_contains_subscription($order)) {
@@ -672,7 +670,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             if (!wc_get_order($orderid)->needs_payment()) {
                 return;
             }
-            $this->seq(null, ['subscriber']);
+            $this->seqUpdater(null, ['subscriber']);
         }
     }
 
@@ -798,7 +796,7 @@ class WC_Scanpay extends WC_Payment_Gateway
 
                     if (time() > $idemtime + 23 * 60 * 60) {
                         /* idempotency key expired, attempt to seq (only charges) */
-                        $r = $this->seq(null, ['charge']);
+                        $r = $this->seqUpdater(null, ['charge']);
                         if (!empty($r)) {
                             self::suberr($renewal_order, $r);
                             return;
@@ -883,7 +881,7 @@ class WC_Scanpay extends WC_Payment_Gateway
     function add_subscription_payment_meta($meta, $subscription)
     {
         $subId = $subscription->get_id();
-        $meta[$this->id] = [
+        $meta['scanpay'] = [
             'post_meta' => [
                 Scanpay\OrderUpdater::ORDER_DATA_SHOPID => [
                     'value' => get_post_meta($subId, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, true),
@@ -900,7 +898,7 @@ class WC_Scanpay extends WC_Payment_Gateway
 
     public function validate_subscription_payment_meta($methodId, $meta)
     {
-        if ($this->id === $methodId) {
+        if ($methodId === 'scanpay') {
             if (
                 !isset($meta['post_meta'][Scanpay\OrderUpdater::ORDER_DATA_SHOPID]) ||
                 empty($meta['post_meta'][Scanpay\OrderUpdater::ORDER_DATA_SHOPID])
