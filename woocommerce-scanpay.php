@@ -1,4 +1,5 @@
 <?php
+
 /*
  * Plugin Name: Scanpay for Woocommerce
  * Plugin URI: https://wordpress.org/plugins/scanpay-for-woocommerce/
@@ -23,21 +24,21 @@ if (!defined('ABSPATH')) {
 }
 
 if (!function_exists('get_plugins')) {
-    require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+    require_once(ABSPATH . 'wp-admin/includes/plugin.php');
 }
 
 if (!function_exists('get_home_path')) {
-    require_once( ABSPATH . 'wp-admin/includes/file.php' );
+    require_once(ABSPATH . 'wp-admin/includes/file.php');
 }
 
-define('WC_SCANPAY_PLUGIN_VERSION', get_plugin_data( __FILE__ )['Version']);
+define('WC_SCANPAY_PLUGIN_VERSION', get_plugin_data(__FILE__)['Version']);
 define('WC_SCANPAY_FOR_WOOCOMMERCE_DIR', rtrim(plugin_dir_path(__FILE__), '/'));
 define('WC_SCANPAY_FOR_WOOCOMMERCE_LOGFILE', get_home_path() . 'wp-content/scanpay-for-woocommerce.log');
 
-function scanpay_log($msg, $caller=null)
+function scanpay_log($msg, $caller = null)
 {
     if (is_null($caller)) {
-        $caller = debug_backtrace(FALSE, 1)[0];
+        $caller = debug_backtrace(false, 1)[0];
     }
     $header = date("Y-m-d H:i:s") . ' ' . basename($caller['file']) . ':' . $caller['line'];
     error_log($header . ' - ' . $msg . "\n", 3, WC_SCANPAY_FOR_WOOCOMMERCE_LOGFILE);
@@ -71,7 +72,9 @@ add_filter('woocommerce_payment_gateways', 'addScanpayGateway');
 /* Add a link to settings in the plugin overview */
 function addScanpayPluginLinks($links)
 {
-    $mylinks [] ='<a href="'.admin_url('admin.php?page=wc-settings&tab=checkout&section=scanpay' ) . '">' . __( 'Settings', 'woocommerce-scanpay' ) . '</a>';
+    $mylinks [] = '<a href="' . admin_url('admin.php?page=wc-settings&tab=checkout&section=scanpay') .
+        '">' . __('Settings', 'woocommerce-scanpay') . '</a>';
+
     // Merge our new link with the default ones
     return array_merge($mylinks, $links);
 }
