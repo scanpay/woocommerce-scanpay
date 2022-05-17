@@ -698,7 +698,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         scanpay_log('subscriber err: ' . $err, debug_backtrace(false, 1)[0]);
     }
 
-    public function scheduled_subscription_payment($amount = 0.0, $renewal_order)
+    public function scheduled_subscription_payment($amount, $renewal_order)
     {
         if (!$renewal_order->needs_payment()) {
             return;
@@ -711,11 +711,13 @@ class WC_Scanpay extends WC_Payment_Gateway
             self::suberr($renewal_order, 'Failed to retrieve Scanpay subscriber id from order');
             return;
         }
+
         $shopid = (int)get_post_meta($renewal_orderid, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, true);
         if (empty($shopid) || $shopid !== $this->shopid) {
             self::suberr($renewal_order, 'API-key shopid does not match stored subscriber shopid');
             return;
         }
+
         $data = [
             'orderid'  => $renewal_orderid,
             'autocapture' => in_array('all', $this->autocapture) ||
@@ -752,6 +754,7 @@ class WC_Scanpay extends WC_Payment_Gateway
                 'company' => $renewal_order->get_shipping_company(),
             ]),
         ];
+
         $maxretries = 3;
         $lasterr = '';
         for ($i = 0; $i < $maxretries; $i++) {
