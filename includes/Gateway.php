@@ -130,7 +130,10 @@ class WC_Scanpay extends WC_Payment_Gateway
          * Fix that WC_Subscriptions_Change_Payment_Gateway::can_subscription_be_updated_to_new_payment_method
          * wont fail, because totals is set to 0 ($subscription->get_total() == 0 will cause it to fail
          */
-        if (class_exists('WC_Subscriptions_Change_Payment_Gateway') && WC_Subscriptions_Change_Payment_Gateway::$is_request_to_change_payment) {
+        if (
+            class_exists('WC_Subscriptions_Change_Payment_Gateway') &&
+            WC_Subscriptions_Change_Payment_Gateway::$is_request_to_change_payment
+        ) {
             remove_filter(
                 'woocommerce_subscription_get_total',
                 'WC_Subscriptions_Change_Payment_Gateway::maybe_zero_total',
@@ -389,8 +392,16 @@ class WC_Scanpay extends WC_Payment_Gateway
 
         /* Update order */
         $order->update_status('wc-pending');
-        update_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, $this->shopid);
-        update_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_PAYID, basename(parse_url($paymenturl, PHP_URL_PATH)));
+        update_post_meta(
+            $orderid,
+            Scanpay\OrderUpdater::ORDER_DATA_SHOPID,
+            $this->shopid
+        );
+        update_post_meta(
+            $orderid,
+            Scanpay\OrderUpdater::ORDER_DATA_PAYID,
+            basename(parse_url($paymenturl, PHP_URL_PATH))
+        );
 
         return [
             'result' => 'success',
@@ -398,7 +409,8 @@ class WC_Scanpay extends WC_Payment_Gateway
         ];
     }
 
-    public function woocommerce_order_status_completed($orderid) {
+    public function woocommerce_order_status_completed($orderid)
+    {
         $order = wc_get_order($orderid);
         if (!$order) {
             return;
