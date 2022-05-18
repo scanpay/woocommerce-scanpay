@@ -73,8 +73,8 @@ function initScanpay()
     add_filter('plugin_row_meta', function ($links, $file) {
         if (plugin_basename(__FILE__) === $file) {
             $row_meta = [
-                'github' => '<a href="https://github.com/scanpay/woocommerce-scanpay">GitHub</a>',
-                'docs' => '<a href="https://docs.scanpay.dk/">API Docs</a>'
+                'github' => '<a target="_blank" href="https://github.com/scanpay/woocommerce-scanpay">GitHub</a>',
+                'docs' => '<a target="_blank" href="https://docs.scanpay.dk/">API Docs</a>'
             ];
             return array_merge($links, $row_meta);
         }
