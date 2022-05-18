@@ -25,7 +25,7 @@ if (!function_exists('lastPing')) {
     }
 }
 
-$log_file = basename(wc_get_log_file_path('woo-scanpay'));
+$log_file = basename(wc_get_log_file_path('woo-scanpay')) . '&source=woo-scanpay';
 $lastPingTime = $block['lastpingtime'];
 $pingdt = time() - $lastPingTime;
 $shopidstr = '';
