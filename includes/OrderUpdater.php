@@ -64,7 +64,10 @@ class OrderUpdater
         }
         /* Ignore errornous transactions */
         if (isset($d['error'])) {
-            scanpay_log("Received error transaction[id=$d[id]] in order updater: $d[error]");
+            scanpay_log(
+                'error',
+                "Received error transaction[id=$d[id]] in order updater: $d[error]"
+            );
             return null;
         }
         if (!isset($d['rev']) || !is_int($d['rev'])) {
@@ -80,13 +83,20 @@ class OrderUpdater
             return 'Missing "acts" in change';
         }
         if (!isset($d['orderid'])) {
-            scanpay_log('Received ' . $d['type'] . ' #' . $d['id'] . ' without orderid');
+            scanpay_log(
+                'error',
+                'Received ' . $d['type'] . ' #' . $d['id'] . ' without orderid'
+            );
             return null;
         }
         $orderid = $d['orderid'];
         $order = wc_get_order($orderid);
+
         if (!$order) {
-            scanpay_log('Order #' . $orderid . ' not in system');
+            scanpay_log(
+                'warning',
+                'Order #' . $orderid . ' not in system'
+            );
             return null;
         }
 
@@ -94,9 +104,11 @@ class OrderUpdater
         $orderShopId = (int)get_post_meta($orderid, self::ORDER_DATA_SHOPID, true);
         $oldrev = (int)get_post_meta($orderid, self::ORDER_DATA_REV, true);
         if ($this->shopid !== $orderShopId) {
-            scanpay_log('Order #' . $orderid . ' shopid (' .
-                $orderShopId . ') does not match current shopid (' .
-                $this->shopid . ')');
+            scanpay_log(
+                'warning',
+                'Order #' . $orderid . ' with shopID: ' . $orderShopId .
+                ' does not match current shopID (' . $this->shopid . ')'
+            );
             return null;
         }
         /* Skip the order, if it's not a new revision */
@@ -159,7 +171,10 @@ class OrderUpdater
         }
         /* Ignore errornous transactions */
         if (isset($d['error'])) {
-            scanpay_log("Received error transaction[id=$d[id]] in order updater: $d[error]");
+            scanpay_log(
+                'error',
+                "Received error transaction[id=$d[id]] in order updater: $d[error]"
+            );
             return null;
         }
         if (!isset($d['rev']) || !is_int($d['rev'])) {
@@ -169,17 +184,26 @@ class OrderUpdater
             return 'Missing "acts" in change';
         }
         if (!isset($d['ref'])) {
-            scanpay_log('Received subscriber #' . $d['id'] . ' without ref');
+            scanpay_log(
+                'warning',
+                'Received subscriber #' . $d['id'] . ' without ref'
+            );
             return null;
         }
         if (!class_exists('WC_Subscriptions')) {
-            scanpay_log('Received subscriber #' . $d['id'] . ', but Woocommerce Subscriptions is not enabled');
+            scanpay_log(
+                'error',
+                'Received subscriber #' . $d['id'] . ', but Woocommerce Subscriptions is not enabled'
+            );
             return null;
         }
         $orderid = $d['ref'];
         $order = wc_get_order($orderid);
         if (!$order) {
-            scanpay_log('Order #' . $orderid . ' not in system');
+            scanpay_log(
+                'warning',
+                'Order #' . $orderid . ' not in system'
+            );
             return null;
         }
 
@@ -256,7 +280,10 @@ class OrderUpdater
                         $errmsg = $this->updatesub($change);
                         break;
                     default:
-                        scanpay_log('Unknown change type ' . $change['type']);
+                        scanpay_log(
+                            'notice',
+                            'Unknown change type ' . $change['type']
+                        );
                         continue 2;
                 }
             } catch (\Exception $e) {

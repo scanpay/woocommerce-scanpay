@@ -24,17 +24,11 @@ if (!defined('ABSPATH')) {
 const WC_SCANPAY_PLUGIN_VERSION = '1.3.15';
 const WC_SCANPAY_DIR = __DIR__;
 
-function scanpay_log($msg, $backtrace = false)
+
+function scanpay_log($level, $msg)
 {
     $logger = wc_get_logger();
-    $context = array('source' => 'scanpay-woocommerce');
-
-    if ($backtrace) {
-        $caller = debug_backtrace(false, 1)[0];
-        $logger->warning($msg . ' : ' . $caller['file'] . ':' . $caller['line']);
-    } else {
-        $logger->warning($msg, $context);
-    }
+    $logger->log($level, $msg, array('source' => 'woo-scanpay'));
 }
 
 function initScanpay()

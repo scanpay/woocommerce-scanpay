@@ -25,6 +25,7 @@ if (!function_exists('lastPing')) {
     }
 }
 
+$log_file = basename(wc_get_log_file_path('woo-scanpay'));
 $lastPingTime = $block['lastpingtime'];
 $pingdt = time() - $lastPingTime;
 $shopidstr = '';
@@ -39,7 +40,7 @@ $instructions = 'follow the instructions in the <a target="_blank" href="https:/
 
 <p style="margin: 0 0 22px;">
   <a class="button button-primary" target="_blank" href="https://github.com/scanpay/woocommerce-scanpay#configuration">Setup guide</a>
-  <a class="button" style="margin: 0 4px;" target="_blank" href="?page=wc-status&tab=logs">Debug logs</a>
+  <a class="button" style="margin: 0 4px;" href="?page=wc-status&tab=logs&log_file=<?php echo $log_file ?>">Debug logs</a>
   <a class="button" target="_blank" href="https://github.com/scanpay/woocommerce-scanpay">GitHub</a>
   <a class="button" style="margin: 0 4px;" target="_blank" href="<?php echo $sendping; ?>">Send ping</a>
 </p>

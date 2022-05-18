@@ -41,7 +41,10 @@ class ShopSeqDB
     {
         global $wpdb;
         if (!is_int($shopId) || $shopId <= 0) {
-            scanpay_log('ShopId argument is not an unsigned int');
+            scanpay_log(
+                'critical',
+                'ShopID argument is not an unsigned int'
+            );
             return false;
         }
         $q = $wpdb->prepare(
@@ -56,12 +59,18 @@ class ShopSeqDB
     {
         global $wpdb;
         if (!is_int($shopId) || $shopId <= 0) {
-            scanpay_log('ShopId argument is not an unsigned int');
+            scanpay_log(
+                'critical',
+                'ShopID argument is not an unsigned int'
+            );
             return false;
         }
 
         if (!is_int($seq) || $seq < 0) {
-            scanpay_log('Sequence argument is not an unsigned int');
+            scanpay_log(
+                'critical',
+                'Sequence argument is not an unsigned int'
+            );
             return false;
         }
 
@@ -69,7 +78,10 @@ class ShopSeqDB
             'WHERE `shopid` = %d AND `seq` < %d', $seq, time(), $shopId, $seq);
         $ret = $wpdb->query($q);
         if ($ret == false) {
-            scanpay_log('Failed saving seq to database');
+            scanpay_log(
+                'critical',
+                'Failed saving seq to database'
+            );
             return false;
         }
         if ($ret === 0) {

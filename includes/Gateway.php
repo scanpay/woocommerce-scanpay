@@ -188,7 +188,7 @@ class WC_Scanpay extends WC_Payment_Gateway
     public function process_payment($orderid)
     {
         if ($this->shopid === null) {
-            scanpay_log('invalid api key format');
+            scanpay_log('alert', 'missing or invalid API key');
             throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
         }
         $order = wc_get_order($orderid);
@@ -227,7 +227,10 @@ class WC_Scanpay extends WC_Payment_Gateway
             $itemtotal = $order->get_line_total($wooitem, true);
             if ($itemtotal < 0) {
                 /* This will make the total not match and will make the 'Discounted cart' code kick in */
-                scanpay_log('Observed negative line total for order ' . $orderid . '. Total will be discounted.');
+                scanpay_log(
+                    'notice',
+                    'Observed negative line total for order ' . $orderid . '. Total will be discounted.'
+                );
                 continue;
             }
 
@@ -237,7 +240,7 @@ class WC_Scanpay extends WC_Payment_Gateway
              *   $product = $order->get_product_from_item($wooitem);
              *   $variation = $product->get_child($wooitem['variation_id']);
              *   if ($variation !== false) {
-             *       scanpay_log('fmtattr: ' . $variation->get_formatted_variation_attributes(true));
+             *       scanpay_log('notice', 'fmtattr: ' . $variation->get_formatted_variation_attributes(true));
              *   }
              *}
              */
@@ -262,7 +265,10 @@ class WC_Scanpay extends WC_Payment_Gateway
             $itemtotal = $wooitem->get_total() + $wooitem->get_total_tax();
             if ($itemtotal < 0) {
                 /* This will make the total not match and will make the 'Discounted cart' code kick in */
-                scanpay_log('Observed negative fee for order ' . $orderid . '. Total will be discounted.');
+                scanpay_log(
+                    'notice',
+                    'Observed negative fee for order ' . $orderid . '. Total will be discounted.'
+                );
                 continue;
             }
             $data['items'][] = [
@@ -298,10 +304,14 @@ class WC_Scanpay extends WC_Payment_Gateway
         }
 
         if ($mismatch) {
-            scanpay_log("Item total ($itemtotal) does not match Woo total (" .
-                        $order->get_total() . "). Item list used for calculation:\n" .
-                        print_r($data['items'], true));
+            scanpay_log(
+                'warning',
+                "Item total ($itemtotal) does not match Woo total (" .
+                $order->get_total() . "). Item list used for calculation:\n" .
+                print_r($data['items'], true)
+            );
             unset($data['items']);
+
             if ($itemtotal > $order->get_total()) {
                 $data['items'][] = [
                     'name' => 'Discounted cart',
@@ -340,8 +350,11 @@ class WC_Scanpay extends WC_Payment_Gateway
             if (wcs_is_subscription($order)) {
                 $shopid = (int)get_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, true);
                 if ($shopid !== $this->shopid) {
-                    scanpay_log("subscription #$orderid scanpay shopid ($shopid)" .
-                        " does not match shopid from apikey ({$this->shopid})");
+                    scanpay_log(
+                        'alert',
+                        "subscription #$orderid, with scanpay shopID: $shopid," .
+                        " does not match shopID from apikey ({$this->shopid})"
+                    );
                     throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
                 }
                 $subid = (int)get_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_ID, true);
@@ -358,7 +371,7 @@ class WC_Scanpay extends WC_Payment_Gateway
                         $renewurl = $this->client->renew($subid, array_filter($data), $opts);
                     }
                 } catch (\Exception $e) {
-                    scanpay_log('scanpay client exception: ' . $e->getMessage());
+                    scanpay_log('error', 'scanpay client exception: ' . $e->getMessage());
                     throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
                 }
                 update_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SHOPID, $this->shopid);
@@ -386,7 +399,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         try {
             $paymenturl = $this->client->newURL(array_filter($data), $opts);
         } catch (\Exception $e) {
-            scanpay_log('scanpay client exception: ' . $e->getMessage());
+            scanpay_log('error', 'scanpay client exception: ' . $e->getMessage());
             throw new \Exception(__('Internal server error', 'woocommerce-scanpay'));
         }
 
@@ -511,19 +524,22 @@ class WC_Scanpay extends WC_Payment_Gateway
 
         // Protect against malicious "pings" when apikey is not set.
         if ($this->shopid === null) {
-            return wp_send_json(['error' => 'invalid Scanpay API-key']);
+            scanpay_log('debug', 'ping rejected: invalid or missing API key');
+            return wp_send_json(['error' => 'invalid Scanpay API key']);
         }
 
         // Only load the first 256 characters of the "ping"
         $body = file_get_contents('php://input', false, null, 0, 256);
         $signature = base64_encode(hash_hmac('sha256', $body, $this->apikey, true));
         if (!hash_equals($signature, $_SERVER['HTTP_X_SIGNATURE'])) {
+            scanpay_log('debug', 'ping rejected: invalid signature or API key');
             return wp_send_json(['error' => 'invalid signature'], 403);
         }
 
         $ping = @json_decode($body, true);
         if ($ping === null || !isset($ping['seq']) || !is_int($ping['seq'])) {
-            return wp_send_json(['error' => 'invalid JSON from Scanpay server'], 400);
+            scanpay_log('warning', 'received invalid JSON from scanpay');
+            return wp_send_json(['error' => 'invalid JSON from scanpay'], 400);
         }
 
         $seqdb = $this->shopseqdb->load($this->shopid);
@@ -531,7 +547,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             $this->shopseqdb->insert($this->shopid);
             $seqdb = $this->shopseqdb->load($this->shopid);
             if (!$seqdb) {
-                scanpay_log('unable to load scanpay sequence number');
+                scanpay_log('critical', 'unable to load scanpay sequence number from DB');
                 return wp_send_json(['error' => 'unable to load scanpay sequence number'], 500);
             }
         }
@@ -539,12 +555,12 @@ class WC_Scanpay extends WC_Payment_Gateway
         if ($seqdb['seq'] < $ping['seq']) {
             $errmsg = $this->seqUpdater($seqdb['seq']);
             if (!is_null($errmsg)) {
-                scanpay_log($errmsg);
+                scanpay_log('error', $errmsg);
                 return wp_send_json(['error' => $errmsg], 500);
             }
         } elseif ($seqdb['seq'] > $ping['seq']) {
             $errmsg = "local seq ({$seqdb['seq']}) is greater than ping seq ({$ping['seq']})";
-            scanpay_log($errmsg);
+            scanpay_log('alert', $errmsg);
             return wp_send_json(['error' => $errmsg], 500);
         } else {
             $this->shopseqdb->updateMtime($this->shopid);
@@ -557,7 +573,7 @@ class WC_Scanpay extends WC_Payment_Gateway
             try {
                 $sub = $this->get_subscription($order);
             } catch (\Exception $e) {
-                scanpay_log('failed to get subscription from order: ' . $e);
+                scanpay_log('error', 'failed to get subscription from order: ' . $e);
                 continue;
             }
             if (update_post_meta($orderid, Scanpay\OrderUpdater::ORDER_DATA_SUBSCRIBER_INITIALPAYMENT_NTRIES, '1', '')) {
@@ -691,7 +707,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         $msg = sprintf(__('Scanpay transaction failed: %s', 'woocommerce-scanpay'), $err);
         $renewal_order->update_status('failed', $msg);
 
-        scanpay_log('subscriber err: ' . $err, debug_backtrace(false, 1)[0]);
+        scanpay_log('error', 'subscriber err: ' . $err);
     }
 
     public function scheduled_subscription_payment($amount, $renewal_order)
