@@ -7,7 +7,7 @@ if (!defined('ABSPATH')) {
 function buildSettings($block)
 {
     ob_start();
-    include(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/PingUrl.phtml');
+    include(WC_SCANPAY_DIR . '/includes/PingUrl.phtml');
     $pingUrlContent = ob_get_contents();
     ob_end_clean();
 

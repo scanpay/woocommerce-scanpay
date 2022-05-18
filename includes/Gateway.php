@@ -318,14 +318,12 @@ class WC_Scanpay extends WC_Payment_Gateway
                 __(
                     'Total mismatch: Calculated total=%s, Woocommerce total=%s. ' .
                     'This causes Scanpay to display %s instead of individual items. ' .
-                    'This is typically caused by another module. ' .
-                    'Check the logfile %s for details.',
+                    'This is typically caused by another module. Check logs for details.',
                     'woocommerce-scanpay'
                 ),
                 $itemtotal,
                 $order->get_total(),
-                $data['items'][0]['name'],
-                WC_SCANPAY_FOR_WOOCOMMERCE_LOGFILE
+                $data['items'][0]['name']
             ));
         }
 
@@ -625,7 +623,7 @@ class WC_Scanpay extends WC_Payment_Gateway
         $trnURL = 'https://dashboard.scanpay.dk/' . $shopid . '/' . $trnid;
         $payid = get_post_meta($order->get_id(), Scanpay\OrderUpdater::ORDER_DATA_PAYID, true);
         $payidURL = 'https://dashboard.scanpay.dk/' . $shopid . '/logs/payids/' . $payid;
-        include_once(WC_SCANPAY_FOR_WOOCOMMERCE_DIR . '/includes/OrderInfo.phtml');
+        include_once(WC_SCANPAY_DIR . '/includes/OrderInfo.phtml');
     }
 
     public function after_subscribe($orderid)
