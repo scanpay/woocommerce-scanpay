@@ -32,7 +32,7 @@ if (!function_exists('get_home_path')) {
 }
 
 define('WC_SCANPAY_PLUGIN_VERSION', get_plugin_data(__FILE__)['Version']);
-define('WC_SCANPAY_FOR_WOOCOMMERCE_DIR', rtrim(plugin_dir_path(__FILE__), '/'));
+define('WC_SCANPAY_FOR_WOOCOMMERCE_DIR', rtrim(plugin_dir_path(__FILE__)));
 define('WC_SCANPAY_FOR_WOOCOMMERCE_LOGFILE', get_home_path() . 'wp-content/scanpay-for-woocommerce.log');
 
 function scanpay_log($msg, $caller = null)
