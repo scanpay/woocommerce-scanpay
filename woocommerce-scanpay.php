@@ -43,7 +43,7 @@ function initScanpay()
         return;
     }
 
-    load_plugin_textdomain('woocommerce-scanpay', false, plugin_basename(dirname(__FILE__)) . '/languages');
+    load_plugin_textdomain('woocommerce-scanpay', false, plugin_basename(__DIR__) . '/languages');
 
     require_once(WC_SCANPAY_DIR . '/includes/Gateway.php');
     require_once(WC_SCANPAY_DIR . '/includes/ScanpayClient.php');
@@ -54,26 +54,23 @@ function initScanpay()
     require_once(WC_SCANPAY_DIR . '/includes/gateways/Parent.php');
     require_once(WC_SCANPAY_DIR . '/includes/gateways/Mobilepay.php');
 
-    function addScanpayGateway($methods)
-    {
+    add_filter('woocommerce_payment_gateways', function ($methods) {
         $methods[] = 'WC_Scanpay';
         $methods[] = 'WC_Scanpay_Mobilepay';
         return $methods;
-    }
+    });
 
     // Add a 'shortcut' link to settings in the plugin overview
-    function addLinkToSettings($links)
-    {
+    add_filter('plugin_action_links_' . plugin_basename(__FILE__), function ($links) {
         $mylinks = [
             '<a href="' . admin_url('admin.php?page=wc-settings&tab=checkout&section=scanpay') . '">' .
                 __('Settings', 'woocommerce-scanpay') . '</a>'
         ];
         return array_merge($mylinks, $links);
-    }
+    });
 
-    // Add links to GitHub etc. in the plugin overview
-    function addSupportLinks($links, $file)
-    {
+    // Add links to GitHub and Docs in the plugin overview
+    add_filter('plugin_row_meta', function ($links, $file) {
         if (plugin_basename(__FILE__) === $file) {
             $row_meta = [
                 'github' => '<a href="https://github.com/scanpay/woocommerce-scanpay">GitHub</a>',
@@ -82,11 +79,7 @@ function initScanpay()
             return array_merge($links, $row_meta);
         }
         return (array) $links;
-    }
-
-    add_filter('woocommerce_payment_gateways', 'addScanpayGateway');
-    add_filter('plugin_row_meta', 'addSupportLinks', 10, 2);
-    add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'addLinkToSettings');
+    }, 10, 2);
 }
 
 add_action('plugins_loaded', 'initScanpay', 0);
