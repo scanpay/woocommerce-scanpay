@@ -25,6 +25,7 @@ class Scanpay
         $this->headers = [
             'authorization' => 'Authorization: Basic ' . base64_encode($apikey),
             'x-sdk' => 'X-SDK: PHP-1.5.2/' . PHP_VERSION,
+            'x-shop-plugin' => 'woocommerce/' . WC_VERSION . '/' . WC_SCANPAY_VERSION,
             'content-type' => 'Content-Type: application/json',
             'expect' => 'Expect: ',
         ];

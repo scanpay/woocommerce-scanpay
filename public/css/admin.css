@@ -1,0 +1,136 @@
+/*
+    Scanpay: Admin widget
+*/
+
+#scanpay-info > .inside {
+    margin: 0;
+    padding: 0;
+}
+
+.scanpay-info-alert {
+    margin: 6px 12px;
+}
+
+.scanpay-info-alert-error {
+    color: #940707;
+    font-weight: bold;
+}
+
+
+
+.scanpay--widget--ul {
+    margin: 0;
+    padding: 9px 12px 4px;
+    list-style: none !important;
+}
+
+.scanpay--widget--li {
+    display: flex;
+    padding: .15em 0;
+}
+
+
+.scanpay--actions {
+    border-top: 1px solid #ccc;
+    padding: 7px 12px;
+}
+
+.scanpay--widget--li--title {
+    flex: 1;
+}
+
+.scanpay--widget--li--status--captured {
+    color: #005800;
+}
+
+.scanpay--widget--li--status--refunded {
+    color: #901212;
+}
+
+.scanpay--widget--li--status--partial_refund {
+    color: #a14a20;
+}
+
+
+/*
+    Scanpay: Admin settings page
+*/
+
+.scanpay--admin--nav {
+    display: flex;
+    align-items: center;
+    padding: .8rem 0 .8rem;
+    font-size: 14px;
+}
+
+.scanpay--admin--nav--lastping {
+  margin: 3px 0 0 .8rem;
+  font-style: italic;
+  color: #195c2b;
+}
+
+.scanpay--admin--nav > .button {
+    margin: 0 .7rem 0 0;
+    font-size: 14px;
+}
+
+
+.scanpay--admin--git--svg {
+    fill: currentColor;
+    vertical-align: -3px;
+    margin: 0 0 0 -3px;
+}
+
+.scanpay--admin--pingbtn--svg {
+    fill: currentColor;
+    vertical-align: -3px;
+    margin: 0 2px 0 -3px;
+}
+
+
+/*
+    settings alert box
+*/
+.scanpay--admin--alert {
+    display: flex;
+    align-items: center;
+    max-width: 66rem;
+    font-size: 1.1em;
+    line-height: 1.5;
+    background: #fff4cc;
+    border-left: 5px solid #dfc155;
+    margin: 1.4em 0 .3em;
+    padding: .8em 1.2em .7em;
+    box-shadow: rgba(0, 0, 0, 0.1) 0px 3px 5px 0px;
+}
+
+.scanpay--admin--alert--ico {
+    padding-right: 1em;
+}
+
+.scanpay--admin--alert--btn {
+    position: relative;
+    display: inline-block;
+    padding: .45em .7em .4em;
+    margin: 0 .4em 0 0;
+    background: #2271b1;
+    color: #fff;
+    font-weight: bold;
+    text-decoration: none;
+    cursor: pointer;
+    border-radius: 3px;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+.scanpay--admin--alert--btn:hover, .scanpay--admin--alert--btn:focus {
+    background: #135e96;
+    color: #fff;
+    box-shadow: none;
+}
+
+.scanpay--admin--alert--title {
+    font-weight: bold;
+    padding: 0 0 2px;
+}
+

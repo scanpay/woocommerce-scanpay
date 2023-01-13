@@ -1,298 +1,189 @@
 <?php
-namespace Scanpay;
 
-if (!defined('ABSPATH')) {
-    exit;
-}
+defined('ABSPATH') || exit();
 
-class OrderUpdater
+class WC_Scanpay_OrderUpdater
 {
-    const ORDER_DATA_SHOPID = '_scanpay_shopid';
-    const ORDER_DATA_TRANSACTION_ID = '_scanpay_transaction_id';
-    const ORDER_DATA_REV = '_scanpay_rev';
-    const ORDER_DATA_NACTS = '_scanpay_nacts';
-    const ORDER_DATA_PAYID = '_scanpay_payid';
-    const ORDER_DATA_AUTHORIZED = '_scanpay_authorized';
-    const ORDER_DATA_CAPTURED = '_scanpay_captured';
-    const ORDER_DATA_REFUNDED = '_scanpay_refunded';
-    const ORDER_DATA_SUBSCRIBER_TIME = '_scanpay_subscriber_time';
-    const ORDER_DATA_SUBSCRIBER_ID = '_scanpay_subscriber_id';
-    const ORDER_DATA_SUBSCRIBER_CHARGE_IDEM = '_scanpay_subscriber_charge_idem';
-    const ORDER_DATA_SUBSCRIBER_INITIALPAYMENT_NTRIES = '_scanpay_subscriber_initialpayment_ntries';
-
     private $shopid;
-    private $scanpay;
-    private $queuedchargedb;
+    private $settings;
+    private $seqdb;
 
-    function __construct($shopid, $scanpayinstance)
+    public function __construct($settings)
     {
-        $this->shopid = $shopid;
-        $this->scanpay = $scanpayinstance;
+        require_once(WC_SCANPAY_DIR . '/includes/SeqDB.php');
+        $this->settings = $settings;
+        $this->shopid = (int) explode(':', $settings['apikey'])[0];
+        $this->seqdb = new WC_Scanpay_SeqDB($this->shopid);
     }
 
-    private function autocomplete($order)
+    public function handlePing($ping)
     {
-        $isprocessing = $order->get_status() === 'processing';
-        if ($isprocessing && $this->scanpay->autocomplete_virtual) {
-            $has_nonvirtual = false;
-            foreach ($order->get_items('line_item') as $item) {
-                if (!$item->get_product()->is_virtual()) {
-                    $has_nonvirtual = true;
+        ignore_user_abort(true);
+        $db = $this->seqdb->get_seq();
+        if ($ping['shopid'] !== $db['shopid']) {
+            throw new Exception('Ping shopid does not match shopid in Woo');
+        }
+
+        if ($ping['seq'] === $db['seq']) {
+            $this->seqdb->update_mtime();
+        } elseif ($ping['seq'] < $db['seq']) {
+            throw new Exception(sprintf(
+                'Ping seq (%u) is lower than the local seq (%u)',
+                $ping['seq'],
+                $db['seq']
+            ));
+        } else {
+            set_time_limit(120); // [default: 30s]
+            require_once WC_SCANPAY_DIR . '/includes/ScanpayClient.php';
+            $client = new Scanpay\Scanpay($this->settings['apikey']);
+
+            $seq = $db['seq'];
+            while (1) {
+                $res = $client->seq($seq);
+                if (count($res['changes']) === 0) {
+                    break; // done
                 }
+
+                foreach ($res['changes'] as $change) {
+                    switch ($change['type']) {
+                        case 'transaction':
+                        case 'charge':
+                            $this->updateTransaction($change);
+                            break;
+                        case 'subscriber':
+                            // $this->updateSubscriber($change);
+                            break;
+                        default:
+                            throw new Exception('Unknown change type: ' . $change['type']);
+                    }
+                }
+                $seq = $res['seq'];
+                $this->seqdb->set_seq($seq);
             }
-            if (!$has_nonvirtual) {
-                $order->update_status(
-                    'completed',
-                    __('Automatically completed virtual order.', 'woocommerce-scanpay'),
-                    false
-                );
-                $isprocessing = false;
-            }
-        }
-        if (
-            $isprocessing && $this->scanpay->autocomplete_renewalorders
-            && class_exists('WC_Subscriptions') && wcs_order_contains_renewal($order)
-        ) {
-            $order->update_status('completed', __('Automatically completed renewal order order.', 'woocommerce-scanpay'), false);
         }
     }
 
-    private function updatetrn($d)
+    private function updateTransaction($d)
     {
-        if (!isset($d['id']) || !is_int($d['id'])) {
-            return 'Missing "id" in change';
-        }
-        /* Ignore errornous transactions */
+        // Skip changes with 'error' (ERR)
         if (isset($d['error'])) {
-            scanpay_log(
-                'error',
-                "Received error transaction[id=$d[id]] in order updater: $d[error]"
-            );
-            return null;
+            return scanpay_log('error', "Transaction[id=$d[id]] error: $d[error]");
+        }
+
+        // Skip changes without 'orderid'
+        if (!isset($d['orderid'])) {
+            return scanpay_log('error', "Transaction does not have an orderID");
+        }
+
+        // Throw if {id,rev,acts,totals} is missing in change (ERR)
+        if (!isset($d['id']) || !is_int($d['id'])) {
+            throw new Exception('Missing "id" in change');
         }
         if (!isset($d['rev']) || !is_int($d['rev'])) {
-            return 'Missing "rev" in change';
+            throw new Exception('Missing "rev" in change');
+        }
+        if (!isset($d['acts']) || !is_array($d['acts'])) {
+            throw new Exception('Missing "acts" in change');
         }
         if (
             !isset($d['totals']) || !is_array($d['totals']) ||
             !isset($d['totals']['authorized'])
         ) {
-            return 'Missing "totals.authorized" in change';
+            throw new Exception('Missing "totals.authorized" in change');
         }
-        if (!isset($d['acts']) || !is_array($d['acts'])) {
-            return 'Missing "acts" in change';
-        }
-        if (!isset($d['orderid'])) {
-            scanpay_log(
-                'error',
-                'Received ' . $d['type'] . ' #' . $d['id'] . ' without orderid'
-            );
-            return null;
-        }
+
         $orderid = $d['orderid'];
         $order = wc_get_order($orderid);
-
         if (!$order) {
-            scanpay_log(
-                'warning',
-                'Order #' . $orderid . ' not in system'
-            );
-            return null;
+            scanpay_log('warning', "Order #$orderid not found in WooCommerce");
+            return; // Skip this change
         }
 
-        /* Skip the order, if it's registered with a different shop */
-        $orderShopId = (int)get_post_meta($orderid, self::ORDER_DATA_SHOPID, true);
-        $oldrev = (int)get_post_meta($orderid, self::ORDER_DATA_REV, true);
-        if ($this->shopid !== $orderShopId) {
-            scanpay_log(
+        $orderShopId = (int) $order->get_meta(WC_SCANPAY_URI_SHOPID);
+        $oldrev = (int) $order->get_meta(WC_SCANPAY_URI_REV);
+        if ($orderShopId !== $this->shopid) {
+            return scanpay_log(
                 'warning',
-                'Order #' . $orderid . ' with shopID: ' . $orderShopId .
-                ' does not match current shopID (' . $this->shopid . ')'
+                "Order #$orderid with shopID: $orderShopId " .
+                "does not match current shopID ($this->shopid)"
             );
-            return null;
         }
-        /* Skip the order, if it's not a new revision */
+
+        // Skip the order, if it's not a new revision
         if ($d['rev'] <= $oldrev) {
-            return null;
+            return;
         }
 
-        $nacts = (int)get_post_meta($orderid, self::ORDER_DATA_NACTS, true);
+        // Revive order if it was cancelled
+        if ($order->get_status() === 'cancelled') {
+            $order->update_status('processing');
+        }
+
+        $nacts = (int) $order->get_meta(WC_SCANPAY_URI_NACTS);
+
         for ($i = $nacts; $i < count($d['acts']); $i++) {
             $act = $d['acts'][$i];
             switch ($act['act']) {
                 case 'capture':
                     if (isset($act['total']) && is_string($act['total'])) {
-                        $order->add_order_note(sprintf(__('Captured %s.', 'woocommerce-scanpay'), $act['total']));
+                        $order->add_order_note(sprintf(
+                            'Captured %s',
+                            $act['total']
+                        ));
                     }
                     break;
                 case 'refund':
-                    wc_create_refund($actArgs);
+                    //wc_create_refund($actArgs);
                     if (isset($act['total']) && is_string($act['total'])) {
-                        $order->add_order_note(sprintf(__('Refunded %s.', 'woocommerce-scanpay'), $act['total']));
+                        $order->add_order_note(sprintf('Refunded %s.', $act['total']));
                     }
                     break;
                 case 'void':
                     if (isset($act['total']) && is_string($act['total'])) {
-                        $order->add_order_note(sprintf(__('Voided %s.', 'woocommerce-scanpay'), $act['total']));
+                        $order->add_order_note(sprintf('Voided %s.', $act['total']));
                     }
                     break;
             }
         }
-        update_post_meta($orderid, self::ORDER_DATA_NACTS, count($d['acts']));
+
+        $order->add_meta_data(WC_SCANPAY_URI_NACTS, count($d['acts']), true);
+
         if (isset($d['totals']['captured'])) {
             $captured = explode(' ', $d['totals']['captured'])[0];
-            update_post_meta($orderid, self::ORDER_DATA_CAPTURED, $captured);
+            $order->add_meta_data(WC_SCANPAY_URI_CAPTURED, $captured, true);
         }
 
         if (isset($d['totals']['refunded'])) {
             $refunded = explode(' ', $d['totals']['refunded'])[0];
-            update_post_meta($orderid, self::ORDER_DATA_REFUNDED, $refunded);
+            $order->add_meta_data(WC_SCANPAY_URI_REFUNDED, $refunded, true);
         }
+
         if ($order->needs_payment()) {
             $order->payment_complete($d['id']);
         }
-        if (empty(get_post_meta($orderid, self::ORDER_DATA_TRANSACTION_ID))) {
-            update_post_meta($orderid, self::ORDER_DATA_TRANSACTION_ID, $d['id']);
-            update_post_meta($orderid, self::ORDER_DATA_AUTHORIZED, explode(' ', $d['totals']['authorized'])[0]);
-            $order->add_order_note(sprintf(
-                __('The authorized amount is %s', 'woocommerce-scanpay'),
-                $d['totals']['authorized']
-            ));
+
+        if (empty($order->get_meta(WC_SCANPAY_URI_TRNID))) {
+            $order->add_meta_data(WC_SCANPAY_URI_TRNID, $d['id']);
+            $order->add_meta_data(WC_SCANPAY_URI_AUTHORIZED, explode(' ', $d['totals']['authorized'])[0]);
         }
-        $this->autocomplete($order);
-        update_post_meta($orderid, self::ORDER_DATA_REV, $d['rev']);
-        return null;
+
+        // Autocomplete virtual orders
+        if ($this->settings['autocomplete_virtual'] && $order->get_status() === 'processing') {
+            $this->autocompleteVirtual($order);
+        }
+
+        $order->add_meta_data(WC_SCANPAY_URI_REV, $d['rev'], true);
+        $order->save();
     }
 
-    private function updatesub($d)
+    private function autocompleteVirtual($order)
     {
-        if (!isset($d['id']) || !is_int($d['id'])) {
-            return 'Missing "id" in change';
-        }
-        /* Ignore errornous transactions */
-        if (isset($d['error'])) {
-            scanpay_log(
-                'error',
-                "Received error transaction[id=$d[id]] in order updater: $d[error]"
-            );
-            return null;
-        }
-        if (!isset($d['rev']) || !is_int($d['rev'])) {
-            return 'Missing "rev" in change';
-        }
-        if (!isset($d['acts']) || !is_array($d['acts'])) {
-            return 'Missing "acts" in change';
-        }
-        if (!isset($d['ref'])) {
-            scanpay_log(
-                'warning',
-                'Received subscriber #' . $d['id'] . ' without ref'
-            );
-            return null;
-        }
-        if (!class_exists('WC_Subscriptions')) {
-            scanpay_log(
-                'error',
-                'Received subscriber #' . $d['id'] . ', but Woocommerce Subscriptions is not enabled'
-            );
-            return null;
-        }
-        $orderid = $d['ref'];
-        $order = wc_get_order($orderid);
-        if (!$order) {
-            scanpay_log(
-                'warning',
-                'Order #' . $orderid . ' not in system'
-            );
-            return null;
-        }
-
-        /* Get the time of the last authorize/renew action */
-        $tchanged = $d['time']['authorized'];
-        for ($i = 0; $i < count($d['acts']); $i++) {
-            $act = $d['acts'][$i];
-            switch ($act['act']) {
-                case 'renew':
-                    if (isset($act['time']) && is_int($act['time'])) {
-                        $tchanged = $act['time'];
-                    }
-                    break;
+        foreach ($order->get_items('line_item') as $item) {
+            $product = $item->get_product();
+            if ($product && !$product->is_virtual()) {
+                return false;
             }
         }
-        if (wcs_is_subscription($order)) {
-            update_post_meta($orderid, self::ORDER_DATA_SHOPID, $this->shopid);
-            update_post_meta($orderid, self::ORDER_DATA_SUBSCRIBER_TIME, $tchanged);
-            update_post_meta($orderid, self::ORDER_DATA_SUBSCRIBER_ID, $d['id']);
-        } else {
-            foreach (wcs_get_subscriptions_for_order($order, ['order_type' => ['parent', 'switch', 'renewal']]) as $sub) {
-                $subid = $sub->get_id();
-                $oldSubTime = (int)get_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_TIME, true);
-                $oldSubId = get_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_ID, true);
-                if ($tchanged > $oldSubTime) {
-                    update_post_meta($subid, self::ORDER_DATA_SHOPID, $this->shopid);
-                    update_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_TIME, $tchanged);
-                    update_post_meta($subid, self::ORDER_DATA_SUBSCRIBER_ID, $d['id']);
-
-                    /*
-                     * Set the subscriber info for the parent order (since it will not be copied from subscription
-                     * to this order, as the parent order obviously is already created. This is is essential for the
-                     * inital payment made below this loop.
-                     */
-                    update_post_meta($orderid, self::ORDER_DATA_SUBSCRIBER_TIME, $tchanged);
-                    update_post_meta($orderid, self::ORDER_DATA_SUBSCRIBER_ID, $d['id']);
-
-                    if (empty($oldSubId)) {
-                        $order->add_order_note(__('Subscription payment method added', 'woocommerce-scanpay') .
-                                                  "(id=$d[id])");
-                    } else {
-                        $order->add_order_note(__('Subscription payment method renewed', 'woocommerce-scanpay') .
-                                                  "(id=$d[id])");
-                    }
-                }
-            }
-        }
-
-        if ($order->needs_payment()) {
-            if ($order->get_total() > 0) {
-                $this->scanpay->queuedchargedb->save($orderid);
-            } else {
-                $order->payment_complete();
-            }
-        }
-        $this->autocomplete($order);
-        return null;
-    }
-
-    public function update_all($changes, $seqtypes)
-    {
-        $shopid = $this->shopid;
-        foreach ($changes as $change) {
-            if (!empty($seqtypes) && !in_array($change['type'], $seqtypes)) {
-                continue;
-            }
-            try {
-                switch ($change['type']) {
-                    case 'transaction':
-                    case 'charge':
-                        $errmsg = $this->updatetrn($change);
-                        break;
-                    case 'subscriber':
-                        $errmsg = $this->updatesub($change);
-                        break;
-                    default:
-                        scanpay_log(
-                            'notice',
-                            'Unknown change type ' . $change['type']
-                        );
-                        continue 2;
-                }
-            } catch (\Exception $e) {
-                return 'order update exception: ' . $e->getMessage();
-            }
-            if (!is_null($errmsg)) {
-                return 'order update failed: ' . $errmsg;
-            }
-        }
-        return null;
+        $order->update_status('completed', 'Virtual order set to completed by Scanpay.');
     }
 }
