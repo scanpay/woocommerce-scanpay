@@ -90,7 +90,7 @@ function wc_scanpay_payment_link($orderid)
             $order->get_total()
         );
         $order->add_order_note($errmsg);
-        scanpay_log('warning', "Order #orderid: $errmsg");
+        scanpay_log('warning', "Order #$orderid: $errmsg");
     }
 
     // Order came without items... or we ignored them
@@ -105,16 +105,15 @@ function wc_scanpay_payment_link($orderid)
     $data = apply_filters('woocommerce_scanpay_newurl_data', $data);
 
     // Use the scanpay client lib to create a payment link
-    require_once WC_SCANPAY_DIR . '/includes/ScanpayClient.php';
+    require WC_SCANPAY_DIR . '/includes/ScanpayClient.php';
     $client = new Scanpay\Scanpay($settings['apikey'], [
         'headers' => [
-            'X-Shop-Plugin' => 'woocommerce/' . WC_VERSION . '/' . WC_SCANPAY_VERSION,
             'X-Cardholder-IP' => $_SERVER['REMOTE_ADDR'],
         ],
     ]);
 
     try {
-        $paymentLink = $client->newURL(array_filter($data));
+        $paymentLink = $client->newURL($data);
     } catch (\Exception $e) {
         scanpay_log('error', 'scanpay client exception: ' . $e->getMessage());
         throw new \Exception(
