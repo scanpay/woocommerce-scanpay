@@ -55,9 +55,9 @@ function wc_scanpay_payment_link($orderid)
             'quantity' => intval($item->get_quantity()),
             'total' => $total . ' ' . $currency_code
         ];
-        if ($item->is_type('line_item')) {
-            $product = $item->get_product(); // product might not exist anymore
-            if ($virtualOrder && !empty($product) && !$product->is_virtual()) {
+        if ($virtualOrder && $item->is_type('line_item')) {
+            $product = $item->get_product();
+            if (!empty($product) && !$product->is_virtual()) {
                 $virtualOrder = false;
             }
         }
