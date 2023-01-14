@@ -48,7 +48,7 @@ if (!$trnid) {
 }
 
 try {
-    $client = new Scanpay\Scanpay($settings['apikey']);
+    $client = new WC_Scanpay_API_Client($settings['apikey']);
     $client->capture($trnid, [
         'total' => $order->get_total() . ' ' . $order->get_currency(),
         'index' => (int) $order->get_meta(WC_SCANPAY_URI_NACTS)

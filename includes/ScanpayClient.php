@@ -1,10 +1,11 @@
 <?php
 
-namespace Scanpay;
+/*
+    Modified version of Scanpay Client Lib (PHP)
+    Updated 2023-01-14
+*/
 
-class IdempotentResponseException extends \Exception {}
-
-class Scanpay
+class WC_Scanpay_API_Client
 {
     protected $ch;
     protected $headers;
@@ -39,52 +40,65 @@ class Scanpay
         Let the merchant overwrite the headers. */
     protected function httpHeaders($oldHeaders, $o = [])
     {
-        $ret = $oldHeaders; /* copy array literal */
+        $ret = $oldHeaders;
         if (isset($o['headers'])) {
             foreach ($o['headers'] as $key => &$val) {
                 $ret[strtolower($key)] = $key . ': ' . $val;
             }
+            if (isset($ret['idempotency-key'])) {
+                $this->useidem = true;
+            }
         }
-        if (isset($ret['idempotency-key'])) {
-            $this->useidem = true;
-        }
-        return array_values($ret);
+        return $ret;
     }
 
-    protected function handleHeaders($curl, $hdr)
+    protected function headerCallback($curl, $hdr)
     {
-        $arr = explode(':', $hdr, 2);
-        if (count($arr) === 2 && strtolower(trim($arr[0])) === 'idempotency-status') {
-            $this->idemstatus = strtoupper(trim($arr[1]));
+        $header = explode(':', $hdr, 2);
+        // Skip invalid headers
+        if (count($header) < 2) return strlen($hdr);
+
+        if (strtolower(trim($header[0])) === 'idempotency-status') {
+            $this->idemstatus = strtoupper(trim($header[1]));
         }
         return strlen($hdr);
     }
 
     protected function request($path, $opts = [], $data = null)
     {
-        /* Merge headers */
-        $headers = $this->httpHeaders($this->headers, $this->opts);
-        $headers = $this->httpHeaders($headers, $opts);
-        /* Merge other options */
-        $opts = array_merge($this->opts, $opts);
-        $hostname = (isset($opts['hostname'])) ? $opts['hostname'] : 'api.scanpay.dk';
         $this->useidem = false;
         $this->idemstatus = null;
+
+        // Merge headers
+        $headers = $this->httpHeaders($this->headers, $this->opts);
+        $headers = array_values($this->httpHeaders($headers, $opts));
+
+        // Merge other options
+        $opts = array_merge($this->opts, $opts);
+        $hostname = (isset($opts['hostname'])) ? $opts['hostname'] : 'api.scanpay.dk';
+
         $curlopts = [
             CURLOPT_URL => 'https://' . $hostname . $path,
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_CUSTOMREQUEST => ($data === null) ? 'GET' : 'POST',
-            CURLOPT_POSTFIELDS => ($data === null) ? null : json_encode($data, JSON_UNESCAPED_SLASHES),
             CURLOPT_VERBOSE => isset($opts['debug']) ? $opts['debug'] : 0,
             CURLOPT_RETURNTRANSFER => 1,
             CURLOPT_CONNECTTIMEOUT => 20,
-            CURLOPT_TIMEOUT => 20,
-            CURLOPT_USE_SSL => CURLUSESSL_ALL,
-            CURLOPT_SSLVERSION => 6,
+            CURLOPT_TIMEOUT => 120,
         ];
-        if ($this->useidem) {
-            $curlopts[CURLOPT_HEADERFUNCTION] = [$this, 'handleHeaders'];
+
+        if ($data !== null) {
+            $curlopts[CURLOPT_POSTFIELDS] = json_encode($data, JSON_UNESCAPED_SLASHES);
+            if ($curlopts[CURLOPT_POSTFIELDS] === false) {
+                throw new \Exception('Failed to JSON encode request to Scanpay: ' . json_last_error_msg());
+            }
         }
+
+        if ($this->useidem) {
+            // this function is called by cURL for each header received
+            $curlopts[CURLOPT_HEADERFUNCTION] = [$this, 'headerCallback'];
+        }
+
         // Let the merchant override $curlopts.
         if (isset($opts['curl'])) {
             foreach ($opts['curl'] as $key => &$val) {
@@ -99,33 +113,20 @@ class Scanpay
         }
 
         $statusCode = curl_getinfo($this->ch, CURLINFO_RESPONSE_CODE);
-
-        /* Handle idempotency status */
-        if ($this->useidem) {
-            $err = null;
-            switch ($this->idemstatus) {
-                case 'OK':
-                    break;
-                case 'ERROR':
-                    $err = 'Server failed to provide idempotency';
-                    break;
-                case null:
-                    $err = 'Idempotency status response header missing';
-                    break;
-                default:
-                    $err = 'Server returned unknown idempotency status ' . $this->idemstatus;
-                    break;
-            }
-            if (!is_null($err)) {
-                throw new \Exception($err . ". Scanpay returned $statusCode - " . explode("\n", $result)[0]);
-            }
-        }
         if ($statusCode !== 200) {
-            throw new IdempotentResponseException('Scanpay returned "' . explode("\n", $result)[0] . '"');
+            throw new \Exception(('Scanpay returned "' . explode("\n", $result)[0] . '"'));
         }
+
+        // Validate Idempotency-Status
+        if ($this->useidem && $this->idemstatus !== 'OK') {
+            throw new \Exception(
+                "Server failed to provide idempotency. Scanpay returned $statusCode - " . explode("\n", $result)[0]
+            );
+        }
+
         // Decode the json response (@: suppress warnings)
         if (!is_array($resobj = @json_decode($result, true))) {
-            throw new IdempotentResponseException('Invalid JSON response from server');
+            throw new \Exception('Invalid JSON response from server');
         }
         return $resobj;
     }
@@ -156,44 +157,6 @@ class Scanpay
         throw new \Exception('Invalid response from server');
     }
 
-    // handlePing: Convert data to JSON and validate integrity
-    public function handlePing($opts = [])
-    {
-        ignore_user_abort(true);
-
-        if (isset($opts['signature'])) {
-            $signature = $opts['signature'];
-        } elseif (isset($_SERVER['HTTP_X_SIGNATURE'])) {
-            $signature = $_SERVER['HTTP_X_SIGNATURE'];
-        } else {
-            throw new \Exception('missing ping signature');
-        }
-
-        $body = isset($opts['body']) ? $opts['body'] : file_get_contents('php://input');
-        if ($body === false) {
-            throw new \Exception('unable to get ping body');
-        }
-
-        $checksum = base64_encode(hash_hmac('sha256', $body, $this->apikey, true));
-
-        if (!hash_equals($checksum, $signature)) {
-            throw new \Exception('invalid ping signature');
-        }
-
-        $obj = @json_decode($body, true);
-        if ($obj === null) {
-            throw new \Exception('invalid json from Scanpay server');
-        }
-
-        if (
-            isset($obj['seq']) && is_int($obj['seq']) &&
-            isset($obj['shopid']) && is_int($obj['shopid'])
-        ) {
-            return $obj;
-        }
-        throw new \Exception('missing fields in Scanpay response');
-    }
-
     public function capture($trnid, $data, $opts = [])
     {
         return $this->request("/v1/transactions/$trnid/capture", $opts, $data);
@@ -208,8 +171,9 @@ class Scanpay
     {
         $o = $this->request("/v1/subscribers/$subid/charge", $opts, $data);
         if (
-            isset($o['type']) && $o['type'] === 'charge' && isset($o['id']) &&
-            is_int($o['id']) && isset($o['totals']) && isset($o['totals']['authorized'])
+            isset($o['type']) && $o['type'] === 'charge' &&
+            isset($o['id']) && is_int($o['id']) &&
+            isset($o['totals']) && isset($o['totals']['authorized'])
         ) {
             return $o;
         }

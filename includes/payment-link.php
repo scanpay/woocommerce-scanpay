@@ -106,7 +106,7 @@ function wc_scanpay_payment_link($orderid)
 
     // Use the scanpay client lib to create a payment link
     require WC_SCANPAY_DIR . '/includes/ScanpayClient.php';
-    $client = new Scanpay\Scanpay($settings['apikey'], [
+    $client = new WC_Scanpay_API_Client($settings['apikey'], [
         'headers' => [
             'X-Cardholder-IP' => $_SERVER['REMOTE_ADDR'],
         ],

@@ -35,7 +35,7 @@ class WC_Scanpay_OrderUpdater
         } else {
             set_time_limit(120); // [default: 30s]
             require_once WC_SCANPAY_DIR . '/includes/ScanpayClient.php';
-            $client = new Scanpay\Scanpay($this->settings['apikey']);
+            $client = new WC_Scanpay_API_Client($this->settings['apikey']);
 
             $seq = $db['seq'];
             while (1) {
