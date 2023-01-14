@@ -45,7 +45,7 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
     {
         $array = $this->settings['card_icons'];
         if (!empty($array)) {
-            $dirurl = WC_HTTPS::force_https_url(plugins_url('/public/images/', __DIR__));
+            $dirurl = WC_HTTPS::force_https_url(plugins_url('/public/images/cards/', __DIR__));
             $icons = '<span class="scanpay-methods scanpay-cards">';
             foreach ($array as $key => $card) {
                 $icons .= '<img width="32" height="20" src="' . $dirurl . $card .
@@ -59,7 +59,7 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
     /* parent::process_payment() */
     public function process_payment($order_id)
     {
-        require WC_SCANPAY_DIR . '/includes/PaymentLink.php';
+        require WC_SCANPAY_DIR . '/includes/payment-link.php';
         return [
             'result' => 'success',
             'redirect' => wc_scanpay_payment_link($order_id),

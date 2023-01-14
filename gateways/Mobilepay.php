@@ -29,7 +29,7 @@ class WC_Scanpay_Gateway_Mobilepay extends WC_Payment_Gateway
     public function get_icon()
     {
         if ($this->settings['card_icon'] === 'yes') {
-            $dirurl = WC_HTTPS::force_https_url(plugins_url('/public/images/', __DIR__));
+            $dirurl = WC_HTTPS::force_https_url(plugins_url('/public/images/cards/', __DIR__));
             return '<span class="scanpay-methods"><img width="88" height="22" src="' . $dirurl .
                 'mobilepay.svg" class="scanpay-mobilepay" alt="MobilePay" title="MobilePay"></span>';
         }
