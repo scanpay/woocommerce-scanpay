@@ -45,15 +45,15 @@ function wc_scanpay_payment_link($orderid)
 
     $virtualOrder = in_array('virtual', (array) $settings['autocapture']);
     $types = array('line_item', 'fee', 'shipping', 'coupon');
-    $itemTotal = 0;
+    $sum = 0;
 
     foreach ($order->get_items($types) as $id => $item) {
-        $total = $order->get_line_total($item, true, true); // incl_taxes and rounded
+        $lineTotal = $order->get_line_total($item, true, true); // incl_taxes and rounded
         $data['items'][] = [
             'name' => $item->get_name(),
             'sku' => $item->is_type('line_item') ? strval($item->get_product_id()) : null,
             'quantity' => intval($item->get_quantity()),
-            'total' => $total . ' ' . $currency_code
+            'total' => $lineTotal . ' ' . $currency_code
         ];
         if ($virtualOrder && $item->is_type('line_item')) {
             $product = $item->get_product();
@@ -61,11 +61,11 @@ function wc_scanpay_payment_link($orderid)
                 $virtualOrder = false;
             }
         }
-        if ($total < 0) {
+        if ($lineTotal < 0) {
             scanpay_log('notice', 'Negative line total in #' . $orderid . '.');
             continue;
         }
-        $itemTotal = wc_scanpay_addmoney($itemTotal, $total);
+        $sum = wc_scanpay_addmoney($sum, $lineTotal);
     }
 
     if ($virtualOrder) {
@@ -73,7 +73,7 @@ function wc_scanpay_payment_link($orderid)
     }
 
     // Check if sum of items matches the order total
-    if (wc_scanpay_cmpmoney($itemTotal, $order->get_total())) {
+    if (wc_scanpay_cmpmoney($sum, $order->get_total())) {
         unset($data['items']);
         $data['items'][] = [
             'name' => 'Total',
@@ -82,7 +82,7 @@ function wc_scanpay_payment_link($orderid)
         $errmsg = sprintf(
             'Warning: The sum of all items (%s) does not match the order total (%s).' .
             'The item list will not be available in the scanpay dashboard.',
-            $itemTotal,
+            $sum,
             $order->get_total()
         );
         $order->add_order_note($errmsg);
