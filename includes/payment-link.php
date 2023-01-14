@@ -45,6 +45,7 @@ function wc_scanpay_payment_link($orderid)
 
     $virtualOrder = in_array('virtual', (array) $settings['autocapture']);
     $types = array('line_item', 'fee', 'shipping', 'coupon');
+    $itemWithNegativePrice;
     $sum = 0;
 
     foreach ($order->get_items($types) as $id => $item) {
@@ -62,10 +63,17 @@ function wc_scanpay_payment_link($orderid)
             }
         }
         if ($lineTotal < 0) {
-            scanpay_log('notice', 'Negative line total in #' . $orderid . '.');
-            continue;
+            $itemWithNegativePrice = true;
         }
         $sum = wc_scanpay_addmoney($sum, $lineTotal);
+    }
+
+    if ($itemWithNegativePrice) {
+        unset($data['items']);
+        $order->add_order_note(
+            'The order has an item with a negative price. The item list ' .
+            'will not be available in the scanpay dashboard.'
+        );
     }
 
     if ($virtualOrder) {
@@ -75,18 +83,22 @@ function wc_scanpay_payment_link($orderid)
     // Check if sum of items matches the order total
     if (wc_scanpay_cmpmoney($sum, $order->get_total())) {
         unset($data['items']);
-        $data['items'][] = [
-            'name' => 'Total',
-            'total' => $order->get_total() . ' ' . $currency_code,
-        ];
         $errmsg = sprintf(
-            'Warning: The sum of all items (%s) does not match the order total (%s).' .
+            'The sum of all items (%s) does not match the order total (%s).' .
             'The item list will not be available in the scanpay dashboard.',
             $sum,
             $order->get_total()
         );
         $order->add_order_note($errmsg);
-        scanpay_log('warning', $errmsg);
+        scanpay_log('warning', "Order #orderid: $errmsg");
+    }
+
+    // Order came without items... or we ignored them
+    if (!isset($data['items'])) {
+        $data['items'][] = [
+            'name' => 'Total',
+            'total' => $order->get_total() . ' ' . $currency_code,
+        ];
     }
 
     // Let 3rd party plugins manipulate $data
