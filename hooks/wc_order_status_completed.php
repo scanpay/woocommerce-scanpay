@@ -20,7 +20,6 @@ if (class_exists('WC_Subscriptions') && wcs_is_subscription($order)) {
     return;
 }
 
-require_once WC_SCANPAY_DIR . '/includes/ScanpayClient.php';
 $order_shopid = (int) $order->get_meta(WC_SCANPAY_URI_SHOPID);
 $shopid = (int) explode(':', $settings['apikey'])[0];
 
@@ -47,12 +46,28 @@ if (!$trnid) {
     return;
 }
 
+require_once WC_SCANPAY_DIR . '/includes/SeqDB.php';
+$seqdb = new WC_Scanpay_SeqDB($shopid);
+$prev_seqobj = $seqdb->get_seq();
+
 try {
+    require_once WC_SCANPAY_DIR . '/includes/ScanpayClient.php';
     $client = new WC_Scanpay_API_Client($settings['apikey']);
     $client->capture($trnid, [
         'total' => $order->get_total() . ' ' . $order->get_currency(),
         'index' => (int) $order->get_meta(WC_SCANPAY_URI_NACTS)
     ]);
 } catch (\Exception $e) {
-    $order->add_order_note("Capture failed on order #$order_id: " . $e->getMessage());
+    return $order->add_order_note("Capture failed on order #$order_id: " . $e->getMessage());
+}
+
+// TODO. Change this to AJAX
+$x = 0;
+while ($x <= 20) {
+    usleep(200000); // 200 ms
+    $new_seqobj = $seqdb->get_seq();
+    if ($prev_seqobj['seq'] !== $new_seqobj['seq']) {
+        break;
+    }
+    $x++;
 }
