@@ -10,7 +10,7 @@ class WC_Scanpay_OrderUpdater
 
     public function __construct($settings)
     {
-        require_once(WC_SCANPAY_DIR . '/includes/SeqDB.php');
+        require_once WC_SCANPAY_DIR . '/includes/SeqDB.php';
         $this->settings = $settings;
         $this->shopid = (int) explode(':', $settings['apikey'])[0];
         $this->seqdb = new WC_Scanpay_SeqDB($this->shopid);
