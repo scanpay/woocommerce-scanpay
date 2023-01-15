@@ -34,8 +34,7 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
         $this->method_title = 'Scanpay';
         $this->method_description = 'Secure and innovative payment gateway.';
 
-        add_action(
-            'woocommerce_update_options_payment_gateways_' . $this->id,
+        add_action('woocommerce_update_options_payment_gateways_scanpay',
             [$this, 'process_admin_options']
         );
     }

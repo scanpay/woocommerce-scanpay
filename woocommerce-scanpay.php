@@ -114,11 +114,3 @@ add_action('before_woocommerce_init', function () {
         \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('custom_order_tables', __FILE__, true);
     }
 });
-
-// Hook for plugin activation (install)
-add_action('activate_' . plugin_basename(__FILE__), function () {
-    require WC_SCANPAY_DIR . '/hooks/wp_activate_scanpay.php';
-});
-
-// TODO:
-// if (!is_admin() || wp_is_json_request() || wp_is_jsonp_request() || wp_doing_cron() || wp_is_xml_request()) {

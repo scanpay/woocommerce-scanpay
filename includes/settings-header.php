@@ -13,13 +13,18 @@ $lastPingTime = 0;
 $pingdt;
 
 if ($this->shopid) {
-    require WC_SCANPAY_DIR . '/includes/SeqDB.php';
+    require_once WC_SCANPAY_DIR . '/includes/SeqDB.php';
     $seqdb = new WC_Scanpay_SeqDB($this->shopid);
     $local_seqobj = $seqdb->get_seq();
 
     if ($local_seqobj) {
         $lastPingTime = $local_seqobj['mtime'];
+    } else {
+        // Create seq table
+        $seqdb->create_tables();
+        $local_seqobj = $seqdb->get_seq();
     }
+
     $pingdt = time() - $lastPingTime;
     if (isset($pingdt) && $pingdt < 600) {
         $lastPingText = '<div class="scanpay--admin--nav--lastping">' . $pingdt .
