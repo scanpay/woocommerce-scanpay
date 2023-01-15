@@ -68,10 +68,12 @@ function scanpay_admin_warning($title, $str, $ico = '')
     Guide
   </a>
 
+  <?php if ($this->shopid) : ?>
   <a class="button" target="_blank" href="<?php echo $sendPingURL ?>">
     <?php echo file_get_contents(WC_SCANPAY_DIR . '/public/images/admin/ping.svg') ?>
     Send ping
   </a>
+  <?php endif; ?>
 
   <a class="button" href="?page=wc-status&tab=logs&log_file=<?php echo
     basename(wc_get_log_file_path('woo-scanpay')) . '&source=woo-scanpay' ?>">
