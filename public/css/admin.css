@@ -8,7 +8,13 @@
 }
 
 .scanpay-info-alert {
-    margin: 6px 12px;
+    position: relative;
+    margin: 14px 11px 2px;
+    padding: 6px 10px 5px 32px;
+    font-size: .9em;
+    border-radius: 3px;
+    border: 1px solid #efdda2;
+    background-color: #fffbe6;
 }
 
 .scanpay-info-alert-error {
@@ -16,6 +22,13 @@
     font-weight: bold;
 }
 
+
+.scanpay-info-svg {
+    position: absolute;
+    vertical-align: baseline;
+    margin-left: -24px;
+    margin-top: -1px;
+}
 
 
 .scanpay--widget--ul {
@@ -31,8 +44,9 @@
 
 
 .scanpay--actions {
-    border-top: 1px solid #ccc;
-    padding: 7px 12px;
+    background-color: #f8f8f8;
+    border-top: 1px solid #e0e0e0;
+    padding: 10px 12px 7px;
 }
 
 .scanpay--widget--li--title {

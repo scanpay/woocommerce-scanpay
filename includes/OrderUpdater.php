@@ -147,6 +147,7 @@ class WC_Scanpay_OrderUpdater
         }
 
         $order->add_meta_data(WC_SCANPAY_URI_NACTS, count($d['acts']), true);
+        //$order->delete_meta_data(WC_SCANPAY_URI_PENDING_UPDATE);
 
         if (isset($d['totals']['captured'])) {
             $captured = explode(' ', $d['totals']['captured'])[0];

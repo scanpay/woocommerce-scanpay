@@ -32,6 +32,7 @@ const WC_SCANPAY_URI_SUBSCRIBER_TIME = '_scanpay_subscriber_time';
 const WC_SCANPAY_URI_SUBSCRIBER_ID = '_scanpay_subscriber_id';
 const WC_SCANPAY_URI_SUBSCRIBER_CHARGE_IDEM = '_scanpay_subscriber_charge_idem';
 const WC_SCANPAY_URI_SUBSCRIBER_INITIALPAYMENT_NTRIES = '_scanpay_subscriber_initialpayment_ntries';
+const WC_SCANPAY_URI_PENDING_UPDATE = '_scanpay_pending_update';
 define('WC_SCANPAY_DIR', __DIR__);
 
 
