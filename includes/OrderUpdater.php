@@ -139,6 +139,7 @@ class WC_Scanpay_OrderUpdater
                     }
                     break;
                 case 'void':
+                    $order->add_meta_data(WC_SCANPAY_URI_VOIDED, 1, true);
                     if (isset($act['total']) && is_string($act['total'])) {
                         $order->add_order_note(sprintf('Voided %s.', $act['total']));
                     }
@@ -147,7 +148,6 @@ class WC_Scanpay_OrderUpdater
         }
 
         $order->add_meta_data(WC_SCANPAY_URI_NACTS, count($d['acts']), true);
-        //$order->delete_meta_data(WC_SCANPAY_URI_PENDING_UPDATE);
 
         if (isset($d['totals']['captured'])) {
             $captured = explode(' ', $d['totals']['captured'])[0];

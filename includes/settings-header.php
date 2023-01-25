@@ -27,32 +27,26 @@ if ($this->shopid) {
 
     $pingdt = time() - $lastPingTime;
     if (isset($pingdt) && $pingdt < 600) {
-        $lastPingText = '<div class="scanpay--admin--nav--lastping">' . $pingdt .
-        ($pingdt === 1 ? ' second' : ' seconds') . ' since last received ping</div>';
+        $lastPingText = sprintf(
+            _n(
+                '%s second since last received ping',
+                '%s seconds since last received ping',
+                $pingdt,
+                'scanpay-for-woocommerce'
+            ),
+            $pingdt
+        );
     }
 }
 
 $github_url = 'https://github.com/scanpay/woocommerce-scanpay';
-$sendPingURL = 'https://dashboard.scanpay.dk/' . $this->shopid . '/settings/api/setup?module=woocommerce&url=' .
-    urlencode(WC()->api_request_url('wc_scanpay'));
-$sendPingButton = '<a class="button scanpay--admin--pingbtn" target="_blank" href="' . $sendPingURL . '">' .
-    file_get_contents(WC_SCANPAY_DIR . '/public/images/admin/ping.svg') . 'Send ping</a>';
 
-function scanpay_ping_time_str($dt)
-{
-    if ($dt < 60) {
-        if ($dt <= 1) {
-            return '1 second has';
-        }
-        return $dt . ' seconds have';
-    } elseif ($dt < 3600 * 2) {
-        return round((int)$dt / 60) . ' minutes have';
-    } elseif ($dt < 259200) {
-        return round((int)$dt / 3600) . ' hours have';
-    } else {
-        return round((int)$dt / 86400) . ' days have';
-    }
-}
+$sendPingURL = WC_SCANPAY_DASHBOARD . $this->shopid . '/settings/api/setup?module=woocommerce&url=' .
+    urlencode(WC()->api_request_url('wc_scanpay'));
+
+$sendPingButton = '<a class="button scanpay--admin--pingbtn" target="_blank" href="' . $sendPingURL . '">' .
+    file_get_contents(WC_SCANPAY_DIR . '/public/images/admin/ping.svg') . __( 'Send ping', 'scanpay-for-woocommerce') . '</a>';
+
 
 function scanpay_admin_warning($title, $str, $ico = '')
 {
@@ -64,48 +58,56 @@ function scanpay_admin_warning($title, $str, $ico = '')
         </div>
     </div>';
 }
-
 ?>
 
 <div class="scanpay--admin--nav">
   <a class="button" target="_blank" href="<?php echo $github_url ?>">
-    <?php echo file_get_contents(WC_SCANPAY_DIR . '/public/images/admin/github.svg') ?>
-    Guide
+    <?php
+        echo file_get_contents(WC_SCANPAY_DIR . '/public/images/admin/github.svg');
+        echo __('Guide', 'scanpay-for-woocommerce');
+    ?>
   </a>
 
   <?php if ($this->shopid) : ?>
   <a class="button" target="_blank" href="<?php echo $sendPingURL ?>">
-    <?php echo file_get_contents(WC_SCANPAY_DIR . '/public/images/admin/ping.svg') ?>
-    Send ping
+    <?php
+        echo file_get_contents(WC_SCANPAY_DIR . '/public/images/admin/ping.svg');
+        echo __('Send ping', 'scanpay-for-woocommerce');
+    ?>
   </a>
   <?php endif; ?>
 
   <a class="button" href="?page=wc-status&tab=logs&log_file=<?php echo
     basename(wc_get_log_file_path('woo-scanpay')) . '&source=woo-scanpay' ?>">
-    Debug logs
+    <?php echo __('Debug logs', 'scanpay-for-woocommerce'); ?>
   </a>
-
-  <?php echo $lastPingText ?>
+  <div class="scanpay--admin--nav--lastping">
+    <?php echo $lastPingText ?>
+  </div>
 </div>
 
 <?php
-$instructions = 'Please follow the instructions in the <a target="_blank" href="' . $github_url .
-    '#configuration">setup guide</a>.';
 
 if (!$this->shopid) {
     // No API-key show welcome message...
     echo scanpay_admin_warning(
-        'Welcome to Scanpay for WooCommerce!',
-        $instructions,
+        __('Welcome to Scanpay for WooCommerce!', 'scanpay-for-woocommerce'),
+        __(
+            'Please follow the instructions in the setup guide.',
+            'scanpay-for-woocommerce'
+        ),
         '<a class="scanpay--admin--alert--btn" target="_blank" href="' . $github_url .
-        '#configuration">Setup guide</a>'
+        '#configuration">' . __('Setup guide', 'scanpay-for-woocommerce') . '</a>'
     );
 } elseif (!$lastPingTime) {
     echo scanpay_admin_warning(
-        'You have never received any pings from Scanpay. ',
-        $instructions,
+        __('You have never received any pings from Scanpay', 'scanpay-for-woocommerce'),
+        __(
+            'Please perform a test ping to finalize the installation.',
+            'scanpay-for-woocommerce'
+        ),
         '<a class="scanpay--admin--alert--btn" target="_blank" href="' . $sendPingURL .
-        '">' . file_get_contents(WC_SCANPAY_DIR . '/public/images/admin/ping.svg') . 'Send ping</a>'
+        '">' . file_get_contents(WC_SCANPAY_DIR . '/public/images/admin/ping.svg') . __('Send ping', 'scanpay-for-woocommerce') . '</a>'
     );
 } elseif ($pingdt < 0) {
     echo scanpay_admin_warning(
@@ -115,10 +117,13 @@ if (!$this->shopid) {
     );
 } elseif ($pingdt > 600) {
     echo scanpay_admin_warning(
-        'Warning: Your transaction data could be out of sync!',
-        scanpay_ping_time_str($pingdt) . ' passed since the last received ping. ' . $instructions,
+        __('Warning: Your transaction data could be out of sync!', 'scanpay-for-woocommerce'),
+        sprintf(__(
+            '%s minutes have passed since the last received ping.',
+            'scanpay-for-woocommerce'
+        ), round($pingdt / 60)),
         '<a class="scanpay--admin--alert--btn" target="_blank" href="' . $sendPingURL .
-        '">' . file_get_contents(WC_SCANPAY_DIR . '/public/images/admin/ping.svg') . 'Send ping</a>'
+        '">' . file_get_contents(WC_SCANPAY_DIR . '/public/images/admin/ping.svg') . __('Send ping', 'scanpay-for-woocommerce') . '</a>'
     );
 }
 

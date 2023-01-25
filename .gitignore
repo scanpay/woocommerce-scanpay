@@ -1,2 +1,4 @@
 languages/*.mo
 .vendor/
+node_modules
+build

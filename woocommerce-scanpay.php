@@ -7,18 +7,19 @@
  * Version: 2.0.0
  * Author: Scanpay
  * Author URI: https://scanpay.dk
- * Text Domain: woocommerce-extension
+ * Text Domain: scanpay-for-woocommerce
  * Domain Path: /languages
  * License: MIT License
  * License URI: https://opensource.org/licenses/MIT
- * WC requires at least: 3.0.0
- * WC tested up to: 6.4.1
+ * WC requires at least: 4.0.0
+ * WC tested up to: 7.3.0
  */
 defined('ABSPATH') || exit();
 
 const WC_SCANPAY_VERSION = '2.0.0';
 const WC_SCANPAY_MIN_PHP = '7.4.0';
 const WC_SCANPAY_MIN_WC = '4.0.0';
+const WC_SCANPAY_DASHBOARD = 'https://dashboard.scanpay.dk/';
 const WC_SCANPAY_URI_SETTINGS = 'woocommerce_scanpay_settings';
 const WC_SCANPAY_URI_SHOPID = '_scanpay_shopid';
 const WC_SCANPAY_URI_TRNID = '_scanpay_transaction_id';
@@ -28,13 +29,14 @@ const WC_SCANPAY_URI_PAYID = '_scanpay_payid';
 const WC_SCANPAY_URI_AUTHORIZED = '_scanpay_authorized';
 const WC_SCANPAY_URI_CAPTURED = '_scanpay_captured';
 const WC_SCANPAY_URI_REFUNDED = '_scanpay_refunded';
+const WC_SCANPAY_URI_VOIDED = '_scanpay_voided';
 const WC_SCANPAY_URI_SUBSCRIBER_TIME = '_scanpay_subscriber_time';
 const WC_SCANPAY_URI_SUBSCRIBER_ID = '_scanpay_subscriber_id';
 const WC_SCANPAY_URI_SUBSCRIBER_CHARGE_IDEM = '_scanpay_subscriber_charge_idem';
 const WC_SCANPAY_URI_SUBSCRIBER_INITIALPAYMENT_NTRIES = '_scanpay_subscriber_initialpayment_ntries';
 const WC_SCANPAY_URI_PENDING_UPDATE = '_scanpay_pending_update';
 define('WC_SCANPAY_DIR', __DIR__);
-
+define('WC_SCANPAY_URL', plugins_url('', __FILE__));
 
 function scanpay_log($level, $msg)
 {
@@ -48,7 +50,7 @@ function scanpay_admin_init()
     global $pagenow;
     if ($pagenow === 'admin.php') {
         // Add admin stylesheet (CSS)
-        wp_register_style('wc-scanpay-admin', plugins_url('/public/css/admin.css', __FILE__), null, WC_SCANPAY_VERSION);
+        wp_register_style('wc-scanpay-admin', WC_SCANPAY_URL . '/public/css/admin.css', null, WC_SCANPAY_VERSION);
         wp_enqueue_style('wc-scanpay-admin');
 
         add_action('add_meta_boxes', function () {
@@ -56,11 +58,6 @@ function scanpay_admin_init()
             if ($plugin_page === 'wc-orders') {
                 require WC_SCANPAY_DIR . '/hooks/add_meta_box.php';
             }
-        });
-
-        // AJAX request to get last ping
-        add_action('wc_ajax_scanpay_last_ping', function () {
-            require WC_SCANPAY_DIR . '/hooks/wc_ajax_scanpay_last_ping.php';
         });
     }
 
@@ -75,6 +72,10 @@ function scanpay_admin_init()
         require_once WC_SCANPAY_DIR . '/includes/compatibility.php';
     }
 }
+
+add_action('init', function () {
+    load_plugin_textdomain('scanpay-for-woocommerce', false, dirname(plugin_basename( __FILE__ ) ) . '/languages/');
+});
 
 add_action('plugins_loaded', function () {
     if (!class_exists('WooCommerce')) {
@@ -97,13 +98,19 @@ add_action('plugins_loaded', function () {
         return scanpay_admin_init();
     }
 
+    // Ping endpoint
     add_action('woocommerce_api_wc_scanpay', function () {
-        require WC_SCANPAY_DIR . '/hooks/wc_api_wc_scanpay.php'; // Ping hook
+        require WC_SCANPAY_DIR . '/hooks/wc_api_wc_scanpay.php';
+    });
+
+    // Ajax endpoint for order rev lookup
+    add_action('woocommerce_api_scanpay_order_rev', function () {
+        require WC_SCANPAY_DIR . '/hooks/wc_ajax_scanpay_last_ping.php'; // Ping hook
     });
 
     add_action('wp_enqueue_scripts', function () {
         if (is_checkout()) {
-            wp_register_style('wc-scanpay', plugins_url('/public/css/pay.css', __FILE__), null, WC_SCANPAY_VERSION);
+            wp_register_style('wc-scanpay', WC_SCANPAY_URL . '/public/css/pay.css', null, WC_SCANPAY_VERSION);
             wp_enqueue_style('wc-scanpay');
         }
     });

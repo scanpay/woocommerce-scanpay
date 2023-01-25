@@ -48,15 +48,14 @@ if (!$trnid) {
 
 try {
     require_once WC_SCANPAY_DIR . '/includes/ScanpayClient.php';
-
     $nacts = (int) $order->get_meta(WC_SCANPAY_URI_NACTS);
     $client = new WC_Scanpay_API_Client($settings['apikey']);
     $client->capture($trnid, [
         'total' => $order->get_total() . ' ' . $order->get_currency(),
         'index' => $nacts
     ]);
-    // Mark the order as pending sync.
-    $order->add_meta_data(WC_SCANPAY_URI_PENDING_UPDATE, $nacts + 1, true);
+    $rev = $order->get_meta(WC_SCANPAY_URI_REV);
+    $order->add_meta_data(WC_SCANPAY_URI_PENDING_UPDATE, $rev + 1, true);
     $order->save();
 } catch (\Exception $e) {
     return $order->add_order_note("Capture failed on order #$order_id: " . $e->getMessage());

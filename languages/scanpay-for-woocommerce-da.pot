@@ -1,0 +1,126 @@
+# Copyright (C) 2023 Scanpay
+# This file is distributed under the MIT License.
+msgid ""
+msgstr ""
+"Project-Id-Version: Scanpay for WooCommerce 2.0.0\n"
+"Report-Msgid-Bugs-To: "
+"https://wordpress.org/support/plugin/woocommerce-scanpay\n"
+"POT-Creation-Date: 2023-01-23 22:20:31+00:00\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2023-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"X-Generator: node-wp-i18n 1.2.7\n"
+
+#: gateways/Scanpay.php:74
+msgid "Return to payments"
+msgstr ""
+
+#: hooks/add_meta_box.php:61
+msgid "No transaction details found"
+msgstr ""
+
+#: hooks/add_meta_box.php:65
+msgid "Synchronizing transaction."
+msgstr ""
+
+#: hooks/add_meta_box.php:78
+msgid "The order is marked as completed, but it has not been captured."
+msgstr ""
+
+#: hooks/add_meta_box.php:85
+msgid "Status"
+msgstr ""
+
+#: hooks/add_meta_box.php:96
+msgid "Captured"
+msgstr ""
+
+#: hooks/add_meta_box.php:103
+msgid "Refunded"
+msgstr ""
+
+#: hooks/add_meta_box.php:107
+msgid "Net payment"
+msgstr ""
+
+#: hooks/add_meta_box.php:119
+msgid "Refund"
+msgstr ""
+
+#: hooks/add_meta_box.php:122
+msgid "Void transaction"
+msgstr ""
+
+#: includes/settings-header.php:31
+msgid "%s second since last received ping"
+msgid_plural "%s seconds since last received ping"
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/settings-header.php:48 includes/settings-header.php:91
+#: includes/settings-header.php:126 includes/settings-header.php:142
+msgid "Send ping"
+msgstr ""
+
+#: includes/settings-header.php:83
+msgid "Guide"
+msgstr ""
+
+#: includes/settings-header.php:98
+msgid "Debug logs"
+msgstr ""
+
+#: includes/settings-header.php:110
+msgid "Welcome to Scanpay for WooCommerce!"
+msgstr ""
+
+#: includes/settings-header.php:111
+msgid "Please follow the instructions in the setup guide."
+msgstr ""
+
+#: includes/settings-header.php:116
+msgid "Setup guide"
+msgstr ""
+
+#: includes/settings-header.php:120
+msgid "You have never received any pings from Scanpay"
+msgstr ""
+
+#: includes/settings-header.php:121
+msgid "Please perform a test ping to finalize the installation."
+msgstr ""
+
+#: includes/settings-header.php:136
+msgid "Warning: Your transaction data could be out of sync!"
+msgstr ""
+
+#: includes/settings-header.php:137
+msgid "%s minutes have passed since the last received ping."
+msgstr ""
+
+#: woocommerce-scanpay.php:68
+msgid "Settings"
+msgstr ""
+
+#. Plugin Name of the plugin/theme
+msgid "Scanpay for WooCommerce"
+msgstr ""
+
+#. Plugin URI of the plugin/theme
+msgid "https://wordpress.org/plugins/scanpay-for-woocommerce/"
+msgstr ""
+
+#. Description of the plugin/theme
+msgid "Accept payments in WooCommerce with a secure payment gateway."
+msgstr ""
+
+#. Author of the plugin/theme
+msgid "Scanpay"
+msgstr ""
+
+#. Author URI of the plugin/theme
+msgid "https://scanpay.dk"
+msgstr ""

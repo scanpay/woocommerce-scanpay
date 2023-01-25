@@ -7,135 +7,128 @@
 
 defined('ABSPATH') || exit();
 
-
 function wc_scanpay_meta_alert($type, $msg) {
     // TODO: this will be improved and styled (quick hack).
-    $dirurl = WC_HTTPS::force_https_url(plugins_url('/public/images/admin/', __DIR__));
-
     echo "<div class='scanpay-info-alert scanpay-info-alert-$type'>" .
-        '<img class="scanpay-info-svg" width="18" height="18" src="' . $dirurl . 'spinner.svg">' .
-        $msg . '</div>';
+        '<img class="scanpay-info-svg" width="18" height="18" src="' . WC_SCANPAY_URL .
+        '/public/images/admin/spinner.svg">' . $msg . '</div>';
 }
+
+function wc_scanpay_status($order)
+{
+    $authorized = $order->get_meta(WC_SCANPAY_URI_AUTHORIZED);
+    $captured = $order->get_meta(WC_SCANPAY_URI_CAPTURED);
+    $refunded = $order->get_meta(WC_SCANPAY_URI_REFUNDED);
+
+    if (!empty($order->get_meta(WC_SCANPAY_URI_VOIDED))) {
+        return 'voided';
+    }
+    if (empty($authorized)) {
+        return 'unpaid';
+    }
+    if (empty($captured)) {
+        return 'authorized';
+    }
+    if (empty($refunded)) {
+        if ($captured === $authorized) {
+            return 'fully captured';
+        }
+        return 'partially captured';
+    }
+    if ($captured === $refunded) {
+        return 'fully refunded';
+    }
+    return 'partially refunded';
+}
+
 
 function wc_scanpay_meta_box($order)
 {
     require WC_SCANPAY_DIR . '/includes/math.php';
-    $dirurl = WC_HTTPS::force_https_url(plugins_url('/public/images/admin/', __DIR__));
 
     $order_shopid = (int) $order->get_meta(WC_SCANPAY_URI_SHOPID);
     $trnid = (int) $order->get_meta(WC_SCANPAY_URI_TRNID);
-    $auth = $order->get_meta(WC_SCANPAY_URI_AUTHORIZED);
+    $payid = $order->get_meta(WC_SCANPAY_URI_PAYID);
     $captured = $order->get_meta(WC_SCANPAY_URI_CAPTURED);
     $refunded = $order->get_meta(WC_SCANPAY_URI_REFUNDED);
     $acts = (int) $order->get_meta(WC_SCANPAY_URI_NACTS);
-    $currency = $order->get_currency();
+    $rev = (int) $order->get_meta(WC_SCANPAY_URI_REV);
     $pending_update = (int) $order->get_meta(WC_SCANPAY_URI_PENDING_UPDATE);
-
-    if ($pending_update) {
-        wc_scanpay_meta_alert('notice', "Synchronizing order...");
-        // TODO: Insert JavaScript
-    }
+    $currency = $order->get_currency();
+    $status = wc_scanpay_status($order);
 
     if (!$order_shopid) {
-        return wc_scanpay_meta_alert('notice', 'Not a Scanpay order');
+        return wc_scanpay_meta_alert('notice', __('No transaction details found', 'scanpay-for-woocommerce'));
     }
 
-    // Warn if order is completed but not captured
-    if ($acts === 0 && $order->get_status() === 'completed') {
+    if ($pending_update > $rev) {
+        wc_scanpay_meta_alert('notice', __('Synchronizing transaction.', 'scanpay-for-woocommerce'));
+
+        wp_enqueue_script(
+            'wc-scanpay-admin',
+            WC_SCANPAY_URL . '/public/js/test.js',
+            false,
+            WC_SCANPAY_VERSION,
+            true
+        );
+        echo '<span id="scanpay--widget" data-order="' . $order->get_id() . '" data-rev="' . $rev . '"></span>';
+    } elseif ($acts === 0 && $order->get_status() === 'completed') {
         wc_scanpay_meta_alert(
             'error',
-            'Order has not been captured, but it is marked as completed'
+            __('The order is marked as completed, but it has not been captured.', 'scanpay-for-woocommerce')
         );
     }
 
-    // Order is not paid (through Scanpay, mby other gateway)
-    if (!$trnid) {
-        return wc_scanpay_meta_alert('notice', 'Order is unpaid.');
-    }
-
-    // Order is authorized, but not captured
     echo '
     <ul class="scanpay--widget--ul">
         <li class="scanpay--widget--li">
-            <div class="scanpay--widget--li--title">Authorized:</div>
-            <b>' . wc_price($auth, ['currency' => $currency]) . '</b>
+            <div class="scanpay--widget--li--title">' . __('Status', 'scanpay-for-woocommerce') . ':</div>
+            <b class="scanpay--widget--status--' . preg_replace('/\s+/', '-', $status) . '">' . $status . '</b>
+        </li>';
+
+    if ($status === 'unpaid') {
+        echo '<li class="scanpay--widget--li">
+            <div class="scanpay--widget--li--title">PayID:</div>
+            <a href="' . WC_SCANPAY_DASHBOARD . 'logs?payid= ' . $payid . '">' . $payid . '</a>
+        </li>';
+    } else {
+        echo '<li class="scanpay--widget--li">
+            <div class="scanpay--widget--li--title">' . __('Captured', 'scanpay-for-woocommerce') .':</div>
+            <b>' . wc_price($captured, ['currency' => $currency]) . '</b>
+        </li>';
+    }
+
+    if (!empty($refunded) && $refunded > 0) {
+        echo '<li class="scanpay--widget--li">
+            <div class="scanpay--widget--li--title">' . __('Refunded', 'scanpay-for-woocommerce') . ':</div>
+            <span class="scanpay--widget--li--refunded">&minus;' . wc_price($refunded, ['currency' => $currency]) . '</span>
         </li>
         <li class="scanpay--widget--li">
-            <div class="scanpay--widget--li--title">Captured:</div>
-            <b>' . wc_price($captured, ['currency' => $currency]) . '</b>
-        </li>
-    </ul>
+            <div class="scanpay--widget--li--title">' . __('Net payment', 'scanpay-for-woocommerce') . ':</div>
+            <b>' . wc_price(wc_scanpay_submoney($captured, $refunded)) . '</b>
+        </li>';
+    }
+
+    echo '</ul>
     <div class="scanpay--actions">
-        <a href="https://dashboard.scanpay.dk/' . $order_shopid . '/' . $trnid . '" style="float: right" href="#">Void transaction</a>
-        <a href="https://dashboard.scanpay.dk/' . $order_shopid . '/' . $trnid . '">
-            <img width="" height="16" src="' . $dirurl . '../cards/visa.svg">
-        </a>
-    </div>';
-    return;
-
-
-
-    // Order is fully refunded
-    if ($refunded === $auth) {
-        echo '
-        <ul class="scanpay--widget--ul">
-            <li class="scanpay--widget--li">
-                <div class="scanpay--widget--li--title">Authorized:</div>
-                ' . wc_price($auth, ['currency' => $currency]) . '
-            </li>
-            <li class="scanpay--widget--li">
-                <div class="scanpay--widget--li--title">Captured:</div>
-                ' . wc_price($captured, ['currency' => $currency]) . '
-            </li>
-            <li class="scanpay--widget--li" style="color:#901212">
-                <div class="scanpay--widget--li--title">Refunded:</div>
-                ' . wc_price($refunded, ['currency' => $currency]) . '
-            </li>
-            <li class="scanpay--widget--li">
-                <div class="scanpay--widget--li--title">Net payment:</div>
-                <span>
-                    ' . wc_price(wc_scanpay_submoney($captured, $refunded)) . '
-                </span>
-            </li>
-        </ul>
-        <div class="scanpay--actions">
-            <a href="#" class="button">Capture</a> <a href="#" class="button">Void</a>
+        <div class="scanpay--actions--expand">
+            <img width="22" height="22" src="' . WC_SCANPAY_URL . '/public/images/admin/expand.svg">
         </div>';
-        return;
-    }
-
-    if ((float)$refunded > '0') {
-        // TODO: Add
-        $status = 'partial_refund';
-        return;
-    }
-
-    // Order is captured and not refunded
-    if ($captured === $auth) {
-        echo '
-        <ul class="scanpay--widget--ul">
-            <li class="scanpay--widget--li">
-                <div class="scanpay--widget--li--title">Authorized:</div>
-                <b>' . wc_price($auth, ['currency' => $currency]) . '</b>
-            </li>
-            <li class="scanpay--widget--li">
-                <div class="scanpay--widget--li--title">Captured:</div>
-                <b>' . wc_price($captured, ['currency' => $currency]) . '</b>
-            </li>
-        </ul>
-        <div class="scanpay--actions">
-            <a href="#" class="button">Refund</a>
-        </div>';
-        return;
-    }
+        if ($captured > 0 && $captured !== $refunded) {
+            echo '<a target="_blank" href="' . WC_SCANPAY_DASHBOARD . $order_shopid . '/' . $trnid .
+                '">' . __('Refund', 'scanpay-for-woocommerce') . '</a>';
+        } elseif ($status !== 'voided' && $status !== 'unpaid') {
+            echo '<a target="_blank" href="' . WC_SCANPAY_DASHBOARD . $order_shopid . '/' . $trnid .
+                '">' . __('Void transaction', 'scanpay-for-woocommerce') . '</a>';
+        }
+    echo '</div>';
 }
 
-$screen = wc_get_page_screen_id('shop-order');
 add_meta_box(
     'scanpay-info',
     'Scanpay',
     'wc_scanpay_meta_box',
-    $screen,
+    wc_get_page_screen_id('shop-order'),
     'side',
-    'high'  // priority
+    'high'
 );

@@ -9,7 +9,7 @@
 
 .scanpay-info-alert {
     position: relative;
-    margin: 14px 11px 2px;
+    margin: 14px 11px 1px;
     padding: 6px 10px 5px 32px;
     font-size: .9em;
     border-radius: 3px;
@@ -33,7 +33,7 @@
 
 .scanpay--widget--ul {
     margin: 0;
-    padding: 9px 12px 4px;
+    padding: 10px 12px 5px;
     list-style: none !important;
 }
 
@@ -42,12 +42,39 @@
     padding: .15em 0;
 }
 
+.scanpay--widget--status--fully-refunded, .scanpay--widget--status--partially-refunded {
+    color: #772727;
+}
+
+.scanpay--widget--status--partially-captured {
+    color: #364d36
+}
+
+.scanpay--widget--status--fully-captured {
+    color: #1f601f
+}
+
+
+.scanpay--widget--li--refunded {
+    color: #641515
+}
+
 
 .scanpay--actions {
+    display: flex;
     background-color: #f8f8f8;
     border-top: 1px solid #e0e0e0;
-    padding: 10px 12px 7px;
+    padding: 7px 12px 3px;
 }
+
+.scanpay--actions--expand {
+    flex: 1
+}
+
+
+
+
+
 
 .scanpay--widget--li--title {
     flex: 1;
