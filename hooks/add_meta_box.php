@@ -68,6 +68,15 @@ function wc_scanpay_meta_box($order)
     $refund_mismatch = wc_scanpay_cmpmoney($refunded, ((string) $order->get_total_refunded()));
     $show_refund_row = !empty($refunded);
 
+    echo '<span id="scanpay--data"
+        data-order="' . $order->get_id() . '"
+        data-rev="' . $rev . '"
+        data-pending="' . ($pending_sync ? 'true' : 'false') . '"></span>';
+
+    if ($pending_sync) {
+        wc_scanpay_meta_alert('pending', __('Synchronizing transaction.', 'scanpay-for-woocommerce'));
+    }
+
     /*
         Add alerts to meta-box if...
             * Error: Pending sync after Capture-on-Complete (CoC)
@@ -76,11 +85,8 @@ function wc_scanpay_meta_box($order)
             * Error: Woo (captured|refunded) does not match acts
             * Warn.: Ping > 7 mins
     */
-    if ($pending_sync) {
-        wc_scanpay_meta_alert('pending', __('Synchronizing transaction.', 'scanpay-for-woocommerce'));
-        echo '<span id="scanpay--widget" data-order="' . $order->get_id() . '" data-rev="' . $rev . '"></span>';
 
-    } elseif ($acts === 0) {
+    if ($acts === 0) {
         $order_status = $order->get_status();
         if ($order_status === 'completed' || $order_status === 'refunded') {
             wc_scanpay_meta_alert(
@@ -104,8 +110,7 @@ function wc_scanpay_meta_box($order)
             wc_scanpay_meta_alert(
                 'error', sprintf(
                     __('Discrepancy between what WooCommerce says has been refunded (%s) and what we have actually refunded (%s).', 'scanpay-for-woocommerc'),
-                    '<u>' . wc_price($order->get_total_refunded(), ['currency' => $currency]) . '</u>',
-                    '<u>' . wc_price($refunded) . '</u>'
+                    wc_price($order->get_total_refunded(), ['currency' => $currency]), wc_price($refunded)
                 )
             );
         }

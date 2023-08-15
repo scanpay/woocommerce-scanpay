@@ -6,7 +6,7 @@
 
 defined('ABSPATH') || exit();
 
-if (!isset($_GET["order"]) || !isset($_GET["rev"])) {
+if (!isset($_GET["order"]) || !isset($_GET["rev"]) || !isset($_GET["fib"])) {
     exit;
 }
 
@@ -15,8 +15,9 @@ if (!current_user_can('edit_shop_orders')) {
     exit;
 }
 
-$order_id = $_GET["order"];
+$order_id = (int) $_GET["order"];
 $old_rev = (int) $_GET["rev"];
+$fib = min(8, (int) $_GET["fib"]);
 
 $order = wc_get_order($order_id);
 if (!$order) {
@@ -27,7 +28,8 @@ if (!$order) {
 // Fibonacci backoff strategy (1, 1, 2, 3, 5, 8 ...)
 $a = 0;
 $b = 1;
-while($a + $b < 30) { // 53 seconds + db jitter
+$c = 0;
+while(++$c < $fib) {
     $order_rev = $order->get_meta(WC_SCANPAY_URI_REV);
     if ($order_rev > $old_rev) {
         return wp_send_json_success(array(
