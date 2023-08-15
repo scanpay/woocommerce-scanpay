@@ -75,7 +75,8 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
         echo '</h2>';
         echo wp_kses_post(wpautop($this->get_method_description()));
         require_once WC_SCANPAY_DIR . '/includes/settings-header.php';
-        echo '<table class="form-table">'
+        $subs_disabled = ($this->settings['subscriptions_enabled'] === 'no') ? 'scanpay--admin--no-subs' : '';
+        echo '<table class="form-table scanpay--admin--table ' . $subs_disabled . '">'
             . $this->generate_settings_html($this->get_form_fields(), false) .
         '</table>';
     }
@@ -105,20 +106,20 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
                 'title' => __('Title', 'scanpay-for-woocommerce'),
                 'type' => 'text',
                 'description' => __('A title for the payment method. This is displayed on the checkout page.', 'scanpay-for-woocommerce'),
-                'default' => __('Credit card', 'scanpay-for-woocommerce'),
+                'default' => __('Pay by card.', 'scanpay-for-woocommerce'),
                 'desc_tip'    => true,
             ],
             'description' => [
                 'title' => __('Description', 'scanpay-for-woocommerce'),
                 'type' => 'text',
                 'description' => __('A description of the payment method. This is displayed on the checkout page.', 'scanpay-for-woocommerce'),
-                'default' => __('Pay with payment card through Scanpay.', 'scanpay-for-woocommerce'),
+                'default' => __('Pay with card through Scanpay.', 'scanpay-for-woocommerce'),
                 'desc_tip'    => true,
             ],
             'card_icons' => [
                 'title' => __('Card icons', 'scanpay-for-woocommerce'),
                 'type' => 'multiselect',
-                'description' => __('Choose which cards icons to display on the checkout page.', 'scanpay-for-woocommerce'),
+                'description' => __('Choose which card icons to display on the checkout page.', 'scanpay-for-woocommerce'),
                 'options' => [
                     'dankort' => 'Dankort',
                     'visa' => 'Visa',
@@ -135,18 +136,10 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
                 'desc_tip'    => true,
             ],
             'capture_on_complete' => [
-                'title' => __('Capture On Complete', 'scanpay-for-woocommerce'),
+                'title' => __('Auto-Capture', 'scanpay-for-woocommerce'),
                 'type' => 'checkbox',
-                'label' => __('Capture payment when order status is set to "completed".', 'scanpay-for-woocommerce'),
-                'description' => __('You can use this with Auto-Complete to automatically capture new orders.', 'scanpay-for-woocommerce'),
-                'default' => 'yes',
-                'desc_tip'    => true,
-            ],
-            'prevent_complete' => [
-                'title' => '&#10240;',
-                'type' => 'checkbox',
-                'label' => __('Bloker status ændring hvis hævning fejler.', 'scanpay-for-woocommerce'),
-                'description' => __('...', 'scanpay-for-woocommerce'),
+                'label' => __('Capture when order status is set to "completed".', 'scanpay-for-woocommerce'),
+                'description' => __('Automatically capture the payment when the order status changes to "completed". Errors will not block the status change. Please read our guide.', 'scanpay-for-woocommerce'),
                 'default' => 'yes',
                 'desc_tip'    => true,
             ],
@@ -154,36 +147,34 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
                 'title' => __('Auto-Complete', 'scanpay-for-woocommerce'),
                 'type' => 'checkbox',
                 'label' => __('Automatically complete Virtual Orders.', 'scanpay-for-woocommerce'),
-                'description' => __('Automatically mark all new virtual orders as completed.', 'scanpay-for-woocommerce'),
+                'description' => __('Automatically mark all new virtual orders as "completed".', 'scanpay-for-woocommerce'),
+                'default' => 'no',
+                'desc_tip'    => true,
+            ],
+            'autocomplete_all' => [
+                'title' => '&#10240;',
+                'type' => 'checkbox',
+                'label' => __('Automatically complete all new orders.', 'scanpay-for-woocommerce'),
+                'description' => __('Automatically mark all new orders as "completed".', 'scanpay-for-woocommerce'),
                 'default' => 'no',
                 'desc_tip'    => true,
             ],
             'autocomplete_renewalorders' => [
                 'title' => '&#10240;',
                 'type' => 'checkbox',
-                'label' => __('Automatically complete Renewal Orders (subscriptions only).', 'scanpay-for-woocommerce'),
-                'description' => __('Automatically mark all new renewal orders as completed.', 'scanpay-for-woocommerce'),
+                'label' => __('Automatically complete Renewal Orders ', 'scanpay-for-woocommerce') .
+                    '<i>(' . __('Subscriptions only', 'scanpay-for-woocommerce') . ')</i>.',
+                'description' => __('Automatically mark all new renewal orders as "completed".', 'scanpay-for-woocommerce'),
                 'default' => 'no',
                 'desc_tip'    => true,
-            ],
-            'autocapture' => [
-                'title' => 'Auto-capture',
-                'type' => 'multiselect',
-                'label' => 'Enable Auto-capture',
-                'description' => 'Immediately capture specified order types.',
-                'options' => [
-                    'virtual' => 'Virtual orders',
-                    'all' => 'ALL orders',
-                    'renewalorders' => 'Renewal orders (Subscription charges)',
-                ],
-                'default' => [ 'renewalorders' ],
-                'class' => 'wc-enhanced-select',
             ],
             'subscriptions_enabled' => [
                 'title' => __('Subscriptions', 'scanpay-for-woocommerce'),
                 'type' => 'checkbox',
                 'label' => __('Enable support for WooCommerce Subscriptions.', 'scanpay-for-woocommerce'),
+                'description' => __('...', 'scanpay-for-woocommerce'),
                 'default' => 'no',
+                'desc_tip'    => true,
             ],
         ];
     }

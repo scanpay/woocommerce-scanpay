@@ -2,38 +2,57 @@
     Scanpay: Admin widget
 */
 
+
+/* Reset meta-box inside */
 #scanpay-info > .inside {
     margin: 0;
     padding: 0;
 }
 
-.scanpay-info-alert {
-    position: relative;
-    margin: 14px 11px 1px;
-    padding: 6px 10px 5px 32px;
-    font-size: .9em;
+/* Alert box in meta box */
+.scanpay--alert {
+    margin: 14px 12px 12px;
+    padding: 6px 10px 5px;
+    font-size: .95em;
     border-radius: 3px;
-    border: 1px solid #efdda2;
-    background-color: #fffbe6;
+    color: #22240a;
+    background: #fff9e6;
+    border: 1px solid #c1b7ab;
+
+    > b {
+        font-weight: 600;
+        font-size: .95em;
+    }
 }
 
-.scanpay-info-alert-error {
-    color: #940707;
-    font-weight: bold;
+.scanpay--alert-warning {
+    color: #400808;
+    background: #ffe8e6;
+    border: 1px solid #d19898;
+}
+
+.scanpay--alert-error {
+    color: #400808;
+    background: #ffe8e6;
+    border: 1px solid #d19898;
 }
 
 
-.scanpay-info-svg {
-    position: absolute;
+
+
+.scanpay--alert-pending {
+    display: flex;
+}
+
+.scanpay--alert--spin {
     vertical-align: baseline;
-    margin-left: -24px;
-    margin-top: -1px;
+    margin: 0 6px 0 0;
 }
 
-
+/* Meta box */
 .scanpay--widget--ul {
-    margin: 0;
-    padding: 10px 12px 5px;
+    margin: 10px 0 11px;
+    padding: 0 12px;
     list-style: none !important;
 }
 
@@ -54,10 +73,15 @@
     color: #1f601f
 }
 
-
 .scanpay--widget--li--refunded {
     color: #641515
 }
+
+.scanpay--widget--refund {
+    color: #b32d2e;
+    margin-top: 1px;
+}
+
 
 
 .scanpay--actions {
@@ -174,4 +198,24 @@
     font-weight: bold;
     padding: 0 0 2px;
 }
+
+/*
+    Reduce paddings in auto-complete group
+*/
+
+.scanpay--admin--table tr:nth-last-child(2) > .titledesc, .scanpay--admin--table tr:nth-last-child(3) > .titledesc {
+    padding-top: 7px;
+}
+
+.scanpay--admin--table tr:nth-last-child(2) > .forminp, .scanpay--admin--table tr:nth-last-child(3) > .forminp {
+    padding-top: 3px;
+}
+
+/*
+    Hide subscriptions settings if subscriptions is disabled.
+*/
+.scanpay--admin--no-subs tr:nth-last-child(2) {
+    display: none;
+}
+
 

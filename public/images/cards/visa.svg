@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="32" height="20" viewBox="0 0 32 20" shape-rendering="geometricPrecision">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 20" shape-rendering="geometricPrecision">
   <path fill="#fff" d="M0 0h32v20H0Z"/>
   <path fill="#fcb315" d="M0 17h32v3H0Z"/>
   <path fill="#113f93" d="M0 0h32v3H0Z"/>

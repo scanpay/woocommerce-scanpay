@@ -8,6 +8,14 @@
 
 defined('ABSPATH') || exit();
 
+wp_enqueue_script(
+    'wc-scanpay-admin',
+    WC_SCANPAY_URL . '/public/js/settings.js',
+    false,
+    WC_SCANPAY_VERSION,
+    true    // in footer
+);
+
 $lastPingText = '';
 $lastPingTime = 0;
 $pingdt;
@@ -29,8 +37,8 @@ if ($this->shopid) {
     if (isset($pingdt) && $pingdt < 600) {
         $lastPingText = sprintf(
             _n(
-                '%s second since last received ping',
-                '%s seconds since last received ping',
+                '%s second since last synchronization.',
+                '%s seconds since last synchronization.',
                 $pingdt,
                 'scanpay-for-woocommerce'
             ),

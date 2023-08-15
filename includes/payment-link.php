@@ -20,7 +20,6 @@ function wc_scanpay_payment_link($orderid)
         'orderid'     => strval($orderid),
         'language'    => $settings['language'],
         'successurl'  => $order->get_checkout_order_received_url(),
-        'autocapture' => in_array('all', (array) $settings['autocapture']),
         'billing'     => array_filter([
             'name'    => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
             'email'   => $order->get_billing_email(),
@@ -43,7 +42,6 @@ function wc_scanpay_payment_link($orderid)
         ]),
     ];
 
-    $virtualOrder = in_array('virtual', (array) $settings['autocapture']);
     $types = array('line_item', 'fee', 'shipping', 'coupon');
     $itemWithNegativePrice;
     $sum = 0;
@@ -56,12 +54,6 @@ function wc_scanpay_payment_link($orderid)
             'quantity' => intval($item->get_quantity()),
             'total' => $lineTotal . ' ' . $currency_code
         ];
-        if ($virtualOrder && $item->is_type('line_item')) {
-            $product = $item->get_product();
-            if (!empty($product) && !$product->is_virtual()) {
-                $virtualOrder = false;
-            }
-        }
         if ($lineTotal < 0) {
             $itemWithNegativePrice = true;
         }
@@ -74,10 +66,6 @@ function wc_scanpay_payment_link($orderid)
             'The order has an item with a negative price. The item list ' .
             'will not be available in the scanpay dashboard.'
         );
-    }
-
-    if ($virtualOrder) {
-        $data['autocapture'] = true;
     }
 
     // Check if sum of items matches the order total

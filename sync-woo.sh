@@ -13,8 +13,8 @@ function dosync {
         --rsync-path="/usr/bin/sudo -u nobody rsync" -e ssh "$DIR" modules:"$DEST" || exit 1
 
     # Change API to test env
-    ssh modules "sudo -u nobody sed -i 's/dashboard\.scanpay\.dk/dashboard\.test\.scanpay\.dk/' $DEST/woocommerce-scanpay.php"
-    ssh modules "sudo -u nobody sed -i 's/api\.scanpay\.dk/api\.test\.scanpay\.dk/g' $DEST/includes/ScanpayClient.php"
+    ssh modules "sudo -u nobody sed -i 's/dashboard\.scanpay\.dk/dashboard\.scanpay\.dev/' $DEST/woocommerce-scanpay.php"
+    ssh modules "sudo -u nobody sed -i 's/api\.scanpay\.dk/api\.scanpay\.dev/g' $DEST/includes/ScanpayClient.php"
 }
 
 function watch() {
