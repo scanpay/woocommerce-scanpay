@@ -33,9 +33,6 @@ function wc_scanpay_digformat($sign, $s, $fl)
     return ($sign ? "-" : "") . (($s[$d] == '.') ? substr($s, 0, $d) : $s);
 }
 
-/*
-    wc_scanpay_digadd()
-*/
 function wc_scanpay_digadd($a, $b)
 {
     for ($s = "", $rem = 0, $i = strlen($a) - 1; $i >= 0; $i--) {
@@ -51,9 +48,6 @@ function wc_scanpay_digadd($a, $b)
     return ($rem > 0) ? strval($rem) . $s : $s;
 }
 
-/*
-    wc_scanpay_digsub()
-*/
 function wc_scanpay_digsub($a, $b)
 {
     for ($s = "", $rem = 0, $i = strlen($a) - 1; $i >= 0; $i--) {
@@ -68,9 +62,6 @@ function wc_scanpay_digsub($a, $b)
     return $s;
 }
 
-/*
-    wc_scanpay_addmoney()
-*/
 function wc_scanpay_addmoney($a, $b)
 {
     $h = wc_scanpay_dighomogenize($a, $b);
@@ -88,17 +79,12 @@ function wc_scanpay_addmoney($a, $b)
     return wc_scanpay_digformat($h["as"], $s, $h["fl"]);
 }
 
-/*
-    wc_scanpay_submoney(): a - b ≡ a + (-b)
-*/
 function wc_scanpay_submoney($a, $b)
 {
+    // a - b ≡ a + (-b)
     return wc_scanpay_addmoney($a, ($b[0] == '-') ? substr($b, 1) : ("-" . $b));
 }
 
-/*
-    wc_scanpay_cmpmoney()
-*/
 function wc_scanpay_cmpmoney($a, $b)
 {
     $h = wc_scanpay_dighomogenize($a, $b);
@@ -114,9 +100,7 @@ function wc_scanpay_cmpmoney($a, $b)
     return strcmp($h["a"], $h["b"]);
 }
 
-/*
-    wc_scanpay_roundmoney() (not in use)
-*/
+// wc_scanpay_roundmoney() (not in use)
 function wc_scanpay_roundmoney($a, $n)
 {
     $h = wc_scanpay_dighomogenize($a, "0." . str_repeat("0", $n) . "5");

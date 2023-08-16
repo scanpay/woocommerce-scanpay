@@ -5,13 +5,13 @@
 
 /* Reset meta-box inside */
 #scanpay-info > .inside {
-    margin: 0;
+    margin: 12px 0 0 0;
     padding: 0;
 }
 
 /* Alert box in meta box */
 .scanpay--alert {
-    margin: 14px 12px 12px;
+    margin: 9px 11px 9px;
     padding: 6px 10px 5px;
     font-size: .95em;
     border-radius: 3px;
@@ -19,7 +19,7 @@
     background: #fff9e6;
     border: 1px solid #c1b7ab;
 
-    > b {
+    > strong {
         font-weight: 600;
         font-size: .95em;
     }

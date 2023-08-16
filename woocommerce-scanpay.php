@@ -103,9 +103,12 @@ add_action('plugins_loaded', function () {
         require WC_SCANPAY_DIR . '/hooks/wc_api_wc_scanpay.php';
     });
 
-    // Ajax endpoint for order rev lookup
-    add_action('woocommerce_api_scanpay_order_rev', function () {
-        require WC_SCANPAY_DIR . '/hooks/wc_ajax_scanpay_last_ping.php'; // Ping hook
+    // JavaScript endpoints
+    add_action('woocommerce_api_scanpay_get_rev', function () {
+        require WC_SCANPAY_DIR . '/hooks/wc_ajax_scanpay_get_rev.php';
+    });
+    add_action('woocommerce_api_scanpay_last_ping', function () {
+        require WC_SCANPAY_DIR . '/hooks/wc_ajax_scanpay_last_ping.php';
     });
 
     add_action('wp_enqueue_scripts', function () {

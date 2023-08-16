@@ -13,7 +13,7 @@ function wc_scanpay_meta_alert($type, $msg) {
         echo '<img class="scanpay--alert--spin" width="18" height="18"
             src="' . WC_SCANPAY_URL . '/public/images/admin/spinner.svg">';
     } elseif ($type === 'error') {
-        echo '<b>ERROR</b>: ';
+        echo '<strong>ERROR</strong>: ';
     }
     echo $msg . '</div>';
 }
@@ -47,26 +47,14 @@ function wc_scanpay_status($order)
 
 function wc_scanpay_meta_box($order)
 {
-    require WC_SCANPAY_DIR . '/includes/math.php';
-
     $order_shopid = (int) $order->get_meta(WC_SCANPAY_URI_SHOPID);
     if (!$order_shopid) {
-        return wc_scanpay_meta_alert('notice', __('No transaction details found!', 'scanpay-for-woocommerce'));
+        return wc_scanpay_meta_alert('notice', __('No payment details found!', 'scanpay-for-woocommerce'));
     }
     wp_enqueue_script('wc-scanpay-admin', WC_SCANPAY_URL . '/public/js/pending.js', false, WC_SCANPAY_VERSION, true);
 
-    $trnid = (int) $order->get_meta(WC_SCANPAY_URI_TRNID);
-    $payid = $order->get_meta(WC_SCANPAY_URI_PAYID);
-    $authorized = $order->get_meta(WC_SCANPAY_URI_AUTHORIZED);
-    $captured = $order->get_meta(WC_SCANPAY_URI_CAPTURED);
-    $refunded = $order->get_meta(WC_SCANPAY_URI_REFUNDED);
-    $acts = (int) $order->get_meta(WC_SCANPAY_URI_NACTS);
     $rev = (int) $order->get_meta(WC_SCANPAY_URI_REV);
     $pending_sync = ((int) $order->get_meta(WC_SCANPAY_URI_PENDING_UPDATE)) > $rev;
-    $currency = $order->get_currency();
-    $status = wc_scanpay_status($order);
-    $refund_mismatch = wc_scanpay_cmpmoney($refunded, ((string) $order->get_total_refunded()));
-    $show_refund_row = !empty($refunded);
 
     echo '<span id="scanpay--data"
         data-order="' . $order->get_id() . '"
@@ -74,48 +62,67 @@ function wc_scanpay_meta_box($order)
         data-pending="' . ($pending_sync ? 'true' : 'false') . '"></span>';
 
     if ($pending_sync) {
-        wc_scanpay_meta_alert('pending', __('Synchronizing transaction.', 'scanpay-for-woocommerce'));
+        wc_scanpay_meta_alert('pending', __('Awaiting scanpay synchronization.', 'scanpay-for-woocommerce'));
+        return;
     }
 
-    /*
-        Add alerts to meta-box if...
-            * Error: Pending sync after Capture-on-Complete (CoC)
-            * Error: No acts, but order status is 'completed' or 'refunded'
-            * Error: Refunded but no refund in acts
-            * Error: Woo (captured|refunded) does not match acts
-            * Warn.: Ping > 7 mins
-    */
+    require_once WC_SCANPAY_DIR . '/includes/math.php';
+    $status = wc_scanpay_status($order);
+    $payid = $order->get_meta(WC_SCANPAY_URI_PAYID);
+    $trnid = (int) $order->get_meta(WC_SCANPAY_URI_TRNID);
+    $acts = (int) $order->get_meta(WC_SCANPAY_URI_NACTS);
+    $authorized = $order->get_meta(WC_SCANPAY_URI_AUTHORIZED);
+    $captured = $order->get_meta(WC_SCANPAY_URI_CAPTURED);
+    $refunded = $order->get_meta(WC_SCANPAY_URI_REFUNDED);
+    $net = wc_scanpay_submoney($captured, $refunded);
 
-    if ($acts === 0) {
-        $order_status = $order->get_status();
-        if ($order_status === 'completed' || $order_status === 'refunded') {
-            wc_scanpay_meta_alert(
-                'error', sprintf(
-                    __('The order status is %s, but the transaction has not been captured.', 'scanpay-for-woocommerc'),
-                    '<u>' . $order_status . '</u>'
-                )
-            );
-        }
-    } elseif ($refund_mismatch !== 0) {
+    $currency = $order->get_currency();
+    $woo_status = $order->get_status();
+    $woo_refunded = (string) $order->get_total_refunded();
+    $woo_total = (string) $order->get_total();
+    $woo_net = wc_scanpay_submoney($woo_total, $woo_refunded);
+    $net_mismatch = wc_scanpay_cmpmoney($net, $woo_net);
+    $show_refund_row = !empty($refunded);
+
+    /*
+        Alert Boxes
+        TODO: Ping warning
+    */
+    if ($woo_status === 'cancelled' && $acts === 0) {
+        // Merchant should void transaction
+        wc_scanpay_meta_alert(
+            'notice',
+            __('Void the payment to release the reserved amount in the customer\'s bank account. Reservations last for 7-28 days.',
+                'scanpay-for-woocommerce')
+        );
+    } elseif ($net_mismatch !== 0 && $woo_status !== 'processing') {
         $show_refund_row = true;
-        if (empty($refunded)) {
+        wc_scanpay_meta_alert(
+            'warning', sprintf(
+                __('There is a discrepancy between the order net payment (%s) and your actual net payment (%s).', 'scanpay-for-woocommerc'),
+                wc_price($woo_net, ['currency' => $currency]), wc_price($net, ['currency' => $currency])
+            )
+        );
+        $refund_mismatch = wc_scanpay_cmpmoney($refunded, $woo_refunded);
+        if ($refund_mismatch !== 0 && empty($refunded)) {
+            // Merchant likely forgot to refund in our dashboard
             wc_scanpay_meta_alert(
-                'warning', sprintf(
-                    __('For security reasons, you can only refund payments in our %s.', 'scanpay-for-woocommerc'),
+                'notice', sprintf(
+                    __('For security reasons, payments can only be refunded in the scanpay %s.', 'scanpay-for-woocommerc'),
                     '<a target="_blank" href="' . WC_SCANPAY_DASHBOARD . $order_shopid . '/' . $trnid .
                         '/refund">' . __('dashboard', 'scanpay-for-woocommerce') . '</a>'
                 )
             );
-        } else {
-            wc_scanpay_meta_alert(
-                'error', sprintf(
-                    __('Discrepancy between what WooCommerce says has been refunded (%s) and what we have actually refunded (%s).', 'scanpay-for-woocommerc'),
-                    wc_price($order->get_total_refunded(), ['currency' => $currency]), wc_price($refunded)
-                )
-            );
         }
     }
 
+
+
+
+
+    /*
+        Transaction details
+    */
     echo '
     <ul class="scanpay--widget--ul">
         <li class="scanpay--widget--li">
@@ -129,8 +136,6 @@ function wc_scanpay_meta_box($order)
             <a href="' . WC_SCANPAY_DASHBOARD . 'logs?payid= ' . $payid . '">' . $payid . '</a>
         </li>';
     } else {
-        $captured_amount = wc_price($captured, ['currency' => $currency]);
-        $net_amount = $captured_amount;
 
         if ($captured !== $authorized) {
             echo '<li class="scanpay--widget--li">
@@ -141,7 +146,7 @@ function wc_scanpay_meta_box($order)
 
         echo '<li class="scanpay--widget--li">
             <div class="scanpay--widget--li--title">' . __('Captured', 'scanpay-for-woocommerce') .':</div>
-            <b>' . $captured_amount . '</b>
+            <b>' . wc_price($captured, ['currency' => $currency]) . '</b>
         </li>';
 
         if ($show_refund_row) {
@@ -149,12 +154,11 @@ function wc_scanpay_meta_box($order)
                 <div class="scanpay--widget--li--title">' . __('Refunded', 'scanpay-for-woocommerce') . ':</div>
                 <span class="scanpay--widget--li--refunded">&minus;' . wc_price($refunded, ['currency' => $currency]) . '</span>
             </li>';
-            $net_amount = wc_price(wc_scanpay_submoney($captured, $refunded), ['currency' => $currency]);
         }
 
         echo '<li class="scanpay--widget--li">
             <div class="scanpay--widget--li--title">' . __('Net payment', 'scanpay-for-woocommerce') . ':</div>
-            <b>' . $net_amount . '</b>
+            <b>' . wc_price($net, ['currency' => $currency]) . '</b>
         </li></ul>';
 
         if ($status !== 'fully refunded' && $status !== 'unpaid') {
@@ -169,7 +173,7 @@ function wc_scanpay_meta_box($order)
                             '/refund">' . __('Refund', 'scanpay-for-woocommerce') . '</a>';
                     } elseif ($status === 'authorized') {
                         echo '<a target="_blank" class="scanpay--widget--refund" href="' . WC_SCANPAY_DASHBOARD . $order_shopid . '/' . $trnid .
-                            '">' . __('Void transaction', 'scanpay-for-woocommerce') . '</a>';
+                            '">' . __('Void payment', 'scanpay-for-woocommerce') . '</a>';
                     }
             echo '</div>';
         }
@@ -177,3 +181,37 @@ function wc_scanpay_meta_box($order)
 }
 
 add_meta_box('scanpay-info', 'Scanpay', 'wc_scanpay_meta_box', wc_get_page_screen_id('shop-order'), 'side', 'high');
+
+
+/*
+
+    if (false) {
+        if ($woo_status === 'completed' || $woo_status === 'refunded') {
+            wc_scanpay_meta_alert(
+                'error', sprintf(
+                    __('The order status is %s, but the transaction has not been captured.', 'scanpay-for-woocommerc'),
+                    '<u>' . $woo_status . '</u>'
+                )
+            );
+        } elseif ($woo_status === 'refunded' || $woo_status === 'cancelled') {
+            wc_scanpay_meta_alert(
+                'warning', sprintf(
+                    __('The order status is %s, but the transaction has not been captured or voided.', 'scanpay-for-woocommerc'),
+                    '<u>' . $woo_status . '</u>'
+                )
+            );
+        }
+    }
+
+
+else {
+                // Discrepancy. Merchant refunded too much or too little.
+                wc_scanpay_meta_alert(
+                    'error', sprintf(
+                        __('Discrepancy between what WooCommerce says has been refunded (%s) and what we have actually refunded (%s).', 'scanpay-for-woocommerc'),
+                        wc_price($order->get_total_refunded(), ['currency' => $currency]), wc_price($refunded)
+                    )
+                );
+            }
+
+*/
