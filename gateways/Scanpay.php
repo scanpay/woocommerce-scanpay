@@ -135,10 +135,18 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
                 'class' => 'wc-enhanced-select',
                 'desc_tip'    => true,
             ],
+            'subscriptions_enabled' => [
+                'title' => __('Subscriptions', 'scanpay-for-woocommerce'),
+                'type' => 'checkbox',
+                'label' => __('Enable support for WooCommerce Subscriptions.', 'scanpay-for-woocommerce'),
+                'description' => __('...', 'scanpay-for-woocommerce'),
+                'default' => 'no',
+                'desc_tip'    => true,
+            ],
             'capture_on_complete' => [
                 'title' => __('Auto-Capture', 'scanpay-for-woocommerce'),
                 'type' => 'checkbox',
-                'label' => __('Capture when order status is set to "completed".', 'scanpay-for-woocommerce'),
+                'label' => __('Capture payment when order status is set to "completed".', 'scanpay-for-woocommerce'),
                 'description' => __('Automatically capture the payment when the order status changes to "completed". Errors will not block the status change. Please read our guide.', 'scanpay-for-woocommerce'),
                 'default' => 'yes',
                 'desc_tip'    => true,
@@ -146,7 +154,7 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
             'autocomplete_virtual' => [
                 'title' => __('Auto-Complete', 'scanpay-for-woocommerce'),
                 'type' => 'checkbox',
-                'label' => __('Automatically complete Virtual Orders.', 'scanpay-for-woocommerce'),
+                'label' => __('Auto-complete virtual orders.', 'scanpay-for-woocommerce'),
                 'description' => __('Automatically mark all new virtual orders as "completed".', 'scanpay-for-woocommerce'),
                 'default' => 'no',
                 'desc_tip'    => true,
@@ -154,7 +162,7 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
             'autocomplete_all' => [
                 'title' => '&#10240;',
                 'type' => 'checkbox',
-                'label' => __('Automatically complete all new orders.', 'scanpay-for-woocommerce'),
+                'label' => __('Auto-complete all new orders.', 'scanpay-for-woocommerce'),
                 'description' => __('Automatically mark all new orders as "completed".', 'scanpay-for-woocommerce'),
                 'default' => 'no',
                 'desc_tip'    => true,
@@ -162,17 +170,9 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
             'autocomplete_renewalorders' => [
                 'title' => '&#10240;',
                 'type' => 'checkbox',
-                'label' => __('Automatically complete Renewal Orders ', 'scanpay-for-woocommerce') .
+                'label' => __('Auto-complete renewal orders ', 'scanpay-for-woocommerce') .
                     '<i>(' . __('Subscriptions only', 'scanpay-for-woocommerce') . ')</i>.',
                 'description' => __('Automatically mark all new renewal orders as "completed".', 'scanpay-for-woocommerce'),
-                'default' => 'no',
-                'desc_tip'    => true,
-            ],
-            'subscriptions_enabled' => [
-                'title' => __('Subscriptions', 'scanpay-for-woocommerce'),
-                'type' => 'checkbox',
-                'label' => __('Enable support for WooCommerce Subscriptions.', 'scanpay-for-woocommerce'),
-                'description' => __('...', 'scanpay-for-woocommerce'),
                 'default' => 'no',
                 'desc_tip'    => true,
             ],

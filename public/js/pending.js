@@ -11,30 +11,34 @@
     let controller;
 
     // LocalStorage is used to avoid unnecessary requests to the server.
-    let lastPing = localStorage.getItem('scanpay-last-ping') || 0;
-    let fib = localStorage.getItem('scanpay-fib') || 12;
+    let lastPing = parseInt(localStorage.getItem('scanpay-last-ping'), 10);
+    let fib = parseInt(localStorage.getItem('scanpay-fib') || 12, 10);
 
-    // TODO: contionously check lastPing
-    const pingThreshold = (Date.now() / 1000 - 300);
-    if (lastPing < pingThreshold) {
-        fetch('../wc-api/scanpay_last_ping/')
-            .then((res) => {
-                if (res.status !== 200) throw 'failed';
-                return res.json();
-            })
-            .then((json) => {
-                lastPing = json.data.last;
-                localStorage.setItem('scanpay-last-ping', lastPing);
-            })
-            .catch(err => console.log(err))
-            .finally(() => {
-                if (lastPing < pingThreshold) {
-                    console.error('Scanpay: last ping is too old. Please check your server time.');
-                }
-            });
+    // Show an alert box in the meta box
+    function showMetaAlertBox(msg) {
+        const div = document.createElement('div');
+        div.className = 'scanpay--alert scanpay--alert-error';
+        div.textContent = msg;
+        document.querySelector('#scanpay-info > .inside').prepend(div);
     }
 
-    function lookup_rev() {
+    // Check last ping and warn if >10 mins old
+    const pingThreshold = (Date.now() / 1000 - 600);
+    if (lastPing < pingThreshold) {
+        fetch('../wc-api/scanpay_last_ping/').then(r => r.json()).then((r) => {
+            lastPing = r.data.last;
+            localStorage.setItem('scanpay-last-ping', lastPing);
+            if (!lastPing) {
+                showMetaAlertBox('The system is not synchronized. Please check your plugin settings or contact support.');
+            } else if (lastPing < pingThreshold) {
+                const mins = Math.round((Date.now() / 1000 - lastPing) / 60);
+                const t = (mins < 120) ? mins + ' minutes' : Math.round(mins / 60) + ' hours';
+                showMetaAlertBox(t + ' since last synchronization. Please check your plugin settings or contact support.');
+            }
+        }).catch(e => console.log(e));
+    }
+
+    function lookupRev() {
         if (busy) return;
         controller = new AbortController();
         busy = true;
@@ -52,18 +56,18 @@
             .then((json) => {
                 if (json.data.rev > rev) location.reload();
             })
-            .catch(err => console.log(err))
+            .catch(e => console.log(e))
             .finally(() => {
                 busy = false;
             });
     }
-    if (data.dataset.pending === 'true') lookup_rev();
+    if (data.dataset.pending === 'true') lookupRev();
 
     document.addEventListener("visibilitychange", () => {
-        // lookup_rev when the tab is visible again (e.g. after refund in dashboard)
+        // lookupRev when the tab is visible again (e.g. after refund in dashboard)
         // Abort if user minimizes the window or switches to another tab.
         if (document.visibilityState == "visible") {
-            lookup_rev();
+            lookupRev();
         } else if (busy) {
             controller.abort();
         }
