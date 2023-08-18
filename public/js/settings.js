@@ -3,7 +3,7 @@
 */
 
 (() => {
-    let lastPing = parseInt(localStorage.getItem('scanpay-last-ping'), 10);
+    let lastPing = localStorage.getItem('scanpay-last-ping') | 0;
 
     // Check last ping and warn if >5 mins old
     function checkPing() {
@@ -11,9 +11,8 @@
         if (lastPing < pingThreshold) {
             fetch('../wc-api/scanpay_last_ping/').then(r => r.json()).then((r) => {
                 const parent = document.querySelector('#scanpay--admin--alert--parent');
-                lastPing = r.data.last;
+                lastPing = r.data.mtime;
                 localStorage.setItem('scanpay-last-ping', lastPing);
-                console.log(lastPing);
                 if (!lastPing) {
                     parent.className = 'scanpay--admin--alert--no-pings';
                 } else if (lastPing < pingThreshold) {

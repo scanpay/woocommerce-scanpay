@@ -1,7 +1,7 @@
 <?php
 
 /*
-*   Admin AJAX to check order rev.
+*   Admin check ping mtime
 */
 
 defined('ABSPATH') || exit();
@@ -19,5 +19,5 @@ $seqdb = new WC_Scanpay_SeqDB($shopid);
 $obj = $seqdb->get_seq();
 
 wp_send_json_success(array(
-    "last" => ($obj) ? $obj['mtime'] : 0
+    "mtime" => ($obj) ? $obj['mtime'] : 0
 ));
