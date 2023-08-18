@@ -1,7 +1,8 @@
 <?php
 
 /*
-*   Admin AJAX to check order rev.
+*   wc_ajax_scanpay_get_rev.php:
+*   Admin AJAX to check scanpay revision number (rev).
 */
 
 defined('ABSPATH') || exit();
@@ -23,7 +24,7 @@ if (!$order) {
 }
 
 // Backoff strategy: 500ms, 1s, 2s, 4s, 4s, 4s. Total: 15.5s
-$b = 500000; // 500 ms
+$b = 500000;
 $i = 0;
 while(++$i < 7) {
     $order_rev = $order->get_meta(WC_SCANPAY_URI_REV);
@@ -41,13 +42,6 @@ while(++$i < 7) {
     echo "\n";
     ob_flush();
     flush();
-
-    // ignore_user_abort(false) will terminate the script for us before
-    // but we will leave this here for good measure.
-    if (connection_status() !== 0) {
-        scanpay_log('notice', $c . ': Connection closed by client...');
-        die;
-    }
 }
 
 wp_send_json_success(array(

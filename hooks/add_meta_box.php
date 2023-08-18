@@ -83,13 +83,13 @@ function wc_scanpay_meta_box($order)
     // Alert Boxes
     if ($acts === 0 && ($woo_status === 'cancelled' || $woo_status === 'refunded')) {
         // Tell merchant to void the payment.
-        // TODO: Hide if order is older than 28 days.
         wc_scanpay_meta_alert(
             'notice',
             __('Void the payment to release the reserved amount in the customer\'s bank account. Reservations last for 7-28 days.',
                 'scanpay-for-woocommerce')
         );
     } elseif ($net_mismatch !== 0 && $woo_status !== 'processing') {
+        // Net payment mismatch
         $show_refund_row = true;
         $show_auth_row = true;
         wc_scanpay_meta_alert(
@@ -98,6 +98,7 @@ function wc_scanpay_meta_box($order)
                 wc_price($woo_net, ['currency' => $currency]), wc_price($net, ['currency' => $currency])
             )
         );
+
         $refund_mismatch = wc_scanpay_cmpmoney($refunded, (string) $order->get_total_refunded());
         if ($refund_mismatch !== 0 && empty($refunded)) {
             // Merchant likely forgot to refund in our dashboard

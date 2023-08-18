@@ -1,17 +1,21 @@
 <?php
 
 /*
-*   Hook:
-*   Handle pings
+*   wc_api_wc_scanpay.php:
+*   Public API endpoint for ping events from Scanpay.
 */
 
 defined('ABSPATH') || exit();
+ignore_user_abort(true);
+wc_nocache_headers();
+wc_set_time_limit(0);
 
 $settings = get_option(WC_SCANPAY_URI_SETTINGS);
 if (!isset($_SERVER['HTTP_X_SIGNATURE']) || $settings['apikey'] === null) {
     return wp_send_json(['error' => 'missing signature'], 403);
 }
 
+// Only load the first 512 bytes of data.
 $body = file_get_contents('php://input', false, null, 0, 512);
 $invalidSignature = !hash_equals(
     base64_encode(hash_hmac('sha256', $body, $settings['apikey'], true)),
