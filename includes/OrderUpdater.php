@@ -109,6 +109,10 @@ class WC_Scanpay_OrderUpdater
             );
         }
 
+        // TODO: Needed??
+        $order->set_payment_method('scanpay');
+        // $order->set_payment_method_title('Scanpay');
+
         // Skip the order, if it's not a new revision
         if ($d['rev'] <= $oldrev) {
             return;

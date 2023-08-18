@@ -51,7 +51,6 @@ function wc_scanpay_meta_box($order)
     if (!$order_shopid) {
         return wc_scanpay_meta_alert('notice', __('No payment details found!', 'scanpay-for-woocommerce'));
     }
-    wp_enqueue_script('wc-scanpay-admin', WC_SCANPAY_URL . '/public/js/pending.js', false, WC_SCANPAY_VERSION, true);
 
     require_once WC_SCANPAY_DIR . '/includes/math.php';
     $status = wc_scanpay_status($order);

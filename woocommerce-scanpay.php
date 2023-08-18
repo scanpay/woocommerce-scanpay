@@ -37,6 +37,7 @@ const WC_SCANPAY_URI_SUBSCRIBER_INITIALPAYMENT_NTRIES = '_scanpay_subscriber_ini
 const WC_SCANPAY_URI_PENDING_UPDATE = '_scanpay_pending_update';
 define('WC_SCANPAY_DIR', __DIR__);
 define('WC_SCANPAY_URL', plugins_url('', __FILE__));
+define('WC_SCANPAY_NAME', plugin_basename(__FILE__));
 
 function scanpay_log($level, $msg)
 {
@@ -47,23 +48,32 @@ function scanpay_log($level, $msg)
 
 function scanpay_admin_init()
 {
+    add_action('admin_enqueue_scripts', function ($page) {
+        switch ($page) {
+            case 'woocommerce_page_wc-settings':
+                global $current_section;
+                if ($current_section === 'scanpay' || $current_section === 'scanpay_mobilepay') {
+                    wp_enqueue_script('wc-scanpay-settings', WC_SCANPAY_URL . '/public/js/settings.js', false, WC_SCANPAY_VERSION, true);
+                    wp_register_style('wc-scanpay-settings', WC_SCANPAY_URL . '/public/css/settings.css', null, WC_SCANPAY_VERSION);
+                    wp_enqueue_style('wc-scanpay-settings');
+                }
+                break;
+            case 'woocommerce_page_wc-orders':
+                wp_enqueue_script('wc-scanpay-meta', WC_SCANPAY_URL . '/public/js/meta.js', false, WC_SCANPAY_VERSION, true);
+                wp_register_style('wc-scanpay-meta', WC_SCANPAY_URL . '/public/css/meta.css', null, WC_SCANPAY_VERSION);
+                wp_enqueue_style('wc-scanpay-meta');
+                break;
+        }
+    });
+
+    add_action('add_meta_boxes_woocommerce_page_wc-orders', function () {
+        require WC_SCANPAY_DIR . '/hooks/add_meta_box.php';
+    });
+
     global $pagenow;
-    if ($pagenow === 'admin.php') {
-        // Add admin stylesheet (CSS)
-        wp_register_style('wc-scanpay-admin', WC_SCANPAY_URL . '/public/css/admin.css', null, WC_SCANPAY_VERSION);
-        wp_enqueue_style('wc-scanpay-admin');
-
-        add_action('add_meta_boxes', function () {
-            global $plugin_page;
-            if ($plugin_page === 'wc-orders') {
-                require WC_SCANPAY_DIR . '/hooks/add_meta_box.php';
-            }
-        });
-    }
-
-    // Add helpful links to the plugins table and check compatibility
     if ($pagenow === 'plugins.php') {
-        add_filter('plugin_action_links_' . plugin_basename(__FILE__), function ($links) {
+        // Add helpful links to the plugins table and check compatibility
+        add_filter('plugin_action_links_' . WC_SCANPAY_NAME, function ($links) {
             return array_merge([
                 '<a href="' . admin_url('admin.php?page=wc-settings&tab=checkout&section=scanpay') . '">'
                 . __('Settings') . '</a>'
@@ -74,8 +84,9 @@ function scanpay_admin_init()
 }
 
 add_action('init', function () {
-    load_plugin_textdomain('scanpay-for-woocommerce', false, dirname(plugin_basename( __FILE__ ) ) . '/languages/');
+    load_plugin_textdomain('scanpay-for-woocommerce', false, dirname(WC_SCANPAY_NAME) . '/languages/');
 });
+
 
 add_action('plugins_loaded', function () {
     if (!class_exists('WooCommerce')) {

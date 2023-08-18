@@ -1,0 +1,108 @@
+/*
+    Scanpay meta box
+*/
+
+
+/* Reset meta-box inside */
+#scanpay-info > .inside {
+    margin: 11px 0 0 0;
+    padding: 0;
+}
+
+/* Alert box in meta box */
+.scanpay--alert {
+    margin: 9px 11px 9px;
+    padding: 6px 10px 5px;
+    font-size: .95em;
+    border-radius: 3px;
+    color: #22240a;
+    background: #fff9e6;
+    border: 1px solid #c1b7ab;
+
+    > strong {
+        font-weight: 600;
+        font-size: .95em;
+    }
+}
+
+.scanpay--alert-warning {
+    color: #400808;
+    background: #ffe8e6;
+    border: 1px solid #d19898;
+}
+
+.scanpay--alert-error {
+    color: #400808;
+    background: #ffe8e6;
+    border: 1px solid #d19898;
+}
+
+.scanpay--alert-pending {
+    display: flex;
+}
+
+.scanpay--alert--spin {
+    vertical-align: baseline;
+    margin: 0 6px 0 0;
+}
+
+/* Meta box */
+.scanpay--widget--ul {
+    margin: 10px 0 11px;
+    padding: 0 12px;
+    list-style: none !important;
+}
+
+.scanpay--widget--li {
+    display: flex;
+    padding: .15em 0;
+}
+
+.scanpay--widget--status--fully-refunded, .scanpay--widget--status--partially-refunded {
+    color: #772727;
+}
+
+.scanpay--widget--status--partially-captured {
+    color: #364d36
+}
+
+.scanpay--widget--status--fully-captured {
+    color: #1f601f
+}
+
+.scanpay--widget--li--refunded {
+    color: #641515
+}
+
+.scanpay--widget--refund {
+    color: #b32d2e;
+    margin-top: 1px;
+}
+
+.scanpay--widget--li--title {
+    flex: 1;
+}
+
+.scanpay--widget--li--status--captured {
+    color: #005800;
+}
+
+.scanpay--widget--li--status--refunded {
+    color: #901212;
+}
+
+.scanpay--widget--li--status--partial_refund {
+    color: #a14a20;
+}
+
+.scanpay--actions {
+    display: flex;
+    background-color: #f8f8f8;
+    border-top: 1px solid #e0e0e0;
+    padding: 7px 12px 3px;
+}
+
+.scanpay--actions--expand {
+    flex: 1
+}
+

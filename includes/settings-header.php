@@ -8,7 +8,6 @@
 
 defined('ABSPATH') || exit();
 
-wp_enqueue_script('wc-scanpay-admin', WC_SCANPAY_URL . '/public/js/settings.js', false, WC_SCANPAY_VERSION, true);
 $pingURL = urlencode(WC()->api_request_url('wc_scanpay'));
 $sendPingURL = WC_SCANPAY_DASHBOARD . $this->shopid . '/settings/api/setup?module=woocommerce&url=' . $pingURL;
 $logsURL = basename(wc_get_log_file_path('woo-scanpay'));
@@ -16,13 +15,13 @@ $logsURL = basename(wc_get_log_file_path('woo-scanpay'));
 
 <div class="scanpay--admin--nav">
   <a class="button" target="_blank" href="https://github.com/scanpay/woocommerce-scanpay">
-    <img width="16" height="16" src="<?php echo WC_SCANPAY_URL ?>/public/images/admin/github.svg">
+    <img width="16" height="16" src="<?php echo WC_SCANPAY_URL ?>/public/images/admin/github.svg" class="scanpay--admin--nav--img-git">
     <?php echo __('Guide', 'scanpay-for-woocommerce'); ?>
   </a>
 
   <?php if ($this->shopid) : ?>
   <a class="button" target="_blank" href="<?php echo $sendPingURL ?>">
-    <img width="21" height="16" src="<?php echo WC_SCANPAY_URL ?>/public/images/admin/ping.svg">
+    <img width="21" height="16" src="<?php echo WC_SCANPAY_URL ?>/public/images/admin/ping.svg" class="scanpay--admin--nav--img-ping">
     <?php echo __('Send ping', 'scanpay-for-woocommerce'); ?>
   </a>
   <?php endif; ?>
@@ -54,7 +53,7 @@ $logsURL = basename(wc_get_log_file_path('woo-scanpay'));
     <div class="scanpay--admin--alert scanpay--admin--alert--no-pings">
         <div class="scanpay--admin--alert--ico">
             <a class="scanpay--admin--alert--btn" target="_blank" href="<?php echo $sendPingURL ?>">
-                <img width="21" height="16" src="<?php echo WC_SCANPAY_URL ?>/public/images/admin/ping.svg">
+                <img width="21" height="16" src="<?php echo WC_SCANPAY_URL ?>/public/images/admin/ping-white.svg">
                 <?php echo __('Send ping', 'scanpay-for-woocommerce'); ?>
             </a>
         </div>
@@ -70,7 +69,7 @@ $logsURL = basename(wc_get_log_file_path('woo-scanpay'));
     <div class="scanpay--admin--alert scanpay--admin--alert--last-ping">
         <div class="scanpay--admin--alert--ico">
             <a class="scanpay--admin--alert--btn" target="_blank" href="<?php echo $sendPingURL ?>">
-                <img width="21" height="16" src="<?php echo WC_SCANPAY_URL ?>/public/images/admin/ping.svg">
+                <img width="21" height="16" src="<?php echo WC_SCANPAY_URL ?>/public/images/admin/ping-white.svg">
                 <?php echo __('Send ping', 'scanpay-for-woocommerce'); ?>
             </a>
         </div>

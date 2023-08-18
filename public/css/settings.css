@@ -1,0 +1,101 @@
+/*
+    Scanpay: Admin widget
+*/
+
+/*
+    Scanpay: Admin settings page
+*/
+
+.scanpay--admin--nav {
+    display: flex;
+    align-items: center;
+    margin: 1em 0 1.2em;
+    font-size: 14px;
+}
+
+.scanpay--admin--nav > .button {
+    display: flex;
+    align-items: center;
+    margin: 0 .7rem 0 0;
+    font-size: 14px;
+}
+
+.scanpay--admin--nav--img-git {
+    margin: 0 2px 0 -3px;
+}
+
+.scanpay--admin--nav--img-ping {
+    margin: 0 6px 0 -3px;
+}
+
+.scanpay--admin--alert {
+    display: none;
+    align-items: center;
+    max-width: 66rem;
+    font-size: 1.1em;
+    line-height: 1.5;
+    background: #fff4cc;
+    border-left: 5px solid #dfc155;
+    margin: .8em 0 .5em;
+    padding: .8em 1.2em .7em;
+    box-shadow: rgba(0, 0, 0, 0.1) 0px 3px 5px 0px;
+}
+
+.scanpay--admin--alert--no-pings > .scanpay--admin--alert--no-pings,
+.scanpay--admin--alert--last-ping > .scanpay--admin--alert--last-ping,
+.scanpay--admin--alert--show {
+    display: flex;
+}
+
+.scanpay--admin--alert--ico {
+    padding-right: 1em;
+}
+
+.scanpay--admin--alert--btn {
+    display: flex;
+    align-items: center;
+    padding: .4em .7em .4em;
+    margin: 0 .4em 0 0;
+    background: #2271b1;
+    color: #fff;
+    font-weight: bold;
+    text-decoration: none;
+    cursor: pointer;
+    border-radius: 3px;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+.scanpay--admin--alert--btn img {
+    margin-right: 4px;
+}
+
+.scanpay--admin--alert--btn:hover, .scanpay--admin--alert--btn:focus {
+    background: #135e96;
+    color: #fff;
+    box-shadow: none;
+}
+
+.scanpay--admin--alert--title {
+    font-weight: bold;
+    padding: 0 0 2px;
+}
+
+/*
+    Reduce paddings in auto-complete group
+*/
+
+.scanpay--admin--table tr:nth-last-child(1) > .titledesc,
+.scanpay--admin--table tr:nth-last-child(2) > .titledesc {
+    padding-top: 7px;
+}
+
+.scanpay--admin--table tr:nth-last-child(1) > .forminp,
+.scanpay--admin--table tr:nth-last-child(2) > .forminp {
+    padding-top: 3px;
+}
+
+.scanpay--admin--no-subs tr:nth-last-child(1) {
+    display: none;
+}
+
