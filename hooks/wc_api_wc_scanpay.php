@@ -34,6 +34,7 @@ if ($ping === null || !isset($ping['seq']) || !is_int($ping['seq'])) {
 require WC_SCANPAY_DIR . '/includes/SeqDB.php';
 $shopid = (int) explode(':', $settings['apikey'])[0];
 $SeqDB = new WC_Scanpay_SeqDB($shopid);
+$seq = $db['seq'];
 if (!$SeqDB) {
     scanpay_log('error', 'Could not open database');
     return wp_send_json(['error' => 'Could not open database'], 500);
@@ -45,12 +46,12 @@ if ($ping['shopid'] !== $db['shopid']) {
     return wp_send_json(['error' => 'shopid mismatch'], 400);
 }
 
-if ($ping['seq'] === $db['seq']) {
+if ($ping['seq'] === $seq) {
     $SeqDB->update_mtime();
     return wp_send_json(['ok' => 0], 200);
 }
 
-if ($ping['seq'] < $db['seq']) {
+if ($ping['seq'] < $seq) {
     $msg = sprintf('Ping seq (%u) is lower than the local seq (%u)', $ping['seq'], $seq);
     scanpay_log('error', $msg);
     return wp_send_json(['error' => $msg], 400);
@@ -58,8 +59,13 @@ if ($ping['seq'] < $db['seq']) {
 
 // Get the changes from Scanpay backend.
 require WC_SCANPAY_DIR . '/includes/ScanpayClient.php';
-$client = new WC_Scanpay_API_Client($this->settings['apikey']);
-$seq = $db['seq'];
+$client = new WC_Scanpay_API_Client($settings['apikey']);
+
+
+function scanpay_order_updater($change) {
+
+}
+
 
 while (1) {
     $res = $client->seq($seq);
@@ -71,10 +77,10 @@ while (1) {
         switch ($change['type']) {
             case 'transaction':
             case 'charge':
-                $this->updateTransaction($change);
+                scanpay_order_updater($change);
                 break;
             case 'subscriber':
-                // $this->updateSubscriber($change);
+                // scanpay_subscriber_updater($change);
                 break;
             default:
                 throw new Exception('Unknown change type: ' . $change['type']);
@@ -83,47 +89,3 @@ while (1) {
     $seq = $res['seq'];
     $this->SeqDB->set_seq($seq);
 }
-
-
-//require WC_SCANPAY_DIR . '/includes/OrderUpdater.php';
-// $orderUpdater = new WC_Scanpay_OrderUpdater($settings);
-//$res = $orderUpdater->handlePing($ping);
-// wp_send_json_success();
-
-/*
-    public function handlePing($ping)
-    {
-        if ($ping['seq'] === $seq) {
-            return $this->seqdb->update_mtime();
-        }
-        if ($ping['seq'] < $seq) {
-            throw new Exception(sprintf('Ping seq (%u) is lower than the local seq (%u)', $ping['seq'], $seq));
-        }
-
-        require_once WC_SCANPAY_DIR . '/includes/ScanpayClient.php';
-        $client = new WC_Scanpay_API_Client($this->settings['apikey']);
-
-        while (1) {
-            $res = $client->seq($seq);
-            if (count($res['changes']) === 0) {
-                break; // done
-            }
-
-            foreach ($res['changes'] as $change) {
-                switch ($change['type']) {
-                    case 'transaction':
-                    case 'charge':
-                        $this->updateTransaction($change);
-                        break;
-                    case 'subscriber':
-                        // $this->updateSubscriber($change);
-                        break;
-                    default:
-                        throw new Exception('Unknown change type: ' . $change['type']);
-                }
-            }
-            $seq = $res['seq'];
-            $this->seqdb->set_seq($seq);
-        }
-    }
-*/
