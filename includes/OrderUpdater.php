@@ -16,53 +16,6 @@ class WC_Scanpay_OrderUpdater
         $this->seqdb = new WC_Scanpay_SeqDB($this->shopid);
     }
 
-    public function handlePing($ping)
-    {
-        ignore_user_abort(true);
-        $db = $this->seqdb->get_seq();
-        if ($ping['shopid'] !== $db['shopid']) {
-            throw new Exception('Ping shopid does not match shopid in Woo');
-        }
-
-        if ($ping['seq'] === $db['seq']) {
-            $this->seqdb->update_mtime();
-        } elseif ($ping['seq'] < $db['seq']) {
-            throw new Exception(sprintf(
-                'Ping seq (%u) is lower than the local seq (%u)',
-                $ping['seq'],
-                $db['seq']
-            ));
-        } else {
-            set_time_limit(120); // [default: 30s]
-            require_once WC_SCANPAY_DIR . '/includes/ScanpayClient.php';
-            $client = new WC_Scanpay_API_Client($this->settings['apikey']);
-
-            $seq = $db['seq'];
-            while (1) {
-                $res = $client->seq($seq);
-                if (count($res['changes']) === 0) {
-                    break; // done
-                }
-
-                foreach ($res['changes'] as $change) {
-                    switch ($change['type']) {
-                        case 'transaction':
-                        case 'charge':
-                            $this->updateTransaction($change);
-                            break;
-                        case 'subscriber':
-                            // $this->updateSubscriber($change);
-                            break;
-                        default:
-                            throw new Exception('Unknown change type: ' . $change['type']);
-                    }
-                }
-                $seq = $res['seq'];
-                $this->seqdb->set_seq($seq);
-            }
-        }
-    }
-
     private function updateTransaction($d)
     {
         // Skip changes with 'error' (ERR)

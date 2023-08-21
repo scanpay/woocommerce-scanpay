@@ -20,7 +20,7 @@ $logsURL = basename(wc_get_log_file_path('woo-scanpay'));
   </a>
 
   <?php if ($this->shopid) : ?>
-  <a class="button" target="_blank" href="<?php echo $sendPingURL ?>">
+  <a id="scanpay--admin--ping" class="button" target="_blank" href="<?php echo $sendPingURL ?>">
     <img width="21" height="16" src="<?php echo WC_SCANPAY_URL ?>/public/images/admin/ping.svg" class="scanpay--admin--nav--img-ping">
     <?php echo __('Send ping', 'scanpay-for-woocommerce'); ?>
   </a>

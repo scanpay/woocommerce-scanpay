@@ -3,29 +3,37 @@
 */
 
 (() => {
-    let lastPing = localStorage.getItem('scanpay-last-ping') | 0;
 
-    // Check last ping and warn if >5 mins old
-    function checkPing() {
-        const pingThreshold = (Date.now() / 1000 - 300);
-        if (lastPing < pingThreshold) {
-            fetch('../wc-api/scanpay_last_ping/').then(r => r.json()).then((r) => {
-                const parent = document.querySelector('#scanpay--admin--alert--parent');
-                lastPing = r.data.mtime;
-                localStorage.setItem('scanpay-last-ping', lastPing);
-                if (!lastPing) {
-                    parent.className = 'scanpay--admin--alert--no-pings';
-                } else if (lastPing < pingThreshold) {
-                    const mins = Math.round((Date.now() / 1000 - lastPing) / 60);
-                    document.querySelector('#scanpay-ping').textContent = mins;
-                    parent.className = 'scanpay--admin--alert--last-ping';
-                } else {
-                    parent.className = '';
-                }
-            }).catch(e => console.log(e));
+    if (document.querySelector('#scanpay--admin--ping')) {
+        let lastPing = localStorage.getItem('scanpay-last-ping') | 0;
+        // Check last ping and warn if >5 mins old
+        function checkPing() {
+            const pingThreshold = (Date.now() / 1000 - 300);
+            if (lastPing < pingThreshold) {
+                fetch('../wc-api/scanpay_last_ping/').then(r => r.json()).then((r) => {
+                    const parent = document.querySelector('#scanpay--admin--alert--parent');
+                    lastPing = r.data.mtime;
+                    localStorage.setItem('scanpay-last-ping', lastPing);
+                    if (!lastPing) {
+                        parent.className = 'scanpay--admin--alert--no-pings';
+                    } else if (lastPing < pingThreshold) {
+                        const mins = Math.round((Date.now() / 1000 - lastPing) / 60);
+                        document.querySelector('#scanpay-ping').textContent = mins;
+                        parent.className = 'scanpay--admin--alert--last-ping';
+                    } else {
+                        parent.className = '';
+                    }
+                }).catch(e => console.log(e));
+            }
         }
+        checkPing();
+
+        // checkPing when the tab is visible again
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState == "visible") checkPing();
+        });
     }
-    checkPing();
+
 
     // Show or Hide Subscriptions Settings
     const subs_checkbox = document.getElementById('woocommerce_scanpay_subscriptions_enabled');
@@ -36,9 +44,4 @@
             document.querySelector('.scanpay--admin--table').classList.add('scanpay--admin--no-subs');
         }
     })
-
-    // checkPing when the tab is visible again
-    document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState == "visible") checkPing();
-    });
 })();

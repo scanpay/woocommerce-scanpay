@@ -16,6 +16,11 @@ if (!current_user_can('edit_shop_orders')) {
 require_once WC_SCANPAY_DIR . '/includes/SeqDB.php';
 
 $settings = get_option(WC_SCANPAY_URI_SETTINGS);
+if (empty($settings['apikey'])) {
+    wp_send_json(['error' => 'missing apikey'], 403);
+    exit;
+}
+
 $shopid = (int) explode(':', $settings['apikey'])[0];
 $seqdb = new WC_Scanpay_SeqDB($shopid);
 

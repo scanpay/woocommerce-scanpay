@@ -114,7 +114,7 @@ add_action('plugins_loaded', function () {
         require WC_SCANPAY_DIR . '/hooks/wc_api_wc_scanpay.php';
     });
 
-    // JavaScript endpoints
+    // AJAX endpoints
     add_action('woocommerce_api_scanpay_get_rev', function () {
         require WC_SCANPAY_DIR . '/hooks/wc_ajax_scanpay_get_rev.php';
     });
