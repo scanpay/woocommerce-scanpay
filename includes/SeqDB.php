@@ -1,28 +1,24 @@
 <?php
 
 defined('ABSPATH') || exit();
+declare(strict_types=1);
 
 class WC_Scanpay_SeqDB
 {
     private $shopID;
     private $tablename;
 
-    public function __construct($shopid)
+    public function __construct(int $shopid)
     {
         global $wpdb;
         $this->tablename = $wpdb->prefix . 'woocommerce_scanpay_seq';
-        $this->shopID = (int) $shopid;
-        if ($shopid <= 0) {
-            scanpay_log('critical', 'ShopID argument is not an unsigned int');
-            return false;
-        }
+        $this->shopID = $shopid;
     }
 
-    public function create_tables()
+    public function create_table()
     {
         global $wpdb, $charset_collate;
         require ABSPATH . 'wp-admin/includes/upgrade.php';
-
         dbDelta(
             "CREATE TABLE $this->tablename (
                 shopid INT UNSIGNED NOT NULL,
@@ -31,10 +27,7 @@ class WC_Scanpay_SeqDB
                 PRIMARY KEY  (shopid)
             ) $charset_collate;"
         );
-
-        $wpdb->query(
-            "INSERT IGNORE INTO $this->tablename SET shopid = $this->shopID, seq = 0, mtime = 0"
-        );
+        $wpdb->query("INSERT IGNORE INTO $this->tablename SET shopid = $this->shopID, seq = 0, mtime = 0");
     }
 
     public function update_mtime()
@@ -46,17 +39,11 @@ class WC_Scanpay_SeqDB
         );
     }
 
-    public function set_seq($seq)
+    public function set_seq(int $seq)
     {
         global $wpdb;
-        if (!is_int($seq)) {
-            scanpay_log('critical', 'Seq is not an unsigned int');
-            return false;
-        }
         $mtime = time();
-        $ret = $wpdb->query(
-            "UPDATE $this->tablename SET seq = $seq, mtime = $mtime WHERE shopid = $this->shopID"
-        );
+        $ret = $wpdb->query("UPDATE $this->tablename SET seq = $seq, mtime = $mtime WHERE shopid = $this->shopID");
 
         if ($ret == false) {
             scanpay_log('critical', 'Failed saving seq to database');
@@ -68,10 +55,7 @@ class WC_Scanpay_SeqDB
     public function get_seq()
     {
         global $wpdb;
-        $row = $wpdb->get_row(
-            "SELECT * FROM $this->tablename WHERE shopid = $this->shopID",
-            ARRAY_A
-        );
+        $row = $wpdb->get_row("SELECT * FROM $this->tablename WHERE shopid = $this->shopID", ARRAY_A);
         if ($row) {
             return [
                 'shopid' => (int) $row['shopid'],
