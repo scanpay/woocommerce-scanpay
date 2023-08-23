@@ -1,4 +1,5 @@
 <?php
+declare(strict_types = 1);
 
 /*
 *   wc_api_wc_scanpay.php:
@@ -6,7 +7,6 @@
 */
 
 defined('ABSPATH') || exit();
-declare(strict_types = 1);
 ignore_user_abort(true);
 wc_nocache_headers();
 wc_set_time_limit(0);
@@ -31,22 +31,23 @@ if (
     wp_send_json(['error' => 'invalid JSON'], 400);
     die();
 }
-require WC_SCANPAY_DIR . '/includes/SeqDB.php';
 
-try {
-    $SeqDB = new WC_Scanpay_SeqDB($ping['shopid']);
+require WC_SCANPAY_DIR . '/includes/SeqDB.php';
+$SeqDB = new WC_Scanpay_SeqDB($ping['shopid']);
+$db = $SeqDB->get_seq();
+if (!$db) {
+    $SeqDB->create_table();
     $db = $SeqDB->get_seq();
-} catch (Exception $ex){
-    scanpay_log('error', 'Could not open database');
-    return wp_send_json(['error' => 'Could not open database'], 500);
+    if (!$db) {
+        scanpay_log('critical', 'Failed creating table in database');
+        return wp_send_json(['error' => 'failed creating table'], 500);
+    }
 }
 
 if ($ping['seq'] === $db['seq']) {
     $SeqDB->update_mtime();
-    return wp_send_json(['ok' => 0], 200);
+    return wp_send_json_success();
 }
-
-die();
 
 if ($ping['seq'] < $db['seq']) {
     $msg = sprintf('Ping seq (%u) is lower than the local seq (%u)', $ping['seq'], $db['seq']);
@@ -54,7 +55,6 @@ if ($ping['seq'] < $db['seq']) {
     return wp_send_json(['error' => $msg], 400);
 }
 
-// Get the changes from Scanpay backend.
 require WC_SCANPAY_DIR . '/includes/ScanpayClient.php';
 require WC_SCANPAY_DIR . '/includes/orderUpdater.php';
 $client = new WC_Scanpay_API_Client($settings['apikey']);
@@ -70,15 +70,17 @@ while (1) {
         switch ($change['type']) {
             case 'transaction':
             case 'charge':
-                scanpay_order_updater($change, $seq, $ping['shopid']);
+                scanpay_order_updater($change, $seq, $ping['shopid'], $settings);
                 break;
             case 'subscriber':
                 // scanpay_subscriber_updater($change);
                 break;
             default:
-                throw new Exception('Unknown change type: ' . $change['type']);
+                scanpay_log('error', 'Unknown change type: ' . $change['type']);
+                die();
         }
     }
     $seq = $res['seq'];
-    $this->SeqDB->set_seq($seq);
+    $SeqDB->set_seq($seq);
 }
+return wp_send_json_success();

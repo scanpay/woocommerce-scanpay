@@ -50,7 +50,7 @@ function wc_scanpay_payment_link($orderid)
         $lineTotal = $order->get_line_total($item, true, true); // incl_taxes and rounded
         $data['items'][] = [
             'name' => $item->get_name(),
-            'sku' => $item->is_type('line_item') ? strval($item->get_product_id()) : null,
+            //'sku' => $item->is_type('line_item') ? strval($item->get_product_id()) : null,
             'quantity' => intval($item->get_quantity()),
             'total' => $lineTotal . ' ' . $currency_code
         ];
@@ -94,13 +94,12 @@ function wc_scanpay_payment_link($orderid)
 
     // Use the scanpay client lib to create a payment link
     require WC_SCANPAY_DIR . '/includes/ScanpayClient.php';
-    $client = new WC_Scanpay_API_Client($settings['apikey'], [
-        'headers' => [
-            'X-Cardholder-IP' => $_SERVER['REMOTE_ADDR'],
-        ],
-    ]);
-
     try {
+        $client = new WC_Scanpay_API_Client($settings['apikey'], [
+            'headers' => [
+                'X-Cardholder-IP' => $_SERVER['REMOTE_ADDR'],
+            ],
+        ]);
         $paymentLink = $client->newURL($data);
     } catch (\Exception $e) {
         scanpay_log('error', 'scanpay client exception: ' . $e->getMessage());
@@ -109,6 +108,7 @@ function wc_scanpay_payment_link($orderid)
             'Please wait a moment and try again.'
         );
     }
+
     $order->update_status('wc-pending');
     $order->add_meta_data(WC_SCANPAY_URI_SHOPID, $shopid);
     $order->add_meta_data(WC_SCANPAY_URI_PAYID, basename(parse_url($paymentLink, PHP_URL_PATH)));

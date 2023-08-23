@@ -2,7 +2,7 @@
 
 defined('ABSPATH') || exit();
 
-function scanpay_order_updater($d, $seq, $shopid) {
+function scanpay_order_updater($d, $seq, $shopid, $settings) {
     if (!isset($d['id']) || !is_int($d['id'])) {
         scanpay_log('error', "Synchronization failed [$seq]: missing 'id' in transaction");
         die();
@@ -34,19 +34,18 @@ function scanpay_order_updater($d, $seq, $shopid) {
         return; // Skip this change
     }
 
-    $oldrev = (int) $order->get_meta(WC_SCANPAY_URI_REV);
     $orderShopId = (int) $order->get_meta(WC_SCANPAY_URI_SHOPID);
-    if ($orderShopId !== $this->shopid) {
-        scanpay_log('warning', "Order #$orderid with shopID: $orderShopId " . "does not match current shopID ($this->shopid)");
+    $nacts = (int) $order->get_meta(WC_SCANPAY_URI_NACTS);
+    $rev = (int) $order->get_meta(WC_SCANPAY_URI_REV);
+
+    if ($orderShopId !== $shopid) {
+        scanpay_log('warning', "Order #$orderid with shopID: $orderShopId " . "does not match current shopID ($shopid)");
         return;
     }
 
-    // TODO: Needed??
-    $order->set_payment_method('scanpay');
-    // $order->set_payment_method_title('Scanpay');
-
-    // Skip the order, if it's not a new revision
-    if ($d['rev'] <= $oldrev) {
+    // Check if the order is already up to date
+    if ($d['rev'] <= $rev) {
+        scanpay_log('info', "Order #$orderid is already up to date");
         return;
     }
 
@@ -55,17 +54,12 @@ function scanpay_order_updater($d, $seq, $shopid) {
         $order->update_status('processing');
     }
 
-    $nacts = (int) $order->get_meta(WC_SCANPAY_URI_NACTS);
-
     for ($i = $nacts; $i < count($d['acts']); $i++) {
         $act = $d['acts'][$i];
         switch ($act['act']) {
             case 'capture':
                 if (isset($act['total']) && is_string($act['total'])) {
-                    $order->add_order_note(sprintf(
-                        'Captured %s',
-                        $act['total']
-                    ));
+                    $order->add_order_note(sprintf('Captured %s', $act['total']));
                 }
                 break;
             case 'refund':
@@ -105,9 +99,11 @@ function scanpay_order_updater($d, $seq, $shopid) {
     }
 
     // Autocomplete virtual orders
+    /*
     if ($this->settings['autocomplete_virtual'] && $order->get_status() === 'processing') {
         $this->autocompleteVirtual($order);
     }
+    */
 
     $order->add_meta_data(WC_SCANPAY_URI_REV, $d['rev'], true);
     $order->save();

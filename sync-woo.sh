@@ -3,32 +3,31 @@
 DIR="$( cd "$(dirname "$0")" ; pwd -P )/"
 DEST="/var/www/woocommerce.scanpay.dev/wp-content/plugins/scanpay-for-woocommerce"
 
-echo $DIR
-
 function dosync {
     echo 'sync ...'
-    rsync --recursive --delete-after \
+
+    # Sync files to build folder
+    rsync --recursive \
         --exclude=".*" \
         --exclude="*.sh" \
-        --rsync-path="/usr/bin/sudo -u nobody rsync" -e ssh "$DIR" modules:"$DEST" || exit 1
+        --exclude="node_modules" \
+        --exclude="build" \
+        --exclude="vendor" \
+        --exclude="composer.lock" \
+        --exclude="composer.json" \
+        --exclude="package.json" \
+        --exclude="package-lock.json" \
+        --exclude="phpcs.xml" \
+        $DIR $DIR/build || exit 1
 
-    # Change API to test env
-    ssh modules "sudo -u nobody sed -i 's/dashboard\.scanpay\.dk/dashboard\.scanpay\.dev/' $DEST/woocommerce-scanpay.php"
-    ssh modules "sudo -u nobody sed -i 's/api\.scanpay\.dk/api\.scanpay\.dev/g' $DEST/includes/ScanpayClient.php"
-}
+    sed -i 's/dashboard\.scanpay\.dk/dashboard\.scanpay\.dev/' $DIR/build/woocommerce-scanpay.php
+    sed -i 's/api\.scanpay\.dk/api\.scanpay\.dev/g' $DIR/build/includes/ScanpayClient.php
 
-function watch() {
-    if type inotifywait &>/dev/null; then
-        inotifywait -mqr -e close_write "$1"
-    elif type fswatch &>/dev/null; then
-        fswatch -ro "$1"
-    else
-        (>&2 echo 'no available program to watch ')
-        exit 1
-    fi
+    rsync --recursive \
+        --rsync-path="/usr/bin/sudo -u nobody rsync" -e ssh "$DIR/build/" modules:"$DEST" || exit 1
 }
 dosync
 
-watch $DIR | while read f; do
+inotifywait -mqr -e close_write --exclude 'build/' $DIR | while read f; do
     dosync
 done

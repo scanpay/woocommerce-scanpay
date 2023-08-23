@@ -18,7 +18,7 @@ class WC_Scanpay_API_Client
     {
         // Check if libcurl is enabled
         if (!function_exists('curl_init')) {
-            die("ERROR: Please enable php-curl\n");
+            throw new \Exception("ERROR: Please enable php-curl\n");
         }
 
         // Public cURL handle (reuse handle)
