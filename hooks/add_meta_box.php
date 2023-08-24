@@ -50,7 +50,8 @@ function wc_scanpay_meta_box(object $order): void
 {
     $order_shopid = (int) $order->get_meta(WC_SCANPAY_URI_SHOPID);
     if (!$order_shopid) {
-        return wc_scanpay_meta_alert('notice', __('No payment details found!', 'scanpay-for-woocommerce'));
+        wc_scanpay_meta_alert('notice', __('No payment details found!', 'scanpay-for-woocommerce'));
+        return;
     }
 
     require_once WC_SCANPAY_DIR . '/includes/math.php';
