@@ -11,18 +11,16 @@ class WC_Scanpay_API_Client
     protected $headers;
     protected $apikey;
     protected $idemstatus;
-    protected $useidem;
     protected $opts;
 
-    public function __construct($apikey = '', $opts = [])
+    public function __construct(string $apikey, array $opts = [])
     {
-        // Check if libcurl is enabled
         if (!function_exists('curl_init')) {
             throw new \Exception("ERROR: Please enable php-curl\n");
         }
-
-        // Public cURL handle (reuse handle)
-        $this->ch = curl_init();
+        $this->ch = curl_init(); // reuse handle
+        $this->apikey = $apikey;
+        $this->opts = $opts;
         $this->headers = [
             'authorization' => 'Authorization: Basic ' . base64_encode($apikey),
             'x-shop-plugin' => 'woocommerce/' . WC_VERSION . '/' . WC_SCANPAY_VERSION,
@@ -31,28 +29,11 @@ class WC_Scanpay_API_Client
         ];
         /* The 'Expect' header will disable libcurl's expect-logic,
             which will save us a HTTP roundtrip on POSTs >1024b. */
-        $this->apikey = $apikey;
-        $this->opts = $opts;
-    }
-
-    /* Create indexed array from associative array ($this->headers).
-        Let the merchant overwrite the headers. */
-    protected function httpHeaders($oldHeaders, $o = [])
-    {
-        $ret = $oldHeaders;
-        if (isset($o['headers'])) {
-            foreach ($o['headers'] as $key => &$val) {
-                $ret[strtolower($key)] = $key . ': ' . $val;
-            }
-            if (isset($ret['idempotency-key'])) {
-                $this->useidem = true;
-            }
-        }
-        return $ret;
     }
 
     protected function headerCallback($curl, $hdr)
     {
+        scanpay_log('info', gettype($curl) . '; hdr: ' . gettype($hdr));
         $header = explode(':', $hdr, 2);
         // Skip invalid headers
         if (count($header) < 2) return strlen($hdr);
@@ -63,27 +44,28 @@ class WC_Scanpay_API_Client
         return strlen($hdr);
     }
 
-    protected function request($path, $opts = [], $data = null)
+    protected function request(string $path, array $reqOpts = [], ?array $data = null): array
     {
-        $this->useidem = false;
         $this->idemstatus = null;
+        $opts = $this->opts;
+        $headers = $this->headers;
 
-        // Merge headers
-        $headers = $this->httpHeaders($this->headers, $this->opts);
-        $headers = array_values($this->httpHeaders($headers, $opts));
-
-        // Merge other options
-        $opts = array_merge($this->opts, $opts);
-        $hostname = (isset($opts['hostname'])) ? $opts['hostname'] : 'api.scanpay.dk';
-
+        if (!empty($reqOpts)) {
+            $opts = array_merge($this->opts, $reqOpts);
+            if (isset($reqOpts['headers'])) {
+                foreach ($reqOpts['headers'] as $key => &$val) {
+                    $headers[strtolower($key)] = $key . ': ' . $val;
+                }
+            }
+        }
         $curlopts = [
-            CURLOPT_URL => 'https://' . $hostname . $path,
-            CURLOPT_HTTPHEADER => $headers,
-            CURLOPT_CUSTOMREQUEST => ($data === null) ? 'GET' : 'POST',
-            CURLOPT_VERBOSE => isset($opts['debug']) ? $opts['debug'] : 0,
+            CURLOPT_URL => 'https://api.scanpay.dk' . $path,
+            CURLOPT_HTTPHEADER => array_values($headers),
+            CURLOPT_POST => ($data !== null),
             CURLOPT_RETURNTRANSFER => 1,
             CURLOPT_CONNECTTIMEOUT => 20,
-            CURLOPT_TIMEOUT => 120,
+            CURLOPT_TIMEOUT => 40,
+            CURLOPT_VERBOSE => 1
         ];
 
         if ($data !== null) {
@@ -93,7 +75,7 @@ class WC_Scanpay_API_Client
             }
         }
 
-        if ($this->useidem) {
+        if (isset($headers['idempotency-key'])) {
             // this function is called by cURL for each header received
             $curlopts[CURLOPT_HEADERFUNCTION] = [$this, 'headerCallback'];
         }
@@ -110,14 +92,13 @@ class WC_Scanpay_API_Client
         if (!$result) {
             throw new \Exception(curl_strerror(curl_errno($this->ch)));
         }
-
         $statusCode = curl_getinfo($this->ch, CURLINFO_RESPONSE_CODE);
         if ($statusCode !== 200) {
             throw new \Exception(('Scanpay returned "' . explode("\n", $result)[0] . '"'));
         }
 
         // Validate Idempotency-Status
-        if ($this->useidem && $this->idemstatus !== 'OK') {
+        if (isset($headers['idempotency-key']) && $this->idemstatus !== 'OK') {
             throw new \Exception(
                 "Server failed to provide idempotency. Scanpay returned $statusCode - " . explode("\n", $result)[0]
             );
@@ -131,32 +112,29 @@ class WC_Scanpay_API_Client
     }
 
     // newURL: Create a new payment link
-    public function newURL($data, $opts = [])
+    public function newURL(array $data, array $opts = []): string
     {
-        $o = $this->request('/v1/new', $opts, $data);
-        if (isset($o['url']) && filter_var($o['url'], FILTER_VALIDATE_URL)) {
-            return $o['url'];
+        $res = $this->request('/v1/new', $opts, $data);
+        if (isset($res['url']) && filter_var($res['url'], FILTER_VALIDATE_URL)) {
+            return $res['url'];
         }
         throw new \Exception('Invalid response from server');
     }
 
     // seq: Get array of changes since the reqested seqnum
-    public function seq($seqnum, $opts = [])
+    public function seq(int $seqnum): array
     {
-        if (!is_numeric($seqnum)) {
-            throw new \Exception('seq argument must be an integer');
-        }
-        $o = $this->request('/v1/seq/' . $seqnum, $opts);
+        $res = $this->request('/v1/seq/' . $seqnum);
         if (
-            isset($o['seq']) && is_int($o['seq']) &&
-            isset($o['changes']) && is_array($o['changes'])
+            isset($res['seq']) && is_int($res['seq']) &&
+            isset($res['changes']) && is_array($res['changes'])
         ) {
-            return $o;
+            return $res;
         }
         throw new \Exception('Invalid response from server');
     }
 
-    public function capture($trnid, $data, $opts = [])
+    public function capture(int $trnid, array $data, array $opts = []): array
     {
         return $this->request("/v1/transactions/$trnid/capture", $opts, $data);
     }

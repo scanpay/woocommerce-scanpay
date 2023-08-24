@@ -1,8 +1,9 @@
 <?php
+declare(strict_types = 1);
 
 defined('ABSPATH') || exit();
 
-function wc_scanpay_payment_link($orderid)
+function wc_scanpay_payment_link(int $orderid): string
 {
     require WC_SCANPAY_DIR . '/includes/math.php';
 
@@ -18,7 +19,6 @@ function wc_scanpay_payment_link($orderid)
 
     $data = [
         'orderid'     => strval($orderid),
-        'language'    => $settings['language'],
         'successurl'  => $order->get_checkout_order_received_url(),
         'billing'     => array_filter([
             'name'    => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
@@ -42,22 +42,25 @@ function wc_scanpay_payment_link($orderid)
         ]),
     ];
 
-    $types = array('line_item', 'fee', 'shipping', 'coupon');
-    $itemWithNegativePrice;
-    $sum = 0;
+    $itemWithNegativePrice = false;
+    $sum = '0';
+    // TODO: loop items alone (to get SKU)
 
+    $types = array('line_item', 'fee', 'shipping', 'coupon');
     foreach ($order->get_items($types) as $id => $item) {
-        $lineTotal = $order->get_line_total($item, true, true); // incl_taxes and rounded
+        // line total with taxes and rounded (as Woo does it)
+        $lineTotal = $order->get_line_total($item, true, true);
+
         $data['items'][] = [
             'name' => $item->get_name(),
             //'sku' => $item->is_type('line_item') ? strval($item->get_product_id()) : null,
-            'quantity' => intval($item->get_quantity()),
+            'quantity' => $item->get_quantity(),
             'total' => $lineTotal . ' ' . $currency_code
         ];
         if ($lineTotal < 0) {
             $itemWithNegativePrice = true;
         }
-        $sum = wc_scanpay_addmoney($sum, $lineTotal);
+        $sum = wc_scanpay_addmoney($sum, strval($lineTotal));
     }
 
     if ($itemWithNegativePrice) {
@@ -69,7 +72,7 @@ function wc_scanpay_payment_link($orderid)
     }
 
     // Check if sum of items matches the order total
-    if (wc_scanpay_cmpmoney($sum, $order->get_total())) {
+    if (wc_scanpay_cmpmoney($sum, strval($order->get_total()))) {
         unset($data['items']);
         $errmsg = sprintf(
             'The sum of all items (%s) does not match the order total (%s).' .
@@ -81,7 +84,7 @@ function wc_scanpay_payment_link($orderid)
         scanpay_log('warning', "Order #$orderid: $errmsg");
     }
 
-    // Order came without items... or we ignored them
+    // Order came without items... or we removed them
     if (!isset($data['items'])) {
         $data['items'][] = [
             'name' => 'Total',

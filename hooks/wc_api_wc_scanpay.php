@@ -35,14 +35,6 @@ if (
 require WC_SCANPAY_DIR . '/includes/SeqDB.php';
 $SeqDB = new WC_Scanpay_SeqDB($ping['shopid']);
 $db = $SeqDB->get_seq();
-if (!$db) {
-    $SeqDB->create_table();
-    $db = $SeqDB->get_seq();
-    if (!$db) {
-        scanpay_log('critical', 'Failed creating table in database');
-        return wp_send_json(['error' => 'failed creating table'], 500);
-    }
-}
 
 if ($ping['seq'] === $db['seq']) {
     $SeqDB->update_mtime();
@@ -50,7 +42,7 @@ if ($ping['seq'] === $db['seq']) {
 }
 
 if ($ping['seq'] < $db['seq']) {
-    $msg = sprintf('Ping seq (%u) is lower than the local seq (%u)', $ping['seq'], $db['seq']);
+    $msg = sprintf('Ping seq (%u) is lower than local seq (%u)', $ping['seq'], $db['seq']);
     scanpay_log('error', $msg);
     return wp_send_json(['error' => $msg], 400);
 }

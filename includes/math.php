@@ -3,9 +3,9 @@
 defined('ABSPATH') || exit();
 
 /*
-    wc_scanpay_dighomogenize(): turn 123.4 and 56.78 into 12340 and 05678
+    wc_scanpay_dighomogenize(): turn "123.4" and "56.78" into "12340" and "05678"
 */
-function wc_scanpay_dighomogenize($a, $b)
+function wc_scanpay_dighomogenize(string $a, string $b): array
 {
     $h = array();
     $h["as"] = ($a[0] == '-');
@@ -20,9 +20,9 @@ function wc_scanpay_dighomogenize($a, $b)
 }
 
 /*
-    wc_scanpay_digformat() turn 012340 into 123.40 or 12300 into 123
+    wc_scanpay_digformat() turn "012340" into "123.40" or "12300" into "123"
 */
-function wc_scanpay_digformat($sign, $s, $fl)
+function wc_scanpay_digformat(bool $sign, string $s, int $fl): string
 {
     $il = strlen($s) - $fl;
     $s = ltrim(substr($s, 0, $il), "0") . "." . substr($s, $il);
@@ -33,7 +33,7 @@ function wc_scanpay_digformat($sign, $s, $fl)
     return ($sign ? "-" : "") . (($s[$d] == '.') ? substr($s, 0, $d) : $s);
 }
 
-function wc_scanpay_digadd($a, $b)
+function wc_scanpay_digadd(string $a, string $b): string
 {
     for ($s = "", $rem = 0, $i = strlen($a) - 1; $i >= 0; $i--) {
         $r = intval($a[$i]) + intval($b[$i]) + $rem;
@@ -48,7 +48,7 @@ function wc_scanpay_digadd($a, $b)
     return ($rem > 0) ? strval($rem) . $s : $s;
 }
 
-function wc_scanpay_digsub($a, $b)
+function wc_scanpay_digsub(string $a, string $b): string
 {
     for ($s = "", $rem = 0, $i = strlen($a) - 1; $i >= 0; $i--) {
         if ($a[$i] < $b[$i] + $rem) {
@@ -62,7 +62,7 @@ function wc_scanpay_digsub($a, $b)
     return $s;
 }
 
-function wc_scanpay_addmoney($a, $b)
+function wc_scanpay_addmoney(string $a, string $b): string
 {
     $h = wc_scanpay_dighomogenize($a, $b);
     // sign magic to avoid subtracting a larger number from a smaller one
@@ -79,13 +79,13 @@ function wc_scanpay_addmoney($a, $b)
     return wc_scanpay_digformat($h["as"], $s, $h["fl"]);
 }
 
-function wc_scanpay_submoney($a, $b)
+function wc_scanpay_submoney(string $a, string $b): string
 {
     // a - b ≡ a + (-b)
     return wc_scanpay_addmoney($a, ($b[0] == '-') ? substr($b, 1) : ("-" . $b));
 }
 
-function wc_scanpay_cmpmoney($a, $b)
+function wc_scanpay_cmpmoney(string $a, string $b): int
 {
     $h = wc_scanpay_dighomogenize($a, $b);
     if ($h["as"] && $h["bs"]) {
@@ -101,7 +101,7 @@ function wc_scanpay_cmpmoney($a, $b)
 }
 
 // wc_scanpay_roundmoney() (not in use)
-function wc_scanpay_roundmoney($a, $n)
+function wc_scanpay_roundmoney(string $a, int $n): string
 {
     $h = wc_scanpay_dighomogenize($a, "0." . str_repeat("0", $n) . "5");
     $s = wc_scanpay_digadd($h["a"], $h["b"]);

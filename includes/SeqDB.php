@@ -13,11 +13,10 @@ class WC_Scanpay_SeqDB
         $this->shopID = $shopid;
     }
 
-    public function create_table()
+    public function create_table(): bool
     {
         global $wpdb, $charset_collate;
         require ABSPATH . 'wp-admin/includes/upgrade.php'; // dbDelta()
-        // dbDelta: returns an array with completed SQL statements
         $array = dbDelta("
             CREATE TABLE $this->tablename (
                 shopid INT UNSIGNED NOT NULL,
@@ -33,13 +32,14 @@ class WC_Scanpay_SeqDB
                 SET shopid = $this->shopID, seq = 0, mtime = 0
             "); // int|bool
             if ($rows_affected) {
-                return;
+                return true;
             }
         }
         scanpay_log('critical', 'Failed creating table in database');
+        return false;
     }
 
-    public function update_mtime()
+    public function update_mtime(): bool
     {
         global $wpdb;
         $mtime = time();
@@ -55,7 +55,7 @@ class WC_Scanpay_SeqDB
         return true;
     }
 
-    public function set_seq(int $seq)
+    public function set_seq(int $seq): bool
     {
         global $wpdb;
         $mtime = time();
@@ -71,17 +71,17 @@ class WC_Scanpay_SeqDB
         return true;
     }
 
-    public function get_seq()
+    public function get_seq(): array
     {
         global $wpdb;
         $row = $wpdb->get_row("
             SELECT *
             FROM $this->tablename
             WHERE shopid = $this->shopID
-        ", ARRAY_A); // array|null|object
+        ", ARRAY_A); // array|null
         if (!$row) {
-            scanpay_log('error', 'Failed fetching seq from database');
-            return false;
+            $this->create_table();
+            $row = ['shopid' => $this->shopID];
         }
         return [
             'shopid' => (int) $row['shopid'],
