@@ -24,7 +24,7 @@ class WC_Scanpay_Gateway_Mobilepay extends WC_Payment_Gateway
     }
 
     /* parent::get_icon() */
-    public function get_icon()
+    public function get_icon(): string
     {
         if ($this->settings['card_icon'] === 'yes') {
             return '<span class="scanpay-methods"><img width="88" height="22" class="scanpay-mobilepay" src="' .
@@ -34,7 +34,7 @@ class WC_Scanpay_Gateway_Mobilepay extends WC_Payment_Gateway
     }
 
     /* parent::process_payment() */
-    public function process_payment($order_id)
+    public function process_payment($order_id): array
     {
         require_once WC_SCANPAY_DIR . '/includes/payment-link.php';
         return [
@@ -44,7 +44,7 @@ class WC_Scanpay_Gateway_Mobilepay extends WC_Payment_Gateway
     }
 
     /* parent::init_form_fields() */
-    public function init_form_fields()
+    public function init_form_fields(): void
     {
         $this->form_fields = [
             'enabled' => [

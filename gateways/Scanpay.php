@@ -40,7 +40,7 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
     }
 
     /* parent::get_icon() */
-    public function get_icon()
+    public function get_icon(): string
     {
         $array = $this->settings['card_icons'];
         if (!empty($array)) {
@@ -55,7 +55,7 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
     }
 
     /* parent::process_payment() */
-    public function process_payment($order_id)
+    public function process_payment($order_id): array
     {
         require_once WC_SCANPAY_DIR . '/includes/payment-link.php';
         return [
@@ -68,7 +68,7 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
     *   parent::admin_options()
     *   Override to add our settings header
     */
-    public function admin_options()
+    public function admin_options(): void
     {
         echo '<h2>Scanpay';
         wc_back_link(__('Return to payments', 'woocommerce'), admin_url('admin.php?page=wc-settings&tab=checkout'));
@@ -82,7 +82,7 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
     }
 
     /* parent::init_form_fields() */
-    public function init_form_fields()
+    public function init_form_fields(): void
     {
         $this->form_fields = [
             'enabled' => [

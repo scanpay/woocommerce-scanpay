@@ -2,7 +2,8 @@
 
 defined('ABSPATH') || exit();
 
-function scanpay_order_updater($d, $seq, $shopid, $settings) {
+function scanpay_order_updater(array $d, int $seq, int $shopid, array $settings): void
+{
     if (!isset($d['id']) || !is_int($d['id'])) {
         scanpay_log('error', "Synchronization failed [$seq]: missing 'id' in transaction");
         die();

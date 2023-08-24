@@ -7,7 +7,8 @@
 
 defined('ABSPATH') || exit();
 
-function wc_scanpay_meta_alert($type, $msg) {
+function wc_scanpay_meta_alert(string $type, string $msg): void
+{
     echo "<div class='scanpay--alert scanpay--alert-$type'>";
     if ($type === 'pending') {
         echo '<img class="scanpay--alert--spin" width="18" height="18"
@@ -18,7 +19,7 @@ function wc_scanpay_meta_alert($type, $msg) {
     echo $msg . '</div>';
 }
 
-function wc_scanpay_status($order)
+function wc_scanpay_status(object $order): string
 {
     if (!empty($order->get_meta(WC_SCANPAY_URI_VOIDED))) {
         return 'voided';
@@ -45,7 +46,7 @@ function wc_scanpay_status($order)
 }
 
 
-function wc_scanpay_meta_box($order)
+function wc_scanpay_meta_box(object $order): void
 {
     $order_shopid = (int) $order->get_meta(WC_SCANPAY_URI_SHOPID);
     if (!$order_shopid) {
