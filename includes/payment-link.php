@@ -15,13 +15,16 @@ function wc_scanpay_payment_link(int $orderid): string
     $order = wc_get_order($orderid);
     $currency_code = $order->get_currency();
 
+    // TODO: Add country code to phone number
+    $phone = $order->get_billing_phone();
+
     $data = [
         'orderid'     => strval($orderid),
         'successurl'  => $order->get_checkout_order_received_url(),
         'billing'     => array_filter([
             'name'    => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
             'email'   => $order->get_billing_email(),
-            'phone'   => preg_replace('/\s+/', '', $order->get_billing_phone()),
+            'phone'   => $phone,
             'address' => array_filter([$order->get_billing_address_1(), $order->get_billing_address_2()]),
             'city'    => $order->get_billing_city(),
             'zip'     => $order->get_billing_postcode(),

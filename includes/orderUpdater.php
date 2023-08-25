@@ -15,16 +15,12 @@ function scanpay_order_updater(array $d, int $seq, int $shopid, array $settings)
     if (!isset($d['orderid'])) {
         return; // Skip this transaction
     }
-    if (!isset($d['rev']) || !is_int($d['rev'])) {
-        scanpay_log('error', "Synchronization failed [$seq]: missing 'rev' in transaction [id=$d[id]]");
-        die();
-    }
-    if (!isset($d['acts']) || !is_array($d['acts'])) {
-        scanpay_log('error', "Synchronization failed [$seq]: missing 'acts' in transaction [id=$d[id]]");
-        die();
-    }
-    if (!isset($d['totals']) || !is_array($d['totals']) || !isset($d['totals']['authorized'])) {
-        scanpay_log('error', "Synchronization failed [$seq]: missing 'totals.authorized' in transaction [id=$d[id]]");
+    if (
+        !isset($d['rev']) || !is_int($d['rev']) || !isset($d['acts']) || !is_array($d['acts']) ||
+        !isset($d['totals']) || !is_array($d['totals']) || !isset($d['totals']['authorized'])
+    ) {
+        scanpay_log('error', "Synchronization failed [$seq]: received invalid seq from server");
+        // TODO: mark the order as invalid/buggy (warning)
         die();
     }
 
@@ -34,78 +30,38 @@ function scanpay_order_updater(array $d, int $seq, int $shopid, array $settings)
         scanpay_log('warning', "Order #$orderid not found in WooCommerce");
         return; // Skip this change
     }
-
     $orderShopId = (int) $order->get_meta(WC_SCANPAY_URI_SHOPID);
-    $nacts = (int) $order->get_meta(WC_SCANPAY_URI_NACTS);
-    $rev = (int) $order->get_meta(WC_SCANPAY_URI_REV);
-
     if ($orderShopId !== $shopid) {
         scanpay_log('warning', "Order #$orderid with shopID: $orderShopId " . "does not match current shopID ($shopid)");
         return;
     }
 
-    // Check if the order is already up to date
-    if ($d['rev'] <= $rev) {
-        scanpay_log('info', "Order #$orderid is already up to date");
-        return;
+    if ($d['rev'] <= intval($order->get_meta(WC_SCANPAY_URI_REV))) {
+        return; // This change has already been applied
     }
-
-    // Revive order if it was cancelled
-    if ($order->get_status() === 'cancelled') {
+    if ($d['totals']['voided'] === $d['totals']['authorized']) {
+        $order->add_meta_data(WC_SCANPAY_URI_VOIDED, 1, true);
+        $order->update_status('cancelled');
+    } elseif ($order->get_status() === 'cancelled') {
+        // Revive order, but not if action is 'void'
         $order->update_status('processing');
     }
 
-    for ($i = $nacts; $i < count($d['acts']); $i++) {
-        $act = $d['acts'][$i];
-        switch ($act['act']) {
-            case 'capture':
-                if (isset($act['total']) && is_string($act['total'])) {
-                    $order->add_order_note(sprintf('Captured %s', $act['total']));
-                }
-                break;
-            case 'refund':
-                //wc_create_refund($actArgs);
-                if (isset($act['total']) && is_string($act['total'])) {
-                    $order->add_order_note(sprintf('Refunded %s.', $act['total']));
-                }
-                break;
-            case 'void':
-                $order->add_meta_data(WC_SCANPAY_URI_VOIDED, 1, true);
-                if (isset($act['total']) && is_string($act['total'])) {
-                    $order->add_order_note(sprintf('Voided %s.', $act['total']));
-                }
-                break;
-        }
+    if (empty($order->get_meta(WC_SCANPAY_URI_TRNID))) {
+        $order->payment_complete($d['id']);
+        $order->add_meta_data(WC_SCANPAY_URI_TRNID, $d['id'], true);
+        $order->add_meta_data(WC_SCANPAY_URI_AUTHORIZED, explode(' ', $d['totals']['authorized'])[0], true);
     }
 
     $order->add_meta_data(WC_SCANPAY_URI_NACTS, count($d['acts']), true);
+    $order->add_meta_data(WC_SCANPAY_URI_CAPTURED, explode(' ', $d['totals']['captured'])[0], true);
+    $order->add_meta_data(WC_SCANPAY_URI_REFUNDED, explode(' ', $d['totals']['refunded'])[0], true);
+    $order->add_meta_data(WC_SCANPAY_URI_REV, $d['rev'], true);
+    $order->save();
 
-    if (isset($d['totals']['captured'])) {
-        $captured = explode(' ', $d['totals']['captured'])[0];
-        $order->add_meta_data(WC_SCANPAY_URI_CAPTURED, $captured, true);
-    }
-
-    if (isset($d['totals']['refunded'])) {
-        $refunded = explode(' ', $d['totals']['refunded'])[0];
-        $order->add_meta_data(WC_SCANPAY_URI_REFUNDED, $refunded, true);
-    }
-
-    if ($order->needs_payment()) {
-        $order->payment_complete($d['id']);
-    }
-
-    if (empty($order->get_meta(WC_SCANPAY_URI_TRNID))) {
-        $order->add_meta_data(WC_SCANPAY_URI_TRNID, $d['id']);
-        $order->add_meta_data(WC_SCANPAY_URI_AUTHORIZED, explode(' ', $d['totals']['authorized'])[0]);
-    }
-
-    // Autocomplete virtual orders
     /*
     if ($this->settings['autocomplete_virtual'] && $order->get_status() === 'processing') {
         $this->autocompleteVirtual($order);
     }
     */
-
-    $order->add_meta_data(WC_SCANPAY_URI_REV, $d['rev'], true);
-    $order->save();
 }
