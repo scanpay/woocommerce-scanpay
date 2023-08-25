@@ -14,9 +14,18 @@ function wc_scanpay_payment_link(int $orderid): string
     }
     $order = wc_get_order($orderid);
     $currency_code = $order->get_currency();
-
-    // TODO: Add country code to phone number
+    $country = $order->get_billing_country();
     $phone = $order->get_billing_phone();
+
+    if (isset($phone)) {
+        $firstNumber = substr($phone, 0, 1);
+        if ($firstNumber !== '+' && $firstNumber !== '0') {
+            $code = WC()->countries->get_country_calling_code($country);
+            if (isset($code)) {
+                $phone = $code . ' ' . $phone;
+            }
+        }
+    }
 
     $data = [
         'orderid'     => strval($orderid),
@@ -28,7 +37,7 @@ function wc_scanpay_payment_link(int $orderid): string
             'address' => array_filter([$order->get_billing_address_1(), $order->get_billing_address_2()]),
             'city'    => $order->get_billing_city(),
             'zip'     => $order->get_billing_postcode(),
-            'country' => $order->get_billing_country(),
+            'country' => $country,
             'state'   => $order->get_billing_state(),
             'company' => $order->get_billing_company()
         ]),
