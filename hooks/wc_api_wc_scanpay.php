@@ -23,7 +23,7 @@ if (!hash_equals(base64_encode(hash_hmac('sha256', $body, $settings['apikey'], t
     die();
 }
 
-$ping = @json_decode($body, true);
+$ping = json_decode($body, true);
 if (
     $ping === null || !isset($ping['seq']) || !is_int($ping['seq']) ||
     !isset($ping['shopid']) || !is_int($ping['shopid'])

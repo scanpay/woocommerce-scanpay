@@ -25,10 +25,12 @@ class WC_Scanpay_API_Client
             'authorization' => 'Authorization: Basic ' . base64_encode($apikey),
             'x-shop-plugin' => 'woocommerce/' . WC_VERSION . '/' . WC_SCANPAY_VERSION,
             'content-type' => 'Content-Type: application/json',
-            'expect' => 'Expect: ',
         ];
-        /* The 'Expect' header will disable libcurl's expect-logic,
-            which will save us a HTTP roundtrip on POSTs >1024b. */
+        if (isset($opts['headers'])) {
+            foreach ($opts['headers'] as $key => &$val) {
+                $this->headers[strtolower($key)] = $key . ': ' . $val;
+            }
+        }
     }
 
     protected function headerCallback($curl, $hdr)
@@ -44,7 +46,7 @@ class WC_Scanpay_API_Client
         return strlen($hdr);
     }
 
-    protected function request(string $path, array $reqOpts = [], ?array $data = null): array
+    protected function request(string $path, array $reqOpts = [], array $data = []): array
     {
         $this->idemstatus = null;
         $opts = $this->opts;
@@ -58,23 +60,25 @@ class WC_Scanpay_API_Client
                 }
             }
         }
+
         $curlopts = [
             CURLOPT_URL => 'https://api.scanpay.dk' . $path,
             CURLOPT_HTTPHEADER => array_values($headers),
-            CURLOPT_POST => ($data !== null),
             CURLOPT_RETURNTRANSFER => 1,
             CURLOPT_CONNECTTIMEOUT => 20,
             CURLOPT_TIMEOUT => 40,
-            CURLOPT_VERBOSE => 1
+            // Debugging
+            // CURLOPT_VERBOSE => true,
+            // CURLOPT_STDERR => fopen('./curl.log', 'w+'),
         ];
 
-        if ($data !== null) {
+        if (!empty($data)) {
+            $curlopts[CURLOPT_POST] = 1;
             $curlopts[CURLOPT_POSTFIELDS] = json_encode($data, JSON_UNESCAPED_SLASHES);
             if ($curlopts[CURLOPT_POSTFIELDS] === false) {
                 throw new \Exception('Failed to JSON encode request to Scanpay: ' . json_last_error_msg());
             }
         }
-
         if (isset($headers['idempotency-key'])) {
             // this function is called by cURL for each header received
             $curlopts[CURLOPT_HEADERFUNCTION] = [$this, 'headerCallback'];
@@ -104,8 +108,8 @@ class WC_Scanpay_API_Client
             );
         }
 
-        // Decode the json response (@: suppress warnings)
-        if (!is_array($resobj = @json_decode($result, true))) {
+        $resobj = json_decode($result, true);
+        if ($resobj === null) {
             throw new \Exception('Invalid JSON response from server');
         }
         return $resobj;
@@ -139,12 +143,12 @@ class WC_Scanpay_API_Client
         return $this->request("/v1/transactions/$trnid/capture", $opts, $data);
     }
 
-    public function generateIdempotencyKey()
+    public function generateIdempotencyKey(): string
     {
         return rtrim(base64_encode(random_bytes(32)), '=');
     }
 
-    public function charge($subid, $data, $opts = [])
+    public function charge(int $subid, array $data, array $opts = []): array
     {
         $o = $this->request("/v1/subscribers/$subid/charge", $opts, $data);
         if (
@@ -157,7 +161,7 @@ class WC_Scanpay_API_Client
         throw new \Exception('Invalid response from server');
     }
 
-    public function renew($subid, $data, $opts = [])
+    public function renew(int $subid, array $data, array $opts = []): string
     {
         $o = $this->request("/v1/subscribers/$subid/renew", $opts, $data);
         if (isset($o['url']) && filter_var($o['url'], FILTER_VALIDATE_URL)) {

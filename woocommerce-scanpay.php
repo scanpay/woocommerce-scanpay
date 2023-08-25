@@ -1,4 +1,5 @@
 <?php
+declare(strict_types = 1);
 
 /*
  * Plugin Name: Scanpay for WooCommerce
@@ -39,16 +40,16 @@ define('WC_SCANPAY_DIR', __DIR__);
 define('WC_SCANPAY_URL', plugins_url('', __FILE__));
 define('WC_SCANPAY_NAME', plugin_basename(__FILE__));
 
-function scanpay_log($level, $msg)
+function scanpay_log(string $level, string $msg): void
 {
     if (function_exists('wc_get_logger')) {
         wc_get_logger()->log($level, $msg, ['source' => 'woo-scanpay']);
     }
 }
 
-function scanpay_admin_init()
+function scanpay_admin_init(): void
 {
-    add_action('admin_enqueue_scripts', function ($page) {
+    add_action('admin_enqueue_scripts', function (string $page) {
         switch ($page) {
             case 'woocommerce_page_wc-settings':
                 global $current_section;
@@ -96,10 +97,12 @@ add_action('plugins_loaded', function () {
     add_filter('woocommerce_payment_gateways', function ($methods) {
         $methods[] = 'WC_Scanpay_Gateway_Scanpay';
         $methods[] = 'WC_Scanpay_Gateway_Mobilepay';
+        $methods[] = 'WC_Scanpay_Gateway_ApplePay';
         return $methods;
     });
     require WC_SCANPAY_DIR . '/gateways/Scanpay.php';
     require WC_SCANPAY_DIR . '/gateways/Mobilepay.php';
+    require WC_SCANPAY_DIR . '/gateways/ApplePay.php';
 
     add_action('woocommerce_order_status_completed', function ($order_id) {
         require WC_SCANPAY_DIR . '/hooks/wc_order_status_completed.php'; // CoC
