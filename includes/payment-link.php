@@ -1,5 +1,4 @@
 <?php
-declare(strict_types = 1);
 
 defined('ABSPATH') || exit();
 
@@ -13,7 +12,6 @@ function wc_scanpay_payment_link(int $orderid): string
         scanpay_log('alert', 'Missing or invalid Scanpay API key');
         throw new \Exception('Error: The Scanpay API key is invalid. Please contact the shop.');
     }
-
     $order = wc_get_order($orderid);
     $currency_code = $order->get_currency();
 
@@ -42,38 +40,26 @@ function wc_scanpay_payment_link(int $orderid): string
         ]),
     ];
 
-    $itemWithNegativePrice = false;
     $sum = '0';
-    // TODO: loop items alone (to get SKU)
-
     $types = array('line_item', 'fee', 'shipping', 'coupon');
     foreach ($order->get_items($types) as $id => $item) {
-        // line total with taxes and rounded (as Woo does it)
-        $lineTotal = $order->get_line_total($item, true, true);
-
-        $data['items'][] = [
-            'name' => $item->get_name(),
-            //'sku' => $item->is_type('line_item') ? strval($item->get_product_id()) : null,
-            'quantity' => $item->get_quantity(),
-            'total' => $lineTotal . ' ' . $currency_code
-        ];
-        if ($lineTotal < 0) {
-            $itemWithNegativePrice = true;
+        $lineTotal = $order->get_line_total($item, true, true); // w. taxes and rounded (how Woo does)
+        if ($lineTotal > 0) {
+            $data['items'][] = [
+                'name' => $item->get_name(),
+                //'sku' => $item->is_type('line_item') ? strval($item->get_product_id()) : null,
+                'quantity' => $item->get_quantity(),
+                'total' => $lineTotal . ' ' . $currency_code
+            ];
+            $sum = wc_scanpay_addmoney($sum, strval($lineTotal));
+        } else if ($lineTotal < 0) {
+            $data['items'] = null;
+            break;
         }
-        $sum = wc_scanpay_addmoney($sum, strval($lineTotal));
     }
 
-    if ($itemWithNegativePrice) {
-        unset($data['items']);
-        $order->add_order_note(
-            'The order has an item with a negative price. The item list ' .
-            'will not be available in the scanpay dashboard.'
-        );
-    }
-
-    // Check if sum of items matches the order total
-    if (wc_scanpay_cmpmoney($sum, strval($order->get_total()))) {
-        unset($data['items']);
+    if (isset($data['items']) && wc_scanpay_cmpmoney($sum, strval($order->get_total())) !== 0) {
+        $data['items'] = null;
         $errmsg = sprintf(
             'The sum of all items (%s) does not match the order total (%s).' .
             'The item list will not be available in the scanpay dashboard.',
@@ -84,8 +70,7 @@ function wc_scanpay_payment_link(int $orderid): string
         scanpay_log('warning', "Order #$orderid: $errmsg");
     }
 
-    // Order came without items... or we removed them
-    if (!isset($data['items'])) {
+    if (is_null($data['items'])) {
         $data['items'][] = [
             'name' => 'Total',
             'total' => $order->get_total() . ' ' . $currency_code,
