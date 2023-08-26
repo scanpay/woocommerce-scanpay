@@ -8,9 +8,9 @@ defined('ABSPATH') || exit();
 function wc_scanpay_dighomogenize(string $a, string $b): array
 {
     $h = array();
-    $h["as"] = ($a[0] == '-');
-    $h["bs"] = ($b[0] == '-');
-    $aa = explode(".", ($h["as"] ? substr($a, 1) : $a) . "."); /* guarantee 2 elems */
+    $h["as"] = (substr($a, 0, 1) == '-'); // str_starts_with() [PHP 8]
+    $h["bs"] = (substr($b, 0, 1) == '-');
+    $aa = explode(".", ($h["as"] ? substr($a, 1) : $a) . "."); // guarantee 2 elems
     $bb = explode(".", ($h["bs"] ? substr($b, 1) : $b) . ".");
     $h["il"] = max(strlen($aa[0]), strlen($bb[0]));
     $h["fl"] = max(strlen($aa[1]), strlen($bb[1]));
@@ -82,7 +82,7 @@ function wc_scanpay_addmoney(string $a, string $b): string
 function wc_scanpay_submoney(string $a, string $b): string
 {
     // a - b ≡ a + (-b)
-    return wc_scanpay_addmoney($a, ($b[0] == '-') ? substr($b, 1) : ("-" . $b));
+    return wc_scanpay_addmoney($a, (substr($b, 0, 1) === '-') ? substr($b, 1) : ("-" . $b));
 }
 
 function wc_scanpay_cmpmoney(string $a, string $b): int

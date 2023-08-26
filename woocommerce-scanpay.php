@@ -2,24 +2,27 @@
 declare(strict_types = 1);
 
 /*
+ * Version: 2.0.0
+ * Requires at least: 4.7
+ * Requires PHP: 7.1
+ * WC requires at least: 6.9.0
+ * WC tested up to: 8.0.2
  * Plugin Name: Scanpay for WooCommerce
  * Plugin URI: https://wordpress.org/plugins/scanpay-for-woocommerce/
  * Description: Accept payments in WooCommerce with a secure payment gateway.
- * Version: 2.0.0
  * Author: Scanpay
  * Author URI: https://scanpay.dk
  * Text Domain: scanpay-for-woocommerce
  * Domain Path: /languages
  * License: MIT License
  * License URI: https://opensource.org/licenses/MIT
- * WC requires at least: 4.0.0
- * WC tested up to: 7.3.0
  */
+
 defined('ABSPATH') || exit();
 
 const WC_SCANPAY_VERSION = '2.0.0';
-const WC_SCANPAY_MIN_PHP = '7.4.0';
-const WC_SCANPAY_MIN_WC = '4.0.0';
+const WC_SCANPAY_MIN_PHP = '7.1.0';
+const WC_SCANPAY_MIN_WC = '6.9.0';
 const WC_SCANPAY_DASHBOARD = 'https://dashboard.scanpay.dk/';
 const WC_SCANPAY_URI_SETTINGS = 'woocommerce_scanpay_settings';
 const WC_SCANPAY_URI_SHOPID = '_scanpay_shopid';

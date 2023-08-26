@@ -28,7 +28,8 @@ if ($order_shopid !== $shopid) {
 }
 
 // Stop if order has been captured
-if (isset($order->get_meta(WC_SCANPAY_URI_CAPTURED))) {
+$captured = $order->get_meta(WC_SCANPAY_URI_CAPTURED);
+if (isset($captured)) {
     // TODO: Add partial capture support
     return;
 }

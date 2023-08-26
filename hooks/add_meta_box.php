@@ -55,6 +55,7 @@ function wc_scanpay_meta_box(object $order): void
     }
 
     require WC_SCANPAY_DIR . '/includes/math.php';
+    $trnid = (int) $order->get_meta(WC_SCANPAY_URI_TRNID);
     $status = wc_scanpay_status($order);
     $rev = (int) $order->get_meta(WC_SCANPAY_URI_REV);
     $pending_sync = ((int) $order->get_meta(WC_SCANPAY_URI_PENDING_UPDATE)) > $rev;
@@ -63,14 +64,14 @@ function wc_scanpay_meta_box(object $order): void
     $captured = $order->get_meta(WC_SCANPAY_URI_CAPTURED);
     $refunded = $order->get_meta(WC_SCANPAY_URI_REFUNDED);
     $net = wc_scanpay_submoney($captured, $refunded);
-    $link = WC_SCANPAY_DASHBOARD . $order_shopid . '/' . (int) $order->get_meta(WC_SCANPAY_URI_TRNID);
+    $link = WC_SCANPAY_DASHBOARD . $order_shopid . '/' . $trnid;
 
     $currency = $order->get_currency();
     $woo_status = $order->get_status();
     $woo_net = wc_scanpay_submoney((string) $order->get_total(), (string) $order->get_total_refunded());
     $net_mismatch = wc_scanpay_cmpmoney($net, $woo_net);
     $show_refund_row = !empty($refunded);
-    $show_auth_row = $authorized !== $captured;
+    $show_auth_row = ($authorized !== $captured);
 
     echo '<span id="scanpay--data"
         data-order="' . $order->get_id() . '"
@@ -84,12 +85,14 @@ function wc_scanpay_meta_box(object $order): void
 
     // Alert Boxes
     if ($acts === 0 && ($woo_status === 'cancelled' || $woo_status === 'refunded')) {
-        // Tell merchant to void the payment.
-        wc_scanpay_meta_alert(
-            'notice',
-            __('Void the payment to release the reserved amount in the customer\'s bank account. Reservations last for 7-28 days.',
-                'scanpay-for-woocommerce')
-        );
+        if ($trnid) {
+            // Tell merchant to void the payment.
+            wc_scanpay_meta_alert(
+                'notice',
+                __('Void the payment to release the reserved amount in the customer\'s bank account. Reservations last for 7-28 days.',
+                    'scanpay-for-woocommerce')
+            );
+        }
     } elseif ($net_mismatch !== 0 && $woo_status !== 'processing') {
         // Net payment mismatch
         $show_refund_row = true;
