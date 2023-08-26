@@ -38,9 +38,57 @@ Enable MobilePay Online in Scanpay's dashboard by following this [link](https://
 Scanpay's plugin is compatible with [WooCommerce Subscriptions](https://woocommerce.com/products/woocommerce-subscriptions/).
 To enable WooCommerce Subscriptions navigate to `WooCommerce > Settings > Payments`. Find the *"Scanpay"* option and click *"Set up"* to open the Scanpay configuration page. Go to the bottom at the page and enable WooCommerce Subscriptions.
 
-<img src="https://docs.scanpay.dk/img/woocommerce/subscriptions.png" width="700" height="126" alt="Enable WooCommerce Subscriptions for Scanpay">
+<img src="https://docs.scanpay.dev/img/woocommerce/subscriptions.png" width="700" height="126" alt="Enable WooCommerce Subscriptions for Scanpay">
 
 
-## Requirements
+## Compatibility table
 
-Null coalescing operator
+| PHP Features                              | Version |
+| :---------------------------------------- | :-----: |
+| WooCommerce (8.0)                         | **7.3** |
+| Nullable Types                            | 7.1     |
+| Void return type                          | 7.1     |
+| WordPress (6.3)                           | 7.0     |
+| Return type declarations                  | 7.0     |
+| Null coalescing operator                  | 7.0     |
+| hash_equals                               | 5.6     |
+| curl_strerror                             | 5.5     |
+| Array, short syntax                       | 5.4     |
+| Namespaces                                | 5.3.0   |
+| json_decode                               | 5.2.0   |
+| curl_setopt_array                         | 5.1.3   |
+| hash_hmac                                 | 5.1.2   |
+| Exception class                           | 5.1.0   |
+| Default function parameters               | 5.0.0   |
+
+
+| WooCommerce                               | Version  |
+| :---------------------------------------- | :------: |
+| wc_get_page_screen_id                     | **6.9.0**|
+| get_country_calling_code                  | 3.6.0    |
+| wc_nocache_headers                        | 3.2.4    |
+| WC:api_request_url                        | 3.2.0    |
+| WC_Order_Item                             | 3.0.0    |
+| WC_Order:save                             | 3.0.0    |
+| WC_Order:*                                | 2.7.0    |
+| WC_Data:get_meta                          | 2.6.0    |
+| wc_set_time_limit                         | 2.6.0    |
+| wc_get_log_file_path                      | 2.2.0    |
+| WC_Payment_Gateway                        | 2.1.0    |
+
+
+| WordPress                                 | Version  |
+| :---------------------------------------- | :------: |
+| WooCommerce (8.0)                         | **6.2.0**|
+| wp_send_json                              | 4.7.0    |
+| wp_send_json_success                      | 3.5.0    |
+| current_user_can                          | 2.0.0    |
+| get_option                                | 1.5.0    |
+
+
+## License
+
+Everything in this repository is licensed under the [MIT license](LICENSE).
+
+
+
