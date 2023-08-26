@@ -68,8 +68,8 @@ class WC_Scanpay_API_Client
             CURLOPT_CONNECTTIMEOUT => 20,
             CURLOPT_TIMEOUT => 40,
             // Debugging
-            // CURLOPT_VERBOSE => true,
-            // CURLOPT_STDERR => fopen('./curl.log', 'w+'),
+            CURLOPT_VERBOSE => true,
+            CURLOPT_STDERR => fopen('./curl.log', 'w+'),
         ];
 
         if (!empty($data)) {

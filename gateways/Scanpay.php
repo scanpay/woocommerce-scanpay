@@ -57,7 +57,7 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
     /* parent::process_payment() */
     public function process_payment($order_id): array
     {
-        require_once WC_SCANPAY_DIR . '/includes/payment-link.php';
+        require WC_SCANPAY_DIR . '/includes/payment-link.php';
         return [
             'result' => 'success',
             'redirect' => wc_scanpay_payment_link($order_id),
@@ -74,7 +74,7 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
         wc_back_link(__('Return to payments', 'woocommerce'), admin_url('admin.php?page=wc-settings&tab=checkout'));
         echo '</h2>';
         echo wp_kses_post(wpautop($this->get_method_description()));
-        require_once WC_SCANPAY_DIR . '/includes/settings-header.php';
+        require WC_SCANPAY_DIR . '/includes/settings-header.php';
         $subs_disabled = ($this->settings['subscriptions_enabled'] === 'no') ? 'scanpay--admin--no-subs' : '';
         echo '<table class="form-table scanpay--admin--table ' . $subs_disabled . '">'
             . $this->generate_settings_html($this->get_form_fields(), false) .

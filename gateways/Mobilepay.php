@@ -36,7 +36,7 @@ class WC_Scanpay_Gateway_Mobilepay extends WC_Payment_Gateway
     /* parent::process_payment() */
     public function process_payment($order_id): array
     {
-        require_once WC_SCANPAY_DIR . '/includes/payment-link.php';
+        require WC_SCANPAY_DIR . '/includes/payment-link.php';
         return [
             'result' => 'success',
             'redirect' => wc_scanpay_payment_link($order_id) . '?go=mobilepay',

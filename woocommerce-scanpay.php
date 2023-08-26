@@ -80,7 +80,7 @@ function scanpay_admin_init(): void
                 . __('Settings') . '</a>'
             ], $links);
         }, 'active');
-        require_once WC_SCANPAY_DIR . '/includes/compatibility.php';
+        require WC_SCANPAY_DIR . '/includes/compatibility.php';
     }
 }
 

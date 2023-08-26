@@ -7,7 +7,7 @@
 
 defined('ABSPATH') || exit();
 
-function wc_scanpay_check_plugin_requirements()
+function wc_scanpay_check_plugin_requirements(): ?string
 {
     // Check PHP version
     if (version_compare(WC_SCANPAY_MIN_PHP, PHP_VERSION) >= 0) {
@@ -19,7 +19,7 @@ function wc_scanpay_check_plugin_requirements()
         );
     }
 
-    // Check PHP extensions (might not be needed anymore)
+    // Check PHP extensions
     $arr = ['curl'];
     foreach ($arr as $extension) {
         if (!extension_loaded($extension)) {
@@ -41,8 +41,7 @@ function wc_scanpay_check_plugin_requirements()
             WC_VERSION
         );
     }
-
-    return false;
+    return null;
 }
 
 add_action('admin_notices', function () {

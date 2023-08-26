@@ -41,7 +41,7 @@ if (!$trnid) {
 }
 
 try {
-    require_once WC_SCANPAY_DIR . '/includes/ScanpayClient.php';
+    require WC_SCANPAY_DIR . '/includes/ScanpayClient.php';
     $client = new WC_Scanpay_API_Client($settings['apikey']);
     $client->capture($trnid, [
         'total' => $order->get_total() . ' ' . $order->get_currency(),

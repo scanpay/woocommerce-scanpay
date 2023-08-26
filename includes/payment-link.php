@@ -17,8 +17,8 @@ function wc_scanpay_payment_link(int $orderid): string
     $country = $order->get_billing_country();
     $phone = $order->get_billing_phone();
 
-    if (isset($phone)) {
-        $firstNumber = substr($phone, 0, 1);
+    if (!empty($phone)) {
+        $firstNumber = substr($phone, 0, 1); // str_starts_with() [PHP 8]
         if ($firstNumber !== '+' && $firstNumber !== '0') {
             $code = WC()->countries->get_country_calling_code($country);
             if (isset($code)) {
@@ -53,13 +53,11 @@ function wc_scanpay_payment_link(int $orderid): string
     ];
 
     $sum = '0';
-    $types = array('line_item', 'fee', 'shipping', 'coupon');
-    foreach ($order->get_items($types) as $id => $item) {
+    foreach ($order->get_items(['line_item', 'fee', 'shipping', 'coupon']) as $id => $item) {
         $lineTotal = $order->get_line_total($item, true, true); // w. taxes and rounded (how Woo does)
         if ($lineTotal > 0) {
             $data['items'][] = [
                 'name' => $item->get_name(),
-                //'sku' => $item->is_type('line_item') ? strval($item->get_product_id()) : null,
                 'quantity' => $item->get_quantity(),
                 'total' => $lineTotal . ' ' . $currency_code
             ];

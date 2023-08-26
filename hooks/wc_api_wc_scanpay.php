@@ -1,5 +1,4 @@
 <?php
-declare(strict_types = 1);
 
 /*
 *   wc_api_wc_scanpay.php:

@@ -13,7 +13,7 @@ if (!current_user_can('edit_shop_orders')) {
     exit;
 }
 
-require_once WC_SCANPAY_DIR . '/includes/SeqDB.php';
+require WC_SCANPAY_DIR . '/includes/SeqDB.php';
 
 $settings = get_option(WC_SCANPAY_URI_SETTINGS);
 if (empty($settings['apikey'])) {

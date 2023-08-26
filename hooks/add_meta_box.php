@@ -54,7 +54,7 @@ function wc_scanpay_meta_box(object $order): void
         return;
     }
 
-    require_once WC_SCANPAY_DIR . '/includes/math.php';
+    require WC_SCANPAY_DIR . '/includes/math.php';
     $status = wc_scanpay_status($order);
     $rev = (int) $order->get_meta(WC_SCANPAY_URI_REV);
     $pending_sync = ((int) $order->get_meta(WC_SCANPAY_URI_PENDING_UPDATE)) > $rev;
