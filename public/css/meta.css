@@ -95,6 +95,69 @@
     color: #a14a20;
 }
 
+
+.scanpay--widget--li--card {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.scanpay--widget--li--card--dots {
+    color: #696969;
+}
+
+.scanpay--widget--li--card--dankort, .scanpay--widget--li--card--visadankort {
+    width: 24px;
+    height: 15px;
+}
+
+.scanpay--widget--li--card--visa {
+    width: 27px;
+    height: 9px;
+}
+
+.scanpay--widget--li--card--mastercard, .scanpay--widget--li--card--maestro {
+    width: 22px;
+    height: 13px;
+}
+
+.scanpay--widget--li--card--amex {
+    width: 24px;
+    height: 15px;
+}
+
+.scanpay--widget--li--card--diners {
+    width: 18px;
+    height: 15px;
+}
+
+.scanpay--widget--li--card--jcb {
+    width: 21.5px;
+    height: 15px;
+}
+
+.scanpay--widget--li--card--unionpay {
+    width: 22px;
+    height: 15px;
+}
+
+.scanpay--widget--li--card--discover {
+    width: 23px;
+    height: 15px;
+}
+
+.scanpay--widget--li--card--mobilepay {
+    width: 16px;
+    height: 17px;
+}
+
+.scanpay--widget--li--card--applepay {
+    height: 13px;
+}
+
+
+
+
 .scanpay--actions {
     display: flex;
     background-color: #f8f8f8;

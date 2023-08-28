@@ -39,6 +39,7 @@ const WC_SCANPAY_URI_SUBSCRIBER_ID = '_scanpay_subscriber_id';
 const WC_SCANPAY_URI_SUBSCRIBER_CHARGE_IDEM = '_scanpay_subscriber_charge_idem';
 const WC_SCANPAY_URI_SUBSCRIBER_INITIALPAYMENT_NTRIES = '_scanpay_subscriber_initialpayment_ntries';
 const WC_SCANPAY_URI_PENDING_UPDATE = '_scanpay_pending_update';
+const WC_SCANPAY_URI_CARD = '_scanpay_card';
 define('WC_SCANPAY_DIR', __DIR__);
 define('WC_SCANPAY_URL', plugins_url('', __FILE__));
 define('WC_SCANPAY_NAME', plugin_basename(__FILE__));

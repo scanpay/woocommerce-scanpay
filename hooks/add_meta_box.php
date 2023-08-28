@@ -21,18 +21,18 @@ function wc_scanpay_meta_alert(string $type, string $msg): void
 
 function wc_scanpay_status(object $order): string
 {
-    if (!empty($order->get_meta(WC_SCANPAY_URI_VOIDED))) {
+    if (!empty($order->get_meta(WC_SCANPAY_URI_VOIDED, true, 'edit'))) {
         return 'voided';
     }
-    $authorized = $order->get_meta(WC_SCANPAY_URI_AUTHORIZED);
+    $authorized = $order->get_meta(WC_SCANPAY_URI_AUTHORIZED, true, 'edit');
     if (empty($authorized)) {
         return 'unpaid';
     }
-    $captured = $order->get_meta(WC_SCANPAY_URI_CAPTURED);
+    $captured = $order->get_meta(WC_SCANPAY_URI_CAPTURED, true, 'edit');
     if (empty($captured)) {
         return 'authorized';
     }
-    $refunded = $order->get_meta(WC_SCANPAY_URI_REFUNDED);
+    $refunded = $order->get_meta(WC_SCANPAY_URI_REFUNDED, true, 'edit');
     if (empty($refunded)) {
         if ($captured === $authorized) {
             return 'fully captured';
@@ -48,21 +48,23 @@ function wc_scanpay_status(object $order): string
 
 function wc_scanpay_meta_box(object $order): void
 {
-    $order_shopid = (int) $order->get_meta(WC_SCANPAY_URI_SHOPID);
+    $order_shopid = (int) $order->get_meta(WC_SCANPAY_URI_SHOPID, true, 'edit');
     if (!$order_shopid) {
         wc_scanpay_meta_alert('notice', __('No payment details found!', 'scanpay-for-woocommerce'));
         return;
     }
 
     require WC_SCANPAY_DIR . '/includes/math.php';
-    $trnid = (int) $order->get_meta(WC_SCANPAY_URI_TRNID);
     $status = wc_scanpay_status($order);
-    $rev = (int) $order->get_meta(WC_SCANPAY_URI_REV);
-    $pending_sync = ((int) $order->get_meta(WC_SCANPAY_URI_PENDING_UPDATE)) > $rev;
-    $acts = (int) $order->get_meta(WC_SCANPAY_URI_NACTS);
-    $authorized = $order->get_meta(WC_SCANPAY_URI_AUTHORIZED);
-    $captured = $order->get_meta(WC_SCANPAY_URI_CAPTURED);
-    $refunded = $order->get_meta(WC_SCANPAY_URI_REFUNDED);
+    $trnid = (int) $order->get_meta(WC_SCANPAY_URI_TRNID, true, 'edit');
+    $rev = (int) $order->get_meta(WC_SCANPAY_URI_REV, true, 'edit');
+    $pending_sync = ((int) $order->get_meta(WC_SCANPAY_URI_PENDING_UPDATE, true, 'edit')) > $rev;
+    $acts = (int) $order->get_meta(WC_SCANPAY_URI_NACTS, true, 'edit');
+    $authorized = $order->get_meta(WC_SCANPAY_URI_AUTHORIZED, true, 'edit');
+    $captured = $order->get_meta(WC_SCANPAY_URI_CAPTURED, true, 'edit');
+    $refunded = $order->get_meta(WC_SCANPAY_URI_REFUNDED, true, 'edit');
+    $card = $order->get_meta(WC_SCANPAY_URI_CARD, true, 'edit');
+
     $net = wc_scanpay_submoney($captured, $refunded);
     $link = WC_SCANPAY_DASHBOARD . $order_shopid . '/' . $trnid;
 
@@ -127,12 +129,29 @@ function wc_scanpay_meta_box(object $order): void
         </li>';
 
     if ($status === 'unpaid') {
-        $payid = $order->get_meta(WC_SCANPAY_URI_PAYID);
+        $payid = $order->get_meta(WC_SCANPAY_URI_PAYID, true, 'edit');
         echo '<li class="scanpay--widget--li">
             <div class="scanpay--widget--li--title">PayID:</div>
             <a href="' . WC_SCANPAY_DASHBOARD . 'logs?payid= ' . $payid . '">' . $payid . '</a>
         </li>';
     } else {
+        if (!empty($card)) {
+            echo '<li class="scanpay--widget--li">
+                <div class="scanpay--widget--li--title">' . __('Method', 'scanpay-for-woocommerce') . ':</div>
+                <div class="scanpay--widget--li--card">
+                    <img class="scanpay--widget--li--card--applepay" title="Apple Pay"
+                        src="' . WC_SCANPAY_URL . '/public/images/admin/methods/applepay.svg">
+
+                    <img class="scanpay--widget--li--card--mobilepay" title="MobilePay"
+                        src="' . WC_SCANPAY_URL . '/public/images/admin/methods/mobilepay.svg">
+
+                    <img class="scanpay--widget--li--card--' . $card['card']['brand'] . '" title="' . $card['card']['brand'] . '"
+                        src="' . WC_SCANPAY_URL . '/public/images/admin/methods/' . $card['card']['brand'] . '.svg">
+                    <span class="scanpay--widget--li--card--dots">•••</span><b>' . $card['card']['last4'] . '</b>
+                </div>
+            </li>';
+        }
+
         if ($show_auth_row) {
             echo '<li class="scanpay--widget--li">
                 <div class="scanpay--widget--li--title">' . __('Authorized', 'scanpay-for-woocommerce') .':</div>
