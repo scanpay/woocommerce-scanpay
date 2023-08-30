@@ -50,7 +50,7 @@
                 busy = false;
             });
     }
-    if (data.dataset.pending === 'true') lookupRev();
+    if (rev === '0') lookupRev();
 
     document.addEventListener("visibilitychange", () => {
         // lookupRev when the tab is visible again (e.g. after refund in dashboard)

@@ -30,16 +30,15 @@ const WC_SCANPAY_URI_TRNID = '_scanpay_transaction_id';
 const WC_SCANPAY_URI_REV = '_scanpay_rev';
 const WC_SCANPAY_URI_NACTS = '_scanpay_nacts';
 const WC_SCANPAY_URI_PAYID = '_scanpay_payid';
-const WC_SCANPAY_URI_AUTHORIZED = '_scanpay_authorized';
-const WC_SCANPAY_URI_CAPTURED = '_scanpay_captured';
-const WC_SCANPAY_URI_REFUNDED = '_scanpay_refunded';
-const WC_SCANPAY_URI_VOIDED = '_scanpay_voided';
+const WC_SCANPAY_URI_TOTALS = '_scanpay_totals';
+const WC_SCANPAY_URI_PAYMENT_METHOD = '_scanpay_payment_method';
+
 const WC_SCANPAY_URI_SUBSCRIBER_TIME = '_scanpay_subscriber_time';
 const WC_SCANPAY_URI_SUBSCRIBER_ID = '_scanpay_subscriber_id';
 const WC_SCANPAY_URI_SUBSCRIBER_CHARGE_IDEM = '_scanpay_subscriber_charge_idem';
 const WC_SCANPAY_URI_SUBSCRIBER_INITIALPAYMENT_NTRIES = '_scanpay_subscriber_initialpayment_ntries';
-const WC_SCANPAY_URI_PENDING_UPDATE = '_scanpay_pending_update';
-const WC_SCANPAY_URI_CARD = '_scanpay_card';
+
+
 define('WC_SCANPAY_DIR', __DIR__);
 define('WC_SCANPAY_URL', plugins_url('', __FILE__));
 define('WC_SCANPAY_NAME', plugin_basename(__FILE__));

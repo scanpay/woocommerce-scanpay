@@ -31,6 +31,13 @@ if (
     die();
 }
 
+$fp = fopen('/tmp/scanpay_lock.txt', 'w');
+if (!flock($fp, LOCK_EX|LOCK_NB)) {
+    scanpay_log('notice', time() . ': ping rejected because of lock');
+    wp_send_json(['error' => 'busy'], 423);
+    die();
+}
+
 require WC_SCANPAY_DIR . '/includes/SeqDB.php';
 $SeqDB = new WC_Scanpay_SeqDB($ping['shopid']);
 $db = $SeqDB->get_seq();
@@ -46,8 +53,8 @@ if ($ping['seq'] < $db['seq']) {
     return wp_send_json(['error' => $msg], 400);
 }
 
-require WC_SCANPAY_DIR . '/includes/ScanpayClient.php';
-require WC_SCANPAY_DIR . '/includes/orderUpdater.php';
+require_once WC_SCANPAY_DIR . '/includes/ScanpayClient.php';
+require_once WC_SCANPAY_DIR . '/includes/orderUpdater.php';
 $client = new WC_Scanpay_API_Client($settings['apikey']);
 
 $seq = $db['seq'];
@@ -74,4 +81,7 @@ while (1) {
     $seq = $res['seq'];
     $SeqDB->set_seq($seq);
 }
-return wp_send_json_success();
+
+wp_send_json_success();
+fclose($fp);
+die();

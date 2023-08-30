@@ -7,7 +7,7 @@ defined('ABSPATH') || exit();
 */
 function wc_scanpay_dighomogenize(string $a, string $b): array
 {
-    $h = array();
+    $h = [];
     $h["as"] = (substr($a, 0, 1) == '-'); // str_starts_with() [PHP 8]
     $h["bs"] = (substr($b, 0, 1) == '-');
     $aa = explode(".", ($h["as"] ? substr($a, 1) : $a) . "."); // guarantee 2 elems
