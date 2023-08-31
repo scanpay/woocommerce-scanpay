@@ -3,8 +3,8 @@ defined('ABSPATH') || exit();
 
 class WC_Scanpay_SeqDB
 {
-    private $shopID;
-    private $tablename;
+    private int $shopID;
+    private string $tablename;
 
     public function __construct(int $shopid)
     {

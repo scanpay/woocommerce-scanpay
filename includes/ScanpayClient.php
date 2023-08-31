@@ -1,17 +1,11 @@
 <?php
 
-/*
-    Modified version of Scanpay Client Lib (PHP)
-    Updated 2023-01-14
-*/
-
 class WC_Scanpay_API_Client
 {
-    protected $ch;
-    protected $headers;
-    protected $apikey;
-    protected $idemstatus;
-    protected $opts;
+    private object $ch;
+    private array $headers;
+    private ?string $idemstatus;
+    private array $opts;
 
     public function __construct(string $apikey, array $opts = [])
     {
@@ -19,7 +13,6 @@ class WC_Scanpay_API_Client
             throw new \Exception("ERROR: Please enable php-curl\n");
         }
         $this->ch = curl_init(); // reuse handle
-        $this->apikey = $apikey;
         $this->opts = $opts;
         $this->headers = [
             'authorization' => 'Authorization: Basic ' . base64_encode($apikey),
@@ -33,7 +26,7 @@ class WC_Scanpay_API_Client
         }
     }
 
-    protected function headerCallback($curl, $hdr)
+    private function headerCallback($curl, $hdr)
     {
         scanpay_log('info', gettype($curl) . '; hdr: ' . gettype($hdr));
         $header = explode(':', $hdr, 2);
@@ -46,7 +39,7 @@ class WC_Scanpay_API_Client
         return strlen($hdr);
     }
 
-    protected function request(string $path, array $reqOpts = [], array $data = []): array
+    private function request(string $path, array $reqOpts = [], array $data = []): array
     {
         $this->idemstatus = null;
         $opts = $this->opts;

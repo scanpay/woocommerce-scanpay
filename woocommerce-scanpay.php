@@ -21,7 +21,7 @@ declare(strict_types = 1);
 defined('ABSPATH') || exit();
 
 const WC_SCANPAY_VERSION = '2.0.0';
-const WC_SCANPAY_MIN_PHP = '7.1.0';
+const WC_SCANPAY_MIN_PHP = '7.4.0';
 const WC_SCANPAY_MIN_WC = '6.9.0';
 const WC_SCANPAY_DASHBOARD = 'https://dashboard.scanpay.dk/';
 const WC_SCANPAY_URI_SETTINGS = 'woocommerce_scanpay_settings';

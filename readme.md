@@ -45,7 +45,8 @@ To enable WooCommerce Subscriptions navigate to `WooCommerce > Settings > Paymen
 
 | PHP Features                              | Version |
 | :---------------------------------------- | :-----: |
-| WooCommerce (8.0)                         | **7.3** |
+| WooCommerce (8.2)                         | 7.4     |
+| Class properties typing                   | 7.4     |
 | Nullable Types                            | 7.1     |
 | Void return type                          | 7.1     |
 | WordPress (6.3)                           | 7.0     |
