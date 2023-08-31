@@ -8,7 +8,6 @@ class WC_Scanpay_SeqDB
 
     public function __construct(int $shopid)
     {
-        scanpay_log('info', time() . ': init SeqDB');
         global $wpdb;
         $this->tablename = $wpdb->prefix . 'woocommerce_scanpay_seq';
         $this->shopID = $shopid;
@@ -49,7 +48,8 @@ class WC_Scanpay_SeqDB
             SET mtime = $mtime
             WHERE shopid = $this->shopID
         "); // int|bool
-        if (!$rows_affected) {
+        if ($rows_affected === false) {
+            // match false. 0 rows updated is not an error
             scanpay_log('critical', 'Failed updating mtime in database');
             return false;
         }

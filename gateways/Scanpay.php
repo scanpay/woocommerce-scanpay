@@ -151,14 +151,6 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
                 'default' => 'yes',
                 'desc_tip'    => true,
             ],
-            'autocomplete_virtual' => [
-                'title' => __('Auto-Complete', 'scanpay-for-woocommerce'),
-                'type' => 'checkbox',
-                'label' => __('Auto-complete virtual orders.', 'scanpay-for-woocommerce'),
-                'description' => __('Automatically mark all new virtual orders as "completed".', 'scanpay-for-woocommerce'),
-                'default' => 'no',
-                'desc_tip'    => true,
-            ],
             'autocomplete_all' => [
                 'title' => '&#10240;',
                 'type' => 'checkbox',

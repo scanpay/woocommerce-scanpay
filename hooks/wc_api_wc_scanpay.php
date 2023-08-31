@@ -31,57 +31,57 @@ if (
     die();
 }
 
-$fp = fopen('/tmp/scanpay_lock.txt', 'w');
-if (!flock($fp, LOCK_EX|LOCK_NB)) {
-    scanpay_log('notice', time() . ': ping rejected because of lock');
-    wp_send_json(['error' => 'busy'], 423);
-    die();
-}
-
 require WC_SCANPAY_DIR . '/includes/SeqDB.php';
-$SeqDB = new WC_Scanpay_SeqDB($ping['shopid']);
-$db = $SeqDB->get_seq();
-
-if ($ping['seq'] === $db['seq']) {
-    $SeqDB->update_mtime();
-    return wp_send_json_success();
-}
-
-if ($ping['seq'] < $db['seq']) {
-    $msg = sprintf('Ping seq (%u) is lower than local seq (%u)', $ping['seq'], $db['seq']);
-    scanpay_log('error', $msg);
-    return wp_send_json(['error' => $msg], 400);
-}
-
 require_once WC_SCANPAY_DIR . '/includes/ScanpayClient.php';
 require_once WC_SCANPAY_DIR . '/includes/orderUpdater.php';
 $client = new WC_Scanpay_API_Client($settings['apikey']);
 
-$seq = $db['seq'];
-while (1) {
-    $res = $client->seq($seq);
-    if (count($res['changes']) === 0) {
-        break; // done
-    }
+if (!mkdir('scanpay_lock')) {
+    // TODO: check if lock is older than 1 minute and rm it.
+    scanpay_log('notice', time() . ': ping rejected because of lock');
+    wp_send_json(['error' => 'busy'], 423);
+    die();
+}
+scanpay_log('info', 'ping received: ' . print_r($ping, true));
 
-    foreach ($res['changes'] as $change) {
-        switch ($change['type']) {
-            case 'transaction':
-            case 'charge':
-                scanpay_order_updater($change, $seq, $ping['shopid'], $settings);
-                break;
-            case 'subscriber':
-                // scanpay_subscriber_updater($change);
-                break;
-            default:
-                scanpay_log('error', 'Unknown change type: ' . $change['type']);
-                die();
+try {
+    $SeqDB = new WC_Scanpay_SeqDB($ping['shopid']);
+    $db = $SeqDB->get_seq();
+
+    if ($ping['seq'] === $db['seq']) {
+        $SeqDB->update_mtime();
+    } elseif ($ping['seq'] < $db['seq']) {
+        $msg = sprintf('Ping seq (%u) is lower than local seq (%u)', $ping['seq'], $db['seq']);
+        scanpay_log('error', $msg);
+        return;
+    } else {
+        $seq = $db['seq'];
+        while (1) {
+            $res = $client->seq($seq);
+            if (count($res['changes']) === 0) {
+                break; // done
+            }
+            foreach ($res['changes'] as $change) {
+                switch ($change['type']) {
+                    case 'transaction':
+                    case 'charge':
+                        scanpay_order_updater($change, $seq, $ping['shopid'], $settings);
+                        break;
+                    case 'subscriber':
+                        // scanpay_subscriber_updater($change);
+                        break;
+                    default:
+                        throw new \Exception('Unknown change type: ' . $change['type']);
+                }
+            }
+            $seq = $res['seq'];
+            $SeqDB->set_seq($seq);
         }
     }
-    $seq = $res['seq'];
-    $SeqDB->set_seq($seq);
+} catch (Exception $e) {
+    scanpay_log('info', 'ping error: ' . $e->getMessage());
 }
 
+rmdir('scanpay_lock');
 wp_send_json_success();
-fclose($fp);
-die();
+

@@ -40,28 +40,21 @@ function scanpay_order_updater(array $d, int $seq, int $shopid, array $settings)
         return; // This change has already been applied
     }
 
-    if (empty($order->get_meta(WC_SCANPAY_URI_TRNID))) {
-        $order->payment_complete($d['id']);
-        $order->add_meta_data(WC_SCANPAY_URI_TRNID, $d['id']);
-    }
-
-    $order->add_meta_data(WC_SCANPAY_URI_PAYMENT_METHOD, $d['method'], true);
     $order->add_meta_data(WC_SCANPAY_URI_TOTALS, $d['totals'], true);
     $order->add_meta_data(WC_SCANPAY_URI_NACTS, count($d['acts']), true);
     $order->add_meta_data(WC_SCANPAY_URI_REV, $d['rev'], true);
-    //$order->save();
 
+    if (empty($order->get_meta(WC_SCANPAY_URI_TRNID))) {
+        $order->add_meta_data(WC_SCANPAY_URI_TRNID, $d['id']);
+        $order->add_meta_data(WC_SCANPAY_URI_PAYMENT_METHOD, $d['method']);
+        $order->payment_complete($d['id']); // Changes order status to 'processing'
+    }
     if ($order_status === 'pending') {
-        $order->set_status('completed');
-        //$order->save();
+        if ($settings['autocomplete_all'] === 'yes' && $order->get_status() !== 'completed') {
+            scanpay_log('info', "Auto-complete order #$orderid");
+            $order->set_status('completed');
+        }
     }
     $order->save();
     return;
-
-
-    /*
-    if ($this->settings['autocomplete_virtual'] && $order->get_status() === 'processing') {
-        $this->autocompleteVirtual($order);
-    }
-    */
 }
