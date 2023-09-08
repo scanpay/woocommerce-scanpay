@@ -42,7 +42,6 @@ if (!mkdir('scanpay_lock')) {
     wp_send_json(['error' => 'busy'], 423);
     die();
 }
-scanpay_log('info', 'ping received: ' . print_r($ping, true));
 
 try {
     $SeqDB = new WC_Scanpay_SeqDB($ping['shopid']);

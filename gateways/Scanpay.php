@@ -4,21 +4,13 @@ defined('ABSPATH') || exit();
 
 class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
 {
-    private $shopid;
-
     public function __construct()
     {
         $this->id = 'scanpay';
         $this->method_title = 'Scanpay';
         $this->method_description = __('Accept payment cards through Scanpay.', 'scanpay-for-woocommerce');
-
-        // Load the settings into $this->settings
         $this->init_form_fields();
-        $this->init_settings();
-
-        $this->shopid = (int) explode(':', $this->settings['apikey'])[0];
-        $this->view_transaction_url = WC_SCANPAY_DASHBOARD . $this->shopid . '/%s';
-
+        $this->init_settings(); // Load the settings into $this->settings
         $this->title = $this->settings['title'];
         $this->description = $this->settings['description'];
         $this->supports = [
@@ -35,18 +27,17 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
             'multiple_subscriptions',
             'pre-orders'
         ];
-
         add_action('woocommerce_update_options_payment_gateways_scanpay', [$this, 'process_admin_options']);
     }
 
-    /* parent::get_icon() */
+    // WC_Payment_Gateway:: get_icon()
     public function get_icon(): string
     {
         $array = $this->settings['card_icons'];
         if (!empty($array)) {
             $icons = '<span class="scanpay-methods scanpay-cards">';
             foreach ($array as $key => $card) {
-                $icons .= '<img width="32" height="20" src="' . WC_SCANPAY_URL . '/public/images/cards/' . $card .
+                $icons .= '<img style="max-height: 22px" src="' . WC_SCANPAY_URL . '/public/images/cards/' . $card .
                     '.svg" class="scanpay-' . $card . '" alt="' . $card . '" title="' . $card . '">';
             }
             $icons .= '</span>';
@@ -54,7 +45,7 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
         return $icons;
     }
 
-    /* parent::process_payment() */
+    // WC_Payment_Gateway:: process_payment()
     public function process_payment($order_id): array
     {
         require WC_SCANPAY_DIR . '/includes/payment-link.php';
@@ -64,24 +55,18 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
         ];
     }
 
-    /*
-    *   parent::admin_options()
-    *   Override to add our settings header
-    */
+    // WC_Payment_Gateway:: admin_options()
     public function admin_options(): void
     {
-        echo '<h2>Scanpay';
-        wc_back_link(__('Return to payments', 'woocommerce'), admin_url('admin.php?page=wc-settings&tab=checkout'));
-        echo '</h2>';
-        echo wp_kses_post(wpautop($this->get_method_description()));
-        require WC_SCANPAY_DIR . '/includes/settings-header.php';
-        $subs_disabled = ($this->settings['subscriptions_enabled'] === 'no') ? 'scanpay--admin--no-subs' : '';
-        echo '<table class="form-table scanpay--admin--table ' . $subs_disabled . '">'
-            . $this->generate_settings_html($this->get_form_fields(), false) .
-        '</table>';
+        require WC_SCANPAY_DIR . '/includes/admin_options.php';
     }
 
-    /* parent::init_form_fields() */
+    // WC_Payment_Gateway:: can_refund_order()
+    public function can_refund_order($order) {
+        return false;
+    }
+
+    // WC_Settings_API:: init_form_fields()
     public function init_form_fields(): void
     {
         $this->form_fields = [

@@ -2,14 +2,15 @@
     "name": "woocommerce-scanpay",
     "private": true,
     "dependencies": {
-        "@woocommerce/dependency-extraction-webpack-plugin": "^2.2.0",
-        "@woocommerce/eslint-plugin": "^2.2.0",
-        "@wordpress/scripts": "^25.2.0",
-        "node-wp-i18n": "^1.2.7",
-        "prettier": ""
+        "@woocommerce/dependency-extraction-webpack-plugin": "latest",
+        "@woocommerce/eslint-plugin": "latest",
+        "@wordpress/scripts": "latest",
+        "node-wp-i18n": "latest",
+        "prettier": "latest"
     },
     "scripts": {
-        "build": "npm run makepot && npm run build:webpack",
+		"start": "wp-scripts start",
+		"build": "wp-scripts build && npm run i18n:build",
         "build:webpack": "wp-scripts build public/js/index.js",
         "start:webpack": "wp-scripts start public/js/index.js",
         "lint:js": "wp-scripts lint-js",

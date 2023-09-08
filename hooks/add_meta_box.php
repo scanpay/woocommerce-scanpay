@@ -3,9 +3,14 @@
 /*
 *   metabox.php
 *   Add transaction info to WooCommerce order view
+*   https://github.com/woocommerce/woocommerce/wiki/High-Performance-Order-Storage-Upgrade-Recipe-Book#audit-for-order-administration-screen-functions
 */
 
 defined('ABSPATH') || exit();
+
+// TODO: Move to meta?
+//$this->shopid = (int) explode(':', $this->settings['apikey'])[0];
+//$this->view_transaction_url = WC_SCANPAY_DASHBOARD . $this->shopid . '/%s';
 
 function wc_scanpay_meta_alert(string $type, string $msg): void
 {

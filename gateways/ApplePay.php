@@ -9,31 +9,29 @@ class WC_Scanpay_Gateway_ApplePay extends WC_Payment_Gateway
         $this->id = 'scanpay_applepay';
         $this->method_title = 'Apple Pay (Scanpay)';
         $this->method_description = __('Apple Pay through Scanpay.', 'scanpay-for-woocommerce');
-
-        // Load the settings into $this->settings
-        $this->init_form_fields();
-        $this->init_settings();
-
-        $this->title = $this->settings['title'];
-        $this->description = $this->settings['description'];
-
-        add_action(
-            'woocommerce_update_options_payment_gateways_' . $this->id,
-            [$this, 'process_admin_options']
-        );
+        $this->init_settings(); // Load the settings into $this->settings
+        $this->title = 'Apple Pay';
+        $this->description = 'Betal med Apple Pay';
+        $this->form_fields = [
+            'enabled' => [
+                'title' => __('Enable', 'scanpay-for-woocommerce'),
+                'type' => 'checkbox',
+                'label' => __('Enable Apple Pay in the checkout.', 'scanpay-for-woocommerce'),
+                'default' => 'no'
+            ]
+        ];
+        $this->supports = ['products'];
+        add_action('woocommerce_update_options_payment_gateways_' . $this->id, [$this, 'process_admin_options']);
     }
 
-    /* parent::get_icon() */
+    // WC_Payment_Gateway:: get_icon()
     public function get_icon(): string
     {
-        if ($this->settings['card_icon'] === 'yes') {
-            return '<span class="scanpay-methods"><img width="88" height="22" class="scanpay-mobilepay" src="' .
-                WC_SCANPAY_URL . '/public/images/cards/applepay.svg" alt="Apple Pay" title="Apple Pay"></span>';
-        }
-        return '';
+        return '<span class="scanpay-methods"><img width="45" height="20" class="scanpay-mobilepay" src="' .
+            WC_SCANPAY_URL . '/public/images/cards/applepay.svg" alt="Apple Pay" title="Apple Pay"></span>';
     }
 
-    /* parent::process_payment() */
+    // WC_Payment_Gateway:: process_payment()
     public function process_payment($order_id): array
     {
         require WC_SCANPAY_DIR . '/includes/payment-link.php';
@@ -43,31 +41,9 @@ class WC_Scanpay_Gateway_ApplePay extends WC_Payment_Gateway
         ];
     }
 
-    /* parent::init_form_fields() */
-    public function init_form_fields(): void
+    // WC_Payment_Gateway:: admin_options()
+    public function admin_options(): void
     {
-        $this->form_fields = [
-            'enabled' => [
-                'title' => __('Enable', 'scanpay-for-woocommerce'),
-                'type' => 'checkbox',
-                'label' => __('Enable Apple Pay in the checkout.', 'scanpay-for-woocommerce'),
-                'default' => 'no'
-            ],
-            'title' => [
-                'title' => __('Title', 'scanpay-for-woocommerce'),
-                'type' => 'text',
-                'description' => __('A title for the payment method. This is displayed on the checkout page.', 'scanpay-for-woocommerce'),
-                'default' => 'Apple Pay',
-                'desc_tip'    => true,
-            ],
-            'description' => [
-                'title' => __('Description', 'scanpay-for-woocommerce'),
-                'type' => 'text',
-                'description' => __('A description of the payment method. This is displayed on the checkout page.', 'scanpay-for-woocommerce'),
-                'default' => __('Pay with Apple Pay.', 'scanpay-for-woocommerce'),
-                'desc_tip'    => true,
-            ]
-        ];
+        require WC_SCANPAY_DIR . '/includes/admin_options.php';
     }
 }
-
