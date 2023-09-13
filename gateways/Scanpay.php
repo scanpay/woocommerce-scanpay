@@ -15,16 +15,6 @@ class WC_Scanpay_Gateway_Scanpay extends WC_Payment_Gateway
         $this->description = $this->settings['description'];
         $this->supports = [
             'products',
-            'subscriptions',
-            'subscription_cancellation',
-            'subscription_reactivation',
-            'subscription_suspension',
-            'subscription_amount_changes',
-            'subscription_date_changes',
-            'subscription_payment_method_change',
-            'subscription_payment_method_change_admin',
-            'subscription_payment_method_change_customer',
-            'multiple_subscriptions',
             'pre-orders'
         ];
         add_action('woocommerce_update_options_payment_gateways_scanpay', [$this, 'process_admin_options']);
