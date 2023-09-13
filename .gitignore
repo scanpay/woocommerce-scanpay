@@ -1,5 +1,5 @@
-languages/*.mo
-.vendor/
-node_modules
-build
-sync-woo.sh
+/.vendor/
+/node_modules
+/build
+/.*
+pnpm-lock.yaml
