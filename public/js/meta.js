@@ -3,7 +3,6 @@
 */
 
 (() => {
-    const version = 'EXTENSION_VERSION'; // Inserted by build script
     const urlParams = new URLSearchParams(window.location.search);
     const orderid = urlParams.get('id');
     let rev = 0;
@@ -49,7 +48,7 @@
     function showWarning(msg, type = 'error') {
         const div = document.createElement('div');
         div.className = 'scanpay--alert scanpay--alert-' + type;
-        div.textContent = msg;
+        div.innerHTML = msg;
         document.getElementById('scanpay-meta').prepend(div);
     }
 
@@ -70,12 +69,12 @@
         // Check if the extension is up-to-date (cache result for 10 minutes)
         request('https://api.github.com/repos/scanpay/woocommerce-scanpay/releases/latest', 600)
             .then((o) => {
-                console.log(o);
+                const version = wcSettings.admin.scanpay; // Inserted by build script
                 const release = o.tag_name.substring(1);
                 if (release !== version) {
                     showWarning(
-                        `Your scanpay extension <i>(${version})</i> is <b class="scanpay-outdated">outdated</b>.
-                        Please update to ${release} (<a href="//github.com/scanpay/opencart-scanpay/releases"
+                        `Your scanpay plugin is <b class="scanpay-outdated">outdated</b>.
+                        Please update to <i>${release}</i> (<a href="//github.com/scanpay/woocommerce-scanpay/releases"
                         target="_blank">changelog</a>)`
                     );
                 }
@@ -125,7 +124,7 @@
         return ul;
     }
 
-    fetch('../wc-api/scanpay_ajax_meta/?order_id=' + orderid)
+    fetch('../wc-api/scanpay_ajax_meta/?order_id=' + orderid + '&rev=0')
         .then(r => r.json())
         .then((meta) => {
             const box = document.getElementById('scanpay-meta');
