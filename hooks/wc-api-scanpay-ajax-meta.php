@@ -8,7 +8,7 @@
 // phpcs:disable WordPress.Security.NonceVerification.Recommended
 defined( 'ABSPATH' ) || exit();
 
-if ( ! isset( $_GET['order_id'] ) || ! current_user_can( 'edit_shop_orders' ) ) {
+if ( ! isset( $_GET['order_id'], $_GET['rev'] ) || ! current_user_can( 'edit_shop_orders' ) ) {
 	wp_send_json( [ 'error' => 'forbidden' ], 403 );
 	die;
 }
@@ -19,13 +19,14 @@ wc_set_time_limit( 0 );
 
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 $shopid   = (int) explode( ':', (string) $settings['apikey'] )[0];
+$rev      = (int) $_GET['rev'];
+$order_id = (int) $_GET['order_id'];
+
 if ( 0 === $shopid ) {
 	wp_send_json_error( [ 'error' => 'invalid shopid' ] );
 	die;
 }
 
-$order_id = (int) $_GET['order_id'];
-$rev      = (int) ( $_GET['rev'] ?? 0 );
 if ( 0 === $order_id ) {
 	wp_send_json_error( [ 'error' => 'not found' ] );
 	die;

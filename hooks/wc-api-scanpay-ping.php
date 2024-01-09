@@ -53,7 +53,7 @@ function wc_scanpay_validate_seq( array $c ): bool {
 }
 
 function wc_scanpay_subscriber( array $c ) {
-
+	// 	phpcs:ignore Squiz.PHP.CommentedOutCode.Found
 	/*
 	if ( 'subscriber' === $c['type'] ) {
 		$wc_order->add_meta_data( WC_SCANPAY_URI_SUBID, $c['id'], true );
@@ -76,18 +76,19 @@ function wc_scanpay_apply_changes( int $shopid, array $arr ) {
 			wc_scanpay_subscriber( $c );
 			continue;
 		}
-		$orderid = (int) $c['orderid'];
-		$dbRev   = $wpdb->get_var( "SELECT rev FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $orderid" );
-		$rev     = (int) $c['rev'];
-		$nacts   = count( $c['acts'] );
-		$authorized = explode(' ', $c['totals']['authorized']);
-		$captured = explode(' ', $c['totals']['captured']);
-		$refunded = explode(' ', $c['totals']['refunded']);
-		$voided = explode(' ', $c['totals']['voided']);
+		$orderid  = (int) $c['orderid'];
+		$db_rev   = $wpdb->get_var( "SELECT rev FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $orderid" );
+		$rev      = (int) $c['rev'];
+		$nacts    = count( $c['acts'] );
+		$captured = substr( $c['totals']['captured'], 0, -4 );
+		$refunded = substr( $c['totals']['refunded'], 0, -4 );
+		$voided   = substr( $c['totals']['voided'], 0, -4 );
 
-		if ( is_null( $dbRev ) ) {
-			$subid  = ( 'charge' === $c['type'] ) ? (int) $c['subscriber']['id'] : 0;
-			$method = $c['method']['type'];
+		if ( is_null( $db_rev ) ) {
+			$currency   = substr( $c['totals']['authorized'], -3 );
+			$authorized = substr( $c['totals']['authorized'], 0, -4 );
+			$subid      = ( 'charge' === $c['type'] ) ? (int) $c['subscriber']['id'] : 0;
+			$method     = $c['method']['type'];
 			if ( 'card' === $method ) {
 				$method = 'card ' . $c['method']['card']['brand'] . ' ' . $c['method']['card']['last4'];
 			}
@@ -100,11 +101,11 @@ function wc_scanpay_apply_changes( int $shopid, array $arr ) {
 						id = " . (int) $c['id'] . ",
 						rev = $rev,
 						nacts = $nacts,
-						currency = '" . $authorized[1] . "',
-						authorized = '" . $authorized[0] . "',
-						captured = '" . $captured[0] . "',
-						refunded = '" . $refunded[0] . "',
-						voided = '" . $voided[0] . "',
+						currency = '$currency',
+						authorized = '$authorized',
+						captured = '$captured',
+						refunded = '$refunded',
+						voided = '$voided',
 						method = '$method'"
 			);
 			if ( ! $res ) {
@@ -114,21 +115,19 @@ function wc_scanpay_apply_changes( int $shopid, array $arr ) {
 			if ( ! $wc_order ) {
 				continue;
 			}
-			if ($wc_order->needs_payment()) {
+			if ( $wc_order->needs_payment() ) {
 				// Change order status to 'processing' and save transaction ID
 				$wc_order->payment_complete( $c['id'] );
 			}
+
+			// 	phpcs:ignore Squiz.PHP.CommentedOutCode.Found
 			// $wc_order->add_meta_data( WC_SCANPAY_URI_SHOPID, $shopid, true );
 			$wc_order->set_payment_method( 'scanpay' );
 			$wc_order->save();
-		} elseif ( $rev > $dbRev ) {
+		} elseif ( $rev > $db_rev ) {
 			$res = $wpdb->query(
 				"UPDATE {$wpdb->prefix}scanpay_meta
-					SET rev = $rev,
-						nacts = $nacts,
-						captured = '" . $captured[0] . "',
-						refunded = '" . $refunded[0] . "',
-						voided = '" . $voided[0] . "'
+					SET rev = $rev, nacts = $nacts, captured = '$captured', refunded = '$refunded', voided = '$voided'
 					WHERE orderid = $orderid"
 			);
 			if ( ! $res ) {
@@ -165,7 +164,7 @@ if ( $ping['seq'] === $seq ) {
 	$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET mtime = $mtime WHERE shopid = $shopid" );
 	return wp_send_json( [ 'success' => true ], 304 );
 } elseif ( $ping['seq'] < $seq ) {
-	$err_msg = "The received ping seq (" . $ping['seq'] . ") was smaller than the local seq ($seq)";
+	$err_msg = 'The received ping seq (' . $ping['seq'] . ") was smaller than the local seq ($seq)";
 	scanpay_log( 'error', 'scanpay synchronization error: ' . $err_msg );
 	return wp_send_json( [ 'error' => $err_msg ], 400 );
 }

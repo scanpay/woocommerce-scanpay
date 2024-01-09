@@ -16,5 +16,5 @@ if ( ! current_user_can( 'edit_shop_orders' ) ) {
 global $wpdb;
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 $shopid   = (int) explode( ':', (string) $settings['apikey'] )[0];
-$mtime = $wpdb->get_var( "SELECT mtime FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" ); // Int or Null
+$mtime    = $wpdb->get_var( "SELECT mtime FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" ); // Int or Null
 wp_send_json_success( [ 'mtime' => (int) ( $mtime ?? 0 ) ] );

@@ -54,6 +54,7 @@ function wc_scanpay_initial_charge( object $client, array $queue, array $setting
 
 		try {
 			$res = $client->charge( $subid, $data, [ 'headers' => [ 'Idempotency-Key' => $idem['key'] ] ] );
+			// 	phpcs:ignore Squiz.PHP.CommentedOutCode.Found
 			// $wc_order->add_meta_data( WC_SCANPAY_URI_TRNID, $res['id'] );
 			// $wc_order->delete_meta_data( WC_SCANPAY_URI_REV ); // indicate out of sync.
 			$wc_order->payment_complete( $res['id'] );

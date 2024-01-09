@@ -33,7 +33,7 @@ const WC_SCANPAY_URI_SUBID    = '_scanpay_subid';
 const WC_SCANPAY_URI_IDEM     = '_scanpay_idem';
 
 define( 'WC_SCANPAY_DIR', __DIR__ );
-define( 'WC_SCANPAY_URL', set_url_scheme( WP_PLUGIN_URL ) . '/scanpay-for-woocommerce');
+define( 'WC_SCANPAY_URL', set_url_scheme( WP_PLUGIN_URL ) . '/scanpay-for-woocommerce' );
 
 
 function scanpay_log( string $level, string $msg ): void {

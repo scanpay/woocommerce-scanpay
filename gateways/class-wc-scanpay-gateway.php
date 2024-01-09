@@ -48,7 +48,7 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 	}
 
 	public function get_transaction_url( $order ) {
-		$shopid = $order->get_meta( WC_SCANPAY_URI_SHOPID, true );
+		$shopid                     = $order->get_meta( WC_SCANPAY_URI_SHOPID, true );
 		$this->view_transaction_url = WC_SCANPAY_DASHBOARD . "$shopid/" . '%s';
 		return parent::get_transaction_url( $order );
 	}
