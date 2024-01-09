@@ -24,7 +24,7 @@ registerPaymentMethod({
     canMakePayment: () => true,
     ariaLabel: settings.scanpay.title,
     supports: {
-        features: ['products', 'pre-orders'],
+        features: ['products', 'subscriptions'],
     },
 });
 
@@ -39,7 +39,7 @@ registerPaymentMethod({
     canMakePayment: () => true,
     ariaLabel: 'MobilePay',
     supports: {
-        features: ['products', 'pre-orders'],
+        features: ['products'],
     },
 });
 
@@ -54,7 +54,7 @@ registerPaymentMethod({
     canMakePayment: () => true,
     ariaLabel: 'Apple Pay',
     supports: {
-        features: ['products', 'pre-orders'],
+        features: ['products'],
     },
 });
 

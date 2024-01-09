@@ -6,11 +6,12 @@
         "@woocommerce/eslint-plugin": "latest",
         "@wordpress/scripts": "latest",
         "node-wp-i18n": "latest",
+        "npm": "^10.2.5",
         "prettier": "latest"
     },
     "scripts": {
-		"start": "wp-scripts start",
-		"build": "wp-scripts build && npm run i18n:build",
+        "start": "wp-scripts start",
+        "build": "wp-scripts build && npm run i18n:build",
         "build:webpack": "wp-scripts build public/js/index.js",
         "start:webpack": "wp-scripts start public/js/index.js",
         "lint:js": "wp-scripts lint-js",
