@@ -1,0 +1,29 @@
+{
+    "name": "scanpay/woocommerce-scanpay",
+    "description": "Scanpay for WooCommerce",
+    "homepage": "https://github.com/scanpay/woocommerce-scanpay",
+    "license": "GPL-3.0-or-later",
+    "type": "wordpress-plugin",
+    "prefer-stable": true,
+    "minimum-stability": "dev",
+    "require": {
+      "automattic/jetpack-autoloader": "*",
+      "composer/installers": "*"
+    },
+    "require-dev": {
+      "phpunit/phpunit": "*"
+    },
+    "scripts": {
+      "post-install-cmd": [
+        "composer dump-autoload"
+      ],
+      "post-update-cmd": [
+        "composer dump-autoload"
+      ]
+    },
+    "autoload": {
+      "psr-4": {
+        "Automattic\\WooCommerce\\ExamplePackage\\": "src"
+      }
+    }
+  }

@@ -1,0 +1,18 @@
+
+
+.scanpay-cards > img {
+    margin: 0 0 0 5px;
+}
+
+.scanpay--blocks--title {
+    margin-right: 1em;
+}
+
+.scanpay--blocks--cards {
+    display: flex;
+    gap: .3em;
+}
+
+.scanpay--blocks--ico {
+    border-radius: 0;
+}

@@ -1,1 +1,8 @@
-languages/*.mo
+/.vendor/
+/vendor/
+/node_modules
+/build
+/.*
+/pnpm-lock.yaml
+/package-lock.json
+/composer.lock

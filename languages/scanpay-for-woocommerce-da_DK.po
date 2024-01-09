@@ -3,236 +3,243 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Scanpay for WooCommerce 2.0.0\n"
-"Report-Msgid-Bugs-To: "
-"https://wordpress.org/support/plugin/woocommerce-scanpay\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/woocommerce-"
+"scanpay\n"
 "POT-Creation-Date: 2023-01-24 18:51:29+00:00\n"
+"PO-Revision-Date: 2023-01-24 19:57+0100\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: da\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=utf-8\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"PO-Revision-Date: 2023-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-"X-Generator: node-wp-i18n 1.2.7\n"
+"X-Generator: Poedit 2.2.4\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: gateways/Mobilepay.php:11
 msgid "MobilePay Online through Scanpay."
-msgstr ""
+msgstr "MobilePay Online via Scanpay."
 
 #: gateways/Mobilepay.php:51 gateways/Scanpay.php:88
 msgid "Enable"
-msgstr ""
+msgstr "Aktivér"
 
 #: gateways/Mobilepay.php:53
 msgid "Enable MobilePay in the checkout."
-msgstr ""
+msgstr "Aktivér MobilePay i kassen."
 
 #: gateways/Mobilepay.php:57 gateways/Scanpay.php:105
 msgid "Title"
-msgstr ""
+msgstr "Titel"
 
 #: gateways/Mobilepay.php:59 gateways/Scanpay.php:107
 msgid "A title for the payment method. This is displayed on the checkout page."
-msgstr ""
+msgstr "En titel til betalingsmetoden, som vises under checkout."
 
 #: gateways/Mobilepay.php:64 gateways/Scanpay.php:112
 msgid "Description"
-msgstr ""
+msgstr "Beskrivelse"
 
 #: gateways/Mobilepay.php:66 gateways/Scanpay.php:114
-msgid "A description of the payment method. This is displayed on the checkout page."
-msgstr ""
+msgid ""
+"A description of the payment method. This is displayed on the checkout page."
+msgstr "En beskrivelse af betalingsmetoden, som vises under checkout."
 
 #: gateways/Mobilepay.php:67
 msgid "Pay with MobilePay."
-msgstr ""
+msgstr "Betal med MobilePay."
 
 #: gateways/Mobilepay.php:71
 msgid "Checkout icon"
-msgstr ""
+msgstr "Checkout ikon"
 
 #: gateways/Mobilepay.php:73
 msgid "Display the MobilePay logo on the checkout page."
-msgstr ""
+msgstr "Vis mobilePay logoet i checkout."
 
 #: gateways/Scanpay.php:13
 msgid "Accept payment cards through Scanpay."
-msgstr ""
+msgstr "Tag imod betalinger via Scanpay."
 
 #: gateways/Scanpay.php:74
 msgid "Return to payments"
-msgstr ""
+msgstr "Tilbage til betalingsoversigt"
 
 #: gateways/Scanpay.php:90
 msgid "Enable Scanpay in the checkout."
-msgstr ""
+msgstr "Aktivér Scanpay i checkout."
 
 #: gateways/Scanpay.php:94
 msgid "API key"
-msgstr ""
+msgstr "API nøgle"
 
 #: gateways/Scanpay.php:96
 msgid "You can find your API key in the Scanpay dashboard."
-msgstr ""
+msgstr "Du kan finde din API nøgle i Scanpay dashboardet."
 
 #: gateways/Scanpay.php:108
 msgid "Credit card"
-msgstr ""
+msgstr "Kreditkort"
 
 #: gateways/Scanpay.php:115
 msgid "Pay with payment card through Scanpay."
-msgstr ""
+msgstr "Betal med betalingskort via Scanpay."
 
 #: gateways/Scanpay.php:119
 msgid "Card icons"
-msgstr ""
+msgstr "Kortlogoer"
 
 #: gateways/Scanpay.php:121
 msgid "Choose which cards icons to display on the checkout page."
-msgstr ""
+msgstr "Vælg hvilke kortikoner der skal vises i din checkout."
 
 #: gateways/Scanpay.php:138
 msgid "Capture On Complete"
-msgstr ""
+msgstr "Hæv automatisk"
 
 #: gateways/Scanpay.php:140
 msgid "Capture the payment when the order is completed."
-msgstr ""
+msgstr "Hæv betalingen når ordren er gennemført."
 
 #: gateways/Scanpay.php:141
-msgid "You can use this with Auto-Complete to automatically capture new orders."
+msgid ""
+"You can use this with Auto-Complete to automatically capture new orders."
 msgstr ""
+"Du kan bruge dette sammen med Auto-Complete, for at hæve nye ordrer "
+"automatisk."
 
 #: gateways/Scanpay.php:146
 msgid "Auto-Complete"
-msgstr ""
+msgstr "Ordrestatus"
 
 #: gateways/Scanpay.php:148
 msgid "Automatically complete Virtual Orders."
-msgstr ""
+msgstr "Marker automatisk nye virtuelle ordrer som gennemført."
 
 #: gateways/Scanpay.php:149
 msgid "Automatically mark all new virtual orders as completed."
-msgstr ""
+msgstr "Marker automatisk nye virtuelle ordrer som gennemført."
 
 #: gateways/Scanpay.php:156
 msgid "Automatically complete Renewal Orders (subscriptions only)."
 msgstr ""
+"Marker automatisk nye Renewal ordrer som gennemført (kun Subscriptions)."
 
 #: gateways/Scanpay.php:157
 msgid "Automatically mark all new renewal orders as completed."
-msgstr ""
+msgstr "Marker automatisk nye renewal ordrer som gennemført."
 
 #: gateways/Scanpay.php:162
 msgid "Subscriptions"
-msgstr ""
+msgstr "Abonnementsbetalinger"
 
 #: gateways/Scanpay.php:164
 msgid "Enable support for WooCommerce Subscriptions."
-msgstr ""
+msgstr "Aktivér support for WooCommerce Subscriptions."
 
 #: hooks/add_meta_box.php:61
 msgid "No transaction details found"
-msgstr ""
+msgstr "Ingen transaktion fundet"
 
 #: hooks/add_meta_box.php:65
 msgid "Synchronizing transaction."
-msgstr ""
+msgstr "Synkroniserer transaktion."
 
 #: hooks/add_meta_box.php:78
 msgid "The order is marked as completed, but it has not been captured."
-msgstr ""
+msgstr "Ordren er markeret som gennemført, men den er ikke blevet hævet."
 
 #: hooks/add_meta_box.php:85
 msgid "Status"
-msgstr ""
+msgstr "Status"
 
 #: hooks/add_meta_box.php:96
 msgid "Captured"
-msgstr ""
+msgstr "Hævet"
 
 #: hooks/add_meta_box.php:103
 msgid "Refunded"
-msgstr ""
+msgstr "Refunderet"
 
 #: hooks/add_meta_box.php:107
 msgid "Net payment"
-msgstr ""
+msgstr "Netto betaling"
 
 #: hooks/add_meta_box.php:119
 msgid "Refund"
-msgstr ""
+msgstr "Refundér"
 
 #: hooks/add_meta_box.php:122
 msgid "Void transaction"
-msgstr ""
+msgstr "Annuller betaling"
 
 #: includes/settings-header.php:31
 msgid "%s second since last received ping"
 msgid_plural "%s seconds since last received ping"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%s sekund siden sidst modtaget ping"
+msgstr[1] "%s sekunder siden sidst modtaget ping"
 
 #: includes/settings-header.php:48 includes/settings-header.php:75
 #: includes/settings-header.php:110 includes/settings-header.php:126
 msgid "Send ping"
-msgstr ""
+msgstr "Send ping"
 
 #: includes/settings-header.php:67
 msgid "Guide"
-msgstr ""
+msgstr "Guide"
 
 #: includes/settings-header.php:82
 msgid "Debug logs"
-msgstr ""
+msgstr "Debug logs"
 
 #: includes/settings-header.php:94
 msgid "Welcome to Scanpay for WooCommerce!"
-msgstr ""
+msgstr "Velkommen til Scanpay for WooCommerce!"
 
 #: includes/settings-header.php:95
 msgid "Please follow the instructions in the setup guide."
-msgstr ""
+msgstr "Følg venligst instruktionerne i opsætningsvejledningen."
 
 #: includes/settings-header.php:100
 msgid "Setup guide"
-msgstr ""
+msgstr "Vejledning"
 
 #: includes/settings-header.php:104
 msgid "You have never received any pings from Scanpay"
-msgstr ""
+msgstr "Du har aldrig modtaget nogen pings fra Scanpay"
 
 #: includes/settings-header.php:105
 msgid "Please perform a test ping to finalize the installation."
-msgstr ""
+msgstr "Send et test-ping for at afslutte og validere opsætningen."
 
 #: includes/settings-header.php:120
 msgid "Warning: Your transaction data could be out of sync!"
-msgstr ""
+msgstr "Advarsel: Dine transaktionsdata kan være ude af synkronisering!"
 
 #: includes/settings-header.php:121
 msgid "%s minutes have passed since the last received ping."
-msgstr ""
+msgstr "%s minutter er gået siden sidste modtagne ping."
 
 #: woocommerce-scanpay.php:69
 msgid "Settings"
-msgstr ""
+msgstr "Indstillinger"
 
 #. Plugin Name of the plugin/theme
 msgid "Scanpay for WooCommerce"
-msgstr ""
+msgstr "Scanpay for WooCommerce"
 
 #. Plugin URI of the plugin/theme
 msgid "https://wordpress.org/plugins/scanpay-for-woocommerce/"
-msgstr ""
+msgstr "https://wordpress.org/plugins/scanpay-for-woocommerce/"
 
 #. Description of the plugin/theme
 msgid "Accept payments in WooCommerce with a secure payment gateway."
-msgstr ""
+msgstr "Tag imod betalinger i WooCommerce med en sikker betalingsgateway."
 
 #. Author of the plugin/theme
 msgid "Scanpay"
-msgstr ""
+msgstr "Scanpay"
 
 #. Author URI of the plugin/theme
 msgid "https://scanpay.dk"
-msgstr ""
+msgstr "https://scanpay.dk"

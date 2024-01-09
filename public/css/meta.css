@@ -1,0 +1,184 @@
+/*
+    Scanpay meta box
+*/
+
+
+/* Reset meta-box inside */
+#scanpay-info > .inside {
+    margin: 10px 0 0 0;
+    padding: 0;
+    min-height: 80px;
+}
+
+/* Alert box in meta box */
+.scanpay--alert {
+    margin: 9px 11px 9px;
+    padding: 6px 10px 5px;
+    font-size: .95em;
+    border-radius: 3px;
+    color: #22240a;
+    background: #fff9e6;
+    border: 1px solid #c1b7ab;
+
+    > strong {
+        font-weight: 600;
+        font-size: .95em;
+    }
+}
+
+.scanpay--alert-warning {
+    color: #400808;
+    background: #ffe8e6;
+    border: 1px solid #d19898;
+}
+
+.scanpay--alert-error {
+    color: #400808;
+    background: #ffe8e6;
+    border: 1px solid #d19898;
+}
+
+.scanpay--alert-pending {
+    display: flex;
+}
+
+.scanpay--alert--spin {
+    vertical-align: baseline;
+    margin: 0 6px 0 0;
+}
+
+/* Meta box */
+.sp--widget--ul {
+    margin: 10px 0 11px;
+    padding: 0 12px;
+    list-style: none !important;
+}
+
+.sp--widget--li {
+    display: flex;
+    padding: .15em 0;
+}
+
+.sp--widget--listatus--fully-refunded, .sp--widget--listatus--partially-refunded {
+    color: #772727;
+}
+
+.sp--widget--listatus--partially-captured {
+    color: #364d36
+}
+
+.sp--widget--listatus--fully-captured {
+    color: #1f601f
+}
+
+.sp--widget--li--refunded {
+    color: #641515
+}
+
+
+.sp--widget--li--title {
+    flex: 1;
+}
+
+.sp--widget--li--status--captured {
+    color: #005800;
+}
+
+.sp--widget--li--status--refunded {
+    color: #901212;
+}
+
+.sp--widget--li--status--partial_refund {
+    color: #a14a20;
+}
+
+
+.sp--widget--li--card {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.sp--widget--li--card--dots {
+    color: #696969;
+}
+
+.sp--widget--li--card--dankort, .sp--widget--li--card--visadankort {
+    width: 24px;
+    height: 15px;
+}
+
+.sp--widget--li--card--visa {
+    width: 27px;
+    height: 9px;
+}
+
+.sp--widget--li--card--mastercard, .sp--widget--li--card--maestro {
+    width: 22px;
+    height: 13px;
+}
+
+.sp--widget--li--card--amex {
+    width: 24px;
+    height: 15px;
+}
+
+.sp--widget--li--card--diners {
+    width: 18px;
+    height: 15px;
+}
+
+.sp--widget--li--card--jcb {
+    width: 21.5px;
+    height: 15px;
+}
+
+.sp--widget--li--card--unionpay {
+    width: 22px;
+    height: 15px;
+}
+
+.sp--widget--li--card--discover {
+    width: 23px;
+    height: 15px;
+}
+
+.sp--widget--li--card--mobilepay {
+    width: 16px;
+    height: 17px;
+}
+
+.sp--widget--li--card--applepay {
+    height: 13px;
+}
+
+
+
+/*
+    actions (bottom panel)
+*/
+
+.sp-meta-acts {
+    display: flex;
+    align-items: center;
+    height: 34px;
+    background-color: #f8f8f8;
+    border-top: 1px solid #e0e0e0;
+    padding: 0 11px 0;
+}
+
+.sp-meta-acts-left {
+    flex: 1;
+}
+
+.sp-meta-acts-link {
+    display: block;
+    background: url('../images/admin/link.svg') no-repeat center;
+    width: 24px;
+    height: 24px;
+}
+
+.sp-meta-acts-refund {
+    color: #b32d2e;
+    margin-bottom: 3px;
+}
