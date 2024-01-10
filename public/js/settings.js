@@ -6,25 +6,23 @@
     const alert = document.getElementById('scanpay--admin--alert');
 
     /*
-        request(): fetch wrapper with cache (v1.0)
+        request(): fetch wrapper with caching (v1.0)
     */
-    function request(url, cache = 0) {
-        const reqCache = JSON.parse(localStorage.getItem('scanpay_cache')) || {};
+    function request(url, caching = 0) {
+        const reqCache = (caching) ? JSON.parse(localStorage.getItem('scanpay_cache')) || {} : {};
         const now = Math.floor(Date.now() / 1000);
 
-        if (cache && reqCache[url] && now < reqCache[url].next) {
+        if (caching && reqCache[url] && now < reqCache[url].next) {
             return new Promise((resolve, reject) => {
-                if (!reqCache[url].success) {
-                    return reject(reqCache[url].data);
-                }
-                resolve(reqCache[url].data)
+                if (reqCache[url].err) return reject(reqCache[url].err);
+                resolve(reqCache[url].o)
             });
         }
         return fetch(url)
             .then((res) => {
                 if (res.status !== 200) {
-                    if (cache) {
-                        reqCache[url] = { success: false, next: now + cache };
+                    if (caching) {
+                        reqCache[url] = { err: res.statusText, next: now + caching };
                         localStorage.setItem('scanpay_cache', JSON.stringify(reqCache));
                     }
                     throw new Error(res.statusText);
@@ -32,14 +30,16 @@
                 return res.json();
             })
             .then((o) => {
-                if (o.success !== undefined && o.success === false) {
-                    throw new Error(o.data.error);
+                if (caching) {
+                    reqCache[url] = { o: o, next: now + caching };
+                    if (o.error) reqCache[url] = { err: o.error, next: now + caching };
+                    localStorage.setItem('scanpay_cache', JSON.stringify(reqCache));
                 }
-                reqCache[url] = { success: true, data: (o.data || o), next: now + cache }
-                localStorage.setItem('scanpay_cache', JSON.stringify(reqCache));
-                return o.data;
+                if (o.error) throw new Error(o.error);
+                return o;
             });
     }
+
 
     function showWarning(title, msg, id = false) {
         const html = '<div class="scanpay--admin--alert--title">' + title + '</div>' + msg;
@@ -61,6 +61,7 @@
             const release = o.tag_name.substring(1);
             if (release !== version) {
                 showWarning(
+                    'There is a new version of the Scanpay plugin available',
                     `Your scanpay extension <i>(${version})</i> is <b class="scanpay-outdated">outdated</b>.
                     Please update to ${release} (<a href="//github.com/scanpay/opencart-scanpay/releases"
                     target="_blank">changelog</a>)`

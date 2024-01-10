@@ -8,27 +8,26 @@
     let rev = 0;
     let busy = true;
     let currency;
+    let box;
 
     /*
-        request(): fetch wrapper with cache (v1.0)
+        request(): fetch wrapper with caching (v1.0)
     */
-    function request(url, cache = 0) {
-        const reqCache = JSON.parse(localStorage.getItem('scanpay_cache')) || {};
+    function request(url, caching = 0) {
+        const reqCache = (caching) ? JSON.parse(localStorage.getItem('scanpay_cache')) || {} : {};
         const now = Math.floor(Date.now() / 1000);
 
-        if (cache && reqCache[url] && now < reqCache[url].next) {
+        if (caching && reqCache[url] && now < reqCache[url].next) {
             return new Promise((resolve, reject) => {
-                if (!reqCache[url].success) {
-                    return reject(reqCache[url].data);
-                }
-                resolve(reqCache[url].data)
+                if (reqCache[url].err) return reject(reqCache[url].err);
+                resolve(reqCache[url].o)
             });
         }
         return fetch(url)
             .then((res) => {
                 if (res.status !== 200) {
-                    if (cache) {
-                        reqCache[url] = { success: false, next: now + cache };
+                    if (caching) {
+                        reqCache[url] = { err: res.statusText, next: now + caching };
                         localStorage.setItem('scanpay_cache', JSON.stringify(reqCache));
                     }
                     throw new Error(res.statusText);
@@ -36,14 +35,16 @@
                 return res.json();
             })
             .then((o) => {
-                if (o.success !== undefined && o.success === false) {
-                    throw new Error(o.data.error);
+                if (caching) {
+                    reqCache[url] = { o: o, next: now + caching };
+                    if (o.error) reqCache[url] = { err: o.error, next: now + caching };
+                    localStorage.setItem('scanpay_cache', JSON.stringify(reqCache));
                 }
-                reqCache[url] = { success: true, data: (o.data || o), next: now + cache }
-                localStorage.setItem('scanpay_cache', JSON.stringify(reqCache));
-                return o.data;
+                if (o.error) throw new Error(o.error);
+                return o;
             });
     }
+
 
     function showWarning(msg, type = 'error') {
         const div = document.createElement('div');
@@ -69,7 +70,8 @@
         // Check if the extension is up-to-date (cache result for 10 minutes)
         request('https://api.github.com/repos/scanpay/woocommerce-scanpay/releases/latest', 600)
             .then((o) => {
-                const version = wcSettings.admin.scanpay; // Inserted by build script
+                console.log(o);
+                const version = wcSettings.admin.scanpay;
                 const release = o.tag_name.substring(1);
                 if (release !== version) {
                     showWarning(
@@ -105,6 +107,7 @@
 
     function buildTable(arr) {
         const ul = document.createElement('ul');
+        ul.id = 'sp--widget--ul';
         ul.className = 'sp--widget--ul';
         for (const x of arr) {
             const li = document.createElement('li');
@@ -127,8 +130,10 @@
     fetch('../wc-api/scanpay_ajax_meta/?order_id=' + orderid + '&rev=0')
         .then(r => r.json())
         .then((meta) => {
-            const box = document.getElementById('scanpay-meta');
-            const dataset = box.dataset;
+            const target = document.getElementById('scanpay-meta');
+            const dataset = target.dataset;
+            box = target.cloneNode(false);
+
             if (!dataset.payid) return showWarning('No payment details found for this order.');
             if (!meta.success) {
                 if (meta.data.error === 'invalid shopid') {
@@ -144,9 +149,9 @@
             }
 
             const link = 'https://dashboard.scanpay.dk/' + meta.data.shopid + '/' + meta.data.id;
-            const intl = wcSettings.currency.decimalSeparator === ',' ? 'da-DK' : 'en-US';
+            const iso = wcSettings.currency.decimalSeparator === ',' ? 'da-DK' : 'en-US';
             currency = new Intl.NumberFormat(
-                'da-DK', { style: 'currency', currency: meta.data.currency }
+                iso, { style: 'currency', currency: meta.data.currency }
             );
             box.appendChild(buildTable(buildDataArray(meta.data)));
 
@@ -168,6 +173,23 @@
             compatibilityCheck();
         })
         .catch(e => console.log(e));
+
+
+
+    let controller;
+    document.addEventListener("visibilitychange", () => {
+        // Check for rev updates when user comes back from dashboard
+        if (document.visibilityState == "visible") {
+            controller = new AbortController();
+
+            fetch(ajaxMetaUrl + '&rev=' + rev, { signal: controller.signal })
+                .then((r) => r.json())
+                .then(build)
+                .catch((e) => console.log(e));
+        } else if (controller) {
+            controller.abort();
+        }
+    });
 
 
 })();

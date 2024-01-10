@@ -23,12 +23,12 @@ $rev      = (int) $_GET['rev'];
 $order_id = (int) $_GET['order_id'];
 
 if ( 0 === $shopid ) {
-	wp_send_json_error( [ 'error' => 'invalid shopid' ] );
+	wp_send_json( [ 'error' => 'invalid shopid' ] );
 	die;
 }
 
 if ( 0 === $order_id ) {
-	wp_send_json_error( [ 'error' => 'not found' ] );
+	wp_send_json( [ 'error' => 'not found' ] );
 	die;
 }
 
@@ -54,7 +54,7 @@ if ( isset( $meta['rev'] ) && $rev >= $meta['rev'] ) {
 }
 
 if ( isset( $meta['rev'] ) ) {
-	wp_send_json_success( $meta );
+	wp_send_json( $meta );
 } else {
-	wp_send_json_error( [ 'error' => 'not found' ] );
+	wp_send_json( [ 'error' => 'not found' ] );
 }
