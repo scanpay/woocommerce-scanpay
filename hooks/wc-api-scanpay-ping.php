@@ -139,7 +139,7 @@ function wc_scanpay_apply_changes( int $shopid, array $arr ) {
 
 
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
-$apikey   = (string) $settings['apikey'];
+$apikey   = $settings['apikey'] ?? '';
 $shopid   = (int) explode( ':', $apikey )[0];
 $body     = file_get_contents( 'php://input', false, null, 0, 512 );
 
@@ -181,7 +181,7 @@ if ( ! @mkdir( $flock ) && file_exists( $flock ) ) {
 }
 
 require WC_SCANPAY_DIR . '/library/client.php';
-$client = new WC_Scanpay_Client( $settings['apikey'] );
+$client = new WC_Scanpay_Client( $apikey );
 $queue  = [];
 
 try {

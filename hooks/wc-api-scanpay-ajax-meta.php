@@ -18,7 +18,7 @@ wc_nocache_headers();
 wc_set_time_limit( 0 );
 
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
-$shopid   = (int) explode( ':', (string) $settings['apikey'] )[0];
+$shopid   = (int) explode( ':', $settings['apikey'] ?? '' )[0];
 $rev      = (int) $_GET['rev'];
 $order_id = (int) $_GET['order_id'];
 

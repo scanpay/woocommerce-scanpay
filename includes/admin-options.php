@@ -8,7 +8,7 @@
 defined( 'ABSPATH' ) || exit();
 
 $settings     = get_option( WC_SCANPAY_URI_SETTINGS );
-$shopid       = (int) explode( ':', $settings['apikey'] )[0];
+$shopid       = (int) explode( ':', $settings['apikey'] ?? '' )[0];
 $ping_url     = rawurlencode( WC()->api_request_url( 'scanpay_ping' ) );
 $sendping_url = WC_SCANPAY_DASHBOARD . $shopid . '/settings/api/setup?module=woocommerce&url=' . $ping_url;
 

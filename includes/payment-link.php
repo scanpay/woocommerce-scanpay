@@ -7,7 +7,8 @@ function wc_scanpay_payment_link( int $orderid ): string {
 	require WC_SCANPAY_DIR . '/library/math.php';
 
 	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
-	$shopid   = (int) explode( ':', $settings['apikey'] )[0];
+	$apikey   = $settings['apikey'] ?? '';
+	$shopid   = (int) explode( ':', $apikey )[0];
 	if ( ! $shopid ) {
 		scanpay_log( 'alert', 'Missing or invalid Scanpay API key' );
 		throw new \Exception( 'Error: The Scanpay API key is invalid. Please contact the shop.' );
@@ -91,7 +92,7 @@ function wc_scanpay_payment_link( int $orderid ): string {
 		];
 	}
 
-	$client = new WC_Scanpay_Client( $settings['apikey'] );
+	$client = new WC_Scanpay_Client( $apikey );
 
 	/*
 		https://woocommerce.com/document/subscriptions/develop/payment-gateway-integration/

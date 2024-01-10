@@ -26,4 +26,4 @@ $wpdb->query(
 );
 
 // Delete plugin settings
-delete_option( WC_SCANPAY_URI_SETTINGS );
+delete_option( 'woocommerce_scanpay_settings' );

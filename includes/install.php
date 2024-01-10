@@ -5,7 +5,7 @@ global $wpdb;
 $seq_tbl  = $wpdb->prefix . 'scanpay_seq';
 $meta_tbl = $wpdb->prefix . 'scanpay_meta';
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
-$apikey   = (string) $settings['apikey'];
+$apikey   = $settings['apikey'] ?? '';
 $shopid   = (int) explode( ':', $apikey )[0];
 
 /*

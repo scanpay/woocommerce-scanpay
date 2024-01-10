@@ -26,7 +26,8 @@ if (
 	return;
 }
 
-$shopid = (int) explode( ':', (string) $settings['apikey'] )[0];
+$apikey = $settings['apikey'] ?? '';
+$shopid = (int) explode( ':', $apikey )[0];
 if ( 0 === $shopid ) {
 	scanpay_capture_failed( $wc_order, 'invalid or missing API key' );
 }
@@ -49,7 +50,7 @@ if ( $meta['captured'] !== $meta['voided'] ) {
 
 try {
 	$amount = wc_scanpay_submoney( (string) $wc_order->get_total(), (string) $wc_order->get_total_refunded() );
-	$client = new WC_Scanpay_Client( $settings['apikey'] );
+	$client = new WC_Scanpay_Client( $apikey );
 	$client->capture(
 		$meta['id'],
 		[
