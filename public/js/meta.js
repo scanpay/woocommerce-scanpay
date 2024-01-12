@@ -5,15 +5,15 @@
 (() => {
     const urlParams = new URLSearchParams(window.location.search);
     const orderid = urlParams.get('id');
+    if (!orderid) return;
     let rev = 0;
-    let busy = true;
     let currency;
     let box;
 
     /*
-        request(): fetch wrapper with caching (v1.0)
+        get(): fetch wrapper with caching (v1.0)
     */
-    function request(url, caching = 0) {
+    function get(url, caching = 0) {
         const reqCache = (caching) ? JSON.parse(localStorage.getItem('scanpay_cache')) || {} : {};
         const now = Math.floor(Date.now() / 1000);
 
@@ -45,46 +45,38 @@
             });
     }
 
-
     function showWarning(msg, type = 'error') {
         const div = document.createElement('div');
         div.className = 'scanpay--alert scanpay--alert-' + type;
         div.innerHTML = msg;
-        document.getElementById('scanpay-meta').prepend(div);
+        box.prepend(div);
     }
 
+    /*
+        Check mtime and plugin version
+    */
     function compatibilityCheck() {
-        // Check last ping and warn if >10 mins old (cache result for 2 mins)
-        request('../wc-api/scanpay_ajax_ping_mtime/', 120)
-            .then((o) => {
-                const dmins = Math.floor((Math.floor(Date.now() / 1000) - o.mtime) / 60);
-                if (o.mtime === 0 || dmins < 10) return;
+        get('../wc-api/scanpay_ajax_ping_mtime/', 120)
+            .then(({ mtime }) => {
+                const dmins = Math.floor((Math.floor(Date.now() / 1000) - mtime) / 60);
+                if (mtime === 0 || dmins < 10) return;
                 let ts = dmins + ' minutes';
                 if (dmins > 120) ts = Math.floor(dmins / 60) + ' hours'
                 showWarning('Your scanpay extension is out of sync: ' + ts + ' since last synchronization.');
-
-            }).catch((e) => {
-                // showWarning(e);
             });
-
-        // Check if the extension is up-to-date (cache result for 10 minutes)
-        request('https://api.github.com/repos/scanpay/woocommerce-scanpay/releases/latest', 600)
-            .then((o) => {
-                console.log(o);
-                const version = wcSettings.admin.scanpay;
-                const release = o.tag_name.substring(1);
-                if (release !== version) {
+        get('https://api.github.com/repos/scanpay/woocommerce-scanpay/releases/latest', 600)
+            .then(({ tag_name }) => {
+                if (tag_name !== wcSettings.admin.scanpay) {
                     showWarning(
                         `Your scanpay plugin is <b class="scanpay-outdated">outdated</b>.
-                        Please update to <i>${release}</i> (<a href="//github.com/scanpay/woocommerce-scanpay/releases"
+                        Please update to <i>${tag_name}</i> (<a href="//github.com/scanpay/woocommerce-scanpay/releases"
                         target="_blank">changelog</a>)`
                     );
                 }
-            }).catch((e) => {});
+            });
     }
 
     function buildDataArray(o) {
-        // const methodArr = o.method.split(' ');
         const data = [
             ['Authorized', currency.format(o.authorized)],
             ['Captured', currency.format(o.captured)]
@@ -127,69 +119,65 @@
         return ul;
     }
 
-    fetch('../wc-api/scanpay_ajax_meta/?order_id=' + orderid + '&rev=0')
-        .then(r => r.json())
-        .then((meta) => {
-            const target = document.getElementById('scanpay-meta');
-            const dataset = target.dataset;
-            box = target.cloneNode(false);
-
-            if (!dataset.payid) return showWarning('No payment details found for this order.');
-            if (!meta.success) {
-                if (meta.data.error === 'invalid shopid') {
-                    return showWarning('Invalid or missing API key. Please check your plugin settings or contact support.');
+    let abortCtrl;
+    function load() {
+        const target = document.getElementById('scanpay-meta');
+        abortCtrl = new AbortController();
+        const url = '../wc-api/scanpay_ajax_meta/?order_id=' + orderid + '&rev=' + rev;
+        fetch(url, { signal: abortCtrl.signal })
+            .then(res => res.json())
+            .then((meta) => {
+                box = target.cloneNode(false);
+                if (meta.error) {
+                    if (meta.error === 'not found') {
+                        const dataset = document.getElementById('scanpay-meta').dataset;
+                        if (!dataset.payid) return showWarning('No payment details found for this order.');
+                        const dtime = 30 - Math.floor((Date.now() / 1000 - dataset.ptime) / 60);
+                        if (dtime > 0) {
+                            showWarning(`The order has not been paid yet. The payment link expires in ${dtime} minutes.`);
+                        } else {
+                            showWarning('The payment link has expired. No payment received.');
+                        }
+                        box.appendChild(buildTable([['Pay ID', dataset.payid]]));
+                    } else if (meta.error === 'invalid shopid') {
+                        showWarning('Invalid or missing API key. Please check your plugin settings or contact support.');
+                    }
+                    return;
                 }
-                const dtime = 30 - Math.floor((Date.now() / 1000 - dataset.ptime) / 60);
-                if (dtime > 0) {
-                    showWarning(`The order has not been paid yet. The payment link expires in ${dtime} minutes.`);
-                } else {
-                    showWarning('The payment link has expired. No payment received.');
+
+                const link = 'https://dashboard.scanpay.dk/' + meta.shopid + '/' + meta.id;
+                const iso = wcSettings.currency.decimalSeparator === ',' ? 'da-DK' : 'en-US';
+                currency = new Intl.NumberFormat(
+                    iso, { style: 'currency', currency: meta.currency }
+                );
+                box.appendChild(buildTable(buildDataArray(meta)));
+                let btns = '';
+                if (meta.captured === '0') {
+                    btns = `<a target="_blank" href="${link}" class="sp-meta-acts-refund">Void payment</a>`;
+                } else if (meta.refunded < meta.authorized) {
+                    btns = `<a target="_blank" href="${link}/refund" class="sp-meta-acts-refund">Refund</a>`;
                 }
-                return box.appendChild(buildTable([['Pay ID', dataset.payid]]));
-            }
+                box.innerHTML += `<div class="sp-meta-acts">
+                    <div class="sp-meta-acts-left">
+                        <a target="_blank" href="${link}" class="sp-meta-acts-link"></a>
+                    </div>
+                    ${btns}
+                </div>`;
+                rev = meta.rev;
+                compatibilityCheck();
+            })
+            .then(() => {
+                target.parentNode.replaceChild(box, target);
+            })
+            .catch(({ name }) => {
+                if (name === 'AbortError') return;
+                showWarning('Error: could not load payment details.');
+            });
+    }
+    load();
 
-            const link = 'https://dashboard.scanpay.dk/' + meta.data.shopid + '/' + meta.data.id;
-            const iso = wcSettings.currency.decimalSeparator === ',' ? 'da-DK' : 'en-US';
-            currency = new Intl.NumberFormat(
-                iso, { style: 'currency', currency: meta.data.currency }
-            );
-            box.appendChild(buildTable(buildDataArray(meta.data)));
-
-            let btns = '';
-            if (meta.data.captured === '0') {
-                btns = `<a target="_blank" href="${link}" class="sp-meta-acts-refund">Void payment</a>`;
-            } else if (meta.data.refunded < meta.data.authorized) {
-                btns = `<a target="_blank" href="${link}/refund" class="sp-meta-acts-refund">Refund</a>`;
-            }
-
-            box.innerHTML += `<div class="sp-meta-acts">
-                <div class="sp-meta-acts-left">
-                    <a target="_blank" href="${link}" class="sp-meta-acts-link"></a>
-                </div>
-                ${btns}
-            </div>`;
-
-            busy = false;
-            compatibilityCheck();
-        })
-        .catch(e => console.log(e));
-
-
-
-    let controller;
     document.addEventListener("visibilitychange", () => {
-        // Check for rev updates when user comes back from dashboard
-        if (document.visibilityState == "visible") {
-            controller = new AbortController();
-
-            fetch(ajaxMetaUrl + '&rev=' + rev, { signal: controller.signal })
-                .then((r) => r.json())
-                .then(build)
-                .catch((e) => console.log(e));
-        } else if (controller) {
-            controller.abort();
-        }
+        if (document.visibilityState == "visible") return load();
+        abortCtrl.abort();
     });
-
-
 })();

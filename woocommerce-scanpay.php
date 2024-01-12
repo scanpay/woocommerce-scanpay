@@ -190,7 +190,7 @@ add_action(
 									WC_SCANPAY_URL . '/public/js/meta.js',
 									false, // no deps
 									WC_SCANPAY_VERSION,
-									[ 'strategy' => 'async' ]
+									[ 'strategy' => 'defer' ]
 								);
 								wp_register_style( 'wc-scanpay-meta', WC_SCANPAY_URL . '/public/css/meta.css', null, WC_SCANPAY_VERSION );
 								wp_enqueue_style( 'wc-scanpay-meta' );
