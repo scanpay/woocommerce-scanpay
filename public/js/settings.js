@@ -55,7 +55,7 @@
     }
 
     // 1) Check for new version (cache result for 5 minutes)
-    request('https://api.github.com/repos/scanpay/woocommerce-scanpay/releases/latest', 300)
+    get('https://api.github.com/repos/scanpay/woocommerce-scanpay/releases/latest', 300)
         .then(({ tag_name }) => {
             const version = 'v' + window.wcSettings.admin.scanpay;
             if (tag_name !== version) {
@@ -78,7 +78,7 @@
 
     // 3) Check last ping and warn if >5 mins old (no caching in settings)
     function checkMtime() {
-        request('../wc-api/scanpay_ajax_ping_mtime/')
+        get('../wc-api/scanpay_ajax_ping_mtime/')
             .then(({ mtime }) => {
                 if (mtime === 0) {
                     return showWarning(
