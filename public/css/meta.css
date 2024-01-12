@@ -4,13 +4,13 @@
 */
 
 #wcsp-meta-box > .inside {
-    margin: 10px 0 0 0;
+    margin: 10px 0 0;
     padding: 0;
 }
 
 /* Alert box in meta box */
 .wcsp-meta-alert {
-    margin: 9px 11px 9px;
+    margin: 9px 11px;
     padding: 6px 10px 5px;
     font-size: .95em;
     border-radius: 3px;
@@ -164,7 +164,7 @@
     height: 34px;
     background-color: #f8f8f8;
     border-top: 1px solid #e0e0e0;
-    padding: 0 11px 0;
+    padding: 0 11px;
 }
 
 .wcsp-meta-acts-left {
