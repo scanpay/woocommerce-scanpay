@@ -24,7 +24,7 @@ class WC_Scanpay_Gateway_ApplePay extends WC_Payment_Gateway {
 	}
 
 	public function get_icon(): string {
-		return '<span class="scanpay-methods"><img width="45" height="20" class="scanpay-mobilepay" src="' .
+		return '<span class="wcsp-methods"><img width="45" height="20" class="wcsp-mobilepay" src="' .
 			WC_SCANPAY_URL . '/public/images/cards/applepay.svg" alt="Apple Pay" title="Apple Pay"></span>';
 	}
 

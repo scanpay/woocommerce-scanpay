@@ -19,15 +19,15 @@ echo '</h2>';
 echo wp_kses_post( wpautop( $this->get_method_description() ) );
 ?>
 
-<div class="scanpay--admin--nav">
+<div class="wcsp-set-nav">
 	<a class="button" target="_blank" href="https://github.com/scanpay/woocommerce-scanpay">
-		<img width="16" height="16" src="<?php echo WC_SCANPAY_URL; ?>/public/images/admin/github.svg" class="scanpay--admin--nav--img-git">
+		<img width="16" height="16" src="<?php echo WC_SCANPAY_URL; ?>/public/images/admin/github.svg" class="wcsp-set-nav-img-git">
 		<?php echo __( 'Guide', 'scanpay-for-woocommerce' ); ?>
 	</a>
 
 	<?php if ( $shopid ) : ?>
-	<a id="scanpay--admin--ping" class="button" target="_blank" href="<?php echo $sendping_url; ?>">
-		<img width="21" height="16" src="<?php echo WC_SCANPAY_URL; ?>/public/images/admin/ping.svg" class="scanpay--admin--nav--img-ping">
+	<a id="wcsp-set-ping" class="button" target="_blank" href="<?php echo $sendping_url; ?>">
+		<img width="21" height="16" src="<?php echo WC_SCANPAY_URL; ?>/public/images/admin/ping.svg" class="wcsp-set-nav-img-ping">
 		<?php echo __( 'Send ping', 'scanpay-for-woocommerce' ); ?>
 	</a>
 	<?php endif; ?>
@@ -35,14 +35,14 @@ echo wp_kses_post( wpautop( $this->get_method_description() ) );
 	<a class="button" href="?page=wc-status&tab=logs&log_file=<?php echo basename( wc_get_log_file_path( 'woo-scanpay' ) ); ?>&source=woo-scanpay">
 		<?php echo __( 'Debug logs', 'scanpay-for-woocommerce' ); ?>
 	</a>
-	<span id="scanpay-mtime"></span>
+	<span id="wcsp-set-mtime"></span>
 </div>
 
-<div id="scanpay--admin--alert" data-shopid="<?php echo $shopid; ?>">
+<div id="wcsp-set-alert" data-shopid="<?php echo $shopid; ?>">
 	<!-- No API-key -->
 	<?php if ( ! $shopid ) : ?>
-		<div class="scanpay--admin--alert scanpay--admin--alert--show">
-			<div class="scanpay--admin--alert--title">
+		<div class="wcsp-set-alert wcsp-set-alert--show">
+			<div class="wcsp-set-alert-title">
 				<?php echo __( 'Welcome to Scanpay for WooCommerce!', 'scanpay-for-woocommerce' ); ?>
 			</div>
 			Please follow the instructions in the
@@ -55,7 +55,7 @@ echo wp_kses_post( wpautop( $this->get_method_description() ) );
 
 $class_name = 'form-table';
 if ( isset( $this->settings['subscriptions_enabled'] ) && 'no' === $this->settings['subscriptions_enabled'] ) {
-	$class_name = 'form-table scanpay--admin--no-subs';
+	$class_name = 'form-table wcsp-set-no-subs';
 }
 
 /*

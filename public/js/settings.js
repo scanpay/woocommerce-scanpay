@@ -3,7 +3,7 @@
 */
 
 (() => {
-    const alert = document.getElementById('scanpay--admin--alert');
+    const alert = document.getElementById('wcsp-set-alert');
 
     /*
         get(): fetch wrapper with caching (v1.0)
@@ -42,14 +42,14 @@
 
 
     function showWarning(title, msg, id = false) {
-        const html = '<div class="scanpay--admin--alert--title">' + title + '</div>' + msg;
+        const html = '<div class="wcsp-set-alert-title">' + title + '</div>' + msg;
         if (id) {
-            const oldWarn = document.getElementById('scanpay-alert-' + id);
+            const oldWarn = document.getElementById('wcsp-set-alert-' + id);
             if (oldWarn) return oldWarn.innerHTML = html
         }
         const div = document.createElement('div');
-        div.id = 'scanpay-alert-' + id;
-        div.className = 'scanpay--admin--alert';
+        div.id = 'wcsp-set-alert-' + id;
+        div.className = 'wcsp-set-alert';
         div.innerHTML = html;
         alert.appendChild(div);
     }
@@ -70,7 +70,7 @@
 
     // 2) Stop if no shopid (no API key)
     if (alert.dataset.shopid === '0') {
-        const html = `<span class="sp-admin-api-info">
+        const html = `<span class="wcsp-set-api-info">
             You can find your Scanpay API key <a target="_blank" href="https://dashboard.scanpay.dk/settings/api">here</a>.
         </span>`;
         return document.getElementById('woocommerce_scanpay_apikey').parentNode.parentNode.innerHTML += html;
@@ -89,9 +89,9 @@
                 }
                 const dsecs = Math.floor(Date.now() / 1000) - mtime;
                 if (dsecs < 400) {
-                    const oldWarn = document.getElementById('scanpay-alert-sync');
+                    const oldWarn = document.getElementById('wcsp-set-alert-sync');
                     if (oldWarn) oldWarn.remove();
-                    document.getElementById('scanpay-mtime').innerHTML = '<b>Synchronized:</b> ' + dsecs + ' seconds ago.';
+                    document.getElementById('wcsp-set-mtime').innerHTML = '<b>Synchronized:</b> ' + dsecs + ' seconds ago.';
                 } else if (dsecs < 604800) {
                     const dmins = Math.floor(dsecs / 60);
                     showWarning(

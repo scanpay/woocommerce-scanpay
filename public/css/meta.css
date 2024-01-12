@@ -1,16 +1,15 @@
 /*
-    Scanpay meta box
+    CSS for meta box
+    prefix with wcsp-meta-
 */
 
-
-/* Reset meta-box inside */
-#scanpay-info > .inside {
+#wcsp-meta-box > .inside {
     margin: 10px 0 0 0;
     padding: 0;
 }
 
 /* Alert box in meta box */
-.scanpay--alert {
+.wcsp-meta-alert {
     margin: 9px 11px 9px;
     padding: 6px 10px 5px;
     font-size: .95em;
@@ -25,129 +24,131 @@
     }
 }
 
-.scanpay--alert-warning {
+.wcsp-meta-alert-warning {
     color: #400808;
     background: #ffe8e6;
     border: 1px solid #d19898;
 }
 
-.scanpay--alert-error {
+.wcsp-meta-alert-error {
     color: #400808;
     background: #ffe8e6;
     border: 1px solid #d19898;
 }
 
-.scanpay--alert-pending {
+.wcsp-meta-alert-pending {
     display: flex;
 }
 
-.scanpay--alert--spin {
+.wcsp-meta-alert--spin {
     vertical-align: baseline;
     margin: 0 6px 0 0;
 }
 
+
+
 /* Meta box */
-.sp--widget--ul {
+.wcsp-meta-ul {
     margin: 10px 0 11px;
     padding: 0 12px;
     list-style: none !important;
 }
 
-.sp--widget--li {
+.wcsp-meta-li {
     display: flex;
     padding: .15em 0;
 }
 
-.sp--widget--listatus--fully-refunded, .sp--widget--listatus--partially-refunded {
+.wcsp-meta-li-status-fully-refunded, .wcsp-meta-li-status-partially-refunded {
     color: #772727;
 }
 
-.sp--widget--listatus--partially-captured {
+.wcsp-meta-li-status-partially-captured {
     color: #364d36
 }
 
-.sp--widget--listatus--fully-captured {
+.wcsp-meta-li-status-fully-captured {
     color: #1f601f
 }
 
-.sp--widget--li--refunded {
+.wcsp-meta-li-refunded {
     color: #641515
 }
 
 
-.sp--widget--li--title {
+.wcsp-meta-li-title {
     flex: 1;
 }
 
-.sp--widget--li--status--captured {
+.wcsp-meta-li-status--captured {
     color: #005800;
 }
 
-.sp--widget--li--status--refunded {
+.wcsp-meta-li-status--refunded {
     color: #901212;
 }
 
-.sp--widget--li--status--partial_refund {
+.wcsp-meta-li-status--partial_refund {
     color: #a14a20;
 }
 
 
-.sp--widget--li--card {
+.wcsp-meta-li-card {
     display: flex;
     align-items: center;
     gap: 4px;
 }
 
-.sp--widget--li--card--dots {
+.wcsp-meta-li-card--dots {
     color: #696969;
 }
 
-.sp--widget--li--card--dankort, .sp--widget--li--card--visadankort {
+.wcsp-meta-li-card--dankort, .wcsp-meta-li-card--visadankort {
     width: 24px;
     height: 15px;
 }
 
-.sp--widget--li--card--visa {
+.wcsp-meta-li-card--visa {
     width: 27px;
     height: 9px;
 }
 
-.sp--widget--li--card--mastercard, .sp--widget--li--card--maestro {
+.wcsp-meta-li-card--mastercard, .wcsp-meta-li-card--maestro {
     width: 22px;
     height: 13px;
 }
 
-.sp--widget--li--card--amex {
+.wcsp-meta-li-card--amex {
     width: 24px;
     height: 15px;
 }
 
-.sp--widget--li--card--diners {
+.wcsp-meta-li-card--diners {
     width: 18px;
     height: 15px;
 }
 
-.sp--widget--li--card--jcb {
+.wcsp-meta-li-card--jcb {
     width: 21.5px;
     height: 15px;
 }
 
-.sp--widget--li--card--unionpay {
+.wcsp-meta-li-card--unionpay {
     width: 22px;
     height: 15px;
 }
 
-.sp--widget--li--card--discover {
+.wcsp-meta-li-card--discover {
     width: 23px;
     height: 15px;
 }
 
-.sp--widget--li--card--mobilepay {
+.wcsp-meta-li-card--mobilepay {
     width: 16px;
     height: 17px;
 }
 
-.sp--widget--li--card--applepay {
+.wcsp-meta-li-card--applepay {
     height: 13px;
 }
 
@@ -157,7 +158,7 @@
     actions (bottom panel)
 */
 
-.sp-meta-acts {
+.wcsp-meta-acts {
     display: flex;
     align-items: center;
     height: 34px;
@@ -166,18 +167,18 @@
     padding: 0 11px 0;
 }
 
-.sp-meta-acts-left {
+.wcsp-meta-acts-left {
     flex: 1;
 }
 
-.sp-meta-acts-link {
+.wcsp-meta-acts-link {
     display: block;
     background: url('../images/admin/link.svg') no-repeat center;
     width: 24px;
     height: 24px;
 }
 
-.sp-meta-acts-refund {
+.wcsp-meta-acts-refund {
     color: #b32d2e;
     margin-bottom: 3px;
 }

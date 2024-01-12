@@ -30,10 +30,10 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 	public function get_icon(): string {
 		$array = $this->settings['card_icons'];
 		if ( ! empty( $array ) ) {
-			$icons = '<span class="scanpay-methods scanpay-cards">';
+			$icons = '<span class="wcsp-methods wcsp-cards">';
 			foreach ( $array as $key => $card ) {
-				$icons .= '<img style="max-height: 22px" src="' . WC_SCANPAY_URL . '/public/images/cards/' . $card .
-					'.svg" class="scanpay-' . $card . '" alt="' . $card . '" title="' . $card . '">';
+				$icons .= '<img src="' . WC_SCANPAY_URL . '/public/images/cards/' . $card .
+					'.svg" class="wcsp-' . $card . '" alt="' . $card . '" title="' . $card . '">';
 			}
 			$icons .= '</span>';
 		}

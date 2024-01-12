@@ -1,34 +1,31 @@
 /*
-    Scanpay: Admin widget
+    CSS for plugin settings
+    prefix with wcsp-set-
 */
 
-/*
-    Scanpay: Admin settings page
-*/
-
-.scanpay--admin--nav {
+.wcsp-set-nav {
     display: flex;
     align-items: center;
     margin: 1em 0 1em;
     font-size: 14px;
 }
 
-.scanpay--admin--nav > .button {
+.wcsp-set-nav > .button {
     display: flex;
     align-items: center;
     margin: 0 .7rem 0 0;
     font-size: 14px;
 }
 
-.scanpay--admin--nav--img-git {
+.wcsp-set-nav-img-git {
     margin: 0 2px 0 -3px;
 }
 
-.scanpay--admin--nav--img-ping {
+.wcsp-set-nav-img-ping {
     margin: 0 6px 0 -3px;
 }
 
-.scanpay--admin--alert {
+.wcsp-set-alert {
     display: block;
     align-items: center;
     max-width: 66rem;
@@ -41,9 +38,25 @@
     box-shadow: rgba(0, 0, 0, 0.07) 0px 3px 4px 0px;
 }
 
-.scanpay--admin--alert--title {
+.wcsp-set-alert-title {
     font-weight: bold;
     padding: 0 0 2px;
+}
+
+#wcsp-set-mtime {
+    font-style: italic;
+    margin: 1px 0 0 5px;
+}
+
+#wcsp-set-mtime > b {
+    color: #035c03;
+}
+
+.wcsp-set-api-info {
+    font-style: italic;
+    color: #555;
+    display: block;
+    margin: 8px 0 -8px;
 }
 
 /*
@@ -65,23 +78,4 @@
 }
 .form-table tr:nth-last-child(2) > * {
     padding-bottom: 5px;
-}
-
-
-
-
-#scanpay-mtime {
-    font-style: italic;
-    margin: 1px 0 0 5px;
-}
-
-#scanpay-mtime > b {
-    color: #035c03;
-}
-
-.sp-admin-api-info {
-    font-style: italic;
-    color: #555;
-    display: block;
-    margin: 8px 0 -8px;
 }

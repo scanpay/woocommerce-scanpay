@@ -203,12 +203,12 @@ add_action(
 					'add_meta_boxes_woocommerce_page_wc-orders',
 					function () {
 						add_meta_box(
-							'scanpay-info',
+							'wcsp-meta-box',
 							'Scanpay',
 							function ( $order ) {
 								$payid = $order->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' );
 								$ptime = $order->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' );
-								echo '<div id="scanpay-meta" data-payid="' . $payid . '" data-ptime="' . $ptime . '"></div>';
+								echo '<div id="wcsp-meta" data-payid="' . $payid . '" data-ptime="' . $ptime . '"></div>';
 							},
 							wc_get_page_screen_id( 'shop-order' ),
 							'side',

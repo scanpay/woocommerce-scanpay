@@ -9,12 +9,12 @@ const array = ['dankort', 'visa', 'mastercard'];
 registerPaymentMethod({
     name: "scanpay",
     label: (<>
-        <span className="scanpay--blocks--title">Betalingskort</span>
-        <span className="scanpay--blocks--cards">
+        <span className="wcsp-blocks-title">Betalingskort</span>
+        <span className="wcsp-blocks-cards">
             {array.map((str) =>
                 <img
                     width=""
-                    className="scanpay--blocks--ico"
+                    className="wcsp-blocks-ico"
                     src={ settings.scanpay.url + str + '.svg' }/>
             )}
         </span>
@@ -31,7 +31,7 @@ registerPaymentMethod({
 registerPaymentMethod({
     name: "scanpay_mobilepay",
     label: (<>
-        <span className="scanpay--blocks--title">MobilePay</span>
+        <span className="wcsp-blocks-title">MobilePay</span>
         <img width="94" height="24" src={ settings.scanpay.url + 'mobilepay.svg' }/>
     </>),
     content: <>Betal med MobilePay</>,
@@ -46,7 +46,7 @@ registerPaymentMethod({
 registerPaymentMethod({
     name: "scanpay_applepay",
     label: (<>
-        <span className="scanpay--blocks--title">Apple Pay</span>
+        <span className="wcsp-blocks-title">Apple Pay</span>
         <img width="50" height="22" src={ settings.scanpay.url + 'applepay.svg' }/>
     </>),
     content: <>Betal med Apple Pay</>,
@@ -57,4 +57,3 @@ registerPaymentMethod({
         features: ['products'],
     },
 });
-

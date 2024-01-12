@@ -1,18 +1,21 @@
+/*
+    CSS for checkout
+    prefix with wcsp-
+*/
 
-
-.scanpay-cards > img {
+.wcsp-cards > img {
     margin: 0 0 0 5px;
 }
 
-.scanpay--blocks--title {
+.wcsp-blocks-title {
     margin-right: 1em;
 }
 
-.scanpay--blocks--cards {
+.wcsp-blocks-cards {
     display: flex;
     gap: .3em;
 }
 
-.scanpay--blocks--ico {
+.wcsp-blocks-ico {
     border-radius: 0;
 }

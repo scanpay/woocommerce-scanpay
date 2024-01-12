@@ -47,7 +47,7 @@
 
     function showWarning(msg, type = 'error') {
         const div = document.createElement('div');
-        div.className = 'scanpay--alert scanpay--alert-' + type;
+        div.className = 'wcsp-meta-alert wcsp-meta-alert-' + type;
         div.innerHTML = msg;
         box.prepend(div);
     }
@@ -99,19 +99,19 @@
 
     function buildTable(arr) {
         const ul = document.createElement('ul');
-        ul.id = 'sp--widget--ul';
-        ul.className = 'sp--widget--ul';
+        ul.id = 'wcsp-meta-ul';
+        ul.className = 'wcsp-meta-ul';
         for (const x of arr) {
             const li = document.createElement('li');
-            li.className = 'sp--widget--li';
+            li.className = 'wcsp-meta-li';
 
             const title = document.createElement('div');
-            title.className = 'sp--widget--li--title';
+            title.className = 'wcsp-meta-li-title';
             title.textContent = x[0] + ':';
             li.appendChild(title);
 
             const value = document.createElement('div');
-            value.className = 'sp--widget--li--value';
+            value.className = 'wcsp-meta-li-value';
             value.textContent = x[1];
             li.appendChild(value);
             ul.appendChild(li);
@@ -121,7 +121,7 @@
 
     let abortCtrl;
     function load() {
-        const target = document.getElementById('scanpay-meta');
+        const target = document.getElementById('wcsp-meta');
         abortCtrl = new AbortController();
         const url = '../wc-api/scanpay_ajax_meta/?order_id=' + orderid + '&rev=' + rev;
         fetch(url, { signal: abortCtrl.signal })
@@ -130,7 +130,7 @@
                 box = target.cloneNode(false);
                 if (meta.error) {
                     if (meta.error === 'not found') {
-                        const dataset = document.getElementById('scanpay-meta').dataset;
+                        const dataset = document.getElementById('wcsp-meta').dataset;
                         if (!dataset.payid) return showWarning('No payment details found for this order.');
                         const dtime = 30 - Math.floor((Date.now() / 1000 - dataset.ptime) / 60);
                         if (dtime > 0) {
@@ -153,13 +153,13 @@
                 box.appendChild(buildTable(buildDataArray(meta)));
                 let btns = '';
                 if (meta.captured === '0') {
-                    btns = `<a target="_blank" href="${link}" class="sp-meta-acts-refund">Void payment</a>`;
+                    btns = `<a target="_blank" href="${link}" class="wcsp-meta-acts-refund">Void payment</a>`;
                 } else if (meta.refunded < meta.authorized) {
-                    btns = `<a target="_blank" href="${link}/refund" class="sp-meta-acts-refund">Refund</a>`;
+                    btns = `<a target="_blank" href="${link}/refund" class="wcsp-meta-acts-refund">Refund</a>`;
                 }
-                box.innerHTML += `<div class="sp-meta-acts">
-                    <div class="sp-meta-acts-left">
-                        <a target="_blank" href="${link}" class="sp-meta-acts-link"></a>
+                box.innerHTML += `<div class="wcsp-meta-acts">
+                    <div class="wcsp-meta-acts-left">
+                        <a target="_blank" href="${link}" class="wcsp-meta-acts-link"></a>
                     </div>
                     ${btns}
                 </div>`;
