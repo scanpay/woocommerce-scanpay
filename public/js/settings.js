@@ -6,9 +6,9 @@
     const alert = document.getElementById('scanpay--admin--alert');
 
     /*
-        request(): fetch wrapper with caching (v1.0)
+        get(): fetch wrapper with caching (v1.0)
     */
-    function request(url, caching = 0) {
+    function get(url, caching = 0) {
         const reqCache = (caching) ? JSON.parse(localStorage.getItem('scanpay_cache')) || {} : {};
         const now = Math.floor(Date.now() / 1000);
 
@@ -56,18 +56,17 @@
 
     // 1) Check for new version (cache result for 5 minutes)
     request('https://api.github.com/repos/scanpay/woocommerce-scanpay/releases/latest', 300)
-        .then((o) => {
-            const version = window.wcSettings.admin.scanpay;
-            const release = o.tag_name.substring(1);
-            if (release !== version) {
+        .then(({ tag_name }) => {
+            const version = 'v' + window.wcSettings.admin.scanpay;
+            if (tag_name !== version) {
                 showWarning(
                     'There is a new version of the Scanpay plugin available',
                     `Your scanpay extension <i>(${version})</i> is <b class="scanpay-outdated">outdated</b>.
-                    Please update to ${release} (<a href="//github.com/scanpay/opencart-scanpay/releases"
+                    Please update to ${tag_name} (<a href="//github.com/scanpay/opencart-scanpay/releases"
                     target="_blank">changelog</a>)`
                 );
             }
-        }).catch(e => console.warn(e));
+        });
 
     // 2) Stop if no shopid (no API key)
     if (alert.dataset.shopid === '0') {
@@ -80,15 +79,15 @@
     // 3) Check last ping and warn if >5 mins old (no caching in settings)
     function checkMtime() {
         request('../wc-api/scanpay_ajax_ping_mtime/')
-            .then((o) => {
-                if (o.mtime === 0) {
+            .then(({ mtime }) => {
+                if (mtime === 0) {
                     return showWarning(
                         'Not synchronized: No pings received',
                         'Please click <i>\'send ping\'</i> to initiate the synchronization with the scanpay backend.',
                         'sync'
                     );
                 }
-                const dsecs = Math.floor(Date.now() / 1000) - o.mtime;
+                const dsecs = Math.floor(Date.now() / 1000) - mtime;
                 if (dsecs < 400) {
                     const oldWarn = document.getElementById('scanpay-alert-sync');
                     if (oldWarn) oldWarn.remove();
