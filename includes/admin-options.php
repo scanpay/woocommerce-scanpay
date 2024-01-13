@@ -35,7 +35,7 @@ echo wp_kses_post( wpautop( $this->get_method_description() ) );
 	<a class="button" href="?page=wc-status&tab=logs&log_file=<?php echo basename( wc_get_log_file_path( 'woo-scanpay' ) ); ?>&source=woo-scanpay">
 		<?php echo __( 'Debug logs', 'scanpay-for-woocommerce' ); ?>
 	</a>
-	<span id="wcsp-set-mtime"></span>
+	<span id="wcsp-set-nav-mtime"></span>
 </div>
 
 <div id="wcsp-set-alert" data-shopid="<?php echo $shopid; ?>">

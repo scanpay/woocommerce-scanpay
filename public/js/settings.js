@@ -42,7 +42,7 @@
 
 
     function showWarning(title, msg, id = false) {
-        const html = '<div class="wcsp-set-alert-title">' + title + '</div>' + msg;
+        const html = '<h4>' + title + '</h4>' + msg;
         if (id) {
             const oldWarn = document.getElementById('wcsp-set-alert-' + id);
             if (oldWarn) return oldWarn.innerHTML = html
@@ -91,7 +91,7 @@
                 if (dsecs < 400) {
                     const oldWarn = document.getElementById('wcsp-set-alert-sync');
                     if (oldWarn) oldWarn.remove();
-                    document.getElementById('wcsp-set-mtime').innerHTML = '<b>Synchronized:</b> ' + dsecs + ' seconds ago.';
+                    document.getElementById('wcsp-set-nav-mtime').innerHTML = '<b>Synchronized:</b> ' + dsecs + ' seconds ago.';
                 } else if (dsecs < 604800) {
                     const dmins = Math.floor(dsecs / 60);
                     showWarning(
