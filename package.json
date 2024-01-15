@@ -2,7 +2,6 @@
     "name": "woocommerce-scanpay",
     "private": true,
     "dependencies": {
-        "@woocommerce/dependency-extraction-webpack-plugin": "latest",
         "@woocommerce/eslint-plugin": "latest",
         "@wordpress/scripts": "latest",
         "node-wp-i18n": "latest",

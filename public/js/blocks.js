@@ -1,11 +1,63 @@
+(() => {
+    const element = window.wp.element;
+    const data = window.wc.wcSettings.getSetting( 'scanpay_data' );
+    if (!data) return;
 
-import { registerPaymentMethod } from '@woocommerce/blocks-registry';
-import { getSetting } from '@woocommerce/settings';
-const settings = getSetting('paymentMethodData');
-if (!settings.scanpay) throw 'Scanpay settings not found';
+    for (const name in data.methods) {
+        const method = data.methods[name];
 
-const array = ['dankort', 'visa', 'mastercard'];
+        const label = () => Object(element.createElement)(
+            'span',
+            {
+                className: 'wc-block-components-payment-method-label'
+            },
+            method.title
+        );
 
+        const icons = [];
+        for (const ico in method.icons) {
+            icons.push(element.createElement(
+                'img',
+                {
+                    'src': data.url + method.icons[ico] + '.svg',
+                    'width': '50',
+                    'className': 'wcsp-blocks-ico'
+                }
+            ));
+        }
+
+        const content = () => Object(element.createElement)(
+            'div',
+            {
+                'className': 'payment_method_' + method.id,
+                'billing': null
+            },
+            method.description,
+            element.createElement(
+                'div',
+                {
+                    'className': 'wcsp-blocks-cards'
+                },
+                icons
+            )
+        );
+
+        window.wc.wcBlocksRegistry.registerPaymentMethod({
+            name: name,
+            label: Object(element.createElement)(label, null),
+            content: Object(element.createElement)(content, null),
+            edit: element.createElement('div', {}, method.description),
+            canMakePayment: () => true,
+            ariaLabel: name,
+            supports: {
+                features: method.supports,
+            }
+        });
+    }
+})();
+
+
+/*
 registerPaymentMethod({
     name: "scanpay",
     label: (<>
@@ -57,3 +109,4 @@ registerPaymentMethod({
         features: ['products'],
     },
 });
+*/
