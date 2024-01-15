@@ -74,10 +74,7 @@ add_action(
 		add_filter(
 			'woocommerce_payment_gateways',
 			function ( $methods ) {
-				$methods[] = 'WC_Scanpay_Gateway';
-				$methods[] = 'WC_Scanpay_Gateway_Mobilepay';
-				$methods[] = 'WC_Scanpay_Gateway_ApplePay';
-				return $methods;
+				return [ ...$methods, 'WC_Scanpay_Gateway', 'WC_Scanpay_Gateway_Mobilepay', 'WC_Scanpay_Gateway_ApplePay' ];
 			}
 		);
 

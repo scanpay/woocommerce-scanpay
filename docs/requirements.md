@@ -12,6 +12,7 @@
 | :---------------------------------------- | :-----: |
 | ~~str_starts_with()~~                     | ~~8.0~~ |
 | WooCommerce (8.2)                         | 7.4     |
+| Array Spread operator                     | 7.4     |
 | Typed class properties                    | 7.4     |
 | Nullable Types                            | 7.1     |
 | Void return type                          | 7.1     |
