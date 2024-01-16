@@ -29,20 +29,34 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 		The data returned here will be used to render the payment method in the frontend.
 	*/
 	public function get_payment_method_data() {
+		$settings = get_option( WC_SCANPAY_URI_SETTINGS );
 		return [
 			'url'     => WC_SCANPAY_URL . '/public/images/cards/',
 			'methods' => [
-				'scanpay' => [
-					'title'       => 'test',
-					'description' => 'description...',
-					'icons'       => [
-						'dankort',
-						'visa',
-						'mastercard',
-					],
+				'scanpay'           => [
+					'title'       => $settings['title'],
+					'description' => $settings['description'],
+					'icons'       => $settings['card_icons'],
 					'supports'    => [
 						'products',
-						'refunds',
+						'subscriptions',
+					],
+				],
+				'scanpay_mobilepay' => [
+					'title'       => 'MobilePay',
+					'description' => 'Betal med MobilePay',
+					'icons'       => [ 'mobilepay' ],
+					'supports'    => [
+						'products',
+					],
+				],
+				'scanpay_applepay'  => [
+					'title'       => 'Apple Pay',
+					'description' => 'Betal med Apple Pay',
+					'icons'       => [ 'applepay' ],
+					'supports'    => [
+						'products',
+						'subscriptions',
 					],
 				],
 			],
