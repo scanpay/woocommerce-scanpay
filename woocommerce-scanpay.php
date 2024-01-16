@@ -264,7 +264,7 @@ add_action(
 			'wp_enqueue_scripts',
 			function () {
 				if ( is_checkout() ) {
-					wp_register_style( 'wc-scanpay', WC_SCANPAY_URL . '/public/css/pay.css', null, WC_SCANPAY_VERSION );
+					wp_register_style( 'wc-scanpay', WC_SCANPAY_URL . '/public/css/blocks.css', null, WC_SCANPAY_VERSION );
 					wp_enqueue_style( 'wc-scanpay' );
 				}
 			}

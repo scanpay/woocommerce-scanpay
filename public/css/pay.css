@@ -6,16 +6,3 @@
 .wcsp-cards > img {
     margin: 0 0 0 5px;
 }
-
-.wcsp-blocks-title {
-    margin-right: 1em;
-}
-
-.wcsp-blocks-cards {
-    display: flex;
-    gap: .3em;
-}
-
-.wcsp-blocks-ico {
-    border-radius: 0;
-}
