@@ -1,48 +1,26 @@
 (() => {
-    const { createElement } = window.wp.element;
-    const { registerPaymentMethod } = window.wc.wcBlocksRegistry;
-    const data = window.wc.wcSettings.getSetting( 'scanpay_data' );
+    const { createElement, Fragment } = window.wp.element;
+    const data = window.wc.wcSettings.getSetting('scanpay_data');
     const canMakePayment = () => true;
     if (!data) return;
 
     for (const name in data.methods) {
         const method = data.methods[name];
-        const icons = method.icons.map((ico) => {
-            return createElement(
-                'img',
-                {
-                    src: `${data.url}${ico}.svg`,
-                    width: '50',
-                    className: 'wcsp-blocks-ico'
-                }
-            );
-        });
-
-        const content = createElement(
-            'div',
-            {
-                className: `payment_method_${name}`
-            },
-            method.description,
-            createElement(
-                'div',
-                {
-                    className: 'wcsp-blocks-cards'
-                },
-                icons
+        const content = createElement(Fragment, null, method.description);
+        const label = createElement('span', { className: 'wc-block-components-payment-method-label wcsp-label' },
+            createElement('span', { className: 'wcsp-title' }, method.title),
+            createElement('span', { className: 'wcsp-icons wcsp-icons-' + name }, method.icons.map(
+                icon => createElement('img', {
+                    src: data.url + icon + '.svg',
+                    className: 'wcsp-icon wcsp-icon-' + icon,
+                }))
             )
         );
 
-        registerPaymentMethod({
-            name, // also used for paymentMethodId
+        window.wc.wcBlocksRegistry.registerPaymentMethod({
+            name,
             ariaLabel: name,
-            label: createElement(
-                'span',
-                {
-                    className: 'wc-block-components-payment-method-label'
-                },
-                method.title
-            ),
+            label,
             content,
             edit: content,
             canMakePayment,
