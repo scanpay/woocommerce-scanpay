@@ -264,8 +264,14 @@ add_action(
 			'wp_enqueue_scripts',
 			function () {
 				if ( is_checkout() ) {
-					wp_register_style( 'wc-scanpay', WC_SCANPAY_URL . '/public/css/blocks.css', null, WC_SCANPAY_VERSION );
-					wp_enqueue_style( 'wc-scanpay' );
+					// Check if WooCommerce Blocks is active
+					if ( function_exists( 'has_block' ) && has_block( 'woocommerce/checkout' )) {
+						wp_register_style( 'wcsp-blocks', WC_SCANPAY_URL . '/public/css/blocks.css', null, WC_SCANPAY_VERSION );
+						wp_enqueue_style( 'wcsp-blocks' );
+						return;
+					}
+					wp_register_style( 'wcsp-pay', WC_SCANPAY_URL . '/public/css/pay.css', null, WC_SCANPAY_VERSION );
+					wp_enqueue_style( 'wcsp-pay' );
 				}
 			}
 		);

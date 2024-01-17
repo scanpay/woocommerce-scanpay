@@ -37,27 +37,16 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 					'title'       => $settings['title'],
 					'description' => $settings['description'],
 					'icons'       => $settings['card_icons'],
-					'supports'    => [
-						'products',
-						'subscriptions',
-					],
 				],
 				'scanpay_mobilepay' => [
 					'title'       => 'MobilePay',
 					'description' => 'Betal med MobilePay',
 					'icons'       => [ 'mobilepay' ],
-					'supports'    => [
-						'products',
-					],
 				],
 				'scanpay_applepay'  => [
 					'title'       => 'Apple Pay',
 					'description' => 'Betal med Apple Pay',
 					'icons'       => [ 'applepay' ],
-					'supports'    => [
-						'products',
-						'subscriptions',
-					],
 				],
 			],
 		];
