@@ -41,16 +41,16 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 	}
 
 	public function get_title(): string {
-		if ( is_checkout() ) {
-			return $this->settings['title'];
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( defined( 'WP_ADMIN' ) && isset( $_GET['page'] ) && 'wc-orders' === $_GET['page'] ) {
+			return 'Scanpay';
 		}
-		return 'scanpay';
+		return $this->settings['title'];
 	}
 
-	public function get_transaction_url( $order ) {
-		$shopid                     = $order->get_meta( WC_SCANPAY_URI_SHOPID, true );
-		$this->view_transaction_url = WC_SCANPAY_DASHBOARD . "$shopid/" . '%s';
-		return parent::get_transaction_url( $order );
+	public function get_transaction_url( $wc_order ) {
+		return WC_SCANPAY_DASHBOARD . $wc_order->get_meta( WC_SCANPAY_URI_SHOPID, true ) . '/' .
+			$wc_order->get_transaction_id();
 	}
 
 	public function process_payment( $order_id ): array {
@@ -78,24 +78,13 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 	public function init_form_fields(): void {
 		$this->form_fields = [
 			'enabled'              => [
-				'title'   => __( 'Enable', 'scanpay-for-woocommerce' ),
-				'type'    => 'checkbox',
-				'label'   => __( 'Enable Scanpay in the checkout.', 'scanpay-for-woocommerce' ),
-				'default' => 'no',
-			],
-			'wcs_enabled'          => [
-				'id'      => 'abc123',
-				'type'    => 'checkbox',
-				'label'   => __( 'Enable support for Woo Subscriptions.', 'scanpay-for-woocommerce' ),
-				'default' => 'no',
+				'title' => __( 'Enable', 'scanpay-for-woocommerce' ),
+				'type'  => 'checkbox',
+				'label' => __( 'Enable Scanpay in the checkout.', 'scanpay-for-woocommerce' ),
 			],
 			'apikey'               => [
 				'title'             => __( 'API key', 'scanpay-for-woocommerce' ),
 				'type'              => 'text',
-				'description'       => __( 'You can find your API key in the Scanpay dashboard.', 'scanpay-for-woocommerce' ),
-				'default'           => '',
-				'placeholder'       => 'Required',
-				'desc_tip'          => true,
 				'custom_attributes' => [
 					'autocomplete' => 'off',
 				],
@@ -133,7 +122,6 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 				'class'       => 'wc-enhanced-select',
 				'desc_tip'    => true,
 			],
-
 			'capture_on_complete'  => [
 				'title'       => __( 'Auto-Capture', 'scanpay-for-woocommerce' ),
 				'type'        => 'checkbox',
@@ -142,24 +130,17 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 				'default'     => 'yes',
 				'desc_tip'    => true,
 			],
-
 			'wcs_complete_initial' => [
-				'title'       => __( 'Auto-Complete', 'scanpay-for-woocommerce' ),
-				'type'        => 'checkbox',
-				'label'       => __( 'Auto-complete new subscribers', 'scanpay-for-woocommerce' ) .
+				'title' => __( 'Auto-Complete', 'scanpay-for-woocommerce' ),
+				'type'  => 'checkbox',
+				'label' => __( 'Auto-complete new subscribers', 'scanpay-for-woocommerce' ) .
 					' <i>(' . __( 'Subscriptions only', 'scanpay-for-woocommerce' ) . ')</i>.',
-				'description' => __( '...', 'scanpay-for-woocommerce' ),
-				'default'     => 'no',
-				'desc_tip'    => true,
 			],
 			'wcs_complete_renewal' => [
-				'title'       => '&#10240;',
-				'type'        => 'checkbox',
-				'label'       => __( 'Auto-complete renewal orders', 'scanpay-for-woocommerce' ) .
+				'title' => '&#10240;',
+				'type'  => 'checkbox',
+				'label' => __( 'Auto-complete renewal orders', 'scanpay-for-woocommerce' ) .
 					' <i>(' . __( 'Subscriptions only', 'scanpay-for-woocommerce' ) . ')</i>.',
-				'description' => __( '...', 'scanpay-for-woocommerce' ),
-				'default'     => 'no',
-				'desc_tip'    => true,
 			],
 		];
 	}
