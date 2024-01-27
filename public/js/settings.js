@@ -11,6 +11,7 @@
     function get(url, caching = 0) {
         const reqCache = (caching) ? JSON.parse(localStorage.getItem('scanpay_cache')) || {} : {};
         const now = Math.floor(Date.now() / 1000);
+        const opts = (url.startsWith('http')) ? {} : { headers: { 'X-Scanpay': 'fetch' } };
 
         if (caching && reqCache[url] && now < reqCache[url].next) {
             return new Promise((resolve, reject) => {
@@ -18,7 +19,7 @@
                 resolve(reqCache[url].o)
             });
         }
-        return fetch(url)
+        return fetch(url, opts)
             .then((res) => {
                 if (res.status !== 200) {
                     if (caching) {
@@ -62,7 +63,7 @@
                 showWarning(
                     'There is a new version of the Scanpay plugin available',
                     `Your scanpay extension <i>(${version})</i> is <b class="scanpay-outdated">outdated</b>.
-                    Please update to ${tag_name} (<a href="//github.com/scanpay/opencart-scanpay/releases"
+                    Please update to ${tag_name} (<a href="//github.com/scanpay/woocommerce-scanpay/releases"
                     target="_blank">changelog</a>)`
                 );
             }

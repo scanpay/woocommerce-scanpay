@@ -19,10 +19,7 @@ function scanpay_capture_failed( object $wc_order, string $str ): void {
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 $wc_order = wc_get_order( $order_id );
 
-if (
-	! $wc_order || substr( $wc_order->get_payment_method(), 0, 7 ) !== 'scanpay' ||
-	'yes' !== $settings['capture_on_complete']
-) {
+if ( ! $wc_order || 'scanpay' !== $wc_order->get_payment_method() || 'yes' !== $settings['capture_on_complete'] ) {
 	return;
 }
 

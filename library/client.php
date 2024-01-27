@@ -2,7 +2,8 @@
 
 /*
     Scanpay module client lib
-    Version 2.2.0 (2023-12-29)
+    Version 2.2.1 (2024-01-27)
+    - remove data[] from renew() and newURL() params
 */
 
 class WC_Scanpay_Client
@@ -92,8 +93,9 @@ class WC_Scanpay_Client
     }
 
     // newURL: Create a new payment link
-    public function newURL(array $data, array $opts): string
+    public function newURL(array $data): string
     {
+        $opts = [ 'headers' => [ 'X-Cardholder-IP' => $_SERVER['REMOTE_ADDR'] ?? '' ] ];
         $o = $this->request('/v1/new', $opts, $data);
         if (isset($o['url']) && filter_var($o['url'], FILTER_VALIDATE_URL)) {
             return $o['url'];
@@ -132,8 +134,9 @@ class WC_Scanpay_Client
         throw new \Exception('Invalid response from server');
     }
 
-    public function renew(int $subid, array $data, array $opts = []): string
+    public function renew(int $subid, array $data): string
     {
+        $opts = [ 'headers' => [ 'X-Cardholder-IP' => $_SERVER['REMOTE_ADDR'] ?? '' ] ];
         $o = $this->request("/v1/subscribers/$subid/renew", $opts, $data);
         if (isset($o['url']) && filter_var($o['url'], FILTER_VALIDATE_URL)) {
             return $o['url'];

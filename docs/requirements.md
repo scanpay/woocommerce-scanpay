@@ -1,16 +1,17 @@
 # Requirements
 
-* PHP version >= 7.4.
+* PHP version >= 8.0.
 * php-curl (libcurl >= 7.25.0).
 * WooCommerce >= 6.9.0
-* WordPress >= 4.7.0
+* WordPress >= 6.3.0
 
 
 ### PHP compatibility table
 
 | PHP Features                              | Version |
 | :---------------------------------------- | :-----: |
-| ~~str_starts_with()~~                     | ~~8.0~~ |
+| str_starts_with()                         | 8.0     |
+| str_ends_with()                           | 8.0     |
 | WooCommerce (8.2)                         | 7.4     |
 | Array Spread operator                     | 7.4     |
 | Typed class properties                    | 7.4     |
@@ -42,6 +43,8 @@
 
 | WordPress                                 | Version  |
 | :---------------------------------------- | :------: |
+| WooCommerce (8.2)                         | 6.3.0    |
+| wp_enqueue_script async/defer             | 6.3.0    |
 | wp_send_json                              | 4.7.0    |
 | wp_send_json_success                      | 3.5.0    |
 | current_user_can                          | 2.0.0    |

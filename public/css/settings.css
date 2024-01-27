@@ -61,14 +61,23 @@
     margin: 8px 0 -8px;
 }
 
+
+/*
+    Reduce padding between Enable and API-key
+*/
+.form-table tr:nth-child(2) > * {
+    padding-top: 5px;
+}
+
+.form-table tr:nth-child(6) > * {
+    padding-top: 10px;
+    padding-bottom: 7px;
+}
+
+
 /*
     Reduce paddings in auto-complete group
 */
-
-.form-table tr:nth-child(2) > * {
-    padding-top: 0;
-    padding-bottom: 9px;
-}
 
 .form-table tr:nth-last-child(1) > * {
     padding-top: 0px;

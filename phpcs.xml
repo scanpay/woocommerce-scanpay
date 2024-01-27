@@ -24,7 +24,9 @@
 	</rule>
 
 	<!-- Rules -->
-	<rule ref="WooCommerce-Core"></rule>
+	<rule ref="WooCommerce-Core">
+		<exclude name="WooCommerce.Commenting.CommentHooks.MissingHookComment" />
+	</rule>
 
 	<rule ref="WordPress">
 		<!-- Allow short array syntax [] -->
@@ -43,6 +45,8 @@
 
 		<!-- Ignore prepared statements -->
 		<exclude name="WordPress.DB.PreparedSQL"/>
+
+		<exclude name="WordPress.Security.ValidatedSanitizedInput.MissingUnslash" />
 	</rule>
 	<rule ref="Generic.Arrays.DisallowLongArraySyntax"/>
 
@@ -68,7 +72,27 @@
 		</properties>
 	</rule>
 
+	<rule ref="Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed">
+		<exclude-pattern>woocommerce-scanpay.php</exclude-pattern>
+	</rule>
 
+	<rule ref="Generic.CodeAnalysis.UnusedFunctionParameter.Found">
+		<exclude-pattern>woocommerce-scanpay.php</exclude-pattern>
+	</rule>
+
+	<!-- Tmp solution to allow inline add_action / add_filter -->
+	<rule ref="PEAR.Functions.FunctionCallSignature.MultipleArguments">
+		<exclude-pattern>woocommerce-scanpay.php</exclude-pattern>
+		<exclude-pattern>gateways/class-wc-scanpay-gateway.php</exclude-pattern>
+	</rule>
+	<rule ref="PEAR.Functions.FunctionCallSignature.ContentAfterOpenBracket">
+		<exclude-pattern>woocommerce-scanpay.php</exclude-pattern>
+		<exclude-pattern>gateways/class-wc-scanpay-gateway.php</exclude-pattern>
+	</rule>
+	<rule ref="PEAR.Functions.FunctionCallSignature.CloseBracketLine">
+		<exclude-pattern>woocommerce-scanpay.php</exclude-pattern>
+		<exclude-pattern>gateways/class-wc-scanpay-gateway.php</exclude-pattern>
+	</rule>
 	<!--
 	<rule ref="WordPress-Extra">
 		<exclude name="Generic.Commenting.DocComment.SpacingAfter" />

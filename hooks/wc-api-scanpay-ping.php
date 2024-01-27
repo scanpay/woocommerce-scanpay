@@ -1,7 +1,6 @@
 <?php
 
 /*
-*   wc_api_scanpay.php:
 *   Public API endpoint for ping events from Scanpay.
 */
 
@@ -53,15 +52,164 @@ function wc_scanpay_validate_seq( array $c ): bool {
 }
 
 function wc_scanpay_subscriber( array $c ) {
-	// 	phpcs:ignore Squiz.PHP.CommentedOutCode.Found
-	/*
-	if ( 'subscriber' === $c['type'] ) {
-		$wc_order->add_meta_data( WC_SCANPAY_URI_SUBID, $c['id'], true );
-		if ( $wc_order->needs_payment() && $wc_order->get_total() > 0 ) {
-			// $queue += [ $c['ref'] => $c['id'] ];
+	global $wpdb;
+	$subid    = (int) $c['id'];
+	$orderid  = (int) $c['ref'];
+	$wc_order = wc_get_order( $orderid );
+	if ( ! $wc_order ) {
+		return scanpay_log( 'info', "Charge failed (subID: $subid); order #$orderid not found" );
+	}
+
+	$sub = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid", ARRAY_A );
+	$rev = (int) $c['rev'];
+
+	if ( is_null( $sub ) ) {
+		// New subscriber. Add subid to order and subscriptions
+		$wc_order->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
+		$subs_for_order = wcs_get_subscriptions_for_order( $c['ref'], [ 'order_type' => [ 'parent' ] ] );
+		foreach ( $subs_for_order as $wc_subid => $wc_sub ) {
+			$wc_sub->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
+			$wc_sub->save();
+		}
+
+		$sql = $wpdb->prepare(
+			"INSERT INTO {$wpdb->prefix}scanpay_subs
+			SET subid = %d, nxt = %d, retries = %d, idem = %s, rev = %d, method = %s, method_id = %s, method_exp = %d",
+			[ $subid, 0, 5, '', $rev, $c['method']['type'], $c['method']['id'], $c['method']['card']['exp'] ]
+		);
+		if ( ! $wpdb->query( $sql ) ) {
+			throw new Exception( "could not insert subscriber data (id=$subid)" );
+		}
+
+		if ( $wc_order->needs_payment() ) {
+			$sql = "INSERT INTO {$wpdb->prefix}scanpay_queue SET orderid = $orderid, subid = $subid";
+			if ( ! $wpdb->query( $sql ) ) {
+				throw new Exception( "could not insert order #$orderid into queue" );
+			}
+		}
+	} else {
+		$sql = $wpdb->prepare(
+			"UPDATE {$wpdb->prefix}scanpay_subs
+			SET nxt = %d, retries = %d, idem = %s, rev = %d, method = %s, method_id = %s, method_exp = %d
+			WHERE subid = %d",
+			[ 0, 5, '', $rev, $c['method']['type'], $c['method']['id'], $c['method']['card']['exp'], $subid ]
+		);
+		if ( false === $wpdb->query( $sql ) ) {
+			throw new Exception( "could not update subscriber data (id=$subid)" );
 		}
 	}
-	*/
+}
+
+
+function wc_scanpay_charge( object $client ): void {
+	global $wpdb;
+	$queue = $wpdb->get_results( "SELECT * from {$wpdb->prefix}scanpay_queue", ARRAY_A );
+	if ( empty( $queue ) ) {
+		return;
+	}
+
+	foreach ( $queue as $k => $arr ) {
+		$orderid = (int) $arr['orderid'];
+		$subid   = (int) $arr['subid'];
+		$sub     = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid", ARRAY_A );
+
+		if ( ! $sub ) {
+			$wpdb->query( "DELETE FROM {$wpdb->prefix}scanpay_queue WHERE orderid = $orderid" );
+			scanpay_log( 'info', "could not find subscriber data (id=$subid)" );
+			continue;
+		}
+
+		if ( 0 === $sub['retries'] ) {
+			$wpdb->query( "DELETE FROM {$wpdb->prefix}scanpay_queue WHERE orderid = $orderid" );
+			scanpay_log( 'info', "Charge skipped on #$orderid: no retries left" );
+			continue;
+		}
+
+		if ( (int) $sub['nxt'] > time() ) {
+			scanpay_log( 'info', "Charge skipped on #$orderid: not allowed until " . gmdate( $sub['nxt'] ) );
+			continue; // Skip: not yet time for retry.
+		}
+
+		if ( empty( $sub['idem'] ) ) {
+			$sub['idem'] = $orderid . ':' . rtrim( base64_encode( random_bytes( 32 ) ) );
+		} else {
+			// Previous charge was not be resolved. We want to reuse idem key.
+			$idem_order_id = explode( ':', $sub['idem'] )[0];
+			if ( $idem_order_id !== $orderid ) {
+				$old_order = wc_get_order( $idem_order_id );
+				if ( $old_order && $old_order->needs_payment() ) {
+					// Enforce chronological order of charges
+					scanpay_log( 'info', "Charge skipped on #$orderid: subscriber has not paid order #$idem_order_id" );
+					continue;
+				}
+				// Previous charge was successful or cancelled. Reset idempotency key.
+				scanpay_log( 'info', "Idempotency key was not deleted on order #$idem_order_id" );
+				$sub['idem'] = $orderid . ':' . rtrim( base64_encode( random_bytes( 32 ) ) );
+			}
+		}
+
+		$order = wc_get_order( $orderid );
+		if ( ! $order ) {
+			$wpdb->query( "DELETE FROM {$wpdb->prefix}scanpay_queue WHERE orderid = $orderid" );
+			scanpay_log( 'info', "could not find order with id #$orderid" );
+			continue;
+		}
+
+		$meta = $wpdb->get_var( "SELECT * FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $orderid" );
+		$nxt  = time() + 900; // lock sub for 900s (15m) to limit races
+		$sql  = $wpdb->query(
+			"UPDATE {$wpdb->prefix}scanpay_subs SET nxt = $nxt, idem = '" . $sub['idem'] . "'
+			WHERE subid = $subid AND nxt = " . $sub['nxt'] . ''
+		);
+		if ( false === $sql || isset( $meta ) || ! $order->needs_payment() ) {
+			scanpay_log( 'warning', "Charge skipped on #$orderid: race condition" );
+			continue;
+		}
+
+		$data = [
+			'orderid'     => $orderid,
+			'items'       => [
+				[ 'total' => $order->get_total() . ' ' . $order->get_currency() ],
+			],
+			'autocapture' => false,
+			'billing'     => array_filter(
+				[
+					'name'    => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
+					'email'   => $order->get_billing_email(),
+					'phone'   => $order->get_billing_phone(),
+					'address' => array_filter( [ $order->get_billing_address_1(), $order->get_billing_address_2() ] ),
+					'city'    => $order->get_billing_city(),
+					'zip'     => $order->get_billing_postcode(),
+					'country' => $order->get_billing_country(),
+					'state'   => $order->get_billing_state(),
+					'company' => $order->get_billing_company(),
+				]
+			),
+		];
+
+		try {
+			$charge = $client->charge( $subid, $data, [ 'headers' => [ 'Idempotency-Key' => $sub['idem'] ] ] );
+			$order->payment_complete( $charge['id'] );
+			$wpdb->query( "DELETE FROM {$wpdb->prefix}scanpay_queue WHERE orderid = $orderid" );
+		} catch ( \Exception $e ) {
+			/*
+				TODO:
+				- Add backoff based of retries left
+				- Technical errors should not cost retries and not change idem
+				- Add error_types: transient/permanent (wait backend)
+				- Permanent errors ("card expired") should set retries = 0
+			*/
+			$nxt = time() + 86400; // next retry in 24 hours
+			$rt  = $sub['retries'] - 1;
+			$wpdb->query(
+				"UPDATE {$wpdb->prefix}scanpay_subs
+				SET nxt = $nxt, idem = '', retries = $rt
+				WHERE subid = $subid"
+			);
+			scanpay_log( 'error', 'scanpay client exception: ' . $e->getMessage() );
+		}
+	}
+	usleep( 500000 ); // wait .5s for pings
 }
 
 
@@ -72,7 +220,7 @@ function wc_scanpay_apply_changes( int $shopid, array $arr ) {
 		if ( ! wc_scanpay_validate_seq( $c ) ) {
 			continue;
 		}
-		if ( 'subscriber' === $c['type'] ) {
+		if ( 'subscriber' === $c['type'] && class_exists( 'WC_Subscriptions', false ) ) {
 			wc_scanpay_subscriber( $c );
 			continue;
 		}
@@ -83,11 +231,22 @@ function wc_scanpay_apply_changes( int $shopid, array $arr ) {
 		$captured = substr( $c['totals']['captured'], 0, -4 );
 		$refunded = substr( $c['totals']['refunded'], 0, -4 );
 		$voided   = substr( $c['totals']['voided'], 0, -4 );
+		$subid    = 0;
+
+		if ( 'charge' === $c['type'] ) {
+			$subid = (int) $c['subscriber']['id'];
+			// Reset the subscriber's retry counter etc.
+			$wpdb->query(
+				"UPDATE {$wpdb->prefix}scanpay_subs
+				SET nxt = 0, idem = '', retries = 5
+				WHERE subid = $subid"
+			);
+			$wpdb->query( "DELETE FROM {$wpdb->prefix}scanpay_queue WHERE orderid = $orderid" );
+		}
 
 		if ( is_null( $db_rev ) ) {
 			$currency   = substr( $c['totals']['authorized'], -3 );
 			$authorized = substr( $c['totals']['authorized'], 0, -4 );
-			$subid      = ( 'charge' === $c['type'] ) ? (int) $c['subscriber']['id'] : 0;
 			$method     = $c['method']['type'];
 			if ( 'card' === $method ) {
 				$method = 'card ' . $c['method']['card']['brand'] . ' ' . $c['method']['card']['last4'];
@@ -111,33 +270,33 @@ function wc_scanpay_apply_changes( int $shopid, array $arr ) {
 			if ( ! $res ) {
 				throw new Exception( "could not save payment data to order #$orderid" );
 			}
-			$wc_order = wc_get_order( $c['orderid'] );
-			if ( ! $wc_order ) {
+			$order = wc_get_order( $c['orderid'] );
+			if ( ! $order ) {
 				continue;
 			}
-			if ( $wc_order->needs_payment() ) {
+			if ( $order->needs_payment() ) {
 				// Change order status to 'processing' and save transaction ID
-				$wc_order->payment_complete( $c['id'] );
+				$order->payment_complete( $c['id'] );
 			}
 
 			// 	phpcs:ignore Squiz.PHP.CommentedOutCode.Found
-			// $wc_order->add_meta_data( WC_SCANPAY_URI_SHOPID, $shopid, true );
-			$wc_order->set_payment_method( 'scanpay' );
-			$wc_order->save();
+			// $order->add_meta_data( WC_SCANPAY_URI_SHOPID, $shopid, true );
+			$order->set_payment_method( 'scanpay' );
+			$order->save();
 		} elseif ( $rev > $db_rev ) {
 			$res = $wpdb->query(
 				"UPDATE {$wpdb->prefix}scanpay_meta
 					SET rev = $rev, nacts = $nacts, captured = '$captured', refunded = '$refunded', voided = '$voided'
 					WHERE orderid = $orderid"
 			);
-			if ( ! $res ) {
+			if ( false === $res ) {
 				throw new Exception( "could not save payment data to order #$orderid" );
 			}
 		}
 	}
 }
 
-
+global $wpdb;
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 $apikey   = $settings['apikey'] ?? '';
 $shopid   = (int) explode( ':', $apikey )[0];
@@ -156,57 +315,54 @@ if ( ! isset( $ping, $ping['seq'], $ping['shopid'] ) || ! is_int( $ping['seq'] )
 	die();
 }
 
-global $wpdb;
-$seq = (int) $wpdb->get_var( "SELECT seq FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
-
-if ( $ping['seq'] === $seq ) {
-	$mtime = time();
-	$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET mtime = $mtime WHERE shopid = $shopid" );
-	return wp_send_json( [ 'success' => true ], 304 );
-} elseif ( $ping['seq'] < $seq ) {
-	$err_msg = 'The received ping seq (' . $ping['seq'] . ") was smaller than the local seq ($seq)";
-	scanpay_log( 'error', 'scanpay synchronization error: ' . $err_msg );
-	return wp_send_json( [ 'error' => $err_msg ], 400 );
-}
-
 // Simple "filelock" with mkdir (because it's atomic, fast and dirty!)
 $flock = sys_get_temp_dir() . '/scanpay_' . $shopid . '_lock/';
 if ( ! @mkdir( $flock ) && file_exists( $flock ) ) {
 	$dtime = time() - filemtime( $flock );
 	if ( $dtime >= 0 && $dtime < 60 ) {
-		// Save pings we ignore to the DB
+		// Ignore ping; save it to DB
 		$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET ping = " . $ping['seq'] . " WHERE shopid = $shopid" );
 		return wp_send_json( [ 'error' => 'busy' ], 423 );
 	}
 }
 
-require WC_SCANPAY_DIR . '/library/client.php';
-$client = new WC_Scanpay_Client( $apikey );
-$queue  = [];
-
 try {
-	while ( $seq < $ping['seq'] ) {
-		$res = $client->seq( $seq );
-		if ( empty( $res['changes'] ) ) {
-			if ( ! empty( $queue ) ) {
-				require_once WC_SCANPAY_DIR . '/includes/initial-charge.php';
-				wc_scanpay_initial_charge( $client, $queue, $settings );
-				$queue = [];
-				continue;
-			}
-			break; // done
-		}
-		wc_scanpay_apply_changes( $shopid, $res['changes'] );
+	require WC_SCANPAY_DIR . '/library/client.php';
+	$client = new WC_Scanpay_Client( $apikey );
+	$seq    = (int) $wpdb->get_var( "SELECT seq FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
 
-		// Update seq in the DB
+	if ( $ping['seq'] === $seq ) {
+		$mtime = time();
+		$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET mtime = $mtime WHERE shopid = $shopid" );
+		if ( class_exists( 'WC_Subscriptions', false ) ) {
+			wc_scanpay_charge( $client );
+			$ping['seq'] = $wpdb->get_var( "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
+		}
+		if ( $ping['seq'] === $seq ) {
+			rmdir( $flock );
+			return wp_send_json_success();
+		}
+	} elseif ( $ping['seq'] < $seq ) {
+		throw new Exception( 'The received ping seq (' . $ping['seq'] . ") was smaller than the local seq ($seq)" );
+	}
+
+	while ( $seq < $ping['seq'] ) {
+		$res   = $client->seq( $seq );
 		$seq   = (int) $res['seq'];
 		$mtime = time();
+		wc_scanpay_apply_changes( $shopid, $res['changes'] );
 		$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET mtime = $mtime, seq = $seq WHERE shopid = $shopid" );
-
 		touch( $flock );
-		usleep( 500000 ); // sleep for 500 ms (wait for changes)
+
 		if ( $seq >= $ping['seq'] ) {
+			usleep( 500000 ); // wait .5s; check if we missed/ignored a ping
 			$ping['seq'] = $wpdb->get_var( "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
+
+			// If we are done then process the queue
+			if ( $seq >= $ping['seq'] && class_exists( 'WC_Subscriptions', false ) ) {
+				wc_scanpay_charge( $client );
+				$ping['seq'] = $wpdb->get_var( "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
+			}
 		}
 	}
 	rmdir( $flock );

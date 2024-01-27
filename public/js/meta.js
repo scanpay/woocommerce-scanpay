@@ -5,7 +5,8 @@
 (() => {
     const urlParams = new URLSearchParams(window.location.search);
     const orderid = urlParams.get('id');
-    if (!orderid) return;
+    const page = urlParams.get('page');
+    if (!orderid || (page !== 'wc-orders' && page !== 'wc-orders--shop_subscription')) return;
     let rev = 0;
     let currency;
     let box;
@@ -16,6 +17,7 @@
     function get(url, caching = 0) {
         const reqCache = (caching) ? JSON.parse(localStorage.getItem('scanpay_cache')) || {} : {};
         const now = Math.floor(Date.now() / 1000);
+        const opts = (url.startsWith('http')) ? {} : { headers: { 'X-Scanpay': 'fetch' } };
 
         if (caching && reqCache[url] && now < reqCache[url].next) {
             return new Promise((resolve, reject) => {
@@ -23,7 +25,7 @@
                 resolve(reqCache[url].o)
             });
         }
-        return fetch(url)
+        return fetch(url, opts )
             .then((res) => {
                 if (res.status !== 200) {
                     if (caching) {
@@ -119,12 +121,16 @@
         return ul;
     }
 
+    function loadSubs() {
+
+    }
+
     let abortCtrl;
-    function load() {
+    function loadOrderMeta() {
         const target = document.getElementById('wcsp-meta');
         abortCtrl = new AbortController();
         const url = '../wc-api/scanpay_ajax_meta/?order_id=' + orderid + '&rev=' + rev;
-        fetch(url, { signal: abortCtrl.signal })
+        fetch(url, { signal: abortCtrl.signal, headers: { 'X-Scanpay': 'fetch' } })
             .then(res => res.json())
             .then((meta) => {
                 box = target.cloneNode(false);
@@ -173,6 +179,44 @@
                 if (name === 'AbortError') return;
                 showWarning('Error: could not load payment details.');
             });
+    }
+
+    function loadSubs() {
+        const data = document.getElementById('wcsp-meta').dataset;
+        const subid = data.subid;
+        const target = document.getElementById('wcsp-meta');
+        abortCtrl = new AbortController();
+
+        const url = '../wc-api/scanpay_ajax_subs/?subid=' + subid + '&rev=' + rev;
+        fetch(url, { signal: abortCtrl.signal, headers: { 'X-Scanpay': 'fetch' } })
+            .then(res => res.json())
+            .then((sub) => {
+                const dato = new Date(sub.method_exp * 1000);
+                box = target.cloneNode(false);
+                let status = 'success';
+                if (sub.retries === 0) status = 'error';
+                if ((sub.method_exp * 1000) < Date.now()) status = 'expired';
+
+                box.appendChild(buildTable([
+                    ['Subscription ID', sub.subid],
+                    ['Method', sub.method],
+                    ['Expiration', dato.toISOString().split('T')[0]],
+                    ['Status', status],
+                ]));
+                // compatibilityCheck();
+            })
+            .then(() => {
+                target.parentNode.replaceChild(box, target);
+            })
+            .catch(({ name }) => {
+                if (name === 'AbortError') return;
+                showWarning('Error: could not load subscription details.');
+            });
+    }
+
+    function load() {
+        if (page === 'wc-orders') return loadOrderMeta();
+        if (page === 'wc-orders--shop_subscription') return loadSubs();
     }
     load();
 

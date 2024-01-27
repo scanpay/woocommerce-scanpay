@@ -2,30 +2,11 @@
 defined( 'ABSPATH' ) || exit();
 
 global $wpdb;
-$seq_tbl  = $wpdb->prefix . 'scanpay_seq';
-$meta_tbl = $wpdb->prefix . 'scanpay_meta';
-$settings = get_option( WC_SCANPAY_URI_SETTINGS );
-$apikey   = $settings['apikey'] ?? '';
-$shopid   = (int) explode( ':', $apikey )[0];
 
-/*
-*   1) Delete old tables if they exist
-*/
-$old_seq_tbl   = $wpdb->prefix . 'woocommerce_scanpay_seq';
-$old_queue_tbl = $wpdb->prefix . 'woocommerce_scanpay_queuedcharges';
-$wpdb->query( "DROP TABLE IF EXISTS $old_seq_tbl" );
-$wpdb->query( "DROP TABLE IF EXISTS $old_queue_tbl" );
-
-// Drop new tables too (DEV)
-$wpdb->query( "DROP TABLE IF EXISTS $seq_tbl" );
-$wpdb->query( "DROP TABLE IF EXISTS $meta_tbl" );
-
-/*
-*   2) Check if seq table exists or create it
-*/
-
+// Seq table
+$seq_tbl = $wpdb->prefix . 'scanpay_seq';
 if ( $wpdb->get_var( "SHOW TABLES LIKE '$seq_tbl'" ) !== $seq_tbl ) {
-	$wpdb->query(
+	$res = $wpdb->query(
 		"CREATE TABLE $seq_tbl (
             shopid INT unsigned NOT NULL UNIQUE,
             seq INT unsigned NOT NULL,
@@ -34,19 +15,16 @@ if ( $wpdb->get_var( "SHOW TABLES LIKE '$seq_tbl'" ) !== $seq_tbl ) {
             PRIMARY KEY  (shopid)
         ) CHARSET = latin1;"
 	);
-
-	if ( $wpdb->get_var( "SHOW TABLES LIKE '$seq_tbl'" ) !== $seq_tbl ) {
+	if ( true !== $res ) {
 		scanpay_log( 'error', 'Could not create scanpay SQL table' );
 		throw new Exception( 'Could not create scanpay SQL table' );
 	}
 }
 
-/*
-*   3) Check if meta table exists or create it
-*/
-
+// Meta table
+$meta_tbl = $wpdb->prefix . 'scanpay_meta';
 if ( $wpdb->get_var( "SHOW TABLES LIKE '$meta_tbl'" ) !== $meta_tbl ) {
-	$wpdb->query(
+	$res = $wpdb->query(
 		"CREATE TABLE $meta_tbl (
 			orderid BIGINT unsigned NOT NULL UNIQUE,
 			shopid INT unsigned NOT NULL,
@@ -63,17 +41,54 @@ if ( $wpdb->get_var( "SHOW TABLES LIKE '$meta_tbl'" ) !== $meta_tbl ) {
 			PRIMARY KEY (orderid)
 		) CHARSET = latin1;"
 	);
-
-	if ( $wpdb->get_var( "SHOW TABLES LIKE '$meta_tbl'" ) !== $meta_tbl ) {
+	if ( true !== $res ) {
 		scanpay_log( 'error', 'Could not create scanpay SQL table' );
 		throw new Exception( 'Could not create scanpay SQL table' );
 	}
 }
 
+// Subscriptions table
+$subs_tbl = $wpdb->prefix . 'scanpay_subs';
+if ( $wpdb->get_var( "SHOW TABLES LIKE '$subs_tbl'" ) !== $subs_tbl ) {
+	$res = $wpdb->query(
+		"CREATE TABLE $subs_tbl (
+			subid INT unsigned UNIQUE,
+			rev INT unsigned,
+			retries INT unsigned,
+			nxt BIGINT unsigned,
+			method VARCHAR(64),
+			method_id VARCHAR(64),
+			method_exp BIGINT unsigned,
+			idem VARCHAR(64),
+			PRIMARY KEY (subid)
+		) CHARSET = latin1;"
+	);
+	if ( true !== $res ) {
+		scanpay_log( 'error', 'Could not create scanpay SQL table' );
+		throw new Exception( 'Could not create scanpay SQL table' );
+	}
+}
 
-/*
-*   3) Insert row if apikey/shopid is set
-*/
+// Charge queue table
+$queue_tbl = $wpdb->prefix . 'scanpay_queue';
+if ( $wpdb->get_var( "SHOW TABLES LIKE '$queue_tbl'" ) !== $queue_tbl ) {
+	$res = $wpdb->query(
+		"CREATE TABLE $queue_tbl (
+			orderid INT unsigned NOT NULL UNIQUE,
+			subid INT unsigned NOT NULL,
+			PRIMARY KEY (orderid)
+		) CHARSET = latin1;"
+	);
+	if ( true !== $res ) {
+		scanpay_log( 'error', 'Could not create scanpay SQL table' );
+		throw new Exception( 'Could not create scanpay SQL table' );
+	}
+}
+
+// Insert shopid into seq table
+$settings = get_option( WC_SCANPAY_URI_SETTINGS );
+$shopid   = (int) explode( ':', $settings['apikey'] ?? '' )[0];
+
 if ( 0 !== $shopid ) {
 	$seq = $wpdb->get_var( "SELECT seq FROM $seq_tbl WHERE shopid = $shopid" );
 	if ( null === $seq ) {

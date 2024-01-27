@@ -2,59 +2,51 @@
 
 defined( 'ABSPATH' ) || exit();
 
-function wc_scanpay_payment_link( int $orderid ): string {
-	require WC_SCANPAY_DIR . '/library/client.php';
-	require WC_SCANPAY_DIR . '/library/math.php';
-
-	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
-	$apikey   = $settings['apikey'] ?? '';
-	$shopid   = (int) explode( ':', $apikey )[0];
-	if ( ! $shopid ) {
-		scanpay_log( 'alert', 'Missing or invalid Scanpay API key' );
-		throw new \Exception( 'Error: The Scanpay API key is invalid. Please contact the shop.' );
-	}
-	$order    = wc_get_order( $orderid );
-	$currency = $order->get_currency();
-	$country  = $order->get_billing_country();
-	$phone    = $order->get_billing_phone();
-
+function wc_scanpay_phone_prefixer( string $phone, string $country ): string {
 	if ( ! empty( $phone ) ) {
 		$first_number = substr( $phone, 0, 1 );
 		if ( '+' !== $first_number && '0' !== $first_number ) {
 			$code = WC()->countries->get_country_calling_code( $country );
 			if ( isset( $code ) ) {
-				$phone = $code . ' ' . $phone;
+				return $code . ' ' . $phone;
 			}
 		}
 	}
+	return $phone;
+}
+
+
+/*
+	Create a regular (one-off) payment link.
+*/
+function wc_scanpay_payment_link( object $order, array $settings ): string {
+	require WC_SCANPAY_DIR . '/library/client.php';
+	require WC_SCANPAY_DIR . '/library/math.php';
 
 	$data = [
-		'orderid'    => strval( $orderid ),
-		'successurl' => $order->get_checkout_order_received_url(),
-		'billing'    => array_filter(
-			[
-				'name'    => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
-				'email'   => $order->get_billing_email(),
-				'phone'   => $phone,
-				'address' => array_filter( [ $order->get_billing_address_1(), $order->get_billing_address_2() ] ),
-				'city'    => $order->get_billing_city(),
-				'zip'     => $order->get_billing_postcode(),
-				'country' => $country,
-				'state'   => $order->get_billing_state(),
-				'company' => $order->get_billing_company(),
-			]
-		),
-		'shipping'   => array_filter(
-			[
-				'name'    => $order->get_shipping_first_name() . ' ' . $order->get_shipping_last_name(),
-				'address' => array_filter( [ $order->get_shipping_address_1(), $order->get_shipping_address_2() ] ),
-				'city'    => $order->get_shipping_city(),
-				'zip'     => $order->get_shipping_postcode(),
-				'country' => $order->get_shipping_country(),
-				'state'   => $order->get_shipping_state(),
-				'company' => $order->get_shipping_company(),
-			]
-		),
+		'orderid'    => (string) $order->get_id(),
+		'successurl' => apply_filters( 'woocommerce_get_return_url', $order->get_checkout_order_received_url(), $order ),
+		'lifetime'   => '30m',
+		'billing'    => [
+			'name'    => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
+			'email'   => $order->get_billing_email(),
+			'phone'   => wc_scanpay_phone_prefixer( $order->get_billing_phone(), $order->get_billing_country() ),
+			'address' => [ $order->get_billing_address_1(), $order->get_billing_address_2() ],
+			'city'    => $order->get_billing_city(),
+			'zip'     => $order->get_billing_postcode(),
+			'country' => $order->get_billing_country(),
+			'state'   => $order->get_billing_state(),
+			'company' => $order->get_billing_company(),
+		],
+		'shipping'   => [
+			'name'    => $order->get_shipping_first_name() . ' ' . $order->get_shipping_last_name(),
+			'address' => [ $order->get_shipping_address_1(), $order->get_shipping_address_2() ],
+			'city'    => $order->get_shipping_city(),
+			'zip'     => $order->get_shipping_postcode(),
+			'country' => $order->get_shipping_country(),
+			'state'   => $order->get_shipping_state(),
+			'company' => $order->get_shipping_company(),
+		],
 	];
 
 	$sum = '0';
@@ -65,17 +57,17 @@ function wc_scanpay_payment_link( int $orderid ): string {
 			$data['items'][] = [
 				'name'     => $item->get_name(),
 				'quantity' => $item->get_quantity(),
-				'total'    => $line_total . ' ' . $currency,
+				'total'    => $line_total . ' ' . $order->get_currency(),
 			];
-		} elseif ( $line_total < 0 ) {
-			$data['items'] = null;
-			break;
 		}
 	}
 
-	if ( isset( $data['items'] ) && wc_scanpay_cmpmoney( $sum, strval( $order->get_total() ) ) !== 0 ) {
-		$data['items'] = null;
-		$errmsg        = sprintf(
+	if ( wc_scanpay_cmpmoney( $sum, strval( $order->get_total() ) ) !== 0 ) {
+		$data['items'][] = [
+			'name'  => 'Total',
+			'total' => $order->get_total() . ' ' . $order->get_currency(),
+		];
+		$errmsg          = sprintf(
 			'The sum of all items (%s) does not match the order total (%s).' .
 			'The item list will not be available in the scanpay dashboard.',
 			$sum,
@@ -85,49 +77,126 @@ function wc_scanpay_payment_link( int $orderid ): string {
 		scanpay_log( 'warning', "Order #$orderid: $errmsg" );
 	}
 
-	if ( is_null( $data['items'] ) ) {
-		$data['items'][] = [
-			'name'  => 'Total',
-			'total' => $order->get_total() . ' ' . $currency,
-		];
-	}
-
-	$client = new WC_Scanpay_Client( $apikey );
-
-	/*
-		https://woocommerce.com/document/subscriptions/develop/payment-gateway-integration/
-		Subscriptions
-		Only new or renew
-	*/
-	if ( class_exists( 'WC_Subscriptions' ) && WC_Subscriptions_Order::order_contains_subscription( $orderid ) ) {
-		$data['items']      = null;
-		$data['subscriber'] = [ 'ref' => strval( $orderid ) ];
-
-		// RENEW???
-		if ( wcs_is_subscription( $order ) ) {
-			scanpay_log( 'info', 'wcs_is_subscription' );
-		}
-	}
-
-	try {
-		$opts = [
-			'headers' => [
-				// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-				'X-Cardholder-IP' => $_SERVER['REMOTE_ADDR'] ?? '',
-			],
-		];
-		$link = $client->newURL( $data, $opts );
-	} catch ( \Exception $e ) {
-		scanpay_log( 'error', 'scanpay client exception: ' . $e->getMessage() );
-		throw new \Exception(
-			'Error: We could not create a link to the payment window. Please wait a moment and try again.'
-		);
-	}
-
+	$shopid = (int) explode( ':', $settings['apikey'] )[0];
+	$client = new WC_Scanpay_Client( $settings['apikey'] );
+	$link   = $client->newURL( $data );
 	$order->set_status( 'wc-pending' );
 	$order->add_meta_data( WC_SCANPAY_URI_PTIME, time(), true );
 	$order->add_meta_data( WC_SCANPAY_URI_PAYID, basename( parse_url( $link, PHP_URL_PATH ) ), true );
 	$order->add_meta_data( WC_SCANPAY_URI_SHOPID, $shopid, true );
 	$order->save();
 	return $link;
+}
+
+/*
+	Subscriptions: Create a subscribe link to the payment window.
+*/
+function wcs_scanpay_subscription_link( object $order, array $settings ): string {
+	require WC_SCANPAY_DIR . '/library/client.php';
+	$data = [
+		'subscriber' => [ 'ref' => (string) $order->get_id() ],
+		'successurl' => apply_filters( 'woocommerce_get_return_url', $order->get_checkout_order_received_url(), $order ),
+		'lifetime'   => '30m',
+		'billing'    => [
+			'name'    => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
+			'email'   => $order->get_billing_email(),
+			'phone'   => wc_scanpay_phone_prefixer( $order->get_billing_phone(), $order->get_billing_country() ),
+			'address' => [ $order->get_billing_address_1(), $order->get_billing_address_2() ],
+			'city'    => $order->get_billing_city(),
+			'zip'     => $order->get_billing_postcode(),
+			'country' => $order->get_billing_country(),
+			'state'   => $order->get_billing_state(),
+			'company' => $order->get_billing_company(),
+		],
+		'shipping'   => [
+			'name'    => $order->get_shipping_first_name() . ' ' . $order->get_shipping_last_name(),
+			'address' => [ $order->get_shipping_address_1(), $order->get_shipping_address_2() ],
+			'city'    => $order->get_shipping_city(),
+			'zip'     => $order->get_shipping_postcode(),
+			'country' => $order->get_shipping_country(),
+			'state'   => $order->get_shipping_state(),
+			'company' => $order->get_shipping_company(),
+		],
+	];
+
+	$shopid = (int) explode( ':', $settings['apikey'] )[0];
+	$client = new WC_Scanpay_Client( $settings['apikey'] );
+	$link   = $client->newURL( $data );
+	$order->set_status( 'wc-pending' );
+	$order->add_meta_data( WC_SCANPAY_URI_PAYID, basename( parse_url( $link, PHP_URL_PATH ) ), true );
+	$order->add_meta_data( WC_SCANPAY_URI_PTIME, time(), true );
+	$order->add_meta_data( WC_SCANPAY_URI_SHOPID, $shopid, true );
+	$order->save();
+	return $link;
+}
+
+/*
+	Subscriptions: Let cardholder renew payment method on account page
+*/
+function wcs_scanpay_renew_method( object $order, array $settings ): void {
+	require WC_SCANPAY_DIR . '/library/client.php';
+	$client = new WC_Scanpay_Client( $settings['apikey'] );
+	$data   = [
+		'successurl' => get_permalink( wc_get_page_id( 'myaccount' ) ), // TODO: add query param
+		'lifetime'   => '30m',
+		'billing'    => [
+			'name'    => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
+			'email'   => $order->get_billing_email(),
+			'phone'   => wc_scanpay_phone_prefixer( $order->get_billing_phone(), $order->get_billing_country() ),
+			'address' => [ $order->get_billing_address_1(), $order->get_billing_address_2() ],
+			'city'    => $order->get_billing_city(),
+			'zip'     => $order->get_billing_postcode(),
+			'country' => $order->get_billing_country(),
+			'state'   => $order->get_billing_state(),
+			'company' => $order->get_billing_company(),
+		],
+	];
+	$subid  = (int) $order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
+	if ( 0 === $subid ) {
+		throw new \Exception( 'Error: The order does not contain a subscription ID' );
+	}
+	// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
+	wp_redirect( $client->renew( $subid, $data ) );
+	exit;
+}
+
+
+function wc_scanpay_process_payment( int $orderid ): array {
+	$order    = wc_get_order( $orderid );
+	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
+	scanpay_log( 'info', 'scanpay paylink: process payment' );
+	if ( ! $order ) {
+		throw new \Exception( 'Error: The order does not exist.' );
+	}
+	if ( empty( $settings['apikey'] ) ) {
+		throw new \Exception( 'Error: The Scanpay API key is not set.' );
+	}
+
+	try {
+		if ( class_exists( 'WC_Subscriptions', false ) ) {
+			if (
+				class_exists( 'WC_Subscriptions_Change_Payment_Gateway', false ) &&
+				WC_Subscriptions_Change_Payment_Gateway::$is_request_to_change_payment
+			) {
+				return wcs_scanpay_renew_method( $order, $settings );
+			}
+			if ( wcs_order_contains_subscription( $order ) ) {
+				scanpay_log( 'info', 'scanpay paylink: order contains subscription' );
+				return [
+					'result'   => 'success',
+					'redirect' => wcs_scanpay_subscription_link( $order, $settings ),
+				];
+			}
+		}
+		scanpay_log( 'info', 'scanpay paylink: regular order' );
+
+		return [
+			'result'   => 'success',
+			'redirect' => wc_scanpay_payment_link( $order, $settings ),
+		];
+
+	} catch ( \Exception $e ) {
+		scanpay_log( 'error', 'scanpay paylink exception: ' . $e->getMessage() );
+		throw new \Exception( 'Error: We could not create a link to the payment window. Please wait a moment and try again.' );
+	}
 }

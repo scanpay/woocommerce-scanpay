@@ -19,25 +19,35 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 			'subscription_reactivation',
 			'subscription_amount_changes',
 			'subscription_date_changes',
-			'subscription_payment_method_change',
 			'subscription_payment_method_change_customer',
 			'subscription_payment_method_change_admin',
+			// 'subscription_payment_method_delayed_change',
 			'multiple_subscriptions',
 		];
 		add_action( 'woocommerce_update_options_payment_gateways_scanpay', [ $this, 'process_admin_options' ] );
+
+		if ( 'yes' === $this->settings['stylesheet'] ) {
+			add_action( 'woocommerce_blocks_enqueue_checkout_block_scripts_before', function () {
+				wp_enqueue_style( 'wcsp-blocks', WC_SCANPAY_URL . '/public/css/blocks.css', null, WC_SCANPAY_VERSION );
+			} );
+		}
 	}
 
 	public function get_icon(): string {
 		$array = $this->settings['card_icons'];
-		if ( ! empty( $array ) ) {
+		if ( $array ) {
+			if ( 'yes' === $this->settings['stylesheet'] ) {
+				// TODO: find a better way to load this stylesheet or use prefetch
+				wp_enqueue_style( 'wcsp-pay', WC_SCANPAY_URL . '/public/css/pay.css', null, WC_SCANPAY_VERSION );
+			}
 			$icons = '<span class="wcsp-methods wcsp-cards">';
 			foreach ( $array as $key => $card ) {
 				$icons .= '<img src="' . WC_SCANPAY_URL . '/public/images/cards/' . $card .
 					'.svg" class="wcsp-' . $card . '" alt="' . $card . '" title="' . $card . '">';
 			}
-			$icons .= '</span>';
+			return $icons . '</span>';
 		}
-		return $icons;
+		return '';
 	}
 
 	public function get_title(): string {
@@ -48,17 +58,14 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 		return $this->settings['title'];
 	}
 
-	public function get_transaction_url( $wc_order ) {
+	public function get_transaction_url( $wc_order ): string {
 		return WC_SCANPAY_DASHBOARD . $wc_order->get_meta( WC_SCANPAY_URI_SHOPID, true ) . '/' .
 			$wc_order->get_transaction_id();
 	}
 
 	public function process_payment( $order_id ): array {
 		require WC_SCANPAY_DIR . '/includes/payment-link.php';
-		return [
-			'result'   => 'success',
-			'redirect' => wc_scanpay_payment_link( $order_id ),
-		];
+		return wc_scanpay_process_payment( $order_id );
 	}
 
 	public function admin_options(): void {
@@ -66,8 +73,17 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 	}
 
 	public function process_admin_options(): void {
+		global $wpdb;
+		$old_shopid = (int) explode( ':', $this->settings['apikey'] ?? '' )[0];
 		parent::process_admin_options();
-		require WC_SCANPAY_DIR . '/includes/install.php';
+		if ( (int) explode( ':', $this->settings['apikey'] ?? '' )[0] !== $old_shopid ) {
+			scanpay_log( 'info', 'API key changed, re-installing SQL tables' );
+			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_seq" );
+			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_meta" );
+			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_subs" );
+			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_queue" );
+			require WC_SCANPAY_DIR . '/includes/install.php';
+		}
 	}
 
 	public function can_refund_order( $order ) {
@@ -121,6 +137,12 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 				'default'     => [ 'visa', 'mastercard', 'maestro' ],
 				'class'       => 'wc-enhanced-select',
 				'desc_tip'    => true,
+			],
+			'stylesheet'           => [
+				'title'   => 'Stylesheet',
+				'type'    => 'checkbox',
+				'label'   => __( 'Use default checkout stylesheet (CSS).', 'scanpay-for-woocommerce' ),
+				'default' => 'yes',
 			],
 			'capture_on_complete'  => [
 				'title'       => __( 'Auto-Capture', 'scanpay-for-woocommerce' ),
