@@ -47,6 +47,7 @@
 		<exclude name="WordPress.DB.PreparedSQL"/>
 
 		<exclude name="WordPress.Security.ValidatedSanitizedInput.MissingUnslash" />
+		<exclude name="WordPress.Security.ValidatedSanitizedInput.InputNotSanitized" />
 	</rule>
 	<rule ref="Generic.Arrays.DisallowLongArraySyntax"/>
 

@@ -87,7 +87,6 @@ function scanpay_tmp_warning(): void {
 */
 
 if ( isset( $_SERVER['HTTP_X_SIGNATURE'], $_SERVER['REQUEST_URI'] ) ) {
-	// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 	if ( str_ends_with( $_SERVER['REQUEST_URI'], 'scanpay_ping/' ) ) {
 		add_action( 'woocommerce_api_scanpay_ping', function () {
 			require WC_SCANPAY_DIR . '/hooks/wc-api-scanpay-ping.php';
@@ -96,7 +95,6 @@ if ( isset( $_SERVER['HTTP_X_SIGNATURE'], $_SERVER['REQUEST_URI'] ) ) {
 	}
 
 	// Deprecated ping URL (will be removed when we have moved all shops to the new URL)
-	// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 	if ( str_ends_with( $_SERVER['REQUEST_URI'], 'wc_scanpay/' ) ) {
 		add_action( 'woocommerce_api_wc_scanpay', function () {
 			require WC_SCANPAY_DIR . '/hooks/wc-api-scanpay-ping.php';
