@@ -101,11 +101,12 @@ function wc_scanpay_subscriber( array $c ) {
 }
 
 
-function wc_scanpay_charge( object $client ): void {
+function wcs_scanpay_charge( object $client ): bool {
 	global $wpdb;
-	$queue = $wpdb->get_results( "SELECT * from {$wpdb->prefix}scanpay_queue", ARRAY_A );
+	$queue   = $wpdb->get_results( "SELECT * from {$wpdb->prefix}scanpay_queue", ARRAY_A );
+	$charged = false;
 	if ( empty( $queue ) ) {
-		return;
+		return false;
 	}
 
 	foreach ( $queue as $k => $arr ) {
@@ -191,6 +192,7 @@ function wc_scanpay_charge( object $client ): void {
 			$charge = $client->charge( $subid, $data, [ 'headers' => [ 'Idempotency-Key' => $sub['idem'] ] ] );
 			$order->payment_complete( $charge['id'] );
 			$wpdb->query( "DELETE FROM {$wpdb->prefix}scanpay_queue WHERE orderid = $orderid" );
+			$charged = true;
 		} catch ( \Exception $e ) {
 			/*
 				TODO:
@@ -209,7 +211,7 @@ function wc_scanpay_charge( object $client ): void {
 			scanpay_log( 'error', 'scanpay client exception: ' . $e->getMessage() );
 		}
 	}
-	usleep( 500000 ); // wait .5s for pings
+	return $charged;
 }
 
 
@@ -296,13 +298,23 @@ function wc_scanpay_apply_changes( int $shopid, array $arr ) {
 	}
 }
 
+function wc_scanpay_wait_for_ping( int $seq, int $shopid ) {
+	global $wpdb;
+    $counter = 0;
+    do {
+        usleep( 100000 * ( ++$counter ) );
+        $ping = (int) $wpdb->get_var( "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
+    } while ($ping <= $seq && $counter < 8);
+    return ( $ping > $seq ) ? $ping : $seq;
+}
+
 global $wpdb;
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 $apikey   = $settings['apikey'] ?? '';
 $shopid   = (int) explode( ':', $apikey )[0];
 $body     = file_get_contents( 'php://input', false, null, 0, 512 );
+$wcs  	  = class_exists( 'WC_Subscriptions', false );
 
-// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 $sig = $_SERVER['HTTP_X_SIGNATURE'] ?? '';
 if ( ! hash_equals( base64_encode( hash_hmac( 'sha256', $body, $apikey, true ) ), $sig ) ) {
 	wp_send_json( [ 'error' => 'invalid signature' ], 403 );
@@ -320,7 +332,7 @@ $flock = sys_get_temp_dir() . '/scanpay_' . $shopid . '_lock/';
 if ( ! @mkdir( $flock ) && file_exists( $flock ) ) {
 	$dtime = time() - filemtime( $flock );
 	if ( $dtime >= 0 && $dtime < 60 ) {
-		// Ignore ping; save it to DB
+		// Block ping; save it to DB
 		$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET ping = " . $ping['seq'] . " WHERE shopid = $shopid" );
 		return wp_send_json( [ 'error' => 'busy' ], 423 );
 	}
@@ -332,36 +344,28 @@ try {
 	$seq    = (int) $wpdb->get_var( "SELECT seq FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
 
 	if ( $ping['seq'] === $seq ) {
-		$mtime = time();
-		$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET mtime = $mtime WHERE shopid = $shopid" );
-		if ( class_exists( 'WC_Subscriptions', false ) ) {
-			wc_scanpay_charge( $client );
-			$ping['seq'] = $wpdb->get_var( "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
+		$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET mtime = " . time() . " WHERE shopid = $shopid" );
+		if ( $wcs && wcs_scanpay_charge( $client ) ) {
+			// We charged; wait for ping
+			$ping['seq'] = wc_scanpay_wait_for_ping( $seq, $shopid );
 		}
-		if ( $ping['seq'] === $seq ) {
-			rmdir( $flock );
-			return wp_send_json_success();
-		}
-	} elseif ( $ping['seq'] < $seq ) {
-		throw new Exception( 'The received ping seq (' . $ping['seq'] . ") was smaller than the local seq ($seq)" );
 	}
 
-	while ( $seq < $ping['seq'] ) {
-		$res   = $client->seq( $seq );
-		$seq   = (int) $res['seq'];
-		$mtime = time();
+	while ( $ping['seq'] > $seq ) {
+		$res = $client->seq( $seq );
+		if ( ! $res['changes'] || $res['seq'] <= $seq ) {
+			throw new Exception( "received an unexpected seq from scanpay (seq=$seq)" );
+		}
 		wc_scanpay_apply_changes( $shopid, $res['changes'] );
-		$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET mtime = $mtime, seq = $seq WHERE shopid = $shopid" );
 		touch( $flock );
+		$seq = $res['seq'];
+		$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET mtime = " . time() . ", seq = $seq WHERE shopid = $shopid" );
 
-		if ( $seq >= $ping['seq'] ) {
-			usleep( 500000 ); // wait .5s; check if we missed/ignored a ping
+		if ( $ping['seq'] <= $seq ) {
 			$ping['seq'] = $wpdb->get_var( "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
-
-			// If we are done then process the queue
-			if ( $seq >= $ping['seq'] && class_exists( 'WC_Subscriptions', false ) ) {
-				wc_scanpay_charge( $client );
-				$ping['seq'] = $wpdb->get_var( "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
+			if ( $ping['seq'] <= $seq && $wcs && wcs_scanpay_charge( $client ) ) {
+				// We charged; wait for ping
+				$ping['seq'] = wc_scanpay_wait_for_ping( $seq, $shopid );
 			}
 		}
 	}
@@ -369,6 +373,6 @@ try {
 	wp_send_json_success();
 } catch ( Exception $e ) {
 	rmdir( $flock );
-	scanpay_log( 'error', 'synchronization error: ' . $e->getMessage() );
+	scanpay_log( 'error', 'Scanpay Sync Error: ' . $e->getMessage() );
 	wp_send_json( [ 'error' => $e->getMessage() ], 500 );
 }
