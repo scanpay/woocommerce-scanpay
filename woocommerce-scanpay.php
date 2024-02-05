@@ -178,7 +178,8 @@ function scanpay_admin_hooks() {
 			'wcsp-meta-box',
 			'Scanpay',
 			function ( $order ) {
-				echo '<div id="wcsp-meta"
+				$secret = get_option( WC_SCANPAY_URI_SETTINGS )['secret'] ?? '';
+				echo '<div id="wcsp-meta" data-secret="' . $secret . '"
 					data-subid="' . $order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ) . '"
 					data-payid="' . $order->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' ) . '"
 					data-ptime="' . $order->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' ) . '"></div>';
