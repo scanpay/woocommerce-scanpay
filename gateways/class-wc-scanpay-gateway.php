@@ -51,7 +51,6 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 	}
 
 	public function get_title(): string {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( defined( 'WP_ADMIN' ) && isset( $_GET['page'] ) && 'wc-orders' === $_GET['page'] ) {
 			return 'Scanpay';
 		}
@@ -109,14 +108,12 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 				'title'       => __( 'Title', 'scanpay-for-woocommerce' ),
 				'type'        => 'text',
 				'description' => __( 'A title for the payment method. This is displayed on the checkout page.', 'scanpay-for-woocommerce' ),
-				'default'     => __( 'Pay by card.', 'scanpay-for-woocommerce' ),
 				'desc_tip'    => true,
 			],
 			'description'          => [
 				'title'       => __( 'Description', 'scanpay-for-woocommerce' ),
 				'type'        => 'text',
 				'description' => __( 'A description of the payment method. This is displayed on the checkout page.', 'scanpay-for-woocommerce' ),
-				'default'     => __( 'Pay with card through Scanpay.', 'scanpay-for-woocommerce' ),
 				'desc_tip'    => true,
 			],
 			'card_icons'           => [
@@ -134,22 +131,19 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 					'unionpay'   => 'UnionPay',
 					'jcb'        => 'JCB',
 				],
-				'default'     => [ 'visa', 'mastercard', 'maestro' ],
 				'class'       => 'wc-enhanced-select',
 				'desc_tip'    => true,
 			],
 			'stylesheet'           => [
-				'title'   => 'Stylesheet',
-				'type'    => 'checkbox',
-				'label'   => __( 'Use default checkout stylesheet (CSS).', 'scanpay-for-woocommerce' ),
-				'default' => 'yes',
+				'title' => 'Stylesheet',
+				'type'  => 'checkbox',
+				'label' => __( 'Use default checkout stylesheet (CSS).', 'scanpay-for-woocommerce' ),
 			],
 			'capture_on_complete'  => [
 				'title'       => __( 'Auto-Capture', 'scanpay-for-woocommerce' ),
 				'type'        => 'checkbox',
 				'label'       => __( 'Capture when order status is changed to "completed".', 'scanpay-for-woocommerce' ),
 				'description' => __( 'Automatically capture the payment when the order status changes to "completed".', 'scanpay-for-woocommerce' ),
-				'default'     => 'yes',
 				'desc_tip'    => true,
 			],
 			'wcs_complete_initial' => [

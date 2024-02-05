@@ -69,13 +69,15 @@ if ( $wpdb->get_var( "SHOW TABLES LIKE '$subs_tbl'" ) !== $subs_tbl ) {
 	}
 }
 
-// Charge queue table
+// Queue table
 $queue_tbl = $wpdb->prefix . 'scanpay_queue';
 if ( $wpdb->get_var( "SHOW TABLES LIKE '$queue_tbl'" ) !== $queue_tbl ) {
 	$res = $wpdb->query(
 		"CREATE TABLE $queue_tbl (
 			orderid INT unsigned NOT NULL UNIQUE,
-			subid INT unsigned NOT NULL,
+			act CHAR(7) NOT NULL,
+			subid INT unsigned,
+			amount VARCHAR(32),
 			PRIMARY KEY (orderid)
 		) CHARSET = latin1;"
 	);

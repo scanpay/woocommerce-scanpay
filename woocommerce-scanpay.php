@@ -19,10 +19,9 @@ declare(strict_types = 1);
  */
 
 /*
-	BUGS:
-		*   "Renew Now" in "My Account" does not work. This is because the 'woocommerce_scheduled_subscription_*'
-			hook is expecting a syncronous response, but we are using an async queue system for charges...
-			We can't even disable the feature, because Woo is developed by ... well, you know.
+	MUSTS:
+		*   Add shopid to order meta
+		*   item description to charges
 
 	TODO:
 		*   Replace deprecated wc_get_log_file_path() in admin-options.php.
@@ -33,17 +32,15 @@ declare(strict_types = 1);
 		*   wc:  Show last4 and cardtype in order meta.
 		*   wcs: Save last4 and cardtype in subscriptions meta.
 		*   wcs: Show cardtype + last4 in the change method (filter woocommerce_my_subscriptions_payment_method)
-		*   wcs: renew successurl should be the subscription page.
-		*   wcs: implement subscription_payment_method_delayed_change
-		*   wcs: manual renewals should be instant (bypass queue or force ping/seq)
+		*   wcs: implement subscription_payment_method_delayed_change?
+		*   wcs: don't retry on card expired and other errors
 
-	OPTIMIZATIONS:
+	OPTI:
 		*   Find a way to disable autoload of settings (OOP BS).
-		*   Deprecate old ping URL (wc_scanpay).
 		*   Find a better way to load pay.css
+		*   Delete old unused metadata from orders and subscriptions
 
 */
-
 
 defined( 'ABSPATH' ) || exit();
 
@@ -56,6 +53,8 @@ const WC_SCANPAY_URI_SHOPID   = '_scanpay_shopid';
 const WC_SCANPAY_URI_PAYID    = '_scanpay_payid';
 const WC_SCANPAY_URI_PTIME    = '_scanpay_payid_time';
 const WC_SCANPAY_URI_SUBID    = '_scanpay_subid';
+const WC_SCANPAY_URI_AUTOCPT  = '_scanpay_autocpt';
+
 define( 'WC_SCANPAY_DIR', __DIR__ );
 define( 'WC_SCANPAY_URL', set_url_scheme( WP_PLUGIN_URL ) . '/scanpay-for-woocommerce' );
 
@@ -82,38 +81,37 @@ function scanpay_tmp_warning(): void {
 }
 
 /*
-*   Hooks for Scanpay WC-API requests including ping handler.
-*   Shortcut saves us >50kB memory and time.
+	JavaScript endpoints /wp-scanpay/fetch?x={ping,meta,sub}&s=$secret  ...
+	Bypass WooCommerce and WordPress. Saves >40 ms and a lot of resources
 */
 
-if ( isset( $_SERVER['HTTP_X_SIGNATURE'], $_SERVER['REQUEST_URI'] ) ) {
-	if ( str_ends_with( $_SERVER['REQUEST_URI'], 'scanpay_ping/' ) ) {
-		add_action( 'woocommerce_api_scanpay_ping', function () {
-			require WC_SCANPAY_DIR . '/hooks/wc-api-scanpay-ping.php';
-		} );
-		return;
-	}
-
-	// Deprecated ping URL (will be removed when we have moved all shops to the new URL)
-	if ( str_ends_with( $_SERVER['REQUEST_URI'], 'wc_scanpay/' ) ) {
-		add_action( 'woocommerce_api_wc_scanpay', function () {
-			require WC_SCANPAY_DIR . '/hooks/wc-api-scanpay-ping.php';
-		} );
-		return;
+if ( isset( $_SERVER['HTTP_X_SCANPAY'], $_GET['x'], $_GET['s'] ) ) {
+	switch ( $_GET['x'] ) {
+		case 'meta':
+			require WC_SCANPAY_DIR . '/hooks/wp-scanpay-fetch-meta.php';
+			break;
+		case 'ping':
+			require WC_SCANPAY_DIR . '/hooks/wp-scanpay-fetch-ping.php';
+			break;
+		case 'sub':
+			require WC_SCANPAY_DIR . '/hooks/wp-scanpay-fetch-sub.php';
+			break;
 	}
 }
 
-if ( isset( $_SERVER['HTTP_X_SCANPAY'] ) ) {
-	add_action( 'woocommerce_api_scanpay_ajax_meta', function () {
-		require WC_SCANPAY_DIR . '/hooks/wc-api-scanpay-ajax-meta.php';
-	} );
-	add_action( 'woocommerce_api_scanpay_ajax_subs', function () {
-		require WC_SCANPAY_DIR . '/hooks/wc-api-scanpay-ajax-subs.php';
-	} );
-	add_action( 'woocommerce_api_scanpay_ajax_ping_mtime', function () {
-		require WC_SCANPAY_DIR . '/hooks/wc-api-scanpay-ajax-ping-mtime.php';
-	} );
-	return;
+/*
+	Ping handler /wc-api/wc_scanpay/
+	Sadly, Woo has made an OOP nightmare. There are no shortcuts here :/
+*/
+if ( isset( $_SERVER['HTTP_X_SIGNATURE'], $_SERVER['REQUEST_URI'] ) ) {
+	if ( str_ends_with( $_SERVER['REQUEST_URI'], 'wc_scanpay/' ) ) {
+		add_action( 'woocommerce_api_wc_scanpay', function () {
+			require WC_SCANPAY_DIR . '/hooks/class-wc-scanpay-sync.php';
+			$sync = new WC_Scanpay_Sync();
+			$sync->handle_ping();
+		} );
+		return;
+	}
 }
 
 function scanpay_admin_hooks() {
@@ -158,16 +156,14 @@ function scanpay_admin_hooks() {
 		}
 	} );
 
-	add_action( 'woocommerce_order_status_completed', function ( string $order_id ) {
-		require WC_SCANPAY_DIR . '/hooks/wc-order-status-completed.php';
-	}, 0 ); // priority 0 to run before other plugins
-
 	add_action( 'add_meta_boxes_woocommerce_page_wc-orders', function () {
 		add_meta_box(
 			'wcsp-meta-box',
 			'Scanpay',
 			function ( $order ) {
-				echo '<div id="wcsp-meta" data-subid="' . $order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' )
+				$secret = get_option( WC_SCANPAY_URI_SETTINGS )['secret'] ?? '';
+				echo '<div id="wcsp-meta" data-secret="' . $secret . '"
+					data-subid="' . $order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' )
 					. ' data-payid="' . $order->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' )
 					. '" data-ptime="' . $order->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' ) . '"></div>';
 			},
@@ -193,24 +189,8 @@ function scanpay_admin_hooks() {
 		);
 	} );
 
-	add_action( 'woocommerce_scheduled_subscription_payment_scanpay', function ( float $x, object $order ) {
-		global $wpdb;
-		$orderid = (int) $order->get_id();
-		$subid   = (int) $order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
-		$sql     = "INSERT INTO {$wpdb->prefix}scanpay_queue SET orderid = $orderid, subid = $subid";
-		if ( ! $wpdb->query( $sql ) ) {
-			return scanpay_log( 'error', "Failed to insert order #$orderid into queue" );
-		}
-	}, 10, 2 );
-
-	add_action( 'woocommerce_subscription_failing_payment_method_updated_scanpay', function ( $old_order, $new_order ) {
-		// This hook is fired when a customer updates their payment method from the My Account page (I think??)
-		scanpay_log( 'info', 'woocommerce_subscription_failing_payment_method_updated_scanpay!!!' );
-	}, 10, 2 );
-
 	// Validate payment meta changes made by admin.
 	add_filter( 'woocommerce_subscription_validate_payment_meta_scanpay', function ( $meta, $sub ) {
-		scanpay_log( 'info', 'woocommerce_subscription_validate_payment_meta!!!' );
 		if ( empty( $meta['post_meta'][ WC_SCANPAY_URI_SHOPID ] ) ) {
 			throw new Exception( 'A Scanpay shopid is required.' );
 		}
@@ -244,7 +224,7 @@ function scanpay_admin_hooks() {
 }
 
 add_action( 'plugins_loaded', function () {
-
+	//  [hook] Returns the list of gateways. Always called before gateways are needed
 	add_filter( 'woocommerce_payment_gateways', function ( $methods ) {
 		if ( ! class_exists( 'WC_Scanpay_Gateway', false ) ) {
 			require WC_SCANPAY_DIR . '/gateways/class-wc-scanpay-gateway.php';
@@ -253,6 +233,23 @@ add_action( 'plugins_loaded', function () {
 		}
 		return [ ...$methods, 'WC_Scanpay_Gateway', 'WC_Scanpay_Gateway_Mobilepay', 'WC_Scanpay_Gateway_ApplePay' ];
 	} );
+
+	function wc_scanpay_load_sync() {
+		if ( ! class_exists( 'WC_Scanpay_Sync', false ) ) {
+			require WC_SCANPAY_DIR . '/hooks/class-wc-scanpay-sync.php';
+			new WC_Scanpay_Sync(); // will handle the hooks
+		}
+	}
+
+	// [hook] Merchant or another plugin changes order status to completed.
+	add_action( 'woocommerce_order_status_completed', 'wc_scanpay_load_sync', 1, 0 );
+
+	add_action('woocommerce_before_thankyou', function ( $order_id ) {
+		require WC_SCANPAY_DIR . '/hooks/wc-before-thankyou.php';
+	}, 3, 1);
+
+	// [hook] Manual and Recurring renewals (cron|admin|user)
+	add_action( 'woocommerce_scheduled_subscription_payment_scanpay', 'wc_scanpay_load_sync', 1, 0 );
 
 	if ( defined( 'DOING_AJAX' ) || wp_is_json_request() ) {
 		return;

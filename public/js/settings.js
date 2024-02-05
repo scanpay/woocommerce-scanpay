@@ -79,7 +79,7 @@
 
     // 3) Check last ping and warn if >5 mins old (no caching in settings)
     function checkMtime() {
-        get('../wc-api/scanpay_ajax_ping_mtime/')
+        get('../wp-scanpay/fetch?x=ping&s=' + alert.dataset.secret)
             .then(({ mtime }) => {
                 if (mtime === 0) {
                     return showWarning(

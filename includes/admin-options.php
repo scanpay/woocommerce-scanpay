@@ -9,7 +9,8 @@ defined( 'ABSPATH' ) || exit();
 
 $settings     = get_option( WC_SCANPAY_URI_SETTINGS );
 $shopid       = (int) explode( ':', $settings['apikey'] ?? '' )[0];
-$ping_url     = rawurlencode( WC()->api_request_url( 'scanpay_ping' ) );
+$secret       = $settings['secret'] ?? '';
+$ping_url     = rawurlencode( WC()->api_request_url( 'wc_scanpay' ) );
 $sendping_url = WC_SCANPAY_DASHBOARD . $shopid . '/settings/api/setup?module=woocommerce&url=' . $ping_url;
 
 echo '<h2>' . esc_html( $this->get_method_title() );
@@ -38,7 +39,7 @@ echo wp_kses_post( wpautop( $this->get_method_description() ) );
 	<span id="wcsp-set-nav-mtime"></span>
 </div>
 
-<div id="wcsp-set-alert" data-shopid="<?php echo $shopid; ?>">
+<div id="wcsp-set-alert" data-shopid="<?php echo $shopid; ?>" data-secret="<?php echo $secret; ?>">
 	<!-- No API-key -->
 	<?php if ( ! $shopid ) : ?>
 		<div class="wcsp-set-alert wcsp-set-alert--show">

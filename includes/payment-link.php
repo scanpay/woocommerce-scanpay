@@ -15,7 +15,6 @@ function wc_scanpay_phone_prefixer( string $phone, string $country ): string {
 	return $phone;
 }
 
-
 /*
 	Create a regular (one-off) payment link.
 */
@@ -24,10 +23,11 @@ function wc_scanpay_payment_link( object $order, array $settings ): string {
 	require WC_SCANPAY_DIR . '/library/math.php';
 
 	$data = [
-		'orderid'    => (string) $order->get_id(),
-		'successurl' => apply_filters( 'woocommerce_get_return_url', $order->get_checkout_order_received_url(), $order ),
-		'lifetime'   => '30m',
-		'billing'    => [
+		'autocapture' => $auto_capture,
+		'orderid'     => (string) $order->get_id(),
+		'successurl'  => apply_filters( 'woocommerce_get_return_url', $order->get_checkout_order_received_url(), $order ),
+		'lifetime'    => '30m',
+		'billing'     => [
 			'name'    => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
 			'email'   => $order->get_billing_email(),
 			'phone'   => wc_scanpay_phone_prefixer( $order->get_billing_phone(), $order->get_billing_country() ),
@@ -38,7 +38,7 @@ function wc_scanpay_payment_link( object $order, array $settings ): string {
 			'state'   => $order->get_billing_state(),
 			'company' => $order->get_billing_company(),
 		],
-		'shipping'   => [
+		'shipping'    => [
 			'name'    => $order->get_shipping_first_name() . ' ' . $order->get_shipping_last_name(),
 			'address' => [ $order->get_shipping_address_1(), $order->get_shipping_address_2() ],
 			'city'    => $order->get_shipping_city(),
@@ -48,6 +48,10 @@ function wc_scanpay_payment_link( object $order, array $settings ): string {
 			'company' => $order->get_shipping_company(),
 		],
 	];
+	if ( ( 'yes' === $settings['capture_on_complete'] ) && ! $order->needs_processing() ) {
+		$data['autocapture'] = true;
+		$order->add_meta_data( WC_SCANPAY_URI_AUTOCPT, 1, true );
+	}
 
 	$sum = '0';
 	foreach ( $order->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
@@ -164,7 +168,6 @@ function wcs_scanpay_renew_method( object $order, array $settings ): void {
 function wc_scanpay_process_payment( int $orderid ): array {
 	$order    = wc_get_order( $orderid );
 	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
-	scanpay_log( 'info', 'scanpay paylink: process payment' );
 	if ( ! $order ) {
 		throw new \Exception( 'Error: The order does not exist.' );
 	}
@@ -181,15 +184,12 @@ function wc_scanpay_process_payment( int $orderid ): array {
 				return wcs_scanpay_renew_method( $order, $settings );
 			}
 			if ( wcs_order_contains_subscription( $order ) ) {
-				scanpay_log( 'info', 'scanpay paylink: order contains subscription' );
 				return [
 					'result'   => 'success',
 					'redirect' => wcs_scanpay_subscription_link( $order, $settings ),
 				];
 			}
 		}
-		scanpay_log( 'info', 'scanpay paylink: regular order' );
-
 		return [
 			'result'   => 'success',
 			'redirect' => wc_scanpay_payment_link( $order, $settings ),

@@ -34,6 +34,8 @@
 		<exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
 
 		<exclude name="WordPress.Security.EscapeOutput" />
+		<exclude name="WordPress.Security.NonceVerification.Recommended" />
+
 		<exclude name="WordPress.PHP.NoSilencedErrors.Discouraged" />
 
 		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_mkdir" />

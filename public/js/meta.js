@@ -58,7 +58,8 @@
         Check mtime and plugin version
     */
     function compatibilityCheck() {
-        get('../wc-api/scanpay_ajax_ping_mtime/', 120)
+        const secret = document.getElementById('wcsp-meta').dataset.secret;
+        get('../wp-scanpay/fetch?x=ping&s=' + secret, 120)
             .then(({ mtime }) => {
                 const dmins = Math.floor((Math.floor(Date.now() / 1000) - mtime) / 60);
                 if (mtime === 0 || dmins < 10) return;
@@ -66,12 +67,13 @@
                 if (dmins > 120) ts = Math.floor(dmins / 60) + ' hours'
                 showWarning('Your scanpay extension is out of sync: ' + ts + ' since last synchronization.');
             });
+
         get('https://api.github.com/repos/scanpay/woocommerce-scanpay/releases/latest', 600)
             .then(({ tag_name }) => {
                 if (tag_name !== wcSettings.admin.scanpay) {
                     showWarning(
                         `Your scanpay plugin is <b class="scanpay-outdated">outdated</b>.
-                        Please update to <i>${tag_name}</i> (<a href="//github.com/scanpay/woocommerce-scanpay/releases"
+                        Please update to ${tag_name} (<a href="//github.com/scanpay/woocommerce-scanpay/releases"
                         target="_blank">changelog</a>)`
                     );
                 }
@@ -121,15 +123,12 @@
         return ul;
     }
 
-    function loadSubs() {
-
-    }
-
     let abortCtrl;
     function loadOrderMeta() {
         const target = document.getElementById('wcsp-meta');
+        const secret = target.dataset.secret;
         abortCtrl = new AbortController();
-        const url = '../wc-api/scanpay_ajax_meta/?order_id=' + orderid + '&rev=' + rev;
+        const url = '../wp-scanpay/fetch?x=meta&s=' + secret + ' &oid=' + orderid + '&rev=' + rev;
         fetch(url, { signal: abortCtrl.signal, headers: { 'X-Scanpay': 'fetch' } })
             .then(res => res.json())
             .then((meta) => {
@@ -185,9 +184,10 @@
         const data = document.getElementById('wcsp-meta').dataset;
         const subid = data.subid;
         const target = document.getElementById('wcsp-meta');
+        const secret = target.dataset.secret;
         abortCtrl = new AbortController();
 
-        const url = '../wc-api/scanpay_ajax_subs/?subid=' + subid + '&rev=' + rev;
+        const url = '../wp-scanpay/fetch?x=sub&s=' + secret + ' &subid=' + subid + '&rev=' + rev;
         fetch(url, { signal: abortCtrl.signal, headers: { 'X-Scanpay': 'fetch' } })
             .then(res => res.json())
             .then((sub) => {

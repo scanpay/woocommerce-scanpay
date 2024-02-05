@@ -1,20 +1,18 @@
 <?php
 
 defined( 'ABSPATH' ) || exit();
-ignore_user_abort( false );
-wc_nocache_headers();
-wc_set_time_limit( 0 );
-
-// phpcs:disable WordPress.Security.NonceVerification.Recommended
-if ( ! isset( $_GET['subid'], $_GET['rev'] ) || ! current_user_can( 'edit_shop_orders' ) ) {
-	wp_send_json( [ 'error' => 'forbidden' ], 403 );
-	die;
-}
+nocache_headers();
 
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
-$shopid   = (int) explode( ':', $settings['apikey'] ?? '' )[0];
-$rev      = (int) $_GET['rev'];
-$subid    = (int) $_GET['subid'];
+// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated
+if ( ! $settings || rtrim( $_GET['s'] ) !== $settings['secret'] ) {
+	wp_send_json( [ 'error' => 'forbidden' ], 403 );
+	die();
+}
+
+$shopid = (int) explode( ':', $settings['apikey'] ?? '' )[0];
+$rev    = (int) ( $_GET['rev'] ?? 0 );
+$subid  = (int) ( $_GET['subid'] ?? 0 );
 
 if ( 0 === $shopid ) {
 	wp_send_json( [ 'error' => 'invalid shopid' ] );
