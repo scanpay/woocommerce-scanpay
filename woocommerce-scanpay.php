@@ -4,7 +4,7 @@ declare(strict_types = 1);
 /*
  * Version: 2.0.0
  * Requires at least: 6.3.0
- * Requires PHP: 8.0
+ * Requires PHP: 7.4
  * WC requires at least: 6.9.0
  * WC tested up to: 8.5.2
  * Plugin Name: Scanpay for WooCommerce
@@ -21,7 +21,7 @@ declare(strict_types = 1);
 defined( 'ABSPATH' ) || exit();
 
 const WC_SCANPAY_VERSION      = '2.0.0';
-const WC_SCANPAY_MIN_PHP      = '8.0.0';
+const WC_SCANPAY_MIN_PHP      = '7.4.0';
 const WC_SCANPAY_MIN_WC       = '6.9.0';
 const WC_SCANPAY_DASHBOARD    = 'https://dashboard.scanpay.dk/';
 const WC_SCANPAY_URI_SETTINGS = 'woocommerce_scanpay_settings';
@@ -54,6 +54,29 @@ function scanpay_tmp_warning(): void {
 		</div>
 		<?php
 	} );
+}
+
+/*
+	Polyfill for PHP 8.0 functions
+*/
+
+if ( ! function_exists( 'str_starts_with' ) ) {
+	function str_starts_with( $haystack, $needle ) {
+		if ( '' === $needle ) {
+			return true;
+		}
+		return 0 === strpos( $haystack, $needle );
+	}
+}
+
+if ( ! function_exists( 'str_ends_with' ) ) {
+	function str_ends_with( $haystack, $needle ) {
+		if ( '' === $haystack ) {
+			return '' === $needle;
+		}
+		$len = strlen( $needle );
+		return substr( $haystack, -$len, $len ) === $needle;
+	}
 }
 
 /*

@@ -1,6 +1,6 @@
 # Requirements
 
-* PHP version >= 8.0.
+* PHP version >= 7.4.
 * php-curl (libcurl >= 7.25.0).
 * WooCommerce >= 6.9.0
 * WordPress >= 6.3.0
@@ -10,9 +10,9 @@
 
 | PHP Features                              | Version |
 | :---------------------------------------- | :-----: |
-| str_starts_with()                         | 8.0     |
-| str_ends_with()                           | 8.0     |
-| WooCommerce (8.2)                         | 7.4     |
+| ~~str_starts_with()~~                     | 8.0     |
+| ~~str_ends_with()~~                       | 8.0     |
+| WooCommerce (8.2)                         | **7.4** |
 | Array Spread operator                     | 7.4     |
 | Typed class properties                    | 7.4     |
 | Nullable Types                            | 7.1     |
