@@ -18,30 +18,6 @@ declare(strict_types = 1);
  * License URI: https://opensource.org/licenses/MIT
  */
 
-/*
-	MUSTS:
-		*   Add shopid to order meta
-		*   item description to charges
-
-	TODO:
-		*   Replace deprecated wc_get_log_file_path() in admin-options.php.
-		*   Remove scanpay_tmp_warning()
-		*   Convert all strings to __() translations
-		*   Improve error messages in payment-link.php
-		*   wc:  add support for negative line items (discounts)
-		*   wc:  Show last4 and cardtype in order meta.
-		*   wcs: Save last4 and cardtype in subscriptions meta.
-		*   wcs: Show cardtype + last4 in the change method (filter woocommerce_my_subscriptions_payment_method)
-		*   wcs: implement subscription_payment_method_delayed_change?
-		*   wcs: don't retry on card expired and other errors
-
-	OPTI:
-		*   Find a way to disable autoload of settings (OOP BS).
-		*   Find a better way to load pay.css
-		*   Delete old unused metadata from orders and subscriptions
-
-*/
-
 defined( 'ABSPATH' ) || exit();
 
 const WC_SCANPAY_VERSION      = '2.0.0';
