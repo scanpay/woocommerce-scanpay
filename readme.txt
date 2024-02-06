@@ -44,6 +44,11 @@ Please follow the [installation and configuration guide](https://github.com/scan
 
 == Changelog ==
 
+= 2.0.3 =
+Bugfix: Only show meta boxes in scanpay orders.
+Bugfix: Refund button disappearing
+Add warning if order total does not match net payment (more warnings will come soon)
+
 = 2.0.1 =
 Add CSS height to card icons
 
