@@ -120,6 +120,7 @@ function scanpay_admin_hooks() {
 		add_filter( 'plugin_action_links_scanpay-for-woocommerce/woocommerce-scanpay.php', function ( $links ) {
 			if ( ! is_array( $links ) ) {
 				scanpay_log( 'error', '$links is not an array' );
+				return $links;
 			}
 			return array_merge([
 				'<a href="' . admin_url( 'admin.php?page=wc-settings&tab=checkout&section=scanpay' ) . '">'
