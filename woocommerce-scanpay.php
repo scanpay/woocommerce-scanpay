@@ -2,7 +2,7 @@
 declare(strict_types = 1);
 
 /*
- * Version: 2.0.5
+ * Version: 2.0.6
  * Requires at least: 6.3.0
  * Requires PHP: 7.4
  * WC requires at least: 6.9.0
