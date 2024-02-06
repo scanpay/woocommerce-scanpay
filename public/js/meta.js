@@ -70,7 +70,7 @@
 
         get('https://api.github.com/repos/scanpay/woocommerce-scanpay/releases/latest', 600)
             .then(({ tag_name }) => {
-                if (tag_name !== wcSettings.admin.scanpay) {
+                if (tag_name !== 'v' + wcSettings.admin.scanpay) {
                     showWarning(
                         `Your scanpay plugin is <b class="scanpay-outdated">outdated</b>.
                         Please update to ${tag_name} (<a href="//github.com/scanpay/woocommerce-scanpay/releases"
