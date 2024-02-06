@@ -116,17 +116,17 @@ if ( isset( $_SERVER['HTTP_X_SIGNATURE'], $_SERVER['REQUEST_URI'] ) ) {
 function scanpay_admin_hooks() {
 	global $pagenow;
 	if ( 'plugins.php' === $pagenow || ! class_exists( 'WooCommerce' ) ) {
+
 		// Add helpful links to the plugins table and check compatibility
 		add_filter( 'plugin_action_links_scanpay-for-woocommerce/woocommerce-scanpay.php', function ( $links ) {
 			if ( ! is_array( $links ) ) {
-				scanpay_log( 'error', '$links is not an array' );
 				return $links;
 			}
 			return array_merge([
 				'<a href="' . admin_url( 'admin.php?page=wc-settings&tab=checkout&section=scanpay' ) . '">'
 				. __( 'Settings', 'scanpay-for-woocommerce' ) . '</a>',
 			], $links);
-		}, 'active');
+		});
 		scanpay_tmp_warning();
 		require WC_SCANPAY_DIR . '/includes/compatibility.php';
 	}
