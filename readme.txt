@@ -4,7 +4,7 @@ Tags: ecommerce, e-commerce, woocommerce, payments, subscriptions
 Requires at least: 6.3
 Requires PHP: 7.4
 Tested up to: 6.4.3
-Stable tag: 2.0.6
+Stable tag: 2.0.7
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
 
@@ -43,6 +43,9 @@ Please follow the [installation and configuration guide](https://github.com/scan
 
 
 == Changelog ==
+
+= 2.0.7 =
+Bugfix: typo in plugins.php caused TypeError in PHP 7.4
 
 = 2.0.3 =
 Bugfix: Only show meta boxes in scanpay orders.
