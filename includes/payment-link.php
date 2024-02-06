@@ -56,7 +56,7 @@ function wc_scanpay_payment_link( object $order, array $settings ): string {
 	$sum = '0';
 	foreach ( $order->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
 		$line_total = $order->get_line_total( $item, true, true ); // w. taxes and rounded (how Woo does)
-		if ( $line_total > 0 ) {
+		if ( $line_total >= 0 ) {
 			$sum             = wc_scanpay_addmoney( $sum, strval( $line_total ) );
 			$data['items'][] = [
 				'name'     => $item->get_name(),
