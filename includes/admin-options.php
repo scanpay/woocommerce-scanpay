@@ -12,6 +12,8 @@ $shopid       = (int) explode( ':', $settings['apikey'] ?? '' )[0];
 $secret       = $settings['secret'] ?? '';
 $ping_url     = rawurlencode( WC()->api_request_url( 'wc_scanpay' ) );
 $sendping_url = WC_SCANPAY_DASHBOARD . $shopid . '/settings/api/setup?module=woocommerce&url=' . $ping_url;
+$log_handler  = new WC_Log_Handler_File();
+$log_file     = basename( $log_handler->get_log_file_path( 'woo-scanpay' ) );
 
 echo '<h2>' . esc_html( $this->get_method_title() );
 // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch
@@ -33,7 +35,7 @@ echo wp_kses_post( wpautop( $this->get_method_description() ) );
 	</a>
 	<?php endif; ?>
 
-	<a class="button" href="?page=wc-status&tab=logs&log_file=<?php echo basename( wc_get_log_file_path( 'woo-scanpay' ) ); ?>&source=woo-scanpay">
+	<a class="button" href="?page=wc-status&tab=logs&log_file=<?php echo $log_file; ?>&source=woo-scanpay">
 		<?php echo __( 'Debug logs', 'scanpay-for-woocommerce' ); ?>
 	</a>
 	<span id="wcsp-set-nav-mtime"></span>
