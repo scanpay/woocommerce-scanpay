@@ -133,9 +133,10 @@
             .then(res => res.json())
             .then((meta) => {
                 box = target.cloneNode(false);
+                const dataset = document.getElementById('wcsp-meta').dataset;
+
                 if (meta.error) {
                     if (meta.error === 'not found') {
-                        const dataset = document.getElementById('wcsp-meta').dataset;
                         if (!dataset.payid) return showWarning('No payment details found for this order.');
                         const dtime = 30 - Math.floor((Date.now() / 1000 - dataset.ptime) / 60);
                         if (dtime > 0) {
@@ -159,9 +160,10 @@
                 let btns = '';
                 if (meta.captured === '0') {
                     btns = `<a target="_blank" href="${link}" class="wcsp-meta-acts-refund">Void payment</a>`;
-                } else if (meta.refunded < meta.authorized) {
+                } else if (parseFloat(meta.refunded) < parseFloat(meta.authorized)) {
                     btns = `<a target="_blank" href="${link}/refund" class="wcsp-meta-acts-refund">Refund</a>`;
                 }
+
                 box.innerHTML += `<div class="wcsp-meta-acts">
                     <div class="wcsp-meta-acts-left">
                         <a target="_blank" href="${link}" class="wcsp-meta-acts-link"></a>
@@ -169,6 +171,14 @@
                     ${btns}
                 </div>`;
                 rev = meta.rev;
+
+                if (dataset.status === 'completed' || dataset.status === 'refunded') {
+                    const total = parseFloat(meta.captured - meta.refunded);
+                    if (parseFloat(dataset.total) !== total) {
+                        showWarning('The order total (<b><i>' + currency.format(dataset.total) +
+                        '</i></b>) does not match the net payment.');
+                    }
+                }
                 compatibilityCheck();
             })
             .then(() => {

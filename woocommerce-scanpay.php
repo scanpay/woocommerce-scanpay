@@ -2,7 +2,7 @@
 declare(strict_types = 1);
 
 /*
- * Version: 2.0.2
+ * Version: 2.0.3
  * Requires at least: 6.3.0
  * Requires PHP: 7.4
  * WC requires at least: 6.9.0
@@ -20,7 +20,7 @@ declare(strict_types = 1);
 
 defined( 'ABSPATH' ) || exit();
 
-const WC_SCANPAY_VERSION      = '2.0.2';
+const WC_SCANPAY_VERSION      = '2.0.3';
 const WC_SCANPAY_MIN_PHP      = '7.4.0';
 const WC_SCANPAY_MIN_WC       = '6.9.0';
 const WC_SCANPAY_DASHBOARD    = 'https://dashboard.scanpay.dk/';
@@ -155,16 +155,22 @@ function scanpay_admin_hooks() {
 		}
 	} );
 
-	add_action( 'add_meta_boxes_woocommerce_page_wc-orders', function () {
+	add_action( 'add_meta_boxes_woocommerce_page_wc-orders', function ( $order ) {
+		if ( ! str_starts_with( $order->get_payment_method(), 'scanpay' ) ) {
+			return;
+		}
 		add_meta_box(
 			'wcsp-meta-box',
 			'Scanpay',
 			function ( $order ) {
 				$secret = get_option( WC_SCANPAY_URI_SETTINGS )['secret'] ?? '';
-				echo '<div id="wcsp-meta" data-secret="' . $secret . '"
-					data-subid="' . $order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' )
-					. ' data-payid="' . $order->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' )
-					. '" data-ptime="' . $order->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' ) . '"></div>';
+				$status = $order->get_status();
+				$total  = $order->get_total() - $order->get_total_refunded();
+				$subid  = $order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
+				$payid  = $order->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' );
+				$ptime  = $order->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' );
+
+				echo "<div id='wcsp-meta' data-secret='$secret' data-status='$status' data-total='$total' data-subid='$subid' data-payid='$payid' data-ptime='$ptime'></div>";
 			},
 			'woocommerce_page_wc-orders',
 			'side',
@@ -172,7 +178,10 @@ function scanpay_admin_hooks() {
 		);
 	} );
 
-	add_action( 'add_meta_boxes_woocommerce_page_wc-orders--shop_subscription', function () {
+	add_action( 'add_meta_boxes_woocommerce_page_wc-orders--shop_subscription', function ( $order ) {
+		if ( ! str_starts_with( $order->get_payment_method(), 'scanpay' ) ) {
+			return;
+		}
 		add_meta_box(
 			'wcsp-meta-box',
 			'Scanpay',
