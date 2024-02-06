@@ -93,6 +93,9 @@ class WC_Scanpay_Sync {
 		$subid  = (int) $order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
 		$amount = (string) $x;
 
+		if ( (int) $order->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' ) !== $this->shopid ) {
+			return;
+		}
 		if ( ! $subid ) {
 			$order->update_status( 'failed', 'Charge failed: order does not have a Scanpay Subscriber ID' );
 			return; // Only possible if merchant delted the subid by accident.
@@ -232,7 +235,10 @@ class WC_Scanpay_Sync {
 		if ( ! $order ) {
 			return;
 		}
-
+		$old_shopid = (int) $order->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' );
+		if ( $old_shopid && $old_shopid !== $this->shopid ) {
+			return;
+		}
 		$sub_exists = $wpdb->query( "SELECT subid FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid" );
 		if ( $sub_exists ) {
 			$sql = $wpdb->prepare(
@@ -251,6 +257,7 @@ class WC_Scanpay_Sync {
 			$subs_for_order = wcs_get_subscriptions_for_order( $c['ref'], [ 'order_type' => [ 'parent' ] ] );
 			foreach ( $subs_for_order as $wc_subid => $wc_sub ) {
 				$wc_sub->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
+				$wc_sub->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
 				$wc_sub->save_meta_data();
 			}
 
@@ -318,6 +325,10 @@ class WC_Scanpay_Sync {
 				if ( is_null( $db_rev ) ) {
 					$order = wc_get_order( $c['orderid'] );
 					if ( ! $order ) {
+						continue;
+					}
+					$old_shopid = (int) $order->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' );
+					if ( $old_shopid && $old_shopid !== $this->shopid ) {
 						continue;
 					}
 					$currency   = substr( $c['totals']['authorized'], -3 );
