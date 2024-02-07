@@ -67,11 +67,13 @@ function wc_scanpay_payment_link( object $order, array $settings ): string {
 	}
 
 	if ( wc_scanpay_cmpmoney( $sum, strval( $order->get_total() ) ) !== 0 ) {
-		$data['items'][] = [
-			'name'  => 'Total',
-			'total' => $order->get_total() . ' ' . $order->get_currency(),
+		$data['items'] = [
+			[
+				'name'  => 'Total',
+				'total' => $order->get_total() . ' ' . $order->get_currency(),
+			],
 		];
-		$errmsg          = sprintf(
+		$errmsg        = sprintf(
 			'The sum of all items (%s) does not match the order total (%s).' .
 			'The item list will not be available in the scanpay dashboard.',
 			$sum,
