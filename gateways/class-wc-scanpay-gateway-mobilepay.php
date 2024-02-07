@@ -4,22 +4,36 @@ defined( 'ABSPATH' ) || exit();
 
 class WC_Scanpay_Gateway_Mobilepay extends WC_Payment_Gateway {
 	public function __construct() {
-		$this->id          = 'scanpay_mobilepay';
-		$this->title       = 'MobilePay';
-		$this->description = 'Betal med MobilePay';
-		$this->supports    = [ 'products' ];
-		$this->form_fields = [
-			'enabled' => [
-				'title'   => __( 'Enable', 'scanpay-for-woocommerce' ),
+		$this->id                 = 'scanpay_mobilepay';
+		$this->method_title       = 'MobilePay (Scanpay)';
+		$this->method_description = 'MobilePay Online through Scanpay.';
+		$this->form_fields        = [
+			'enabled'     => [
+				'title'   => 'Enable',
 				'type'    => 'checkbox',
-				'label'   => __( 'Enable MobilePay in the checkout.', 'scanpay-for-woocommerce' ),
+				'label'   => 'Enable MobilePay in the checkout.',
 				'default' => 'no',
 			],
+			'title'       => [
+				'title'       => 'Title',
+				'type'        => 'text',
+				'description' => 'A title for the payment method on the checkout page.',
+				'desc_tip'    => true,
+				'default'     => 'MobilePay',
+			],
+			'description' => [
+				'title'       => 'Description',
+				'type'        => 'text',
+				'description' => 'A description of the payment method. This is displayed on the checkout page.',
+				'desc_tip'    => true,
+				'default'     => 'Betal med MobilePay',
+			],
 		];
-
-		$this->method_title       = 'MobilePay (Scanpay)';
-		$this->method_description = __( 'MobilePay Online through Scanpay.', 'scanpay-for-woocommerce' );
 		$this->init_settings(); // Load the settings into $this->settings
+		$this->title       = $this->settings['title'];
+		$this->description = $this->settings['description'];
+		$this->supports    = [ 'products' ];
+
 		add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, [ $this, 'process_admin_options' ] );
 	}
 

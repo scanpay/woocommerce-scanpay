@@ -4,22 +4,36 @@ defined( 'ABSPATH' ) || exit();
 
 class WC_Scanpay_Gateway_ApplePay extends WC_Payment_Gateway {
 	public function __construct() {
-		$this->id          = 'scanpay_applepay';
-		$this->title       = 'Apple Pay';
-		$this->description = 'Betal med Apple Pay';
-		$this->supports    = [ 'products' ];
-		$this->form_fields = [
-			'enabled' => [
-				'title'   => __( 'Enable', 'scanpay-for-woocommerce' ),
+		$this->id                 = 'scanpay_applepay';
+		$this->method_title       = 'Apple Pay (Scanpay)';
+		$this->method_description = 'Apple Pay through Scanpay.';
+		$this->form_fields        = [
+			'enabled'     => [
+				'title'   => 'Enable',
 				'type'    => 'checkbox',
-				'label'   => __( 'Enable Apple Pay in the checkout.', 'scanpay-for-woocommerce' ),
+				'label'   => 'Enable Apple Pay in the checkout.',
 				'default' => 'no',
 			],
+			'title'       => [
+				'title'       => 'Title',
+				'type'        => 'text',
+				'description' => 'A title for the payment method on the checkout page.',
+				'desc_tip'    => true,
+				'default'     => 'Apple Pay',
+			],
+			'description' => [
+				'title'       => 'Description',
+				'type'        => 'text',
+				'description' => 'A description of the payment method. This is displayed on the checkout page.',
+				'desc_tip'    => true,
+				'default'     => 'Betal med Apple Pay',
+			],
 		];
-
-		$this->method_title       = 'Apple Pay (Scanpay)';
-		$this->method_description = __( 'Apple Pay through Scanpay.', 'scanpay-for-woocommerce' );
 		$this->init_settings(); // Load the settings into $this->settings
+		$this->title       = $this->settings['title'];
+		$this->description = $this->settings['description'];
+		$this->supports    = [ 'products' ];
+
 		add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, [ $this, 'process_admin_options' ] );
 	}
 

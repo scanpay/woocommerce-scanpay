@@ -25,18 +25,18 @@ echo wp_kses_post( wpautop( $this->get_method_description() ) );
 <div class="wcsp-set-nav">
 	<a class="button" target="_blank" href="https://github.com/scanpay/woocommerce-scanpay">
 		<img width="16" height="16" src="<?php echo WC_SCANPAY_URL; ?>/public/images/admin/github.svg" class="wcsp-set-nav-img-git">
-		<?php echo __( 'Guide', 'scanpay-for-woocommerce' ); ?>
+		Guide
 	</a>
 
 	<?php if ( $shopid ) : ?>
 	<a id="wcsp-set-ping" class="button" target="_blank" href="<?php echo $sendping_url; ?>">
 		<img width="21" height="16" src="<?php echo WC_SCANPAY_URL; ?>/public/images/admin/ping.svg" class="wcsp-set-nav-img-ping">
-		<?php echo __( 'Send ping', 'scanpay-for-woocommerce' ); ?>
+		Send ping
 	</a>
 	<?php endif; ?>
 
 	<a class="button" href="?page=wc-status&tab=logs&log_file=<?php echo $log_file; ?>&source=woo-scanpay">
-		<?php echo __( 'Debug logs', 'scanpay-for-woocommerce' ); ?>
+		Debug logs
 	</a>
 	<span id="wcsp-set-nav-mtime"></span>
 </div>
@@ -46,7 +46,7 @@ echo wp_kses_post( wpautop( $this->get_method_description() ) );
 	<?php if ( ! $shopid ) : ?>
 		<div class="wcsp-set-alert wcsp-set-alert--show">
 			<div class="wcsp-set-alert-title">
-				<?php echo __( 'Welcome to Scanpay for WooCommerce!', 'scanpay-for-woocommerce' ); ?>
+				Welcome to Scanpay for WooCommerce!
 			</div>
 			Please follow the instructions in the
 			<a href="https://github.com/scanpay/woocommerce-scanpay/blob/master/docs/installation.md">installation guide</a>.
@@ -56,7 +56,7 @@ echo wp_kses_post( wpautop( $this->get_method_description() ) );
 
 <?php
 
-$class_name = 'form-table';
+$class_name = 'form-table wcsp-set-' . $this->id;
 if ( isset( $this->settings['subscriptions_enabled'] ) && 'no' === $this->settings['subscriptions_enabled'] ) {
 	$class_name = 'form-table wcsp-set-no-subs';
 }

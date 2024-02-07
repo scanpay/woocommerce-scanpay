@@ -18,8 +18,8 @@ if ( ! $version || version_compare( $version, '2.0.0', '<' ) ) {
 	$arr = [
 		'enabled'              => $old['enabled'] ?? 'no',
 		'apikey'               => $old['apikey'] ?? '',
-		'title'                => $old['title'] ?? __( 'Pay by card.', 'scanpay-for-woocommerce' ),
-		'description'          => $old['description'] ?? __( 'Pay with card through Scanpay.', 'scanpay-for-woocommerce' ),
+		'title'                => $old['title'] ?? 'Pay by card.',
+		'description'          => $old['description'] ?? 'Pay with card through Scanpay.',
 		'card_icons'           => $old['card_icons'] ?? [ 'visa', 'mastercard' ],
 		'capture_on_complete'  => $old['capture_on_complete'] ?? 'yes',
 		'wcs_complete_initial' => 'no',

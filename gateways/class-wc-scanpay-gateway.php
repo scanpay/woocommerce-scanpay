@@ -93,33 +93,31 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 	public function init_form_fields(): void {
 		$this->form_fields = [
 			'enabled'              => [
-				'title' => __( 'Enable', 'scanpay-for-woocommerce' ),
+				'title' => 'Enable',
 				'type'  => 'checkbox',
-				'label' => __( 'Enable Scanpay in the checkout.', 'scanpay-for-woocommerce' ),
+				'label' => 'Enable Scanpay in the checkout.',
 			],
 			'apikey'               => [
-				'title'             => __( 'API key', 'scanpay-for-woocommerce' ),
+				'title'             => 'API key',
 				'type'              => 'text',
-				'custom_attributes' => [
-					'autocomplete' => 'off',
-				],
+				'custom_attributes' => [ 'autocomplete' => 'off' ],
 			],
 			'title'                => [
-				'title'       => __( 'Title', 'scanpay-for-woocommerce' ),
+				'title'       => 'Title',
 				'type'        => 'text',
-				'description' => __( 'A title for the payment method. This is displayed on the checkout page.', 'scanpay-for-woocommerce' ),
+				'description' => 'A title for the payment method. This is displayed on the checkout page.',
 				'desc_tip'    => true,
 			],
 			'description'          => [
-				'title'       => __( 'Description', 'scanpay-for-woocommerce' ),
+				'title'       => 'Description',
 				'type'        => 'text',
-				'description' => __( 'A description of the payment method. This is displayed on the checkout page.', 'scanpay-for-woocommerce' ),
+				'description' => 'A description of the payment method. This is displayed on the checkout page.',
 				'desc_tip'    => true,
 			],
 			'card_icons'           => [
-				'title'       => __( 'Card icons', 'scanpay-for-woocommerce' ),
+				'title'       => 'Card icons',
 				'type'        => 'multiselect',
-				'description' => __( 'Choose which card icons to display on the checkout page.', 'scanpay-for-woocommerce' ),
+				'description' => 'Choose which card icons to display on the checkout page.',
 				'options'     => [
 					'dankort'    => 'Dankort',
 					'visa'       => 'Visa',
@@ -137,26 +135,24 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 			'stylesheet'           => [
 				'title' => 'Stylesheet',
 				'type'  => 'checkbox',
-				'label' => __( 'Use default checkout stylesheet (CSS).', 'scanpay-for-woocommerce' ),
+				'label' => 'Use default checkout stylesheet (CSS).',
 			],
 			'capture_on_complete'  => [
-				'title'       => __( 'Auto-Capture', 'scanpay-for-woocommerce' ),
+				'title'       => 'Auto-Capture',
 				'type'        => 'checkbox',
-				'label'       => __( 'Capture when order status is changed to "completed".', 'scanpay-for-woocommerce' ),
-				'description' => __( 'Automatically capture the payment when the order status changes to "completed".', 'scanpay-for-woocommerce' ),
+				'label'       => 'Capture when order status is changed to "completed".',
+				'description' => 'Automatically capture the payment when the order status changes to "completed".',
 				'desc_tip'    => true,
 			],
 			'wcs_complete_initial' => [
-				'title' => __( 'Auto-Complete', 'scanpay-for-woocommerce' ),
+				'title' => 'Auto-Complete',
 				'type'  => 'checkbox',
-				'label' => __( 'Auto-complete new subscribers', 'scanpay-for-woocommerce' ) .
-					' <i>(' . __( 'Subscriptions only', 'scanpay-for-woocommerce' ) . ')</i>.',
+				'label' => 'Auto-complete new subscribers <i>Subscriptions only)</i>.',
 			],
 			'wcs_complete_renewal' => [
 				'title' => '&#10240;',
 				'type'  => 'checkbox',
-				'label' => __( 'Auto-complete renewal orders', 'scanpay-for-woocommerce' ) .
-					' <i>(' . __( 'Subscriptions only', 'scanpay-for-woocommerce' ) . ')</i>.',
+				'label' => 'Auto-complete renewal orders <i>Subscriptions only)</i>.',
 			],
 		];
 	}
