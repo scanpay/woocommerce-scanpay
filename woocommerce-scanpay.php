@@ -123,8 +123,7 @@ function scanpay_admin_hooks() {
 				return $links;
 			}
 			return array_merge([
-				'<a href="' . admin_url( 'admin.php?page=wc-settings&tab=checkout&section=scanpay' ) . '">'
-				. __( 'Settings', 'scanpay-for-woocommerce' ) . '</a>',
+				'<a href="' . admin_url( 'admin.php?page=wc-settings&tab=checkout&section=scanpay' ) . '">Settings</a>',
 			], $links);
 		});
 		scanpay_tmp_warning();
