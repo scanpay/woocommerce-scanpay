@@ -377,6 +377,7 @@ class WC_Scanpay_Sync {
 				}
 			}
 			$this->renew_lock();
+			wp_cache_flush();
 
 			// Update seq and mtime
 			$seq = $res['seq'];
