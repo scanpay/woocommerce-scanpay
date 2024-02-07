@@ -298,8 +298,10 @@ class WC_Scanpay_Sync {
 				if ( ! $this->wc_scanpay_validate_seq( $c ) ) {
 					continue;
 				}
-				if ( 'subscriber' === $c['type'] && $this->wcs_exists ) {
-					$this->wc_scanpay_subscriber( $c );
+				if ( 'subscriber' === $c['type'] ) {
+					if ( $this->wcs_exists ) {
+						$this->wc_scanpay_subscriber( $c );
+					}
 					continue;
 				}
 				$oid      = (int) $c['orderid'];
@@ -324,11 +326,12 @@ class WC_Scanpay_Sync {
 
 				if ( is_null( $db_rev ) ) {
 					$order = wc_get_order( $c['orderid'] );
-					if ( ! $order ) {
+					if ( ! $order || ! str_starts_with( $order->get_payment_method(), 'scanpay' ) ) {
 						continue;
 					}
 					$old_shopid = (int) $order->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' );
 					if ( $old_shopid && $old_shopid !== $this->shopid ) {
+						scanpay_log('warning', "Skipped order #$oid: shopid mismatch");
 						continue;
 					}
 					$currency   = substr( $c['totals']['authorized'], -3 );
@@ -350,11 +353,12 @@ class WC_Scanpay_Sync {
 								refunded = '$refunded',
 								voided = '$voided',
 								method = '$method'";
+
 					if ( ! $wpdb->query( $sql ) ) {
 						throw new Exception( "could not save payment data to order #$oid" );
 					}
 
-					if ( $order->needs_payment() ) {
+					if ( empty( $order->get_transaction_id( 'edit' ) ) ) {
 						// Change order status to 'processing' and save transaction ID
 						$order->set_date_paid( $c['time']['authorized'] );
 						$order->payment_complete( $c['id'] );
