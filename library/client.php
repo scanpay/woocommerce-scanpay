@@ -28,8 +28,9 @@ class WC_Scanpay_Client
             which will save us a HTTP roundtrip on POSTs >1024b. */
     }
 
-    private function headerCallback(object $handle, string $header)
+    private function headerCallback($handle, string $header)
     {
+        // Note: $handle is the cURL resource. The type is resource in PHP 7, but object in PHP 8+
         $arr = explode(':', $header, 2);
         if (isset($arr[1]) && strtolower(trim($arr[0])) === 'idempotency-status') {
             $this->idemstatus = strtolower(trim($arr[1]));
