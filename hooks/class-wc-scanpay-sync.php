@@ -331,7 +331,7 @@ class WC_Scanpay_Sync {
 					}
 					$old_shopid = (int) $order->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' );
 					if ( $old_shopid && $old_shopid !== $this->shopid ) {
-						scanpay_log('warning', "Skipped order #$oid: shopid mismatch");
+						scanpay_log( 'warning', "Skipped order #$oid: shopid mismatch" );
 						continue;
 					}
 					$currency   = substr( $c['totals']['authorized'], -3 );
