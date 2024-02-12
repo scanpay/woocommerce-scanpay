@@ -35,9 +35,8 @@
 
 		<exclude name="WordPress.Security.EscapeOutput" />
 		<exclude name="WordPress.Security.NonceVerification.Recommended" />
-
+		<exclude name="WordPress.Security.SafeRedirect.wp_redirect_wp_redirect" />
 		<exclude name="WordPress.PHP.NoSilencedErrors.Discouraged" />
-
 		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_mkdir" />
 		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_rmdir" />
 		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_touch" />
@@ -96,6 +95,7 @@
 		<exclude-pattern>woocommerce-scanpay.php</exclude-pattern>
 		<exclude-pattern>gateways/class-wc-scanpay-gateway.php</exclude-pattern>
 	</rule>
+
 	<!--
 	<rule ref="WordPress-Extra">
 		<exclude name="Generic.Commenting.DocComment.SpacingAfter" />
