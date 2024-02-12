@@ -40,22 +40,6 @@ function scanpay_log( string $level, string $msg ): void {
 	}
 }
 
-function scanpay_tmp_warning(): void {
-	add_action( 'admin_notices', function () {
-		$link = admin_url( 'admin.php?page=wc-settings&tab=checkout&section=scanpay' )
-		?>
-		<div class="notice notice-warning">
-			<p>
-				The <b>scanpay</b> plugin has received a <b><u>complete</u></b> rewrite with many improvements and changes.
-				Please review your plugin <a href="<?php echo $link; ?>">settings</a>. Feedback and bug reports are much appreciated at
-				<a target="_blank" href="https://chat.scanpay.dev/">chat.scanpay.dev</a>.
-				We will remove this notice in 48 hours.
-			</p>
-		</div>
-		<?php
-	} );
-}
-
 /*
 	Polyfill for PHP 8.0 functions
 */
@@ -116,7 +100,6 @@ if ( isset( $_SERVER['HTTP_X_SIGNATURE'], $_SERVER['REQUEST_URI'] ) ) {
 function scanpay_admin_hooks() {
 	global $pagenow;
 	if ( 'plugins.php' === $pagenow || ! class_exists( 'WooCommerce' ) ) {
-
 		// Add helpful links to the plugins table and check compatibility
 		add_filter( 'plugin_action_links_scanpay-for-woocommerce/woocommerce-scanpay.php', function ( $links ) {
 			if ( ! is_array( $links ) ) {
@@ -126,12 +109,7 @@ function scanpay_admin_hooks() {
 				'<a href="' . admin_url( 'admin.php?page=wc-settings&tab=checkout&section=scanpay' ) . '">Settings</a>',
 			], $links);
 		});
-		scanpay_tmp_warning();
 		require WC_SCANPAY_DIR . '/includes/compatibility.php';
-	}
-
-	if ( 'index.php' === $pagenow ) {
-		scanpay_tmp_warning();
 	}
 
 	// Add plugin version number to JS: wcSettings.admin
