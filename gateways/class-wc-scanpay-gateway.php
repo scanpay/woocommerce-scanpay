@@ -64,7 +64,7 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 
 	public function process_payment( $order_id ): array {
 		require WC_SCANPAY_DIR . '/includes/payment-link.php';
-		return wc_scanpay_process_payment( $order_id );
+		return wc_scanpay_process_payment( $order_id, $this->settings );
 	}
 
 	public function admin_options(): void {
@@ -147,12 +147,12 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 			'wcs_complete_initial' => [
 				'title' => 'Auto-Complete',
 				'type'  => 'checkbox',
-				'label' => 'Auto-complete new subscribers <i>Subscriptions only)</i>.',
+				'label' => 'Auto-complete new subscribers <i>(Subscriptions only)</i>.',
 			],
 			'wcs_complete_renewal' => [
 				'title' => '&#10240;',
 				'type'  => 'checkbox',
-				'label' => 'Auto-complete renewal orders <i>Subscriptions only)</i>.',
+				'label' => 'Auto-complete renewal orders <i>(Subscriptions only)</i>.',
 			],
 		];
 	}
