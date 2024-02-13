@@ -156,25 +156,28 @@ class WC_Scanpay_Sync {
 
 	/*
 		Poll for an incoming ping (e.g. after a capture or charge)
-		We only do this when we have a lock, so we can afford to be aggressive.
 	*/
-	private function poll_db_ping( int $seq ) {
+	private function poll_db_ping( int $seq ): int {
+		usleep( 150000 );
 		global $wpdb;
-		$counter = 0;
-		usleep( 100000 );
-		do {
-			usleep( 50000 );
-			$ping = (int) $wpdb->get_var( "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $this->shopid" );
-		} while ( $ping <= $seq && $counter++ < 30 );
-		return ( $ping > $seq ) ? $ping : $seq;
+		$sql = "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = " . $this->shopid;
+		for ($counter = 0; $counter < 30; $counter++) {
+			$wpdb->query( $sql ); // 0.2 ms
+			$ping = (int) $wpdb->last_result[0]->ping;
+			if ($ping > $seq) {
+				return $ping;
+			}
+			usleep( 50000 + $counter * 20000 ); // max(30): .63s
+		}
+		return $seq;
 	}
 
 	private function poll_db_queue( int $oid, string $type ) {
 		global $wpdb;
 		$counter = 0;
+		$sql = "SELECT orderid FROM {$wpdb->prefix}scanpay_queue WHERE orderid = $oid AND act = '$type'";
 		do {
 			usleep( 500000 );
-			$sql   = "SELECT orderid FROM {$wpdb->prefix}scanpay_queue WHERE orderid = $oid AND act = '$type'";
 			$query = $wpdb->query( $sql );
 		} while ( $query && $counter++ < 20 );
 		return true;
