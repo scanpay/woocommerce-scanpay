@@ -143,12 +143,12 @@ class WC_Scanpay_Sync {
 		return true;
 	}
 
-	private function release_lock() {
+	private function release_lock(): void {
 		$this->locked = false;
 		rmdir( $this->lockfile );
 	}
 
-	private function renew_lock() {
+	private function renew_lock(): void {
 		if ( ! touch( $this->lockfile ) ) {
 			throw new Exception( 'could not renew lock' );
 		}
@@ -172,7 +172,7 @@ class WC_Scanpay_Sync {
 		return $seq;
 	}
 
-	private function poll_db_queue( int $oid, string $type ) {
+	private function poll_db_queue( int $oid, string $type ): bool {
 		global $wpdb;
 		$counter = 0;
 		$sql = "SELECT orderid FROM {$wpdb->prefix}scanpay_queue WHERE orderid = $oid AND act = '$type'";
