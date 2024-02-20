@@ -127,8 +127,7 @@ class WC_Scanpay_Client
         $o = $this->request("/v1/subscribers/$subid/charge", $opts, $data);
         if (
             isset($o['type']) && $o['type'] === 'charge' &&
-            isset($o['id']) && is_int($o['id']) &&
-            isset($o['totals']) && isset($o['totals']['authorized'])
+            isset($o['id']) && is_int($o['id'])
         ) {
             return $o;
         }
