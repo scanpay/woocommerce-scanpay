@@ -3,13 +3,11 @@
 */
 
 (() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const orderid = urlParams.get('id');
-    const page = urlParams.get('page');
-    if (!orderid || (page !== 'wc-orders' && page !== 'wc-orders--shop_subscription')) return;
+    const dom = document.getElementById('wcsp-meta');
+    const data = dom.dataset || {};
+    if ( ! data.secret || ! data.id ) return;
     let rev = 0;
     let currency;
-    let box;
 
     /*
         get(): fetch wrapper with caching (v1.0)
@@ -58,8 +56,7 @@
         Check mtime and plugin version
     */
     function compatibilityCheck() {
-        const secret = document.getElementById('wcsp-meta').dataset.secret;
-        get('../wp-scanpay/fetch?x=ping&s=' + secret, 120)
+        get('../wp-scanpay/fetch?x=ping&s=' + data.secret, 120)
             .then(({ mtime }) => {
                 const dmins = Math.floor((Math.floor(Date.now() / 1000) - mtime) / 60);
                 if (mtime === 0 || dmins < 10) return;
@@ -123,41 +120,41 @@
         return ul;
     }
 
-    let abortCtrl;
+    let box, abortCtrl;
     function loadOrderMeta() {
-        const target = document.getElementById('wcsp-meta');
-        const secret = target.dataset.secret;
         abortCtrl = new AbortController();
-        const url = '../wp-scanpay/fetch?x=meta&s=' + secret + ' &oid=' + orderid + '&rev=' + rev;
+        const url = '../wp-scanpay/fetch?x=meta&s=' + data.secret + ' &oid=' + data.id + '&rev=' + rev;
         fetch(url, { signal: abortCtrl.signal, headers: { 'X-Scanpay': 'fetch' } })
             .then(res => res.json())
             .then((meta) => {
-                box = target.cloneNode(false);
-                const dataset = document.getElementById('wcsp-meta').dataset;
+                box = dom.cloneNode(false);
 
                 if (meta.error) {
                     if (meta.error === 'not found') {
-                        if (!dataset.payid) return showWarning('No payment details found for this order.');
-                        const dtime = 30 - Math.floor((Date.now() / 1000 - dataset.ptime) / 60);
+                        if (!data.payid) return showWarning('No payment details found for this order.');
+                        const dtime = 30 - Math.floor((Date.now() / 1000 - data.ptime) / 60);
                         if (dtime > 0) {
                             showWarning(`The order has not been paid yet. The payment link expires in ${dtime} minutes.`);
                         } else {
                             showWarning('The payment link has expired. No payment received.');
                         }
-                        box.appendChild(buildTable([['Pay ID', dataset.payid]]));
+                        box.appendChild(buildTable([['Pay ID', data.payid]]));
                     } else if (meta.error === 'invalid shopid') {
                         showWarning('Invalid or missing API key. Please check your plugin settings or contact support.');
                     }
                     return;
                 }
 
-                const link = 'https://dashboard.scanpay.dk/' + meta.shopid + '/' + meta.id;
-                const iso = wcSettings.currency.decimalSeparator === ',' ? 'da-DK' : 'en-US';
-                currency = new Intl.NumberFormat(
-                    iso, { style: 'currency', currency: meta.currency }
-                );
+                if ( ! currency ) {
+                    const iso = wcSettings.currency.decimalSeparator === ',' ? 'da-DK' : 'en-US';
+                    currency = new Intl.NumberFormat(
+                        iso, { style: 'currency', currency: meta.currency }
+                    );
+                }
+
                 box.appendChild(buildTable(buildDataArray(meta)));
                 let btns = '';
+                const link = 'https://dashboard.scanpay.dk/' + meta.shopid + '/' + meta.id;
                 if (meta.captured === '0') {
                     btns = `<a target="_blank" href="${link}" class="wcsp-meta-acts-refund">Void payment</a>`;
                 } else if (parseFloat(meta.refunded) < parseFloat(meta.authorized)) {
@@ -172,66 +169,27 @@
                 </div>`;
                 rev = meta.rev;
 
-                if (dataset.status === 'completed' || dataset.status === 'refunded') {
+                if (data.status === 'completed' || data.status === 'refunded') {
                     const total = parseFloat(meta.captured - meta.refunded);
-                    if (parseFloat(dataset.total) !== total) {
-                        showWarning('The order total (<b><i>' + currency.format(dataset.total) +
+                    if (parseFloat(data.total) !== total) {
+                        showWarning('The order total (<b><i>' + currency.format(data.total) +
                         '</i></b>) does not match the net payment.');
                     }
                 }
                 compatibilityCheck();
             })
             .then(() => {
-                target.parentNode.replaceChild(box, target);
+                dom.parentNode.replaceChild(box, dom);
             })
             .catch(({ name }) => {
                 if (name === 'AbortError') return;
                 showWarning('Error: could not load payment details.');
             });
     }
-
-    function loadSubs() {
-        const data = document.getElementById('wcsp-meta').dataset;
-        const subid = data.subid;
-        const target = document.getElementById('wcsp-meta');
-        const secret = target.dataset.secret;
-        abortCtrl = new AbortController();
-
-        const url = '../wp-scanpay/fetch?x=sub&s=' + secret + ' &subid=' + subid + '&rev=' + rev;
-        fetch(url, { signal: abortCtrl.signal, headers: { 'X-Scanpay': 'fetch' } })
-            .then(res => res.json())
-            .then((sub) => {
-                const dato = new Date(sub.method_exp * 1000);
-                box = target.cloneNode(false);
-                let status = 'success';
-                if (sub.retries === 0) status = 'error';
-                if ((sub.method_exp * 1000) < Date.now()) status = 'expired';
-
-                box.appendChild(buildTable([
-                    ['Subscription ID', sub.subid],
-                    ['Method', sub.method],
-                    ['Expiration', dato.toISOString().split('T')[0]],
-                    ['Status', status],
-                ]));
-                // compatibilityCheck();
-            })
-            .then(() => {
-                target.parentNode.replaceChild(box, target);
-            })
-            .catch(({ name }) => {
-                if (name === 'AbortError') return;
-                showWarning('Error: could not load subscription details.');
-            });
-    }
-
-    function load() {
-        if (page === 'wc-orders') return loadOrderMeta();
-        if (page === 'wc-orders--shop_subscription') return loadSubs();
-    }
-    load();
+    loadOrderMeta();
 
     document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState == "visible") return load();
+        if (document.visibilityState == "visible") return loadOrderMeta();
         abortCtrl.abort();
     });
 })();
