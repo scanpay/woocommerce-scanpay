@@ -21,7 +21,6 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 			'subscription_date_changes',
 			'subscription_payment_method_change_customer',
 			'subscription_payment_method_change_admin',
-			// 'subscription_payment_method_delayed_change',
 			'multiple_subscriptions',
 		];
 		add_action( 'woocommerce_update_options_payment_gateways_scanpay', [ $this, 'process_admin_options' ] );
