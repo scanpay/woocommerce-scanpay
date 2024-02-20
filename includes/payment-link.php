@@ -18,10 +18,10 @@ function wc_scanpay_phone_prefixer( string $phone, string $country ): string {
 	return $phone;
 }
 
-function wc_scanpay_process_payment( int $orderid, array $settings ): array {
-	$order = wc_get_order( $orderid );
+function wc_scanpay_process_payment( int $oid, array $settings ): array {
+	$order = wc_get_order( $oid );
 	if ( ! $order ) {
-		scanpay_log( 'error', "Cannot create payment link: Order #$orderid does not exist." );
+		scanpay_log( 'error', "Cannot create payment link: Order #$oid does not exist." );
 		throw new Exception( 'Error: The order does not exist. Please create a new order or contact support.' );
 	}
 	if ( empty( $settings['apikey'] ) ) {
@@ -59,14 +59,24 @@ function wc_scanpay_process_payment( int $orderid, array $settings ): array {
 	if ( class_exists( 'WC_Subscriptions', false ) ) {
 		$subid = (int) $order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
 		if ( $subid ) {
-			// Update payment method
+			// Update payment method (resubscribe)
 			$data['successurl'] = get_permalink( wc_get_page_id( 'myaccount' ) );
 			wp_redirect( $client->renew( $subid, $data ) );
 			exit;
 		}
-		if ( wcs_order_contains_subscription( $order ) ) {
-			// New subscriber
-			$data['subscriber'] = [ 'ref' => (string) $order->get_id() ];
+		/*
+			Check if the order has any subscriptions. We don't want to use wcs_order_contains_subscription();
+			it has a CRAZY overhead and loads the subscriptions, which is a waste of resources.
+		*/
+		if ( wc_get_orders(
+			[
+				'type'   => 'shop_subscription',
+				'status' => 'wc-pending',
+				'parent' => $oid,
+				'return' => 'ids',
+			]
+		) ) {
+			$data['subscriber'] = [ 'ref' => (string) $oid ];
 		}
 	}
 
@@ -97,7 +107,7 @@ function wc_scanpay_process_payment( int $orderid, array $settings ): array {
 			];
 			scanpay_log(
 				'warning',
-				"Order #$orderid: The sum of all items ($sum) does not match the order total ($wc_total)." .
+				"Order #$oid: The sum of all items ($sum) does not match the order total ($wc_total)." .
 				'The item list will not be available in the scanpay dashboard.'
 			);
 		}
