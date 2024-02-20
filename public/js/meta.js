@@ -3,7 +3,7 @@
 */
 
 (() => {
-    const dom = document.getElementById('wcsp-meta');
+    let dom = document.getElementById('wcsp-meta');
     const data = dom.dataset || {};
     if ( ! data.secret || ! data.id ) return;
     let rev = 0;
@@ -180,6 +180,7 @@
             })
             .then(() => {
                 dom.parentNode.replaceChild(box, dom);
+                dom = document.getElementById('wcsp-meta');
             })
             .catch(({ name }) => {
                 if (name === 'AbortError') return;
