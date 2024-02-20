@@ -2,11 +2,11 @@
 declare(strict_types = 1);
 
 /*
- * Version: 2.0.11
+ * Version: 2.1.0
  * Requires at least: 6.3.0
  * Requires PHP: 7.4
  * WC requires at least: 6.9.0
- * WC tested up to: 8.5.2
+ * WC tested up to: 8.6.0
  * Plugin Name: Scanpay for WooCommerce
  * Plugin URI: https://wordpress.org/plugins/scanpay-for-woocommerce/
  * Description: Accept payments in WooCommerce with a secure payment gateway.
@@ -20,7 +20,7 @@ declare(strict_types = 1);
 
 defined( 'ABSPATH' ) || exit();
 
-const WC_SCANPAY_VERSION      = '2.0.11';
+const WC_SCANPAY_VERSION      = '2.1.0';
 const WC_SCANPAY_MIN_PHP      = '7.4.0';
 const WC_SCANPAY_MIN_WC       = '6.9.0';
 const WC_SCANPAY_DASHBOARD    = 'https://dashboard.scanpay.dk/';
@@ -165,44 +165,18 @@ function scanpay_admin_hooks() {
 		add_meta_box(
 			'wcsp-meta-box',
 			'Scanpay',
-			function ( $order ) {
+			function ( $sub ) {
 				$secret = get_option( WC_SCANPAY_URI_SETTINGS )['secret'] ?? '';
 				echo '<div id="wcsp-meta" data-secret="' . $secret . '"
-					data-subid="' . $order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ) . '"
-					data-payid="' . $order->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' ) . '"
-					data-ptime="' . $order->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' ) . '"></div>';
+					data-subid="' . $sub->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ) . '"
+					data-payid="' . $sub->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' ) . '"
+					data-ptime="' . $sub->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' ) . '"></div>';
 			},
 			'woocommerce_page_wc-orders--shop_subscription',
 			'side',
 			'high'
 		);
 	} );
-
-	// Validate payment meta changes made by admin.
-	add_filter( 'woocommerce_subscription_validate_payment_meta_scanpay', function ( $meta, $sub ) {
-		if ( empty( $meta['post_meta'][ WC_SCANPAY_URI_SHOPID ] ) ) {
-			throw new Exception( 'A Scanpay shopid is required.' );
-		}
-		if ( empty( $meta['post_meta'][ WC_SCANPAY_URI_SUBID ] ) ) {
-			throw new Exception( 'A Scanpay subscriber ID is required.' );
-		}
-	}, 10, 2 );
-
-	add_filter( 'woocommerce_subscription_payment_meta', function ( array $meta, object $sub ) {
-		$meta['scanpay'] = [
-			'post_meta' => [
-				WC_SCANPAY_URI_SHOPID => [
-					'value' => $sub->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' ),
-					'label' => 'Scanpay Shop ID',
-				],
-				WC_SCANPAY_URI_SUBID  => [
-					'value' => $sub->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ),
-					'label' => 'Scanpay Subscriber ID',
-				],
-			],
-		];
-		return $meta;
-	}, 10, 2 );
 
 	// Check if plugin needs to be upgraded
 	if ( get_option( 'wc_scanpay_version' ) !== WC_SCANPAY_VERSION && ! get_transient( 'wc_scanpay_updating' ) ) {
@@ -224,21 +198,24 @@ add_action( 'plugins_loaded', function () {
 	} );
 
 	function wc_scanpay_load_sync() {
+		// Load the sync class and let it handle the hooks (switch to singleton pattern?)
 		if ( ! class_exists( 'WC_Scanpay_Sync', false ) ) {
 			require WC_SCANPAY_DIR . '/hooks/class-wc-scanpay-sync.php';
 			new WC_Scanpay_Sync(); // will handle the hooks
+			remove_filter( 'woocommerce_scheduled_subscription_payment_scanpay', 'wc_scanpay_load_sync', 1, 0 );
+			remove_filter( 'woocommerce_order_status_completed', 'wc_scanpay_load_sync', 1, 0 );
 		}
 	}
 
-	// [hook] Merchant or another plugin changes order status to completed.
-	add_action( 'woocommerce_order_status_completed', 'wc_scanpay_load_sync', 1, 0 );
-
-	add_action('woocommerce_before_thankyou', function ( $order_id ) {
-		require WC_SCANPAY_DIR . '/hooks/wc-before-thankyou.php';
-	}, 3, 1);
-
 	// [hook] Manual and Recurring renewals (cron|admin|user)
 	add_action( 'woocommerce_scheduled_subscription_payment_scanpay', 'wc_scanpay_load_sync', 1, 0 );
+
+	// [hook] Order status changed to completed (cron|admin|plugin)
+	add_action( 'woocommerce_order_status_completed', 'wc_scanpay_load_sync', 1, 0 );
+
+	add_action( 'woocommerce_before_thankyou', function ( $order_id ) {
+		require WC_SCANPAY_DIR . '/hooks/wc-before-thankyou.php';
+	}, 3, 1);
 
 	if ( defined( 'DOING_AJAX' ) || wp_is_json_request() ) {
 		return;
