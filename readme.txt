@@ -4,7 +4,7 @@ Tags: ecommerce, e-commerce, woocommerce, payments, subscriptions
 Requires at least: 6.3
 Requires PHP: 7.4
 Tested up to: 6.4.3
-Stable tag: 2.0.11
+Stable tag: 2.1.0
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
 
@@ -44,16 +44,24 @@ Please follow the [installation and configuration guide](https://github.com/scan
 
 == Changelog ==
 
+= 2.1.0 - 2024-02-20 =
+* Add - Add support for all WooCommerce Subscription features
+* Add - Add option to auto-complete virtual orders
+* Add - Send Subscription items to the scanpay dashboard
+* Fix - Display metaboxes in shops without HPOS.
+* Fix - Use preemptive synchronization after capture and charge.
+* Fix - Performance optimizations
+
 = 2.0.7 =
-Bugfix: typo in plugins.php caused TypeError in PHP 7.4
+* Fix - Fix TypeError in plugins.php (PHP 7.4 only)
 
 = 2.0.3 =
-Bugfix: Only show meta boxes in scanpay orders.
-Bugfix: Refund button disappearing
-Add warning if order total does not match net payment (more warnings will come soon)
+* Fix - Only show meta boxes in scanpay orders.
+* Fix - Refund button disappearing when it should not.
+* Add - Add warning if order total does not match net payment.
 
 = 2.0.1 =
-Add CSS height to card icons
+* Add - Add CSS height to card icons
 
 = 2.0.0 =
 Complete rewrite with many improvements
