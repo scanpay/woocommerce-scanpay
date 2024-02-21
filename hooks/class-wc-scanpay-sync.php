@@ -213,8 +213,9 @@ class WC_Scanpay_Sync {
 
 	private function apply_payment( int $trnid, int $oid, int $rev, array $c ) {
 		global $wpdb;
-		$wpdb->query( "SELECT rev FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
-		if ( null === $wpdb->last_result[0] ) {
+		$wpdb->query( "SELECT id,rev FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
+		$query = $wpdb->last_result[0];
+		if ( null === $query ) {
 			$order = wc_get_order( $oid );
 			if ( ! $this->order_is_valid( $order ) ) {
 				return;
@@ -240,7 +241,9 @@ class WC_Scanpay_Sync {
 				$order->set_date_paid( $c['time']['authorized'] );
 				$order->payment_complete( $trnid ); // calls save()
 			}
-		} elseif ( $rev > $wpdb->last_result[0]->rev ) {
+		} elseif ( $trnid !== $query->id ) {
+			scanpay_log( 'warning', "Scanpay payment ignored (id=$trnid); order #$oid is already paid (id=" . $query->id . ')' );
+		} elseif ( $rev > $query->rev ) {
 			list( $authorized, $captured, $refunded, $voided, $currency ) = $this->totals( $c['totals'] );
 			$update = $wpdb->query(
 				"UPDATE {$wpdb->prefix}scanpay_meta SET rev = $rev, nacts = " . count( $c['acts'] ) . ",
