@@ -5,16 +5,16 @@ defined( 'ABSPATH' ) || exit();
 $wc_order = wc_get_order( $order_id );
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 
-if ( ! $wc_order || ! $settings || ! str_starts_with( $wc_order->get_payment_method(), 'scanpay' ) ) {
+if ( ! $wc_order || ! $settings || ! str_starts_with( $wc_order->get_payment_method( 'edit' ), 'scanpay' ) ) {
 	return;
 }
 
-if ( 'pending' === $wc_order->get_status() ) {
+if ( 'pending' === $wc_order->get_status( 'edit' ) ) {
 	global $wpdb;
 	$subs_init = class_exists( 'WC_Subscriptions', false ) && wcs_order_contains_subscription( $wc_order, 'parent' );
 	$counter   = 0;
 
-	if ( $subs_init && $wc_order->get_total() > 0 ) {
+	if ( $subs_init && $wc_order->get_total( 'edit' ) > 0 ) {
 		sleep( 1 ); // WCS is slow, and we need to wait for the initial charge too
 	} else {
 		usleep( 50000 );

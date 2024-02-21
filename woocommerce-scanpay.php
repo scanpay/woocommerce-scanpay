@@ -119,7 +119,7 @@ function scanpay_admin_hooks() {
 				return;
 			}
 		}
-		$psp = $wc_order->get_payment_method();
+		$psp = $wc_order->get_payment_method( 'edit' );
 		if ( 'scanpay' !== $psp && ! str_starts_with( $psp, 'scanpay' ) ) {
 			return;
 		}
@@ -133,8 +133,8 @@ function scanpay_admin_hooks() {
 				$wc_order = $args['args'][0];
 				$oid      = $wc_order->get_id();
 				$secret   = get_option( WC_SCANPAY_URI_SETTINGS )['secret'] ?? '';
-				$status   = $wc_order->get_status();
-				$total    = $wc_order->get_total() - $wc_order->get_total_refunded();
+				$status   = $wc_order->get_status( 'edit' );
+				$total    = $wc_order->get_total( 'edit' ) - $wc_order->get_total_refunded();
 				$subid    = $wc_order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
 				$payid    = $wc_order->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' );
 				$ptime    = $wc_order->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' );
@@ -155,7 +155,7 @@ function scanpay_admin_hooks() {
 				return;
 			}
 		}
-		$psp = $wc_order->get_payment_method();
+		$psp = $wc_order->get_payment_method( 'edit' );
 		if ( 'scanpay' !== $psp && ! str_starts_with( $psp, 'scanpay' ) ) {
 			return;
 		}

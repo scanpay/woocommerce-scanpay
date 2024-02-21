@@ -257,17 +257,14 @@ class WC_Scanpay_Sync {
 		$seq   = $old_seq;
 		$force = $ping_seq === $old_seq;
 		while ( $ping_seq > $seq || $force ) {
-			if ( $force ) {
-				$force = false;
-			}
 			if ( $seq !== $old_seq ) {
 				set_time_limit( 60 );
 				$this->renew_lock();
 				wp_cache_flush();
 			}
 			$res = $this->client->seq( $seq );
-			if ( ! $res['changes'] || $res['seq'] <= $seq ) {
-				throw new Exception( "Received an unexpected seq from scanpay (seq=$seq)" );
+			if ( ! $res['changes'] ) {
+				return;
 			}
 
 			foreach ( $res['changes'] as $c ) {
@@ -306,7 +303,9 @@ class WC_Scanpay_Sync {
 			$seq = $res['seq'];
 			$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET mtime = " . time() . ", seq = $seq WHERE shopid = " . $this->shopid );
 
-			if ( $ping_seq <= $seq && $this->process_queue() ) {
+			if ( $force ) {
+				$force = false;
+			} elseif ( $ping_seq <= $seq && $this->process_queue() ) {
 				$force = true;
 			}
 		}
@@ -338,7 +337,6 @@ class WC_Scanpay_Sync {
 			$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET ping = $ping[seq] WHERE shopid = $this->shopid" );
 			return wp_send_json( [ 'error' => 'busy' ], 423 );
 		}
-
 		try {
 			$this->seq( $ping['seq'], $seq );
 			$this->release_lock();
@@ -401,47 +399,48 @@ class WC_Scanpay_Sync {
 			'orderid'     => $oid,
 			'autocapture' => false,
 			'billing'     => [
-				'name'    => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
-				'email'   => $order->get_billing_email(),
-				'phone'   => $order->get_billing_phone(),
-				'address' => [ $order->get_billing_address_1(), $order->get_billing_address_2() ],
-				'city'    => $order->get_billing_city(),
-				'zip'     => $order->get_billing_postcode(),
-				'country' => $order->get_billing_country(),
-				'state'   => $order->get_billing_state(),
-				'company' => $order->get_billing_company(),
+				'name'    => $order->get_billing_first_name( 'edit' ) . ' ' . $order->get_billing_last_name( 'edit' ),
+				'email'   => $order->get_billing_email( 'edit' ),
+				'phone'   => $order->get_billing_phone( 'edit' ),
+				'address' => [ $order->get_billing_address_1( 'edit' ), $order->get_billing_address_2( 'edit' ) ],
+				'city'    => $order->get_billing_city( 'edit' ),
+				'zip'     => $order->get_billing_postcode( 'edit' ),
+				'country' => $order->get_billing_country( 'edit' ),
+				'state'   => $order->get_billing_state( 'edit' ),
+				'company' => $order->get_billing_company( 'edit' ),
 			],
 			'shipping'    => [
-				'name'    => $order->get_shipping_first_name() . ' ' . $order->get_shipping_last_name(),
-				'address' => [ $order->get_shipping_address_1(), $order->get_shipping_address_2() ],
-				'city'    => $order->get_shipping_city(),
-				'zip'     => $order->get_shipping_postcode(),
-				'country' => $order->get_shipping_country(),
-				'state'   => $order->get_shipping_state(),
-				'company' => $order->get_shipping_company(),
+				'name'    => $order->get_shipping_first_name( 'edit' ) . ' ' . $order->get_shipping_last_name( 'edit' ),
+				'address' => [ $order->get_shipping_address_1( 'edit' ), $order->get_shipping_address_2( 'edit' ) ],
+				'city'    => $order->get_shipping_city( 'edit' ),
+				'zip'     => $order->get_shipping_postcode( 'edit' ),
+				'country' => $order->get_shipping_country( 'edit' ),
+				'state'   => $order->get_shipping_state( 'edit' ),
+				'company' => $order->get_shipping_company( 'edit' ),
 			],
 		];
 
 		// Add and sum order items
-		$sum = '0';
+		$sum      = '0';
+		$currency = $order->get_currency( 'edit' );
 		foreach ( $order->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
 			$line_total = $order->get_line_total( $item, true, true ); // w. taxes and rounded (how Woo does)
 			if ( $line_total >= 0 ) {
 				$sum             = wc_scanpay_addmoney( $sum, strval( $line_total ) );
 				$data['items'][] = [
-					'name'     => $item->get_name(),
+					'name'     => $item->get_name( 'edit' ),
 					'quantity' => $item->get_quantity(),
-					'total'    => $line_total . ' ' . $order->get_currency(),
+					'total'    => $line_total . ' ' . $currency,
 				];
 			}
 		}
 
-		$wc_total = strval( $order->get_total() );
+		$wc_total = strval( $order->get_total( 'edit' ) );
 		if ( wc_scanpay_cmpmoney( $sum, $wc_total ) !== 0 ) {
 			$data['items'] = [
 				[
 					'name'  => 'Total',
-					'total' => $wc_total . ' ' . $order->get_currency(),
+					'total' => $wc_total . ' ' . $currency,
 				],
 			];
 			scanpay_log(
@@ -496,13 +495,13 @@ class WC_Scanpay_Sync {
 			$refunded = $order->get_total_refunded();
 			if ( $refunded > 0 ) {
 				// require_once WC_SCANPAY_DIR . '/library/math.php';
-				$amount = wc_scanpay_submoney( (string) $order->get_total(), (string) $refunded );
+				$amount = wc_scanpay_submoney( (string) $order->get_total( 'edit' ), (string) $refunded );
 			} else {
-				$amount = $order->get_total();
+				$amount = $order->get_total( 'edit' );
 			}
 		}
 		$this->client->capture( $meta['id'], [
-			'total' => $amount . ' ' . $order->get_currency(),
+			'total' => $amount . ' ' . $order->get_currency( 'edit' ),
 			'index' => $nacts,
 		] );
 		$this->await_ping = true;
@@ -529,6 +528,7 @@ class WC_Scanpay_Sync {
 
 			// Process queue (we own the lock)
 			if ( $this->process_queue() ) {
+				usleep( 100000 ); // TODO: fix this
 				$seq = (int) $seqdb['seq'];
 				$this->seq( $seq, $seq );
 			}

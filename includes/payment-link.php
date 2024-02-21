@@ -35,24 +35,24 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		'successurl'  => apply_filters( 'woocommerce_get_return_url', $order->get_checkout_order_received_url(), $order ),
 		'lifetime'    => '30m',
 		'billing'     => [
-			'name'    => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
-			'email'   => $order->get_billing_email(),
-			'phone'   => wc_scanpay_phone_prefixer( $order->get_billing_phone(), $order->get_billing_country() ),
-			'address' => [ $order->get_billing_address_1(), $order->get_billing_address_2() ],
-			'city'    => $order->get_billing_city(),
-			'zip'     => $order->get_billing_postcode(),
-			'country' => $order->get_billing_country(),
-			'state'   => $order->get_billing_state(),
-			'company' => $order->get_billing_company(),
+			'name'    => $order->get_billing_first_name( 'edit' ) . ' ' . $order->get_billing_last_name( 'edit' ),
+			'email'   => $order->get_billing_email( 'edit' ),
+			'phone'   => wc_scanpay_phone_prefixer( $order->get_billing_phone( 'edit' ), $order->get_billing_country( 'edit' ) ),
+			'address' => [ $order->get_billing_address_1( 'edit' ), $order->get_billing_address_2( 'edit' ) ],
+			'city'    => $order->get_billing_city( 'edit' ),
+			'zip'     => $order->get_billing_postcode( 'edit' ),
+			'country' => $order->get_billing_country( 'edit' ),
+			'state'   => $order->get_billing_state( 'edit' ),
+			'company' => $order->get_billing_company( 'edit' ),
 		],
 		'shipping'    => [
-			'name'    => $order->get_shipping_first_name() . ' ' . $order->get_shipping_last_name(),
-			'address' => [ $order->get_shipping_address_1(), $order->get_shipping_address_2() ],
-			'city'    => $order->get_shipping_city(),
-			'zip'     => $order->get_shipping_postcode(),
-			'country' => $order->get_shipping_country(),
-			'state'   => $order->get_shipping_state(),
-			'company' => $order->get_shipping_company(),
+			'name'    => $order->get_shipping_first_name( 'edit' ) . ' ' . $order->get_shipping_last_name( 'edit' ),
+			'address' => [ $order->get_shipping_address_1( 'edit' ), $order->get_shipping_address_2( 'edit' ) ],
+			'city'    => $order->get_shipping_city( 'edit' ),
+			'zip'     => $order->get_shipping_postcode( 'edit' ),
+			'country' => $order->get_shipping_country( 'edit' ),
+			'state'   => $order->get_shipping_state( 'edit' ),
+			'company' => $order->get_shipping_company( 'edit' ),
 		],
 	];
 
@@ -83,8 +83,9 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	if ( ! isset( $data['subscriber'] ) ) {
 		$data['orderid'] = (string) $order->get_id();
 
-		$virtual = ( 'yes' === $settings['wc_complete_virtual'] );
-		$sum     = '0';
+		$virtual  = ( 'yes' === $settings['wc_complete_virtual'] );
+		$sum      = '0';
+		$currency = $order->get_currency( 'edit' );
 		foreach ( $order->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
 			if ( $virtual && $item instanceof WC_Order_Item_Product ) {
 				$product = $item->get_product();
@@ -96,9 +97,9 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 			if ( $line_total >= 0 ) {
 				$sum             = wc_scanpay_addmoney( $sum, strval( $line_total ) );
 				$data['items'][] = [
-					'name'     => $item->get_name(),
+					'name'     => $item->get_name( 'edit' ),
 					'quantity' => $item->get_quantity(),
-					'total'    => $line_total . ' ' . $order->get_currency(),
+					'total'    => $line_total . ' ' . $currency,
 				];
 			}
 		}
@@ -107,12 +108,12 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 			set_transient( 'wc_order_' . $order->get_id() . '_needs_processing', (int) ! $virtual, DAY_IN_SECONDS );
 		}
 
-		$wc_total = strval( $order->get_total() );
+		$wc_total = strval( $order->get_total( 'edit' ) );
 		if ( wc_scanpay_cmpmoney( $sum, $wc_total ) !== 0 ) {
 			$data['items'] = [
 				[
 					'name'  => 'Total',
-					'total' => $wc_total . ' ' . $order->get_currency(),
+					'total' => $wc_total . ' ' . $currency,
 				],
 			];
 			scanpay_log(
