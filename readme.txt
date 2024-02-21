@@ -4,7 +4,7 @@ Tags: ecommerce, e-commerce, woocommerce, payments, subscriptions
 Requires at least: 6.3
 Requires PHP: 7.4
 Tested up to: 6.4.3
-Stable tag: 2.1.0
+Stable tag: 2.1.1
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
 
@@ -43,6 +43,9 @@ Please follow the [installation and configuration guide](https://github.com/scan
 
 
 == Changelog ==
+
+= 2.1.1 - 2024-02-21 =
+* Fix - Fix conflict when multiple payments have the same orderid
 
 = 2.1.0 - 2024-02-20 =
 * Add - Add support for all WooCommerce Subscription features
