@@ -84,5 +84,10 @@
 }
 
 .wcsp-set-scanpay tr:nth-last-child(2) > * {
+    padding-top: 0px;
+    padding-bottom: 5px;
+}
+
+.wcsp-set-scanpay tr:nth-last-child(3) > * {
     padding-bottom: 5px;
 }

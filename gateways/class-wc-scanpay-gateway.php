@@ -143,8 +143,13 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 				'description' => 'Automatically capture the payment when the order status changes to "completed".',
 				'desc_tip'    => true,
 			],
-			'wcs_complete_initial' => [
+			'wc_complete_virtual'  => [
 				'title' => 'Auto-Complete',
+				'type'  => 'checkbox',
+				'label' => 'Auto-complete virtual orders.',
+			],
+			'wcs_complete_initial' => [
+				'title' => '&#10240;',
 				'type'  => 'checkbox',
 				'label' => 'Auto-complete new subscribers <i>(Subscriptions only)</i>.',
 			],

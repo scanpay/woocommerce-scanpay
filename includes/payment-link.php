@@ -83,9 +83,15 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	if ( ! isset( $data['subscriber'] ) ) {
 		$data['orderid'] = (string) $order->get_id();
 
-		// Add and sum order items
-		$sum = '0';
+		$virtual = ( 'yes' === $settings['wc_complete_virtual'] );
+		$sum     = '0';
 		foreach ( $order->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
+			if ( $virtual && $item instanceof WC_Order_Item_Product ) {
+				$product = $item->get_product();
+				if ( $product && ! $product->is_virtual() ) {
+					$virtual = false;
+				}
+			}
 			$line_total = $order->get_line_total( $item, true, true ); // w. taxes and rounded (how Woo does)
 			if ( $line_total >= 0 ) {
 				$sum             = wc_scanpay_addmoney( $sum, strval( $line_total ) );
@@ -95,6 +101,10 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 					'total'    => $line_total . ' ' . $order->get_currency(),
 				];
 			}
+		}
+		if ( $settings['wc_complete_virtual'] ) {
+			// Set transient so needs_processing() does not need to check all items (again)
+			set_transient( 'wc_order_' . $order->get_id() . '_needs_processing', (int) ! $virtual, DAY_IN_SECONDS );
 		}
 
 		$wc_total = strval( $order->get_total() );
@@ -112,7 +122,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 			);
 		}
 
-		if ( 'yes' === $settings['capture_on_complete'] && ! $order->needs_processing() ) {
+		if ( 'yes' === $settings['capture_on_complete'] && ( $virtual || ! $order->needs_processing() ) ) {
 			$data['autocapture'] = true;
 			$order->add_meta_data( WC_SCANPAY_URI_AUTOCPT, 1, true );
 		}
