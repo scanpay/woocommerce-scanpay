@@ -241,7 +241,7 @@ class WC_Scanpay_Sync {
 				$order->set_date_paid( $c['time']['authorized'] );
 				$order->payment_complete( $trnid ); // calls save()
 			}
-		} elseif ( $trnid !== $query->id ) {
+		} elseif ( $trnid !== (int) $query->id ) {
 			scanpay_log( 'warning', "Scanpay payment ignored (id=$trnid); order #$oid is already paid (id=" . $query->id . ')' );
 		} elseif ( $rev > $query->rev ) {
 			list( $authorized, $captured, $refunded, $voided, $currency ) = $this->totals( $c['totals'] );
