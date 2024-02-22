@@ -34,32 +34,14 @@ const WC_SCANPAY_URI_AUTOCPT  = '_scanpay_autocpt';
 define( 'WC_SCANPAY_DIR', __DIR__ );
 define( 'WC_SCANPAY_URL', set_url_scheme( WP_PLUGIN_URL ) . '/scanpay-for-woocommerce' );
 
+// Add polyfills for PHP < 8.0
+if ( ! function_exists( 'str_starts_with' ) ) {
+	include WC_SCANPAY_DIR . '/includes/polyfill.php';
+}
+
 function scanpay_log( string $level, string $msg ): void {
 	if ( function_exists( 'wc_get_logger' ) ) {
 		wc_get_logger()->log( $level, $msg, [ 'source' => 'woo-scanpay' ] );
-	}
-}
-
-/*
-	Polyfill for PHP 8.0 functions
-*/
-
-if ( ! function_exists( 'str_starts_with' ) ) {
-	function str_starts_with( $haystack, $needle ) {
-		if ( '' === $needle ) {
-			return true;
-		}
-		return 0 === strpos( $haystack, $needle );
-	}
-}
-
-if ( ! function_exists( 'str_ends_with' ) ) {
-	function str_ends_with( $haystack, $needle ) {
-		if ( '' === $haystack ) {
-			return '' === $needle;
-		}
-		$len = strlen( $needle );
-		return substr( $haystack, -$len, $len ) === $needle;
 	}
 }
 
@@ -84,7 +66,6 @@ if ( isset( $_SERVER['HTTP_X_SCANPAY'], $_GET['x'], $_GET['s'] ) ) {
 
 /*
 	Ping handler /wc-api/wc_scanpay/
-	Sadly, Woo has made an OOP nightmare. There are no shortcuts here :/
 */
 if ( isset( $_SERVER['HTTP_X_SIGNATURE'], $_SERVER['REQUEST_URI'] ) ) {
 	if ( str_ends_with( $_SERVER['REQUEST_URI'], 'wc_scanpay/' ) ) {
