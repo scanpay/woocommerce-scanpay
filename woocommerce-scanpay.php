@@ -232,6 +232,11 @@ add_action( 'plugins_loaded', function () {
 		return scanpay_admin_hooks();
 	}
 
+	add_filter( 'allowed_redirect_hosts', function ( array $hosts ) {
+		$hosts[] = 'betal.scanpay.dk';
+		return $hosts;
+	} );
+
 	add_action( 'woocommerce_blocks_payment_method_type_registration', function ( $registry ) {
 		require WC_SCANPAY_DIR . '/hooks/class-wc-scanpay-blocks-support.php';
 		$registry->register( new WC_Scanpay_Blocks_Support() );

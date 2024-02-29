@@ -59,10 +59,10 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	if ( class_exists( 'WC_Subscriptions', false ) ) {
 		$subid = (int) $order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
 		if ( $subid ) {
-			// Update payment method (resubscribe)
-			$data['successurl'] = get_permalink( wc_get_page_id( 'myaccount' ) );
-			wp_redirect( $client->renew( $subid, $data ) );
-			exit;
+			return [
+				'result'   => 'success',
+				'redirect' => $client->renew( $subid, $data ),
+			];
 		}
 		/*
 			Check if the order has any subscriptions. We don't want to use wcs_order_contains_subscription();
