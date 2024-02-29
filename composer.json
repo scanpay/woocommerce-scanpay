@@ -8,10 +8,13 @@
     "minimum-stability": "dev",
     "require": {
       "automattic/jetpack-autoloader": "*",
-      "composer/installers": "*"
+      "composer/installers": "*",
+        "woocommerce/woocommerce-sniffs": "^1.0"
     },
     "require-dev": {
-      "phpunit/phpunit": "*"
+      "phpunit/phpunit": "*",
+        "wp-coding-standards/wpcs": "^3.0",
+        "squizlabs/php_codesniffer": "^3.9"
     },
     "scripts": {
       "post-install-cmd": [
