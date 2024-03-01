@@ -36,7 +36,7 @@ define( 'WC_SCANPAY_URL', set_url_scheme( WP_PLUGIN_URL ) . '/scanpay-for-woocom
 
 // Add polyfills for PHP < 8.0
 if ( ! function_exists( 'str_starts_with' ) ) {
-	include WC_SCANPAY_DIR . '/includes/polyfill.php';
+	require WC_SCANPAY_DIR . '/includes/polyfill.php';
 }
 
 function scanpay_log( string $level, string $msg ): void {
