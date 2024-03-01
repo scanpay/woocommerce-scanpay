@@ -51,8 +51,14 @@ if ( $wcs_exists && version_compare( $version, '2.1.3', '<' ) ) {
 		}
 		$subid       = (int) $wc_sub->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
 		$black_subid = (int) $wc_sub->get_meta( '_scanpay_subscriber_id', true, 'edit' );
-
 		if ( $black_subid > $subid ) {
+			if ( $subid ) {
+				$trn       = (int) $wpdb->get_var( "SELECT id FROM {$wpdb->prefix}scanpay_meta WHERE subid = $subid ORDER BY id DESC LIMIT 1" );
+				$black_trn = (int) $wpdb->get_var( "SELECT id FROM {$wpdb->prefix}scanpay_meta WHERE subid = $black_subid ORDER BY id DESC LIMIT 1" );
+				if ( $trn && $trn > $black_trn ) {
+					continue;
+				}
+			}
 			scanpay_log( 'info', "change subid on #$oid (from '$subid' to '$black_subid'" );
 			$wc_sub->update_meta_data( WC_SCANPAY_URI_SUBID, $black_subid );
 			$wc_sub->save_meta_data();
