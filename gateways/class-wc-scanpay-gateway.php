@@ -25,6 +25,13 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 		];
 		add_action( 'woocommerce_update_options_payment_gateways_scanpay', [ $this, 'process_admin_options' ] );
 
+		// Check if plugin needs to be upgraded (todo: merge wc_scanpay_version with settings)
+		if ( get_option( 'wc_scanpay_version' ) !== WC_SCANPAY_VERSION && ! get_transient( 'wc_scanpay_updating' ) ) {
+			set_transient( 'wc_scanpay_updating', true, 5 * 60 );  // Set a transient for 5 minutes
+			require WC_SCANPAY_DIR . '/includes/upgrade.php';
+			delete_transient( 'wc_scanpay_updating' );
+		}
+
 		if ( 'yes' === $this->settings['stylesheet'] ) {
 			add_action( 'woocommerce_blocks_enqueue_checkout_block_scripts_before', function () {
 				wp_enqueue_style( 'wcsp-blocks', WC_SCANPAY_URL . '/public/css/blocks.css', null, WC_SCANPAY_VERSION );

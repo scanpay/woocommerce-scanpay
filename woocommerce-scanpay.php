@@ -2,7 +2,7 @@
 declare(strict_types = 1);
 
 /*
- * Version: 2.1.2
+ * Version: 2.1.3
  * Requires at least: 6.3.0
  * Requires PHP: 7.4
  * WC requires at least: 6.9.0
@@ -20,7 +20,7 @@ declare(strict_types = 1);
 
 defined( 'ABSPATH' ) || exit();
 
-const WC_SCANPAY_VERSION      = '2.1.2';
+const WC_SCANPAY_VERSION      = '2.1.3';
 const WC_SCANPAY_MIN_PHP      = '7.4.0';
 const WC_SCANPAY_MIN_WC       = '6.9.0';
 const WC_SCANPAY_DASHBOARD    = 'https://dashboard.scanpay.dk/';
@@ -79,13 +79,6 @@ if ( isset( $_SERVER['HTTP_X_SIGNATURE'], $_SERVER['REQUEST_URI'] ) ) {
 }
 
 function scanpay_admin_hooks() {
-	// Check if plugin needs to be upgraded
-	if ( get_option( 'wc_scanpay_version' ) !== WC_SCANPAY_VERSION && ! get_transient( 'wc_scanpay_updating' ) ) {
-		set_transient( 'wc_scanpay_updating', true, 5 * 60 );  // Set a transient for 5 minutes
-		require WC_SCANPAY_DIR . '/includes/upgrade.php';
-		delete_transient( 'wc_scanpay_updating' );
-	}
-
 	// Add plugin version number to JS: wcSettings.admin
 	add_filter( 'woocommerce_admin_shared_settings', function ( $settings ) {
 		$settings['scanpay'] = WC_SCANPAY_VERSION;
