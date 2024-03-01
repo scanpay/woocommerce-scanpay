@@ -195,13 +195,16 @@ function scanpay_admin_hooks() {
 
 add_action( 'plugins_loaded', function () {
 	//  [hook] Returns the list of gateways. Always called before gateways are needed
-	add_filter( 'woocommerce_payment_gateways', function ( $methods ) {
+	add_filter( 'woocommerce_payment_gateways', function ( array $methods ) {
 		if ( ! class_exists( 'WC_Scanpay_Gateway', false ) ) {
 			require WC_SCANPAY_DIR . '/gateways/class-wc-scanpay-gateway.php';
 			require WC_SCANPAY_DIR . '/gateways/class-wc-scanpay-gateway-mobilepay.php';
 			require WC_SCANPAY_DIR . '/gateways/class-wc-scanpay-gateway-applepay.php';
 		}
-		return [ ...$methods, 'WC_Scanpay_Gateway', 'WC_Scanpay_Gateway_Mobilepay', 'WC_Scanpay_Gateway_ApplePay' ];
+		$methods[] = 'WC_Scanpay_Gateway';
+		$methods[] = 'WC_Scanpay_Gateway_Mobilepay';
+		$methods[] = 'WC_Scanpay_Gateway_ApplePay';
+		return $methods;
 	} );
 
 	function wc_scanpay_load_sync() {
