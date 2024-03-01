@@ -179,12 +179,8 @@ class WC_Scanpay_Sync {
 			if ( ! $order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ) ) {
 				$order->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
 				$order->save_meta_data();
+				$wcs_subs = wcs_get_subscriptions_for_order( $order, [ 'order_type' => 'any' ] );
 
-				// Load all subscriptions that belong to this order
-				$wcs_subs = wc_get_orders( [
-					'type'   => 'shop_subscription',
-					'parent' => $oid,
-				] );
 				foreach ( $wcs_subs as $wcs_sub ) {
 					$wcs_sub->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
 					$wcs_sub->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
