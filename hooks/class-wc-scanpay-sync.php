@@ -163,7 +163,8 @@ class WC_Scanpay_Sync {
 	private function wc_scanpay_subscriber( int $subid, int $oid, int $rev, array $c ) {
 		global $wpdb;
 		$wpdb->query( "SELECT rev FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid" );
-		if ( null === $wpdb->last_result[0] ) {
+		$sub = $wpdb->last_result;
+		if ( 0 === $wpdb->num_rows ) {
 			$order = wc_get_order( $oid );
 			if ( ! $this->order_is_valid( $order ) ) {
 				return;
@@ -194,7 +195,7 @@ class WC_Scanpay_Sync {
 					}
 				}
 			}
-		} elseif ( $rev > $wpdb->last_result[0]->rev ) {
+		} elseif ( $rev > $sub[0]->rev ) {
 			$update = $wpdb->query(
 				"UPDATE {$wpdb->prefix}scanpay_subs SET nxt = 0, retries = 5, idem = '', rev = $rev,
 					method = '" . $c['method']['type'] . "', method_id = '" . $c['method']['id'] . "',
@@ -210,8 +211,8 @@ class WC_Scanpay_Sync {
 	private function apply_payment( int $trnid, int $oid, int $rev, array $c ) {
 		global $wpdb;
 		$wpdb->query( "SELECT id,rev FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
-		$query = $wpdb->last_result[0];
-		if ( null === $query ) {
+		$meta = $wpdb->last_result;
+		if ( 0 === $wpdb->num_rows ) {
 			$order = wc_get_order( $oid );
 			if ( ! $this->order_is_valid( $order ) ) {
 				return;
@@ -237,9 +238,9 @@ class WC_Scanpay_Sync {
 				$order->set_date_paid( $c['time']['authorized'] );
 				$order->payment_complete( $trnid ); // calls save()
 			}
-		} elseif ( $trnid !== (int) $query->id ) {
-			scanpay_log( 'warning', "Scanpay payment ignored (id=$trnid); order #$oid is already paid (id=" . $query->id . ')' );
-		} elseif ( $rev > $query->rev ) {
+		} elseif ( $trnid !== (int) $meta[0]->id ) {
+			scanpay_log( 'warning', "Scanpay payment ignored (id=$trnid); order #$oid is already paid (id=" . $meta[0]->id . ')' );
+		} elseif ( $rev > $meta[0]->rev ) {
 			list( $authorized, $captured, $refunded, $voided, $currency ) = $this->totals( $c['totals'] );
 			$update = $wpdb->query(
 				"UPDATE {$wpdb->prefix}scanpay_meta SET rev = $rev, nacts = " . count( $c['acts'] ) . ",
