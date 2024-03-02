@@ -4,7 +4,7 @@ Tags: ecommerce, e-commerce, woocommerce, payments, subscriptions
 Requires at least: 6.3
 Requires PHP: 7.4
 Tested up to: 6.4.3
-Stable tag: 2.1.3
+Stable tag: 2.1.4
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
 
@@ -43,6 +43,10 @@ Please follow the [installation and configuration guide](https://github.com/scan
 
 
 == Changelog ==
+
+= 2.1.4 - 2024-03-02 =
+* Add - Add default values to all options
+* Fix - Fix PHP warning
 
 = 2.1.3 - 2024-03-01 =
 * Add - Improve WCS redirect by adding payment window to allowed_redirect_hosts
