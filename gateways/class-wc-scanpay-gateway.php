@@ -99,26 +99,30 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 	public function init_form_fields(): void {
 		$this->form_fields = [
 			'enabled'              => [
-				'title' => 'Enable',
-				'type'  => 'checkbox',
-				'label' => 'Enable Scanpay in the checkout.',
+				'title'   => 'Enable',
+				'type'    => 'checkbox',
+				'label'   => 'Enable Scanpay in the checkout.',
+				'default' => 'no',
 			],
 			'apikey'               => [
 				'title'             => 'API key',
 				'type'              => 'text',
 				'custom_attributes' => [ 'autocomplete' => 'off' ],
+				'default'           => '',
 			],
 			'title'                => [
 				'title'       => 'Title',
 				'type'        => 'text',
 				'description' => 'A title for the payment method. This is displayed on the checkout page.',
 				'desc_tip'    => true,
+				'default'     => 'Betal med kort',
 			],
 			'description'          => [
 				'title'       => 'Description',
 				'type'        => 'text',
 				'description' => 'A description of the payment method. This is displayed on the checkout page.',
 				'desc_tip'    => true,
+				'default'     => 'Betal med betalingskort via Scanpay.',
 			],
 			'card_icons'           => [
 				'title'       => 'Card icons',
@@ -137,11 +141,13 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 				],
 				'class'       => 'wc-enhanced-select',
 				'desc_tip'    => true,
+				'default'     => [ 'visa', 'mastercard' ],
 			],
 			'stylesheet'           => [
-				'title' => 'Stylesheet',
-				'type'  => 'checkbox',
-				'label' => 'Use default checkout stylesheet (CSS).',
+				'title'   => 'Stylesheet',
+				'type'    => 'checkbox',
+				'label'   => 'Use default checkout stylesheet (CSS).',
+				'default' => 'yes',
 			],
 			'capture_on_complete'  => [
 				'title'       => 'Auto-Capture',
@@ -149,21 +155,25 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 				'label'       => 'Capture when order status is changed to "completed".',
 				'description' => 'Automatically capture the payment when the order status changes to "completed".',
 				'desc_tip'    => true,
+				'default'     => 'yes',
 			],
 			'wc_complete_virtual'  => [
-				'title' => 'Auto-Complete',
-				'type'  => 'checkbox',
-				'label' => 'Auto-complete virtual orders.',
+				'title'   => 'Auto-Complete',
+				'type'    => 'checkbox',
+				'label'   => 'Auto-complete virtual orders.',
+				'default' => 'no',
 			],
 			'wcs_complete_initial' => [
-				'title' => '&#10240;',
-				'type'  => 'checkbox',
-				'label' => 'Auto-complete new subscribers <i>(Subscriptions only)</i>.',
+				'title'   => '&#10240;',
+				'type'    => 'checkbox',
+				'label'   => 'Auto-complete new subscribers <i>(Subscriptions only)</i>.',
+				'default' => 'no',
 			],
 			'wcs_complete_renewal' => [
-				'title' => '&#10240;',
-				'type'  => 'checkbox',
-				'label' => 'Auto-complete renewal orders <i>(Subscriptions only)</i>.',
+				'title'   => '&#10240;',
+				'type'    => 'checkbox',
+				'label'   => 'Auto-complete renewal orders <i>(Subscriptions only)</i>.',
+				'default' => 'no',
 			],
 		];
 	}
