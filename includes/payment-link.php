@@ -19,8 +19,8 @@ function wc_scanpay_phone_prefixer( string $phone, string $country ): string {
 }
 
 function wc_scanpay_process_payment( int $oid, array $settings ): array {
-	$order = wc_get_order( $oid );
-	if ( ! $order ) {
+	$wco = wc_get_order( $oid );
+	if ( ! $wco ) {
 		scanpay_log( 'error', "Cannot create payment link: Order #$oid does not exist." );
 		throw new Exception( 'Error: The order does not exist. Please create a new order or contact support.' );
 	}
@@ -32,32 +32,32 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	$client = new WC_Scanpay_Client( $settings['apikey'] );
 	$data   = [
 		'autocapture' => false,
-		'successurl'  => apply_filters( 'woocommerce_get_return_url', $order->get_checkout_order_received_url(), $order ),
+		'successurl'  => apply_filters( 'woocommerce_get_return_url', $wco->get_checkout_order_received_url(), $wco ),
 		'lifetime'    => '30m',
 		'billing'     => [
-			'name'    => $order->get_billing_first_name( 'edit' ) . ' ' . $order->get_billing_last_name( 'edit' ),
-			'email'   => $order->get_billing_email( 'edit' ),
-			'phone'   => wc_scanpay_phone_prefixer( $order->get_billing_phone( 'edit' ), $order->get_billing_country( 'edit' ) ),
-			'address' => [ $order->get_billing_address_1( 'edit' ), $order->get_billing_address_2( 'edit' ) ],
-			'city'    => $order->get_billing_city( 'edit' ),
-			'zip'     => $order->get_billing_postcode( 'edit' ),
-			'country' => $order->get_billing_country( 'edit' ),
-			'state'   => $order->get_billing_state( 'edit' ),
-			'company' => $order->get_billing_company( 'edit' ),
+			'name'    => $wco->get_billing_first_name( 'edit' ) . ' ' . $wco->get_billing_last_name( 'edit' ),
+			'email'   => $wco->get_billing_email( 'edit' ),
+			'phone'   => wc_scanpay_phone_prefixer( $wco->get_billing_phone( 'edit' ), $wco->get_billing_country( 'edit' ) ),
+			'address' => [ $wco->get_billing_address_1( 'edit' ), $wco->get_billing_address_2( 'edit' ) ],
+			'city'    => $wco->get_billing_city( 'edit' ),
+			'zip'     => $wco->get_billing_postcode( 'edit' ),
+			'country' => $wco->get_billing_country( 'edit' ),
+			'state'   => $wco->get_billing_state( 'edit' ),
+			'company' => $wco->get_billing_company( 'edit' ),
 		],
 		'shipping'    => [
-			'name'    => $order->get_shipping_first_name( 'edit' ) . ' ' . $order->get_shipping_last_name( 'edit' ),
-			'address' => [ $order->get_shipping_address_1( 'edit' ), $order->get_shipping_address_2( 'edit' ) ],
-			'city'    => $order->get_shipping_city( 'edit' ),
-			'zip'     => $order->get_shipping_postcode( 'edit' ),
-			'country' => $order->get_shipping_country( 'edit' ),
-			'state'   => $order->get_shipping_state( 'edit' ),
-			'company' => $order->get_shipping_company( 'edit' ),
+			'name'    => $wco->get_shipping_first_name( 'edit' ) . ' ' . $wco->get_shipping_last_name( 'edit' ),
+			'address' => [ $wco->get_shipping_address_1( 'edit' ), $wco->get_shipping_address_2( 'edit' ) ],
+			'city'    => $wco->get_shipping_city( 'edit' ),
+			'zip'     => $wco->get_shipping_postcode( 'edit' ),
+			'country' => $wco->get_shipping_country( 'edit' ),
+			'state'   => $wco->get_shipping_state( 'edit' ),
+			'company' => $wco->get_shipping_company( 'edit' ),
 		],
 	];
 
 	if ( class_exists( 'WC_Subscriptions', false ) ) {
-		$subid = (int) $order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
+		$subid = (int) $wco->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
 		if ( $subid ) {
 			return [
 				'result'   => 'success',
@@ -81,19 +81,19 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	}
 
 	if ( ! isset( $data['subscriber'] ) ) {
-		$data['orderid'] = (string) $order->get_id();
+		$data['orderid'] = (string) $wco->get_id();
 
 		$virtual  = ( 'yes' === $settings['wc_complete_virtual'] );
 		$sum      = '0';
-		$currency = $order->get_currency( 'edit' );
-		foreach ( $order->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
+		$currency = $wco->get_currency( 'edit' );
+		foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
 			if ( $virtual && $item instanceof WC_Order_Item_Product ) {
 				$product = $item->get_product();
 				if ( $product && ! $product->is_virtual() ) {
 					$virtual = false;
 				}
 			}
-			$line_total = $order->get_line_total( $item, true, true ); // w. taxes and rounded (how Woo does)
+			$line_total = $wco->get_line_total( $item, true, true ); // w. taxes and rounded (how Woo does)
 			if ( $line_total >= 0 ) {
 				$sum             = wc_scanpay_addmoney( $sum, strval( $line_total ) );
 				$data['items'][] = [
@@ -105,10 +105,10 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		}
 		if ( $settings['wc_complete_virtual'] ) {
 			// Set transient so needs_processing() does not need to check all items (again)
-			set_transient( 'wc_order_' . $order->get_id() . '_needs_processing', (int) ! $virtual, DAY_IN_SECONDS );
+			set_transient( 'wc_order_' . $wco->get_id() . '_needs_processing', (int) ! $virtual, DAY_IN_SECONDS );
 		}
 
-		$wc_total = strval( $order->get_total( 'edit' ) );
+		$wc_total = strval( $wco->get_total( 'edit' ) );
 		if ( wc_scanpay_cmpmoney( $sum, $wc_total ) !== 0 ) {
 			$data['items'] = [
 				[
@@ -123,18 +123,18 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 			);
 		}
 
-		if ( 'yes' === $settings['capture_on_complete'] && ( $virtual || ! $order->needs_processing() ) ) {
+		if ( 'yes' === $settings['capture_on_complete'] && ( $virtual || ! $wco->needs_processing() ) ) {
 			$data['autocapture'] = true;
-			$order->add_meta_data( WC_SCANPAY_URI_AUTOCPT, 1, true );
+			$wco->add_meta_data( WC_SCANPAY_URI_AUTOCPT, 1, true );
 		}
 	}
 
 	try {
 		$link = $client->newURL( $data );
-		$order->add_meta_data( WC_SCANPAY_URI_PAYID, basename( parse_url( $link, PHP_URL_PATH ) ), true );
-		$order->add_meta_data( WC_SCANPAY_URI_PTIME, time(), true );
-		$order->add_meta_data( WC_SCANPAY_URI_SHOPID, (int) explode( ':', $settings['apikey'] )[0], true );
-		$order->save_meta_data();
+		$wco->add_meta_data( WC_SCANPAY_URI_PAYID, basename( parse_url( $link, PHP_URL_PATH ) ), true );
+		$wco->add_meta_data( WC_SCANPAY_URI_PTIME, time(), true );
+		$wco->add_meta_data( WC_SCANPAY_URI_SHOPID, (int) explode( ':', $settings['apikey'] )[0], true );
+		$wco->save_meta_data();
 		return [
 			'result'   => 'success',
 			'redirect' => $link,
