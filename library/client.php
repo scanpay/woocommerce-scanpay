@@ -2,8 +2,9 @@
 
 /*
     Scanpay module client lib
-    Version 2.2.1 (2024-01-27)
+    Version 2.2.2 (2024-03-06)
     - remove data[] from renew() and newURL() params
+    + Add parsePing and shopid
 */
 
 class WC_Scanpay_Client
@@ -11,12 +12,16 @@ class WC_Scanpay_Client
     private $ch; // CurlHandle class is added PHP 8.0
     private array $headers;
     private string $idemstatus;
+    private string $apikey;
+    public int $shopid;
 
     public function __construct(string $apikey)
     {
         if (!function_exists('curl_init')) {
             die("ERROR: Please enable php-curl\n");
         }
+        $this->apikey = $apikey;
+        $this->shopid = (int) strstr( $apikey, ':', true );
         $this->ch = curl_init();
         $this->headers = [
             'authorization' => 'Authorization: Basic ' . base64_encode($apikey),
@@ -91,6 +96,24 @@ class WC_Scanpay_Client
             throw new \Exception('Invalid JSON response from server');
         }
         return $json;
+    }
+
+    // parsePing: json_decode and verify pings
+    public function parsePing(): ?array
+    {
+        if (!isset($_SERVER['HTTP_X_SIGNATURE'])) {
+            return null;
+        }
+		$body = file_get_contents('php://input', false, null, 0, 512);
+		if (!hash_equals(base64_encode(hash_hmac('sha256', $body, $this->apikey, true)), $_SERVER['HTTP_X_SIGNATURE']) ) {
+            return null;
+		}
+		$ping = json_decode($body, true);
+		if ( ! isset( $ping, $ping['seq'], $ping['shopid'] ) || ! is_int( $ping['seq'] ) || $this->shopid !== $ping['shopid'] ) {
+            scanpay_log('error', 'Invalid ping from server');
+			return null;
+		}
+        return $ping;
     }
 
     // newURL: Create a new payment link
