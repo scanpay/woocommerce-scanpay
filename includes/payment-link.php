@@ -31,9 +31,8 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 
 	$client = new WC_Scanpay_Client( $settings['apikey'] );
 	$data   = [
-		'autocapture' => false,
+		'autocapture' => 'yes' === ( $settings['capture_on_complete'] ?? 'no' ) && ! $wco->needs_processing(),
 		'successurl'  => apply_filters( 'woocommerce_get_return_url', $wco->get_checkout_order_received_url(), $wco ),
-		'lifetime'    => '30m',
 		'billing'     => [
 			'name'    => $wco->get_billing_first_name( 'edit' ) . ' ' . $wco->get_billing_last_name( 'edit' ),
 			'email'   => $wco->get_billing_email( 'edit' ),
@@ -81,21 +80,14 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	}
 
 	if ( ! isset( $data['subscriber'] ) ) {
-		$data['orderid'] = (string) $wco->get_id();
+		$data['orderid'] = (string) $oid;
+		$currency        = $wco->get_currency( 'edit' );
+		$order_total     = '0';
 
-		$virtual  = ( 'yes' === $settings['wc_complete_virtual'] );
-		$sum      = '0';
-		$currency = $wco->get_currency( 'edit' );
 		foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
-			if ( $virtual && $item instanceof WC_Order_Item_Product ) {
-				$product = $item->get_product();
-				if ( $product && ! $product->is_virtual() ) {
-					$virtual = false;
-				}
-			}
 			$line_total = $wco->get_line_total( $item, true, true ); // w. taxes and rounded (how Woo does)
 			if ( $line_total >= 0 ) {
-				$sum             = wc_scanpay_addmoney( $sum, strval( $line_total ) );
+				$order_total     = wc_scanpay_addmoney( $order_total, strval( $line_total ) );
 				$data['items'][] = [
 					'name'     => $item->get_name( 'edit' ),
 					'quantity' => $item->get_quantity(),
@@ -103,13 +95,8 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 				];
 			}
 		}
-		if ( $settings['wc_complete_virtual'] ) {
-			// Set transient so needs_processing() does not need to check all items (again)
-			set_transient( 'wc_order_' . $wco->get_id() . '_needs_processing', (int) ! $virtual, DAY_IN_SECONDS );
-		}
-
 		$wc_total = strval( $wco->get_total( 'edit' ) );
-		if ( wc_scanpay_cmpmoney( $sum, $wc_total ) !== 0 ) {
+		if ( $wc_total !== $order_total && wc_scanpay_cmpmoney( $order_total, $wc_total ) !== 0 ) {
 			$data['items'] = [
 				[
 					'name'  => 'Total',
@@ -118,23 +105,20 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 			];
 			scanpay_log(
 				'warning',
-				"Order #$oid: The sum of all items ($sum) does not match the order total ($wc_total)." .
+				"Order #$oid: The sum of all items ($order_total) does not match the order total ($wc_total)." .
 				'The item list will not be available in the scanpay dashboard.'
 			);
-		}
-
-		if ( 'yes' === $settings['capture_on_complete'] && ( $virtual || ! $wco->needs_processing() ) ) {
-			$data['autocapture'] = true;
-			$wco->add_meta_data( WC_SCANPAY_URI_AUTOCPT, 1, true );
 		}
 	}
 
 	try {
 		$link = $client->newURL( $data );
-		$wco->add_meta_data( WC_SCANPAY_URI_PAYID, basename( parse_url( $link, PHP_URL_PATH ) ), true );
+		$wco->add_meta_data( WC_SCANPAY_URI_PAYID, basename( $link ), true );
 		$wco->add_meta_data( WC_SCANPAY_URI_PTIME, time(), true );
-		$wco->add_meta_data( WC_SCANPAY_URI_SHOPID, (int) explode( ':', $settings['apikey'] )[0], true );
+		$wco->add_meta_data( WC_SCANPAY_URI_SHOPID, $client->shopid, true );
+		$wco->add_meta_data( WC_SCANPAY_URI_AUTOCPT, (int) $data['autocapture'], true );
 		$wco->save_meta_data();
+
 		return [
 			'result'   => 'success',
 			'redirect' => $link,
