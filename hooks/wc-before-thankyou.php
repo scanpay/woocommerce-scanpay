@@ -15,10 +15,9 @@ if ( 'pending' === $wc_order->get_status( 'edit' ) ) {
 	$counter   = 0;
 
 	if ( $subs_init && $wc_order->get_total( 'edit' ) > 0 ) {
-		sleep( 1 ); // WCS is slow, and we need to wait for the initial charge too
-	} else {
-		usleep( 50000 );
+		sleep( 2 ); // WCS is slow, and we need to wait for the initial charge too
 	}
+	usleep( 50000 );
 
 	do {
 		$us = 100000 + 20000 * pow( 2, $counter ); // .12s, .14s, .18s, .26s, .42s, .74s, 1.38s ...
