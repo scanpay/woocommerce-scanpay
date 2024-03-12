@@ -2,7 +2,7 @@
 declare(strict_types = 1);
 
 /*
- * Version: 2.1.4
+ * Version: 2.2.0
  * Requires at least: 6.3.0
  * Requires PHP: 7.4
  * WC requires at least: 6.9.0
@@ -20,7 +20,7 @@ declare(strict_types = 1);
 
 defined( 'ABSPATH' ) || exit();
 
-const WC_SCANPAY_VERSION      = '2.1.4';
+const WC_SCANPAY_VERSION      = '2.2.0';
 const WC_SCANPAY_MIN_PHP      = '7.4.0';
 const WC_SCANPAY_MIN_WC       = '6.9.0';
 const WC_SCANPAY_DASHBOARD    = 'https://dashboard.scanpay.dk/';
@@ -200,21 +200,39 @@ add_action( 'plugins_loaded', function () {
 		return $methods;
 	} );
 
+	// [hook] Load WC_Scanpay_Sync class (will process the hooks)
+	add_action( 'woocommerce_scheduled_subscription_payment_scanpay', 'wc_scanpay_load_sync', 1, 0 );
+	add_action( 'woocommerce_order_status_completed', 'wc_scanpay_load_sync', 1, 0 );
 	function wc_scanpay_load_sync() {
 		// Load the sync class and let it handle the hooks (switch to singleton pattern?)
 		if ( ! class_exists( 'WC_Scanpay_Sync', false ) ) {
 			require WC_SCANPAY_DIR . '/hooks/class-wc-scanpay-sync.php';
 			new WC_Scanpay_Sync(); // will handle the hooks
-			remove_filter( 'woocommerce_scheduled_subscription_payment_scanpay', 'wc_scanpay_load_sync', 1, 0 );
-			remove_filter( 'woocommerce_order_status_completed', 'wc_scanpay_load_sync', 1, 0 );
 		}
 	}
 
-	// [hook] Manual and Recurring renewals (cron|admin|user)
-	add_action( 'woocommerce_scheduled_subscription_payment_scanpay', 'wc_scanpay_load_sync', 1, 0 );
+	// [hook] Add custom bulk action to the order list
+	add_filter( 'bulk_actions-edit-shop_order', 'wc_scanpay_remove_bulk_action', 10, 1 );
+	add_filter( 'bulk_actions-woocommerce_page_wc-orders', 'wc_scanpay_remove_bulk_action', 10, 1 );
+	function wc_scanpay_remove_bulk_action( $actions ) {
+		$arr = [ 'scanpay_capture_complete' => 'Capture and complete' ];
+		foreach ( $actions as $k => $v ) {
+			$arr[ ( 'mark_completed' === $k ) ? 'scanpay_mark_completed' : $k ] = $v;
+		}
+		return $arr;
+	}
 
-	// [hook] Order status changed to completed (cron|admin|plugin)
-	add_action( 'woocommerce_order_status_completed', 'wc_scanpay_load_sync', 1, 0 );
+	// [hook] Handle the custom bulk action
+	add_filter( 'handle_bulk_actions-edit-shop_order', 'wc_scanpay_handle_bulk_action', 0, 3 );
+	add_filter( 'handle_bulk_actions-woocommerce_page_wc-orders', 'wc_scanpay_handle_bulk_action', 0, 3 );
+	function wc_scanpay_handle_bulk_action( string $redirect_to, string $action, array $ids ) {
+		return require WC_SCANPAY_DIR . '/hooks/wp-bulk-actions.php';
+	}
+
+	// [hook] Ajax action to mark order status (icon in order list)
+	add_action( 'wp_ajax_woocommerce_mark_order_status', function () {
+		require WC_SCANPAY_DIR . '/hooks/wp-ajax-wc-mark-order-status.php';
+	}, 0, 0);
 
 	add_action( 'woocommerce_before_thankyou', function ( $order_id ) {
 		require WC_SCANPAY_DIR . '/hooks/wc-before-thankyou.php';
