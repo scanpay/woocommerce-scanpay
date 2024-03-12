@@ -31,7 +31,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 
 	$client = new WC_Scanpay_Client( $settings['apikey'] );
 	$data   = [
-		'autocapture' => 'yes' === ( $settings['capture_on_complete'] ?? 'no' ) && ! $wco->needs_processing(),
+		'autocapture' => 'yes' === ( $settings['capture_on_complete'] ?? '' ) && ! $wco->needs_processing(),
 		'successurl'  => apply_filters( 'woocommerce_get_return_url', $wco->get_checkout_order_received_url(), $wco ),
 		'billing'     => [
 			'name'    => $wco->get_billing_first_name( 'edit' ) . ' ' . $wco->get_billing_last_name( 'edit' ),
@@ -116,7 +116,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		$wco->add_meta_data( WC_SCANPAY_URI_PAYID, basename( $link ), true );
 		$wco->add_meta_data( WC_SCANPAY_URI_PTIME, time(), true );
 		$wco->add_meta_data( WC_SCANPAY_URI_SHOPID, $client->shopid, true );
-		$wco->add_meta_data( WC_SCANPAY_URI_AUTOCPT, (int) $data['autocapture'], true );
+		$wco->add_meta_data( WC_SCANPAY_URI_AUTOCPT, (string) $data['autocapture'], true );
 		$wco->save_meta_data();
 
 		return [
