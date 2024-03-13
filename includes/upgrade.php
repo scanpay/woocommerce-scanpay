@@ -23,6 +23,7 @@ if ( version_compare( $version, '2.0.0', '<' ) ) {
 		'description'          => $old['description'] ?? 'Pay with card through Scanpay.',
 		'card_icons'           => $old['card_icons'] ?? [ 'visa', 'mastercard' ],
 		'capture_on_complete'  => $old['capture_on_complete'] ?? 'yes',
+		'wc_complete_virtual'  => 'no',
 		'wcs_complete_initial' => 'no',
 		'wcs_complete_renewal' => $old['autocomplete_renewalorders'] ?? 'no',
 		'stylesheet'           => 'yes',
