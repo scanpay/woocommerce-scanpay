@@ -4,7 +4,7 @@ Tags: ecommerce, e-commerce, woocommerce, payments, subscriptions
 Requires at least: 6.3
 Requires PHP: 7.4
 Tested up to: 6.4.3
-Stable tag: 2.1.4
+Stable tag: 2.2.0
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
 
@@ -13,8 +13,6 @@ Accept payments in WooCommerce with a reliable and secure Scandinavian payment g
 == Description ==
 
 With this plugin, you can quickly and easily accept payments in WooCommerce through Scanpay, a reliable and secure Scandinavian payment gateway.
-
-**Update 2024-02:** The plugin has received a complete rewrite. It is now more user-friendly, it uses fewer resources, and we have added support for new features and payment methods.
 
 = Supported payment methods =
 * Dankort, Visa, Mastercard and Maestro
@@ -43,6 +41,13 @@ Please follow the [installation and configuration guide](https://github.com/scan
 
 
 == Changelog ==
+
+= 2.2.0 - 2024-03-13 =
+* Add - Add bulk action: Capture and Complete
+* Add - WooCommerce Subscriptions retry failed charges
+* Fix - 'Capture on Complete' now tries to capture before the order status changes (e.g. before e-mails)
+* Fix - Various performance optimizations
+* Fix - Fix PHP warnings
 
 = 2.1.4 - 2024-03-02 =
 * Add - Add default values to all options
