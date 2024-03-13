@@ -69,24 +69,6 @@ if ( $wpdb->get_var( "SHOW TABLES LIKE '$subs_tbl'" ) !== $subs_tbl ) {
 	}
 }
 
-// Queue table
-$queue_tbl = $wpdb->prefix . 'scanpay_queue';
-if ( $wpdb->get_var( "SHOW TABLES LIKE '$queue_tbl'" ) !== $queue_tbl ) {
-	$res = $wpdb->query(
-		"CREATE TABLE $queue_tbl (
-			orderid INT unsigned NOT NULL UNIQUE,
-			act CHAR(7) NOT NULL,
-			subid INT unsigned,
-			amount VARCHAR(32),
-			PRIMARY KEY (orderid)
-		) CHARSET = latin1;"
-	);
-	if ( true !== $res ) {
-		scanpay_log( 'error', 'Could not create scanpay SQL table' );
-		throw new Exception( 'Could not create scanpay SQL table' );
-	}
-}
-
 // Insert shopid into seq table
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 $shopid   = (int) explode( ':', $settings['apikey'] ?? '' )[0];
