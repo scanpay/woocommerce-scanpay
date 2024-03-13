@@ -29,6 +29,18 @@ if ( version_compare( $version, '2.0.0', '<' ) ) {
 		'secret'               => bin2hex( random_bytes( 32 ) ),
 	];
 	update_option( WC_SCANPAY_URI_SETTINGS, $arr, true );
+} elseif ( version_compare( $version, '2.2.0', '<' ) ) {
+	// make sure that new options exists
+	$old      = get_option( WC_SCANPAY_URI_SETTINGS );
+	$settings = array_merge(
+		[
+			'wc_complete_virtual'  => 'no',
+			'wcs_complete_initial' => 'no',
+			'wcs_complete_renewal' => 'no',
+		],
+		$old
+	);
+	update_option( WC_SCANPAY_URI_SETTINGS, $settings, true );
 }
 
 /*
