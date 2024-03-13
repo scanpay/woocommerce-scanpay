@@ -5,105 +5,163 @@
 */
 
 class WC_Scanpay_Sync {
-	private $client;
-	private $shopid;
-	private $apikey;
-	private $settings;
-	private $locked;
 	private $lockfile;
-	private $await_ping;
-	private $wcs_exists;
+	public $settings;
+	private $shopid;
+	private $client;
+	private $subscriptions;
+	private $in_sync;
 
 	public function __construct() {
-		$this->settings = get_option( WC_SCANPAY_URI_SETTINGS );
-		$this->apikey   = $this->settings['apikey'] ?? '';
-		$this->shopid   = (int) strstr( $this->apikey, ':', true );
+		if ( ! class_exists( 'WC_Scanpay_Client', false ) ) {
+			require WC_SCANPAY_DIR . '/library/math.php';
+			require WC_SCANPAY_DIR . '/library/client.php';
+		}
+		$this->settings      = get_option( WC_SCANPAY_URI_SETTINGS );
+		$this->client        = new WC_Scanpay_Client( $this->settings['apikey'] ?? '' );
+		$this->shopid        = $this->client->shopid;
+		$this->subscriptions = class_exists( 'WC_Subscriptions', false );
 
-		// [hook] Order status changed to completed
-		add_filter( 'woocommerce_order_status_completed', function ( int $oid, object $order ) {
-			if (
-				'yes' === $this->settings['capture_on_complete'] && 'scanpay' === $order->get_payment_method( 'edit' ) &&
-				$order->get_total( 'edit' ) > 0 && ! $order->get_meta( WC_SCANPAY_URI_AUTOCPT, true, 'edit' )
-			) {
-				$this->queue( 'capture', $order );
-			}
-		}, 3, 2 );
+		if ( 'yes' === $this->settings['capture_on_complete'] ) {
+			// [hook] Order status changed to completed
+			add_filter( 'woocommerce_order_status_completed', [ $this, 'capture_after_complete' ], 3, 2 );
+		}
 
-		// [hook] Manual and Recurring renewals (cron|admin|user)
-		add_filter( 'woocommerce_scheduled_subscription_payment_scanpay', function ( float $x, object $order ) {
-			$this->queue( 'charge', $order, (int) $order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ) );
-		}, 3, 2 );
+		if ( $this->subscriptions ) {
+			// [hook] Manual and Recurring renewals (cron|admin|user)
+			add_filter( 'woocommerce_scheduled_subscription_payment_scanpay', function ( float $x, object $wco ) {
+				$str   = $wco->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
+				$subid = abs( (int) $str );
+				if ( 0 === $subid || (string) $subid !== $str ) {
+					scanpay_log( 'error', 'charge stopped: missing or invalid scanpay subscriber ID' );
+					return $wco->update_status( 'failed', 'missing or invalid scanpay subscriber ID' );
+				}
+				if ( ! $this->in_sync ) {
+					global $wpdb;
+					$mtime = (int) $wpdb->get_var( "SELECT mtime FROM {$wpdb->prefix}scanpay_seq WHERE shopid = " . $this->shopid );
+					// Only charge if the system is in sync (+10m)
+					if ( ( time() - $mtime ) > 600 ) {
+						scanpay_log( 'error', 'charge stopped: system is out of sync' );
+						return $wco->update_status( 'failed', 'charge stopped: system is out of sync' );
+					}
+					$this->in_sync = true;
+				}
+				$this->charge( (int) $wco->get_id(), $wco, $subid );
+			}, 3, 2 );
+			remove_filter( 'woocommerce_scheduled_subscription_payment_scanpay', 'wc_scanpay_load_sync', 1, 0 );
+		}
 
-		// [filter] Change default order status after payment_complete()
-		add_filter( 'woocommerce_payment_complete_order_status', function ( string $status, int $id, object $order ) {
-			if ( 'processing' === $status && $order->get_meta( WC_SCANPAY_URI_AUTOCPT, true, 'edit' ) ) {
-				return 'completed'; // Order was auto-captured
-			}
-			return $status;
-		}, 10, 3 );
+		if ( 'yes' === $this->settings['wc_complete_virtual'] ) {
+			/*
+				WC auto-completes downloadable orders, but not virtual orders. This filter
+				will set virtual products to not need processing, so they are auto-completed.
+			*/
+			add_filter( 'woocommerce_order_item_needs_processing', function ( $needs_processing, $product ) {
+				if ( $needs_processing && true === $product->get_virtual( 'edit' ) ) {
+					return false; // Product is virtual, but not downloadable.
+				}
+				return $needs_processing;
+			}, 10, 2 );
+		}
+		remove_filter( 'woocommerce_order_status_completed', 'wc_scanpay_load_sync', 1, 0 );
 	}
+
+
+	private function capture_order( int $oid, object $wco ): array {
+		global $wpdb;
+		try {
+			$meta = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid", ARRAY_A );
+			if ( 1 !== $wpdb->num_rows ) {
+				throw new Exception( "payment details not found for order #$oid" );
+			}
+			if ( $meta['voided'] > 0 ) {
+				throw new Exception( 'the payment is voided' );
+			}
+			$amount = (string) $wco->get_total( 'edit' );
+			if ( $wco->get_total_refunded() > 0 ) {
+				$amount = wc_scanpay_submoney( $amount, $wco->get_total_refunded() );
+			}
+			if ( $amount <= 0 ) {
+				return [ true, 'ignored capture of ' . wc_price( (float) $amount ) ];
+			}
+			// Adjust for previous captures and refunds
+			if ( $meta['captured'] > 0 ) {
+				if ( $meta['refunded'] > 0 ) {
+					$net_captured = wc_scanpay_submoney( $meta['captured'], $meta['refunded'] );
+					if ( $net_captured > 0 ) {
+						$amount = wc_scanpay_submoney( $amount, $net_captured );
+					}
+					$amount = min( $amount, wc_scanpay_submoney( $meta['authorized'], $meta['captured'] ) );
+				} else {
+					$amount = wc_scanpay_submoney( $amount, $meta['captured'] );
+				}
+				if ( $amount <= 0 ) {
+					return [ true, 'capture skipped; nothing to capture.' ];
+				}
+			}
+			$this->client->capture( $meta['id'], [
+				'total' => $amount . ' ' . $wco->get_currency( 'edit' ),
+				'index' => (int) $meta['nacts'],
+			] );
+			return [ true, 'Captured ' . wc_price( (float) $amount ) ];
+		} catch ( \Exception $e ) {
+			scanpay_log( 'info', "Capture failed on order #$oid: " . $e->getMessage() );
+			return [ false, 'Capture failed: ' . $e->getMessage() . '.' ];
+		}
+	}
+
+	public function capture_after_complete( int $oid, object $wco ): void {
+		if ( '1' !== $wco->get_meta( WC_SCANPAY_URI_AUTOCPT, true, 'edit' ) ) {
+			$res = $this->capture_order( $oid, $wco );
+			$wco->add_order_note( $res[1], false, true );
+		}
+	}
+
+	public function capture_and_complete( int $oid, object $wco ) {
+		$res    = $this->capture_order( $oid, $wco );
+		$status = $res[0] ? 'completed' : 'failed';
+		$wco->update_status( $status, $res[1], true );
+		do_action( 'woocommerce_order_edit_status', $oid, $status );
+	}
+
 
 	/*
 		Simple "filelock" with mkdir (because it's atomic, fast and dirty!)
 	*/
-	private function acquire_lock(): bool {
-		if ( $this->locked ) {
+	public function acquire_lock(): bool {
+		if ( $this->lockfile ) {
 			return true;
 		}
-		$this->lockfile = sys_get_temp_dir() . '/scanpay_' . $this->shopid . '_lock/';
-		if ( ! @mkdir( $this->lockfile ) && file_exists( $this->lockfile ) ) {
-			$dtime = time() - filemtime( $this->lockfile );
-			if ( $dtime >= 0 && $dtime < 120 ) {
-				return false;
+		// We use get_temp_dir over sys_get_temp_dir because it's more reliable (on Windows)
+		$this->lockfile = get_temp_dir() . 'scanpay_' . $this->shopid . '_lock/';
+		if ( ! @mkdir( $this->lockfile ) ) {
+			if ( file_exists( $this->lockfile ) ) {
+				// lockfile already exists; check if it's stale
+				$dtime = time() - filemtime( $this->lockfile );
+				if ( $dtime > 120 ) {
+					return true;
+				}
+			} else {
+				scanpay_log( 'error', 'could not create a lockfile in: ' . $this->lockfile );
 			}
+			$this->lockfile = null;
+			return false;
 		}
-		// Load dependencies
-		if ( ! class_exists( 'WC_Scanpay_Client', false ) ) {
-			require WC_SCANPAY_DIR . '/library/math.php';
-			require WC_SCANPAY_DIR . '/library/client.php';
-			$this->client     = new WC_Scanpay_Client( $this->apikey );
-			$this->wcs_exists = class_exists( 'WC_Subscriptions', false );
-		}
-		$this->locked = true;
 		return true;
 	}
 
-	private function release_lock(): void {
-		$this->locked = false;
+	public function release_lock(): void {
 		if ( $this->lockfile ) {
-			rmdir( $this->lockfile );
+			@rmdir( $this->lockfile );
+			$this->lockfile = null;
 		}
 	}
 
-	private function renew_lock(): void {
-		if ( ! $this->lockfile || ! touch( $this->lockfile ) ) {
+	public function renew_lock(): void {
+		if ( ! $this->lockfile || ! @touch( $this->lockfile ) ) {
 			throw new Exception( 'could not renew lock' );
 		}
 	}
-
-	/*
-		Poll until queue is processed (captured/charged/failed)
-		This is not gated by lockfile.
-	*/
-	private function poll_db_queue( int $oid, string $type ): bool {
-		global $wpdb;
-		$sql = "SELECT orderid FROM {$wpdb->prefix}scanpay_queue WHERE orderid = $oid AND act = '$type'";
-		$len = $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}scanpay_queue" );
-		if ( $len > 20 ) {
-			return false; // number of processes that can poll at the same time
-		}
-		$delay = 150000 + 25000 * $len; // min: 0,175s; max[20]: 0,65s (limit resource usage)
-		for ( $counter = 0; $counter < 30; $counter++ ) {
-			usleep( $delay );
-			$query = $wpdb->query( $sql );
-			if ( 0 === $query ) {
-				wc_delete_shop_order_transients( $oid );
-				return true;
-			}
-		}
-		return false;
-	}
-
 
 	private function currency_amount( string $str ): string {
 		$sfloat = substr( $str, 0, -4 );
@@ -143,30 +201,27 @@ class WC_Scanpay_Sync {
 	}
 
 
-	private function order_is_valid( $order ): bool {
-		if ( ! $order ) {
-			return false;
-		}
-		$psp = $order->get_payment_method( 'edit' );
+	private function order_is_valid( $wco ): bool {
+		$psp = $wco->get_payment_method( 'edit' );
 		if ( 'scanpay' !== $psp && ! str_starts_with( $psp, 'scanpay' ) ) {
-			scanpay_log( 'warning', 'Skipped order #' . $order->get_id() . ': payment method mismatch' );
+			scanpay_log( 'warning', 'Skipped order #' . $wco->get_id() . ': payment method mismatch' );
 			return false;
 		}
-		if ( (int) $order->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' ) !== $this->shopid ) {
-			scanpay_log( 'warning', 'Skipped order #' . $order->get_id() . ': shopid mismatch' );
+		if ( (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' ) !== $this->shopid ) {
+			scanpay_log( 'warning', 'Skipped order #' . $wco->get_id() . ': shopid mismatch' );
 			return false;
 		}
 		return true;
 	}
 
 
-	private function wc_scanpay_subscriber( int $subid, int $oid, int $rev, array $c ) {
+	private function wc_scanpay_subscriber( int $subid, int $oid, int $rev, array $c, int &$ping_seq ) {
 		global $wpdb;
 		$wpdb->query( "SELECT rev FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid" );
 		$sub = $wpdb->last_result;
 		if ( 0 === $wpdb->num_rows ) {
-			$order = wc_get_order( $oid );
-			if ( ! $this->order_is_valid( $order ) ) {
+			$wco = wc_get_order( $oid );
+			if ( ! $wco || ! $this->order_is_valid( $wco ) ) {
 				return;
 			}
 			$insert = $wpdb->query(
@@ -177,22 +232,40 @@ class WC_Scanpay_Sync {
 			if ( ! $insert ) {
 				throw new Exception( "could not insert subscriber data (id=$subid)" );
 			}
-			if ( ! $order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ) ) {
-				$order->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
-				$order->save_meta_data();
-				$wcs_subs = wcs_get_subscriptions_for_order( $order, [ 'order_type' => 'any' ] );
 
+			if ( ! $wco->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ) ) {
+				$wco->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
+				$wco->save_meta_data();
+
+				$wcs_subs = wcs_get_subscriptions_for_order( $wco, [ 'order_type' => 'any' ] );
 				foreach ( $wcs_subs as $wcs_sub ) {
 					$wcs_sub->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
 					$wcs_sub->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
 					$wcs_sub->save_meta_data();
 				}
 
-				if ( 'pending' === $order->get_status( 'edit' ) && $order->get_total( 'edit' ) > 0 ) {
-					$query = $wpdb->query( "INSERT INTO {$wpdb->prefix}scanpay_queue SET act = 'charge', orderid = $oid, subid = $subid" );
-					if ( ! $query ) {
-						scanpay_log( 'error', "could not insert initial charge into queue (order #$oid)" );
+				if (
+					$wco->get_transaction_id( 'edit' ) || 'pending' !== $wco->get_status( 'edit' ) ||
+					$wco->get_total( 'edit' ) <= 0
+				) {
+					return;
+				}
+
+				/*
+					There's a TINY risk of 2x initial charges if merchant restores from backup.
+					We limit the risk by only charging if the subscription is < 2 hours old.
+				*/
+				try {
+					$time_since_sub = time() - $c['time']['created'];
+					if ( $time_since_sub > 7200 ) {
+						throw new Exception( "subscription is too old ($time_since_sub)" );
 					}
+					$this->charge( $oid, $wco, $subid );
+					++$ping_seq;
+					usleep( 200000 ); // sleep 0.2s so the backend has time to process the charge
+				} catch ( \Exception $e ) {
+					scanpay_log( 'error', "Initial charge failed (#$oid): " . $e->getMessage() );
+					$wco->update_status( 'failed', 'Initial charge failed: ' . $e->getMessage() );
 				}
 			}
 		} elseif ( $rev > $sub[0]->rev ) {
@@ -207,14 +280,13 @@ class WC_Scanpay_Sync {
 		}
 	}
 
-
 	private function apply_payment( int $trnid, int $oid, int $rev, array $c ) {
 		global $wpdb;
 		$wpdb->query( "SELECT id,rev FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
 		$meta = $wpdb->last_result;
 		if ( 0 === $wpdb->num_rows ) {
-			$order = wc_get_order( $oid );
-			if ( ! $this->order_is_valid( $order ) ) {
+			$wco = wc_get_order( $oid );
+			if ( ! $wco || ! $this->order_is_valid( $wco ) ) {
 				return;
 			}
 			$subid  = ( 'charge' === $c['type'] ) ? (int) $c['subscriber']['id'] : 0;
@@ -233,10 +305,17 @@ class WC_Scanpay_Sync {
 			if ( ! $insert ) {
 				throw new Exception( "could not save payment data to order #$oid" );
 			}
-			if ( empty( $order->get_transaction_id( 'edit' ) ) ) {
-				$order->set_payment_method( 'scanpay' );
-				$order->set_date_paid( $c['time']['authorized'] );
-				$order->payment_complete( $trnid ); // calls save()
+			if ( empty( $wco->get_transaction_id( 'edit' ) ) ) {
+				$wco->set_payment_method( 'scanpay' );
+				$wco->set_date_paid( $c['time']['authorized'] );
+				$wco->set_transaction_id( $trnid );
+				if ( 'yes' === $this->settings['capture_on_complete'] ) {
+					$wco->set_status( ( '1' === $wco->get_meta( WC_SCANPAY_URI_AUTOCPT, true, 'edit' ) ) ? 'completed' : 'processing' );
+				} else {
+					$wco->set_status( apply_filters( 'woocommerce_payment_complete_order_status', $wco->needs_processing() ? 'processing' : 'completed', $oid, $wco ) );
+				}
+				$wco->save();
+				do_action( 'woocommerce_payment_complete', $oid, $trnid );
 			}
 		} elseif ( $trnid !== (int) $meta[0]->id ) {
 			scanpay_log( 'warning', "Scanpay payment ignored (id=$trnid); order #$oid is already paid (id=" . $meta[0]->id . ')' );
@@ -252,21 +331,17 @@ class WC_Scanpay_Sync {
 		}
 	}
 
-	private function seq( int $ping_seq, int $old_seq ) {
+	private function seq( int $ping_seq, int $seq ) {
 		global $wpdb;
-		$seq   = $old_seq;
-		$force = $ping_seq === $old_seq;
-		while ( $ping_seq > $seq || $force ) {
-			if ( $seq !== $old_seq ) {
-				set_time_limit( 60 );
-				$this->renew_lock();
-				wp_cache_flush();
-			}
+		while ( $ping_seq > $seq ) {
+			set_time_limit( 60 );
+			$this->renew_lock();
+			wp_cache_flush();
+
 			$res = $this->client->seq( $seq );
 			if ( ! $res['changes'] ) {
 				return;
 			}
-
 			foreach ( $res['changes'] as $c ) {
 				if ( isset( $c['error'] ) ) {
 					scanpay_log( 'error', "Synchronization error: transaction [id={$c['id']}] skipped due to error: {$c['error']}" );
@@ -294,8 +369,8 @@ class WC_Scanpay_Sync {
 						break;
 					case 'subscriber':
 						$oid = isset( $c['ref'] ) ? (int) $c['ref'] : false;
-						if ( $this->wcs_exists && $oid && $c['ref'] === (string) $oid ) {
-							$this->wc_scanpay_subscriber( $c['id'], $oid, $c['rev'], $c );
+						if ( $this->subscriptions && $oid && $c['ref'] === (string) $oid ) {
+							$this->wc_scanpay_subscriber( $c['id'], $oid, $c['rev'], $c, $ping_seq );
 						}
 						break;
 				}
@@ -303,36 +378,36 @@ class WC_Scanpay_Sync {
 			$seq = $res['seq'];
 			$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET mtime = " . time() . ", seq = $seq WHERE shopid = " . $this->shopid );
 
-			if ( $force ) {
-				$force = false;
-			} elseif ( $ping_seq <= $seq && $this->process_queue() ) {
-				$force = true;
+			// Check for blocked ping
+			if ( $ping_seq === $seq ) {
+				$db_ping = (int) $wpdb->get_var( "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = " . $this->shopid );
+				if ( $db_ping > $ping_seq ) {
+					$ping_seq = $db_ping;
+				}
 			}
 		}
+		return $seq;
 	}
 
 	public function handle_ping() {
-		ignore_user_abort( true );
 		global $wpdb;
-		$body = file_get_contents( 'php://input', false, null, 0, 512 );
-
-		if ( ! hash_equals( base64_encode( hash_hmac( 'sha256', $body, $this->apikey, true ) ), $_SERVER['HTTP_X_SIGNATURE'] ) ) {
-			wp_send_json( [ 'error' => 'invalid signature' ], 403 );
-			die();
+		ignore_user_abort( true );
+		$ping = $this->client->parsePing();
+		if ( ! $ping ) {
+			return wp_send_json( [ 'error' => 'invalid signature' ], 403 );
 		}
-		$seq  = (int) $wpdb->get_var( "SELECT seq FROM {$wpdb->prefix}scanpay_seq WHERE shopid = " . $this->shopid );
-		$ping = json_decode( $body, true );
-		if ( ! isset( $ping, $ping['seq'], $ping['shopid'] ) || ! is_int( $ping['seq'] ) || $this->shopid !== $ping['shopid'] ) {
-			wp_send_json( [ 'error' => 'invalid JSON' ], 400 );
-			die();
+		$seq = (int) $wpdb->get_var( "SELECT seq FROM {$wpdb->prefix}scanpay_seq WHERE shopid = " . $this->shopid );
+
+		if ( $ping['seq'] < $seq ) {
+			return wp_send_json( [ 'error' => "local seq ($seq) is greater than ping seq ({$ping['seq']})" ], 400 );
 		}
 
 		if ( $ping['seq'] === $seq ) {
-			if ( ! $this->process_queue() ) {
-				$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET mtime = " . time() . " WHERE shopid = $this->shopid" );
-				return wp_send_json_success();
-			}
-		} elseif ( ! $this->acquire_lock() ) {
+			$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET mtime = " . time() . " WHERE shopid = $this->shopid" );
+			return wp_send_json_success();
+		}
+
+		if ( ! $this->acquire_lock() ) {
 			// Another process is running; save ping.
 			$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET ping = $ping[seq] WHERE shopid = $this->shopid" );
 			return wp_send_json( [ 'error' => 'busy' ], 423 );
@@ -348,13 +423,10 @@ class WC_Scanpay_Sync {
 		}
 	}
 
-	private function charge( int $oid, object $order, array $arr ) {
+	private function idempotency_key( int $oid, int $subid ): string {
 		global $wpdb;
-		if ( ! $order->needs_payment() ) {
-			throw new Exception( 'order does not need payment' );
-		}
-		$subid = (int) $arr['subid'];
-		$sub   = $wpdb->get_row( "SELECT retries, nxt, idem FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid", ARRAY_A );
+		$nxt = time() + 1800; // lock sub for 900s (30m) to limit races
+		$sub = $wpdb->get_row( "SELECT retries, nxt, idem FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid", ARRAY_A );
 		if ( ! $sub ) {
 			throw new Exception( "subscriber (subid=$subid) does not exist" );
 		}
@@ -362,12 +434,8 @@ class WC_Scanpay_Sync {
 			throw new Exception( "no retries left on subscriber (subid=$subid)" );
 		}
 		if ( (int) $sub['nxt'] > time() ) {
-			throw new Exception( 'retry not allowed until ' . gmdate( $sub['nxt'] ) );
+			throw new Exception( 'charge not allowed until ' . gmdate( $sub['nxt'] ) );
 		}
-		if ( (int) $order->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' ) !== $this->shopid ) {
-			throw new Exception( 'shopid mismatch' );
-		}
-
 		if ( empty( $sub['idem'] ) ) {
 			$sub['idem'] = $oid . ':' . base64_encode( random_bytes( 18 ) );
 		} else {
@@ -382,49 +450,53 @@ class WC_Scanpay_Sync {
 				$sub['idem'] = $oid . ':' . base64_encode( random_bytes( 18 ) );
 			}
 		}
+		$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_subs SET nxt = $nxt, idem = '" . $sub['idem'] . "' WHERE subid = $subid" );
+		return $sub['idem'];
+	}
 
-		// Make sure we don't have an order with this id;
-		$meta_exists = $wpdb->query( "SELECT orderid FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
-		if ( $meta_exists ) {
-			throw new Exception( "payment details already exist for order #$oid" );
-		}
 
-		$nxt = time() + 900; // lock sub for 900s (15m) to limit races
-		$sql = "UPDATE {$wpdb->prefix}scanpay_subs SET nxt = $nxt, idem = '" . $sub['idem'] . "' WHERE subid = $subid AND nxt = " . $sub['nxt'] . '';
-		if ( false === $wpdb->query( $sql ) ) {
-			throw new Exception( 'race condition' );
-		}
-
+	private function charge( int $oid, object $wco, int $subid ) {
+		global $wpdb;
 		$data = [
-			'orderid'     => $oid,
 			'autocapture' => false,
+			'orderid'     => $oid,
 			'billing'     => [
-				'name'    => $order->get_billing_first_name( 'edit' ) . ' ' . $order->get_billing_last_name( 'edit' ),
-				'email'   => $order->get_billing_email( 'edit' ),
-				'phone'   => $order->get_billing_phone( 'edit' ),
-				'address' => [ $order->get_billing_address_1( 'edit' ), $order->get_billing_address_2( 'edit' ) ],
-				'city'    => $order->get_billing_city( 'edit' ),
-				'zip'     => $order->get_billing_postcode( 'edit' ),
-				'country' => $order->get_billing_country( 'edit' ),
-				'state'   => $order->get_billing_state( 'edit' ),
-				'company' => $order->get_billing_company( 'edit' ),
+				'name'    => $wco->get_billing_first_name( 'edit' ) . ' ' . $wco->get_billing_last_name( 'edit' ),
+				'email'   => $wco->get_billing_email( 'edit' ),
+				'phone'   => $wco->get_billing_phone( 'edit' ),
+				'address' => [ $wco->get_billing_address_1( 'edit' ), $wco->get_billing_address_2( 'edit' ) ],
+				'city'    => $wco->get_billing_city( 'edit' ),
+				'zip'     => $wco->get_billing_postcode( 'edit' ),
+				'country' => $wco->get_billing_country( 'edit' ),
+				'state'   => $wco->get_billing_state( 'edit' ),
+				'company' => $wco->get_billing_company( 'edit' ),
 			],
 			'shipping'    => [
-				'name'    => $order->get_shipping_first_name( 'edit' ) . ' ' . $order->get_shipping_last_name( 'edit' ),
-				'address' => [ $order->get_shipping_address_1( 'edit' ), $order->get_shipping_address_2( 'edit' ) ],
-				'city'    => $order->get_shipping_city( 'edit' ),
-				'zip'     => $order->get_shipping_postcode( 'edit' ),
-				'country' => $order->get_shipping_country( 'edit' ),
-				'state'   => $order->get_shipping_state( 'edit' ),
-				'company' => $order->get_shipping_company( 'edit' ),
+				'name'    => $wco->get_shipping_first_name( 'edit' ) . ' ' . $wco->get_shipping_last_name( 'edit' ),
+				'address' => [ $wco->get_shipping_address_1( 'edit' ), $wco->get_shipping_address_2( 'edit' ) ],
+				'city'    => $wco->get_shipping_city( 'edit' ),
+				'zip'     => $wco->get_shipping_postcode( 'edit' ),
+				'country' => $wco->get_shipping_country( 'edit' ),
+				'state'   => $wco->get_shipping_state( 'edit' ),
+				'company' => $wco->get_shipping_company( 'edit' ),
 			],
 		];
 
-		// Add and sum order items
-		$sum      = '0';
-		$currency = $order->get_currency( 'edit' );
-		foreach ( $order->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
-			$line_total = $order->get_line_total( $item, true, true ); // w. taxes and rounded (how Woo does)
+		/*
+			Calculate the sum of all items and check if the order needs processing. WC_Order->needs_payment() is not in
+			the cache here, and WCS does not use it, so we make our own is_virtual check.
+		*/
+		$sum        = '0';
+		$currency   = $wco->get_currency( 'edit' );
+		$is_virtual = 1;
+		foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
+			if ( $is_virtual && $item instanceof WC_Order_Item_Product ) {
+				$prod = $item->get_product();
+				if ( $prod ) {
+					$is_virtual = $prod->is_virtual() && ( 'yes' === $this->settings['wc_complete_virtual'] || $prod->is_downloadable() );
+				}
+			}
+			$line_total = $wco->get_line_total( $item, true, true ); // w. taxes and rounded (how Woo does)
 			if ( $line_total >= 0 ) {
 				$sum             = wc_scanpay_addmoney( $sum, strval( $line_total ) );
 				$data['items'][] = [
@@ -435,8 +507,8 @@ class WC_Scanpay_Sync {
 			}
 		}
 
-		$wc_total = strval( $order->get_total( 'edit' ) );
-		if ( wc_scanpay_cmpmoney( $sum, $wc_total ) !== 0 ) {
+		$wc_total = strval( $wco->get_total( 'edit' ) );
+		if ( $sum !== $wc_total && wc_scanpay_cmpmoney( $sum, $wc_total ) !== 0 ) {
 			$data['items'] = [
 				[
 					'name'  => 'Total',
@@ -451,120 +523,39 @@ class WC_Scanpay_Sync {
 		}
 
 		if (
-			( 'yes' === $this->settings['wcs_complete_initial'] && wcs_order_contains_subscription( $order, 'parent' ) ) ||
-			( 'yes' === $this->settings['wcs_complete_renewal'] && wcs_order_contains_renewal( $order ) )
+			( 'yes' === $this->settings['capture_on_complete'] && $is_virtual ) ||
+			( 'yes' === $this->settings['wcs_complete_renewal'] && wcs_order_contains_renewal( $wco ) ) ||
+			( 'yes' === $this->settings['wcs_complete_initial'] && wcs_order_contains_subscription( $wco, 'parent' ) )
 		) {
 			$data['autocapture'] = true;
-			$order->add_meta_data( WC_SCANPAY_URI_AUTOCPT, 1, true );
 		}
 
 		try {
-			$res = $this->client->charge( $subid, $data, [ 'headers' => [ 'Idempotency-Key' => $sub['idem'] ] ] );
-			$order->set_payment_method( 'scanpay' );
-			$order->set_date_paid( time() );
-			$order->payment_complete( $res['id'] ); // Will save the order
+			// Final check before charge. We don't want to charge twice.
+			$wpdb->query( "SELECT orderid FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
+			if ( 0 !== $wpdb->num_rows || $wco->get_transaction_id( 'edit' ) ) {
+				throw new Exception( 'order is already paid' );
+			}
+			$res = $this->client->charge( $subid, $data, [ 'headers' => [ 'Idempotency-Key' => $this->idempotency_key( $oid, $subid ) ] ] );
 			$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_subs SET nxt = 0, idem = '', retries = 5 WHERE subid = $subid" );
-			$this->await_ping = true;
+			$wco->set_payment_method( 'scanpay' );
+			$wco->set_date_paid( time() );
+			$wco->set_transaction_id( $res['id'] );
+			$wco->add_meta_data( WC_SCANPAY_URI_AUTOCPT, (string) $data['autocapture'], true );
+			$wco->set_status( $data['autocapture'] ? 'completed' : apply_filters( 'woocommerce_payment_complete_order_status', 'processing', $oid, $wco ) );
+			$wco->save();
+			do_action( 'woocommerce_payment_complete', $oid, $res['id'] );
 		} catch ( \Exception $e ) {
 			/*
-				TODO:
-				- Add backoff based of retries left
-				- Technical errors should not cost retries and not change idem
-				- Add error_types: transient/permanent (wait backend)
-				- Permanent errors ("card expired") should set retries = 0
+				WCS default is 5 retries: +12h, +12h, +24h, +48h, +72h. We will let WCS handle the retry logic,
+				but as a safeguard we set a minimum requirement of 8 hours between automatic retries.
 			*/
-			$nxt = time() + 86400; // next retry in 24 hours
+			$nxt = time() + 28800; // 8 hours
+			$sub = $wpdb->get_row( "SELECT retries, nxt, idem FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid", ARRAY_A );
 			$rt  = $sub['retries'] - 1;
 			$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_subs SET nxt = $nxt, idem = '', retries = $rt WHERE subid = $subid" );
-			scanpay_log( 'error', 'scanpay client exception: ' . $e->getMessage() );
+			scanpay_log( 'error', "charge failed on #$oid: " . $e->getMessage() );
+			$wco->update_status( 'failed', 'Charge failed: ' . $e->getMessage() );
 		}
-	}
-
-	private function capture( int $oid, object $order, string $amount = null ): void {
-		global $wpdb;
-		$meta = $wpdb->get_row( "SELECT id, nacts FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid", ARRAY_A );
-		if ( ! $meta ) {
-			throw new Exception( "no payment details on order #$oid" );
-		}
-		$nacts = (int) $meta['nacts'];
-		if ( ! $amount ) {
-			if ( $nacts > 0 ) {
-				return; // Skip: already captured or voided
-			}
-			// Capture on Complete
-			$refunded = $order->get_total_refunded();
-			if ( $refunded > 0 ) {
-				// require_once WC_SCANPAY_DIR . '/library/math.php';
-				$amount = wc_scanpay_submoney( (string) $order->get_total( 'edit' ), (string) $refunded );
-			} else {
-				$amount = $order->get_total( 'edit' );
-			}
-		}
-		$this->client->capture( $meta['id'], [
-			'total' => $amount . ' ' . $order->get_currency( 'edit' ),
-			'index' => $nacts,
-		] );
-		$this->await_ping = true;
-	}
-
-	private function queue( string $act, object $order, int $subid = 0 ) {
-		global $wpdb;
-		$oid = (int) $order->get_id();
-		$sql = "INSERT INTO {$wpdb->prefix}scanpay_queue SET act = '$act', orderid = $oid, subid = $subid";
-		if ( ! $wpdb->query( $sql ) || $this->locked ) {
-			return;
-		}
-		try {
-			// Check if we are synchronized with Scanpay.
-			$seqdb = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}scanpay_seq WHERE shopid = " . $this->shopid, ARRAY_A );
-			if ( ! $seqdb || ( time() - (int) $seqdb['mtime'] ) > 360 || $seqdb['ping'] > $seqdb['seq'] ) {
-				throw new Exception( 'not synchronized with Scanpay' );
-			}
-
-			// Try to acquire lock. If we fail, another process is already running.
-			if ( ! $this->acquire_lock() ) {
-				return $this->poll_db_queue( $oid, $act );
-			}
-
-			// Process queue (we own the lock)
-			if ( $this->process_queue() ) {
-				usleep( 100000 ); // TODO: fix this
-				$seq = (int) $seqdb['seq'];
-				$this->seq( $seq, $seq );
-			}
-			$this->release_lock();
-		} catch ( Exception $e ) {
-			$this->release_lock();
-			$order->add_order_note( "Scanpay $act failed: " . $e->getMessage() );
-			scanpay_log( 'error', "$act failed (order #$oid): " . $e->getMessage() );
-		}
-	}
-
-	private function process_queue(): bool {
-		global $wpdb;
-		$queue = $wpdb->get_results( "SELECT orderid, act, amount, subid from {$wpdb->prefix}scanpay_queue", ARRAY_A );
-		if ( ! $queue || ! $this->acquire_lock() ) {
-			return false;
-		}
-		$this->await_ping = false;
-		foreach ( $queue as $k => $arr ) {
-			$oid = $arr['orderid'];
-			$act = $arr['act'];
-			try {
-				$order = wc_get_order( $oid );
-				if ( $order ) {
-					if ( 'charge' === $act && $this->wcs_exists ) {
-						$this->charge( $oid, $order, $arr );
-					} elseif ( 'capture' === $act ) {
-						$this->capture( $oid, $order, $arr['amount'] );
-					}
-				}
-			} catch ( \Exception $e ) {
-				scanpay_log( 'warning', "$act failed on order #$oid: " . $e->getMessage() );
-				$order->update_status( 'failed', "Scanpay $act failed: " . $e->getMessage() );
-			}
-			$wpdb->query( "DELETE FROM {$wpdb->prefix}scanpay_queue WHERE orderid = $oid AND act = '$act'" );
-		}
-		return $this->await_ping;
 	}
 }
