@@ -30,14 +30,19 @@ class WC_Scanpay_Client
             which will save us a HTTP roundtrip on POSTs >1024b. */
     }
 
+    // headerCallback: find idempotency-status header and store it in $this->idemstatus
     private function headerCallback($handle, string $header)
     {
         // Note: $handle is the cURL resource. The type is resource in PHP 7, but object in PHP 8+
-        $arr = explode(':', $header, 2);
+        $len = strlen($header);
+        if ($len < 19 || $len > 26) {
+            return $len; // Not a header we are interested in
+        }
+        $arr = explode(':', $header);
         if (isset($arr[1]) && strtolower(trim($arr[0])) === 'idempotency-status') {
             $this->idemstatus = strtolower(trim($arr[1]));
         }
-        return strlen($header);
+        return $len;
     }
 
     private function request(string $path, ?array $opts, ?array $data): array
@@ -54,11 +59,11 @@ class WC_Scanpay_Client
         ];
 
         $headers = $this->headers;
-        if (isset($opts, $opts['headers'])) {
+        if (isset($opts['headers'])) {
             foreach ($opts['headers'] as $key => &$val) {
-                $headers[strtolower($key)] = $key . ': ' . $val;
+                $headers[$key] = $key . ': ' . $val;
             }
-            if (isset($headers['idempotency-key'])) {
+            if (isset($opts['headers']['idempotency-key'])) {
                 $curlopts[CURLOPT_HEADERFUNCTION] = [$this, 'headerCallback'];
             }
         }
