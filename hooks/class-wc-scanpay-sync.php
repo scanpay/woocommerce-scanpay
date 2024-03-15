@@ -41,8 +41,8 @@ class WC_Scanpay_Sync {
 					$mtime = (int) $wpdb->get_var( "SELECT mtime FROM {$wpdb->prefix}scanpay_seq WHERE shopid = " . $this->shopid );
 					// Only charge if the system is in sync (+10m)
 					if ( ( time() - $mtime ) > 600 ) {
-						scanpay_log( 'error', 'charge stopped: system is out of sync' );
-						return $wco->update_status( 'failed', 'charge stopped: system is out of sync' );
+						scanpay_log( 'error', 'Subscription charge interrupted: the plugin is not synchronized' );
+						return $wco->update_status( 'failed', 'Subscription charge interrupted: the plugin is not synchronized.' );
 					}
 					$this->in_sync = true;
 				}
