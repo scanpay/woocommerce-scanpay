@@ -124,7 +124,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 			'redirect' => $link,
 		];
 	} catch ( Exception $e ) {
-		scanpay_log( 'error', 'scanpay paylink exception: ' . $e->getMessage() );
+		scanpay_log( 'error', 'Payment link creation failed: ' . $e->getMessage() );
 		throw new Exception( 'Error: We could not create a link to the payment window. Please wait a moment and try again.' );
 	}
 }
