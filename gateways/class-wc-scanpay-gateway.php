@@ -25,6 +25,7 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 			return require WC_SCANPAY_DIR . '/includes/form-fields.php';
 		}, 1, 0 );
 		$this->init_settings();
+		$this->title       = $this->settings['title'];
 		$this->description = $this->settings['description'];
 
 		add_action( 'woocommerce_update_options_payment_gateways_scanpay', [ $this, 'process_admin_options' ] );
@@ -82,7 +83,7 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 
 	public function get_transaction_url( $wc_order ): string {
 		return WC_SCANPAY_DASHBOARD . $wc_order->get_meta( WC_SCANPAY_URI_SHOPID, true ) . '/' .
-			$wc_order->get_transaction_id();
+			$wc_order->get_transaction_id( 'edit' );
 	}
 
 	public function process_payment( $order_id ): array {
