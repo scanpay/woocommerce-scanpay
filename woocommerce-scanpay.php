@@ -3,9 +3,9 @@ declare(strict_types = 1);
 
 /*
  * Version: 2.2.0
- * Requires at least: 6.3.0
+ * Requires at least: 4.7.0
  * Requires PHP: 7.4
- * WC requires at least: 6.9.0
+ * WC requires at least: 3.6.0
  * WC tested up to: 8.6.1
  * Plugin Name: Scanpay for WooCommerce
  * Plugin URI: https://wordpress.org/plugins/scanpay-for-woocommerce/
@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit();
 
 const WC_SCANPAY_VERSION      = '2.2.0';
 const WC_SCANPAY_MIN_PHP      = '7.4.0';
-const WC_SCANPAY_MIN_WC       = '6.9.0';
+const WC_SCANPAY_MIN_WC       = '3.6.0';
 const WC_SCANPAY_DASHBOARD    = 'https://dashboard.scanpay.dk/';
 const WC_SCANPAY_URI_SETTINGS = 'woocommerce_scanpay_settings';
 const WC_SCANPAY_URI_SHOPID   = '_scanpay_shopid';
@@ -155,7 +155,7 @@ function scanpay_admin_hooks() {
 	}
 
 	global $pagenow;
-	if ( 'plugins.php' === $pagenow || ! class_exists( 'WooCommerce' ) ) {
+	if ( 'plugins.php' === $pagenow || ! class_exists( 'WooCommerce', false ) ) {
 		// Add helpful links to the plugins table and check compatibility
 		add_filter( 'plugin_action_links_scanpay-for-woocommerce/woocommerce-scanpay.php', function ( $links ) {
 			if ( ! is_array( $links ) ) {
@@ -167,6 +167,7 @@ function scanpay_admin_hooks() {
 		});
 		require WC_SCANPAY_DIR . '/includes/compatibility.php';
 	} elseif ( 'admin.php' === $pagenow ) {
+
 		// Add CSS and JavaScript to the settings page
 		add_action( 'admin_print_styles-woocommerce_page_wc-settings', function () {
 			global $current_section;
@@ -179,15 +180,55 @@ function scanpay_admin_hooks() {
 		// Add metaboxes (HPOS enabled)
 		add_action( 'add_meta_boxes_woocommerce_page_wc-orders', 'wc_scanpay_add_meta_box', 9, 1 );
 		add_action( 'add_meta_boxes_woocommerce_page_wc-orders--shop_subscription', 'wc_scanpay_add_meta_box_subs', 9, 1 );
+
+		// [hook] Add custom bulk action to the order list (HPOS enabled)
+		add_filter( 'bulk_actions-woocommerce_page_wc-orders', function (array $actions ) {
+			$arr = [ 'scanpay_capture_complete' => 'Capture and complete' ];
+			foreach ( $actions as $k => $v ) {
+				$arr[ ( 'mark_completed' === $k ) ? 'scanpay_mark_completed' : $k ] = $v;
+			}
+			return $arr;
+		}, 10, 1 );
+
+		// [hook] Handle the custom bulk action (HPOS enabled)
+		add_filter( 'handle_bulk_actions-woocommerce_page_wc-orders', function ( string $redirect_to, string $action, array $ids ) {
+			return require WC_SCANPAY_DIR . '/hooks/wp-bulk-actions.php';
+		}, 0, 3 );
+
+		// [hook] Ajax action to mark order status (HPOS enabled)
+		add_action( 'wp_ajax_woocommerce_mark_order_status', function () {
+			require WC_SCANPAY_DIR . '/hooks/wp-ajax-wc-mark-order-status.php';
+		}, 0, 0);
+
 	} elseif ( 'post.php' === $pagenow ) {
 		// Add metabox (HPOS disabled)
 		add_action( 'add_meta_boxes_shop_order', 'wc_scanpay_add_meta_box', 9, 1 );
 		add_action( 'add_meta_boxes_shop_subscription', 'wc_scanpay_add_meta_box_subs', 9, 1 );
+	} elseif ( 'edit.php' === $pagenow ) {
+		// [hook] Add custom bulk action to the order list (HPOS disabled)
+		add_filter( 'bulk_actions-edit-shop_order', function( array $actions ) {
+			$arr = [ 'scanpay_capture_complete' => 'Capture and complete' ];
+			foreach ( $actions as $k => $v ) {
+				$arr[ ( 'mark_completed' === $k ) ? 'scanpay_mark_completed' : $k ] = $v;
+			}
+			return $arr;
+		}, 10, 1 );
+
+		// [hook] Handle the custom bulk action (HPOS disabled)
+		add_filter( 'handle_bulk_actions-edit-shop_order', function ( string $redirect_to, string $action, array $ids ) {
+			return require WC_SCANPAY_DIR . '/hooks/wp-bulk-actions.php';
+		}, 0, 3 );
+
+		// [hook] Ajax action to mark order status (HPOS disabled)
+		add_action( 'wp_ajax_woocommerce_mark_order_status', function () {
+			require WC_SCANPAY_DIR . '/hooks/wp-ajax-wc-mark-order-status.php';
+		}, 0, 0);
+
 	}
 }
 
 add_action( 'plugins_loaded', function () {
-	//  [hook] Returns the list of gateways. Always called before gateways are needed
+	// [hook] Returns the list of gateways. Always called before gateways are needed
 	add_filter( 'woocommerce_payment_gateways', function ( array $methods ) {
 		if ( ! class_exists( 'WC_Scanpay_Gateway', false ) ) {
 			require WC_SCANPAY_DIR . '/gateways/class-wc-scanpay-gateway.php';
@@ -211,39 +252,9 @@ add_action( 'plugins_loaded', function () {
 		}
 	}
 
-	// [hook] Add custom bulk action to the order list
-	add_filter( 'bulk_actions-edit-shop_order', 'wc_scanpay_remove_bulk_action', 10, 1 );
-	add_filter( 'bulk_actions-woocommerce_page_wc-orders', 'wc_scanpay_remove_bulk_action', 10, 1 );
-	function wc_scanpay_remove_bulk_action( $actions ) {
-		$arr = [ 'scanpay_capture_complete' => 'Capture and complete' ];
-		foreach ( $actions as $k => $v ) {
-			$arr[ ( 'mark_completed' === $k ) ? 'scanpay_mark_completed' : $k ] = $v;
-		}
-		return $arr;
-	}
-
-	// [hook] Handle the custom bulk action
-	add_filter( 'handle_bulk_actions-edit-shop_order', 'wc_scanpay_handle_bulk_action', 0, 3 );
-	add_filter( 'handle_bulk_actions-woocommerce_page_wc-orders', 'wc_scanpay_handle_bulk_action', 0, 3 );
-	function wc_scanpay_handle_bulk_action( string $redirect_to, string $action, array $ids ) {
-		return require WC_SCANPAY_DIR . '/hooks/wp-bulk-actions.php';
-	}
-
-	// [hook] Ajax action to mark order status (icon in order list)
-	add_action( 'wp_ajax_woocommerce_mark_order_status', function () {
-		require WC_SCANPAY_DIR . '/hooks/wp-ajax-wc-mark-order-status.php';
-	}, 0, 0);
-
-	add_action( 'woocommerce_before_thankyou', function ( $order_id ) {
-		require WC_SCANPAY_DIR . '/hooks/wc-before-thankyou.php';
-	}, 3, 1);
-
-	if ( defined( 'DOING_AJAX' ) || wp_is_json_request() ) {
-		return;
-	}
-
-	if ( ( defined( 'WP_ADMIN' ) && WP_ADMIN ) || defined( 'DOING_CRON' ) ) {
-		return scanpay_admin_hooks();
+	// Ignore JSON requests
+	if ( defined( 'DOING_AJAX' ) || defined( 'DOING_CRON' ) || str_starts_with( $_SERVER['HTTP_ACCEPT'] ?? '', 'application/json' ) ) {
+		return true;
 	}
 
 	add_filter( 'allowed_redirect_hosts', function ( array $hosts ) {
@@ -251,10 +262,18 @@ add_action( 'plugins_loaded', function () {
 		return $hosts;
 	} );
 
+	add_action( 'woocommerce_before_thankyou', function ( $order_id ) {
+		require WC_SCANPAY_DIR . '/hooks/wc-before-thankyou.php';
+	}, 3, 1);
+
 	add_action( 'woocommerce_blocks_payment_method_type_registration', function ( $registry ) {
 		require WC_SCANPAY_DIR . '/hooks/class-wc-scanpay-blocks-support.php';
 		$registry->register( new WC_Scanpay_Blocks_Support() );
 	} );
+
+	if ( ( defined( 'WP_ADMIN' ) && WP_ADMIN ) ) {
+		scanpay_admin_hooks();
+	}
 }, 11);
 
 
