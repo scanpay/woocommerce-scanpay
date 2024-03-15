@@ -182,7 +182,7 @@ function scanpay_admin_hooks() {
 		add_action( 'add_meta_boxes_woocommerce_page_wc-orders--shop_subscription', 'wc_scanpay_add_meta_box_subs', 9, 1 );
 
 		// [hook] Add custom bulk action to the order list (HPOS enabled)
-		add_filter( 'bulk_actions-woocommerce_page_wc-orders', function (array $actions ) {
+		add_filter( 'bulk_actions-woocommerce_page_wc-orders', function ( array $actions ) {
 			$arr = [ 'scanpay_capture_complete' => 'Capture and complete' ];
 			foreach ( $actions as $k => $v ) {
 				$arr[ ( 'mark_completed' === $k ) ? 'scanpay_mark_completed' : $k ] = $v;
@@ -206,7 +206,7 @@ function scanpay_admin_hooks() {
 		add_action( 'add_meta_boxes_shop_subscription', 'wc_scanpay_add_meta_box_subs', 9, 1 );
 	} elseif ( 'edit.php' === $pagenow ) {
 		// [hook] Add custom bulk action to the order list (HPOS disabled)
-		add_filter( 'bulk_actions-edit-shop_order', function( array $actions ) {
+		add_filter( 'bulk_actions-edit-shop_order', function ( array $actions ) {
 			$arr = [ 'scanpay_capture_complete' => 'Capture and complete' ];
 			foreach ( $actions as $k => $v ) {
 				$arr[ ( 'mark_completed' === $k ) ? 'scanpay_mark_completed' : $k ] = $v;

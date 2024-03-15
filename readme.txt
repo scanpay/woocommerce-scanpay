@@ -1,7 +1,7 @@
 === Scanpay for WooCommerce ===
 Contributors: scanpay
 Tags: ecommerce, e-commerce, woocommerce, payments, subscriptions
-Requires at least: 6.3
+Requires at least: 4.7.0
 Requires PHP: 7.4
 Tested up to: 6.4.3
 Stable tag: 2.2.0
@@ -24,7 +24,7 @@ With this plugin, you can quickly and easily accept payments in WooCommerce thro
 * Auto-complete orders after payment
 
 = Supported plugins =
-* WooCommerce Subscriptions
+* WooCommerce Subscriptions (> v1.0)
 * WooCommerce Blocks
 * WooCommerce HPOS
 

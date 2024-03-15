@@ -10,7 +10,7 @@ If you have any questions, concerns or ideas, please do not hesitate to e-mail u
 
 ## Requirements
 
-* WooCommerce >= 6.9.0
+* WooCommerce >= 3.6.0
 * WordPress >= 4.7.0
 * PHP version >= 7.4 ([requirements](./docs/requirements.md)).
 * php-curl (libcurl >= 7.25.0).
