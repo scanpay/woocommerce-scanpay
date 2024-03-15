@@ -17,9 +17,6 @@ class WC_Scanpay_Client
 
     public function __construct(string $apikey)
     {
-        if (!function_exists('curl_init')) {
-            die("ERROR: Please enable php-curl\n");
-        }
         $this->apikey = $apikey;
         $this->shopid = (int) strstr( $apikey, ':', true );
         $this->ch = curl_init();
