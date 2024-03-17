@@ -4,7 +4,7 @@ Tags: woocommerce, payments, subscriptions, scanpay, mobilepay
 Requires at least: 4.7.0
 Requires PHP: 7.4
 Tested up to: 6.5.0
-Stable tag: 2.2.0
+Stable tag: 2.2.1
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
 

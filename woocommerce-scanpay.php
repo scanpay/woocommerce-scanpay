@@ -2,7 +2,7 @@
 declare(strict_types = 1);
 
 /*
- * Version: 2.2.0
+ * Version: 2.2.1
  * Requires at least: 4.7.0
  * Requires PHP: 7.4
  * WC requires at least: 3.6.0
@@ -20,7 +20,7 @@ declare(strict_types = 1);
 
 defined( 'ABSPATH' ) || exit();
 
-const WC_SCANPAY_VERSION      = '2.2.0';
+const WC_SCANPAY_VERSION      = '2.2.1';
 const WC_SCANPAY_MIN_PHP      = '7.4.0';
 const WC_SCANPAY_MIN_WC       = '3.6.0';
 const WC_SCANPAY_DASHBOARD    = 'https://dashboard.scanpay.dk/';
