@@ -1,9 +1,9 @@
 === Scanpay for WooCommerce ===
 Contributors: scanpay
-Tags: ecommerce, e-commerce, woocommerce, payments, subscriptions
+Tags: woocommerce, payments, subscriptions, scanpay, mobilepay
 Requires at least: 4.7.0
 Requires PHP: 7.4
-Tested up to: 6.4.3
+Tested up to: 6.5.0
 Stable tag: 2.2.0
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
@@ -12,40 +12,99 @@ Accept payments in WooCommerce with a reliable and secure Scandinavian payment g
 
 == Description ==
 
-With this plugin, you can quickly and easily accept payments in WooCommerce through Scanpay, a reliable and secure Scandinavian payment gateway.
+With this plugin, you can quickly and easily accept payments in WooCommerce through [Scanpay](https://scanpay.dk), a reliable and secure Scandinavian payment gateway.
 
-= Supported payment methods =
-* Dankort, Visa, Mastercard and Maestro
-* JCB, American Express and Diners
-* MobilePay and Apple Pay
+This is an official payment plugin developed, maintained and supported by Scanpay. Feel free to follow or contribute to the development on [GitHub](https://github.com/scanpay/woocommerce-scanpay).
 
-= Supported options =
-* Auto-capture when order status is _'Completed'_
-* Auto-complete orders after payment
+## Features
 
-= Supported plugins =
-* WooCommerce Subscriptions (> v1.0)
-* WooCommerce Blocks
-* WooCommerce HPOS
+* Dankort, Visa, Mastercard, JCB, Amex, Diners, et. al.
+* MobilePay, Apple Pay and soon Google Pay _(Q2-2024)_
+* Full WooCommerce Subscriptions support
+* Option to automatically capture payments
+* Option to auto-complete orders
+* HPOS and WooCommerce Blocks support
+* An optimized, bloat-free and thoroughly tested plugin
+* E-mail, phone and [IRC](https://chat.scanpay.dev/) support
+
+### Why choose Scanpay?
+
+#### Acquirer agnostic
+
+Scanpay is a neutral and acquirer-agnostic payment gateway with connections to several acquiring banks. With our platform, you can have multiple acquirers and easily add or remove an acquirer. This allows you to obtain the best prices in the market and acquirer failover _(redundancy)_.
+
+#### Low pricing
+
+We do not charge any setup, monthly or hidden fees. Our only fee is a transaction fee of 0.25 DKK (~ €0.034).
+
+#### Security
+
+Our platform is programmed in C and designed with a security-by-design approach, making security considerations the core of our engineering process. The emphasis has been on creating a secure, stable, efficient platform with a small and auditable codebase.
+
+#### Performance
+
+We believe we have created the most performant payment platform in the world. The platform is battle-tested and capable of handling millions of transactions. As engineers, this is something we are genuinely proud of.
+
 
 == Installation ==
 
-You can create a scanpay account [here](https://scanpay.dk/opret). Please follow the steps in the [installation and configuration guide](https://github.com/scanpay/woocommerce-scanpay#scanpay-for-woocommerce).
+**Installation guide:**
+
+1. Log in to your WordPress dashboard and navigate to `Plugins > Add New`. Search for *"Scanpay for WooCommerce"* and install the plugin.
+
+2. Click *"Activate"* to activate the plugin.
+
+3. Navigate to `WooCommerce > Settings > Payments` to manage your WooCommerce payment settings. Find the *"Scanpay"* option and click *"Set up"* to open the configuration page.
+
+4. Insert your Scanpay API key in the *"API key"* field and click *"Save changes"*. You can generate an API key [here](https://dashboard.scanpay.dk/settings/api).
+
+5. A yellow box should appear at the top of the page. Click *"Send ping"* to initiate the synchronization process.
+
+6. Now, in the scanpay dashboard, save the *"ping URL"*. The system will perform an initial synchronization and show you the result.
+
+7. Your WooCommerce store is now connected and synchronized with Scanpay. When ready, change the status from *"Disabled"* to *"Enabled"* to enable the extension in your checkout.
+
+
+**Update the plugin**
+
+1. Navigate to `Plugins > Installed plugins`.
+
+2. Find *"Scanpay for WooCommerce"* in the list and click *"Update"*.
+
+
+**Uninstall the plugin**
+
+1. Navigate to `Plugins > Installed plugins`.
+
+2. Find *"Scanpay for WooCommerce"* in the list.
+
+3. Click *"Deactivate"* and then *"Delete"*.
+
+4. The plugin will now uninstall itself and remove all stored data.
+
 
 == Frequently Asked Questions ==
+
 = Which countries does this payment gateway support? =
-Available for merchants in all european countries.
+Available for merchants in all European countries.
 
-= Where can I find the instructions? =
-Please follow the [installation and configuration guide](https://github.com/scanpay/woocommerce-scanpay#scanpay-for-woocommerce).
+= Do you support MobilePay? =
+Yes, this plugin supports MobilePay. You must enable MobilePay in both the plugin and the [dashboard](https://dashboard.scanpay.dk).
 
+= How do I contact support? =
+You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us on [IRC](https://chat.scanpay.dev/).
 
 == Changelog ==
+
+= 2.2.1 - 2024-03-17 =
+* Add - Add support for old versions of WooCommerce
+* Fix - Improve some error messages
+* Fix - Minor optimizations
 
 = 2.2.0 - 2024-03-13 =
 * Add - Add bulk action: Capture and Complete
 * Add - WooCommerce Subscriptions retry failed charges
-* Fix - 'Capture on Complete' now tries to capture before the order status changes (e.g. before e-mails)
+* Fix - 'Capture on Complete' now tries to capture before the order status changes (i.e. before e-mails)
 * Fix - Various performance optimizations
 * Fix - Fix PHP warnings
 
@@ -82,141 +141,4 @@ Please follow the [installation and configuration guide](https://github.com/scan
 = 2.0.1 =
 * Add - Add CSS height to card icons
 
-= 2.0.0 =
-Complete rewrite with many improvements
-
-= 1.3.15 =
-Fixed crash if autocapture was empty.
-
-= 1.3.14 =
-Refined autocapture option.
-
-= 1.3.13 =
-Refined trim method used to compare totals.
-
-= 1.3.12 =
-No longer requires php bcmath (bccomp requires it).
-
-= 1.3.11 =
-Fixed more total mismatch cases.
-
-= 1.3.10 =
-Fixed total mismatch being triggered sometimes when it should not.
-
-= 1.3.9 =
-Added debug info for total mismatch cases.
-
-= 1.3.8 =
-No longer errors on negative items. Instead replaces all items with 'Discounted cart'.
-
-= 1.3.7 =
-Capture on complete: Try transaction id stored in scanpay table first.
-
-= 1.3.6 =
-Added payid link.
-
-= 1.3.5 =
-Added shopid to dashboard pingurl configuration url
-
-= 1.3.4 =
-Made it possible to change payment method for subscriptions with no scanpay subscriber id registered.
-
-= 1.3.3 =
-Fixed subscription bug.
-
-= 1.3.2 =
-Fixed scanpay details not being saved, if order status was changed manually before seq.
-
-= 1.3.1 =
-Fixed send ping in module settings.
-
-= 1.3.0 =
-Added support for card icons in checkout.
-Improved plugin settings and setup guide.
-
-= 1.2.4 =
-Fixed payment method change upon failed subscriptions
-
-= 1.2.3 =
-Fixed an issue where Scanpay details sometimes would not show.
-
-= 1.2.2 =
-Fixed switch statement warning.
-
-= 1.2.1 =
-Fixed bug causing "time since last pingurl" to display wrongly in settings.
-
-= 1.2.0 =
-Added support for capture on complete.
-
-= 1.1.1 =
-Fixed scanpay client header merge.
-Fixed plugin load order.
-
-= 1.1.0 =
-Added BETA support for subscriptions. Requires the use of the WooCommerce Subscriptions plugin.
-Added support for autocompletion (including autocapture) of orders with virtual goods.
-
-= 1.0.10 =
-Fixed some cases where the code added in 1.0.9 would kick in when it should not.
-
-= 1.0.9 =
-Added support for hooks changing total. This will make coupon plugins that modifies the grand total also change the actualy paid amount.
-
-= 1.0.8 =
-Added tax to item fees.
-
-= 1.0.7 =
-Verified to work with woocommerce 3.5.0.
-
-= 1.0.6 =
-Updated supported wordpress/woocommerce versions.
-
-= 1.0.5 =
-Added new ping endpoint to remove slashes, kept support for old one.
-
-= 1.0.4 =
-Item fees are now considered.
-
-= 1.0.3 =
-Added 'woocommerce_scanpay_newurl_data' filter to allow plugins to customize payment link parameters.
-
-= 1.0.2 =
-No longer exits if woocommerce is disabled.
-
-= 1.0.0 =
-Updated version compatibility.
-
-= 0.12 =
-Fixed double stock reduction.
-
-= 0.11 =
-Now uses item line total instead of item price for Scanpay API.
-
-= 0.10 =
-Fixed double Scanpay order display.
-
-= 0.09 =
-Added MobilePay support.
-
-= 0.07 =
-Fixed debug log warnings.
-
-= 0.06 =
-Cart now emptied only after payment is complete (before it was emptied at payment redirect).
-Item stocks now reduced upon first ping rather than on redirect.
-
-= 0.05 =
-Added Scanpay Details panel to orders that have been processed by Scanpay.
-
-= 0.04 =
-Autocapture option added. Improved error reporting.
-
-= 0.03 =
-Sku field now a string.
-
-= 0.02 =
-Fixes.
-
-= 0.01 =
-Initial version.
+[See changelog for all versions](https://raw.githubusercontent.com/scanpay/woocommerce-scanpay/master/changelog.txt).

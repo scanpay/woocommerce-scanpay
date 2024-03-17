@@ -18,12 +18,11 @@ If you have any questions, concerns or ideas, please do not hesitate to e-mail u
 
 ## Plugin compatibility
 
-* WooCommerce Subscriptions (>= 2.0)
-* WooCommerce Blocks
+* WooCommerce Subscriptions (>= 1.0)
 
 ## Installation
 
-Please follow the instructions in the [installation guide](./docs/installation.md).
+Please follow the instructions in the [installation guide](https://wordpress.org/plugins/scanpay-for-woocommerce/#installation).
 
 ## License
 
