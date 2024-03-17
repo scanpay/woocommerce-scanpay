@@ -2,9 +2,10 @@
 
 /*
     Scanpay module client lib
-    Version 2.2.2 (2024-03-06)
+    Version 2.2.3 (2024-03-17)
     - remove data[] from renew() and newURL() params
     + Add parsePing and shopid
+    + Optimizations
 */
 
 class WC_Scanpay_Client
@@ -21,10 +22,10 @@ class WC_Scanpay_Client
         $this->shopid = (int) strstr( $apikey, ':', true );
         $this->ch = curl_init();
         $this->headers = [
-            'authorization' => 'Authorization: Basic ' . base64_encode($apikey),
-            'x-shop-plugin' => 'X-Shop-Plugin: WC-' . WC_SCANPAY_VERSION . '/' . WC_VERSION . '; PHP-' . PHP_VERSION,
-            'content-type' => 'Content-Type: application/json',
-            'expect' => 'Expect: ',
+            'Authorization: Basic ' . base64_encode($apikey),
+            'X-Shop-Plugin: WC-' . WC_SCANPAY_VERSION . '/' . WC_VERSION . '; PHP-' . PHP_VERSION,
+            'Content-Type: application/json',
+            'Expect: ',
         ];
         /* The 'Expect' header will disable libcurl's expect-logic,
             which will save us a HTTP roundtrip on POSTs >1024b. */
@@ -60,14 +61,14 @@ class WC_Scanpay_Client
 
         $headers = $this->headers;
         if (isset($opts['headers'])) {
-            foreach ($opts['headers'] as $key => &$val) {
-                $headers[$key] = $key . ': ' . $val;
+            foreach ($opts['headers'] as $key => $val) {
+                $headers[] = $key . ': ' . $val;
             }
-            if (isset($opts['headers']['idempotency-key'])) {
+            if (isset($opts['headers']['Idempotency-Key'])) {
                 $curlopts[CURLOPT_HEADERFUNCTION] = [$this, 'headerCallback'];
             }
         }
-        $curlopts[CURLOPT_HTTPHEADER] = array_values($headers);
+        $curlopts[CURLOPT_HTTPHEADER] = $headers;
 
         if (isset($data)) {
             $curlopts[CURLOPT_POSTFIELDS] = json_encode($data, JSON_UNESCAPED_SLASHES);
@@ -91,9 +92,8 @@ class WC_Scanpay_Client
             throw new \Exception($result);
         }
 
-        if (isset($opts, $headers['idempotency-key']) && $this->idemstatus !== 'ok') {
-            throw new \Exception("Server failed to provide idempotency. Scanpay returned $statusCode - "
-                . explode("\n", $result)[0]);
+        if (isset($opts['headers']['Idempotency-Key']) && $this->idemstatus !== 'ok') {
+            throw new \Exception('Server failed to provide idempotency: ' . $result);
         }
 
         $json = json_decode($result, true);
