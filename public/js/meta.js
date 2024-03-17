@@ -71,7 +71,8 @@
                     showWarning(
                         `Your scanpay plugin is <b class="scanpay-outdated">outdated</b>.
                         Please update to ${tag_name} (<a href="//github.com/scanpay/woocommerce-scanpay/releases"
-                        target="_blank">changelog</a>)`
+                        target="_blank">changelog</a>)`,
+                        'info'
                     );
                 }
             });
