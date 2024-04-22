@@ -49,7 +49,7 @@ echo wp_kses_post( wpautop( $this->get_method_description() ) );
 				Welcome to Scanpay for WooCommerce!
 			</div>
 			Please follow the instructions in the
-			<a href="https://github.com/scanpay/woocommerce-scanpay/blob/master/docs/installation.md">installation guide</a>.
+			<a href="https://wordpress.org/plugins/scanpay-for-woocommerce/#installation">installation guide</a>.
 		</div>
 	<?php endif; ?>
 </div>
