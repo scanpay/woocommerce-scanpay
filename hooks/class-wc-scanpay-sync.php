@@ -99,7 +99,7 @@ class WC_Scanpay_Sync {
 					return [ true, 'capture skipped; nothing to capture.' ];
 				}
 			}
-			$this->client->capture( $meta['id'], [
+			$this->client->capture( (int) $meta['id'], [
 				'total' => $amount . ' ' . $wco->get_currency( 'edit' ),
 				'index' => (int) $meta['nacts'],
 			] );
