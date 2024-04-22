@@ -30,6 +30,7 @@ class WC_Scanpay_Sync {
 		if ( $this->subscriptions ) {
 			// [hook] Manual and Recurring renewals (cron|admin|user)
 			add_filter( 'woocommerce_scheduled_subscription_payment_scanpay', function ( float $x, object $wco ) {
+				$oid   = (int) $wco->get_id();
 				$str   = $wco->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
 				$subid = abs( (int) $str );
 				if ( 0 === $subid || (string) $subid !== $str ) {
@@ -41,12 +42,12 @@ class WC_Scanpay_Sync {
 					$mtime = (int) $wpdb->get_var( "SELECT mtime FROM {$wpdb->prefix}scanpay_seq WHERE shopid = " . $this->shopid );
 					// Only charge if the system is in sync (+10m)
 					if ( ( time() - $mtime ) > 600 ) {
-						scanpay_log( 'error', 'Subscription charge interrupted: the plugin is not synchronized' );
-						return $wco->update_status( 'failed', 'Subscription charge interrupted: the plugin is not synchronized.' );
+						scanpay_log( 'error', "Subscription charge interrupted (#$oid): the plugin is not synchronized" );
+						return $wco->update_status( 'failed', "Subscription charge interrupted (#$oid): the plugin is not synchronized." );
 					}
 					$this->in_sync = true;
 				}
-				$this->charge( (int) $wco->get_id(), $wco, $subid );
+				$this->charge( $oid, $wco, $subid );
 			}, 3, 2 );
 			remove_filter( 'woocommerce_scheduled_subscription_payment_scanpay', 'wc_scanpay_load_sync', 1, 0 );
 		}
