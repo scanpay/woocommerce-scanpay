@@ -3,8 +3,8 @@ Contributors: scanpay
 Tags: woocommerce, payments, subscriptions, scanpay, mobilepay
 Requires at least: 4.7.0
 Requires PHP: 7.4
-Tested up to: 6.5.0
-Stable tag: 2.2.1
+Tested up to: 6.5.3
+Stable tag: 2.2.2
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
 
@@ -95,6 +95,10 @@ Yes, this plugin supports MobilePay. You must enable MobilePay in both the plugi
 You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us on [IRC](https://chat.scanpay.dev/).
 
 == Changelog ==
+
+= 2.2.2 - 2024-04-23 =
+* Add - Add extra ToS checkbox for Subscriptions (optional)
+* Fix - Minor fixes
 
 = 2.2.1 - 2024-03-17 =
 * Add - Add support for old versions of WooCommerce

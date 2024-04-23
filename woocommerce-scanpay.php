@@ -2,11 +2,11 @@
 declare(strict_types = 1);
 
 /*
- * Version: 2.2.1
+ * Version: 2.2.2
  * Requires at least: 4.7.0
  * Requires PHP: 7.4
  * WC requires at least: 3.6.0
- * WC tested up to: 8.6.1
+ * WC tested up to: 8.8.2
  * Plugin Name: Scanpay for WooCommerce
  * Plugin URI: https://wordpress.org/plugins/scanpay-for-woocommerce/
  * Description: Accept payments in WooCommerce with a secure payment gateway.
@@ -20,7 +20,7 @@ declare(strict_types = 1);
 
 defined( 'ABSPATH' ) || exit();
 
-const WC_SCANPAY_VERSION      = '2.2.1';
+const WC_SCANPAY_VERSION      = '2.2.2';
 const WC_SCANPAY_MIN_PHP      = '7.4.0';
 const WC_SCANPAY_MIN_WC       = '3.6.0';
 const WC_SCANPAY_DASHBOARD    = 'https://dashboard.scanpay.dk/';
@@ -261,6 +261,30 @@ add_action( 'plugins_loaded', function () {
 		$hosts[] = 'betal.scanpay.dk';
 		return $hosts;
 	} );
+
+	add_action( 'woocommerce_review_order_before_submit', function () {
+		// TODO: Ignore other PSPs
+		if ( class_exists( 'WC_Subscriptions_Cart', false ) && WC_Subscriptions_Cart::cart_contains_subscription() ) {
+			$settings = get_option( WC_SCANPAY_URI_SETTINGS );
+			if ( $settings && isset( $settings['wcs_terms'] ) && '0' !== $settings['wcs_terms'] ) {
+				$url = get_page_link( $settings['wcs_terms'] );
+				$txt = 'Jeg accepterer <a href="' . $url . ' ">abonnementsbetingelserne</a>.';
+
+				woocommerce_form_field( 'wcssp-terms-field', [
+					'type'  => 'hidden',
+					'value' => '1',
+				] );
+				woocommerce_form_field( 'wcssp-terms', [
+					'type'        => 'checkbox',
+					'class'       => [ 'form-row wcssp-terms' ],
+					'label_class' => [ 'woocommerce-form__label woocommerce-form__label-for-checkbox checkbox' ],
+					'input_class' => [ 'woocommerce-form__input woocommerce-form__input-checkbox input-checkbox' ],
+					'required'    => true,
+					'label'       => $txt,
+				]);
+			}
+		}
+	}, 10 );
 
 	add_action( 'woocommerce_before_thankyou', function ( $order_id ) {
 		require WC_SCANPAY_DIR . '/hooks/wc-before-thankyou.php';
