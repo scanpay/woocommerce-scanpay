@@ -2,6 +2,15 @@
 
 defined( 'ABSPATH' ) || exit();
 
+// phpcs:ignore WordPress.Security.NonceVerification.Missing
+if ( isset( $_POST['wcssp-terms-field'] ) && ! isset( $_POST['wcssp-terms'] ) ) {
+	wc_add_notice(
+		'For at fortsætte, skal du acceptere abonnementsbetingelserne.',
+		'error'
+	);
+	throw new Exception();
+}
+
 require WC_SCANPAY_DIR . '/library/client.php';
 require WC_SCANPAY_DIR . '/library/math.php';
 

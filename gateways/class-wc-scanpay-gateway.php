@@ -22,7 +22,12 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 		];
 
 		add_filter( 'woocommerce_settings_api_form_fields_scanpay', function () {
-			return require WC_SCANPAY_DIR . '/includes/form-fields.php';
+			$settings = require WC_SCANPAY_DIR . '/includes/form-fields.php';
+			$pages    = get_pages();
+			foreach ( $pages as $page ) {
+				$settings['wcs_terms']['options'][ $page->ID ] = $page->post_title . ' (' . $page->ID . ')';
+			}
+			return $settings;
 		}, 1, 0 );
 		$this->init_settings();
 		$this->title       = $this->settings['title'];

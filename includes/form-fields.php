@@ -80,4 +80,12 @@ return [
 		'label'   => 'Auto-complete renewal orders <i>(Subscriptions only)</i>.',
 		'default' => 'no',
 	],
+	'wcs_terms'            => [
+		'title'       => 'Subscription Terms',
+		'type'        => 'select',
+		'description' => 'Add a checkbox for Subscription Terms and Conditions.',
+		'desc_tip'    => true,
+		'default'     => '0',
+		'options'     => [ '0' => 'Hide checkbox' ],
+	],
 ];
