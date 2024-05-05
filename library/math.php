@@ -34,9 +34,9 @@ function wc_scanpay_digadd( string $a, string $b ): string {
 		} else {
 			$rem = 0;
 		}
-		$s[$i] = strval($r);
+		$s[$i] = (string) $r;
 	}
-	return ( $rem > 0 ) ? strval($rem) . $s : $s;
+	return ( $rem > 0 ) ? (string) $rem . $s : $s;
 }
 
 function wc_scanpay_digsub( string $a, string $b ): string {

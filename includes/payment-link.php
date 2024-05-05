@@ -96,7 +96,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
 			$line_total = $wco->get_line_total( $item, true, true ); // w. taxes and rounded (how Woo does)
 			if ( $line_total >= 0 ) {
-				$order_total     = wc_scanpay_addmoney( $order_total, strval( $line_total ) );
+				$order_total     = wc_scanpay_addmoney( $order_total, (string) $line_total );
 				$data['items'][] = [
 					'name'     => $item->get_name( 'edit' ),
 					'quantity' => $item->get_quantity(),
@@ -104,7 +104,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 				];
 			}
 		}
-		$wc_total = strval( $wco->get_total( 'edit' ) );
+		$wc_total = (string) $wco->get_total( 'edit' );
 		if ( $wc_total !== $order_total && wc_scanpay_cmpmoney( $order_total, $wc_total ) !== 0 ) {
 			$data['items'] = [
 				[

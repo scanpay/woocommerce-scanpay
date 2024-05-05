@@ -499,7 +499,7 @@ class WC_Scanpay_Sync {
 			}
 			$line_total = $wco->get_line_total( $item, true, true ); // w. taxes and rounded (how Woo does)
 			if ( $line_total >= 0 ) {
-				$sum             = wc_scanpay_addmoney( $sum, strval( $line_total ) );
+				$sum             = wc_scanpay_addmoney( $sum, (string) $line_total );
 				$data['items'][] = [
 					'name'     => $item->get_name( 'edit' ),
 					'quantity' => $item->get_quantity(),
@@ -508,7 +508,7 @@ class WC_Scanpay_Sync {
 			}
 		}
 
-		$wc_total = strval( $wco->get_total( 'edit' ) );
+		$wc_total = (string) $wco->get_total( 'edit' );
 		if ( $sum !== $wc_total && wc_scanpay_cmpmoney( $sum, $wc_total ) !== 0 ) {
 			$data['items'] = [
 				[
