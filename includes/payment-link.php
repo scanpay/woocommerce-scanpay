@@ -27,6 +27,38 @@ function wc_scanpay_phone_prefixer( string $phone, string $country ): string {
 	return $phone;
 }
 
+function wc_scanpay_subref( int $oid, object $wco ) : ?string {
+	if (
+		class_exists( 'WC_Subscriptions_Change_Payment_Gateway', false )
+		&& WC_Subscriptions_Change_Payment_Gateway::$is_request_to_change_payment
+	) {
+		/*
+		*   This only happens when the user change PSP to us. This process DOES NOT
+		*   create a new order, it only updates the payment method of the WCS Subscription.
+		*	$oid and $wco both relate to the WCS Subscription, not the parent order.
+		*/
+		return 'wcs#' . $oid;
+	}
+
+	/*
+	*	Check if order contains any subs. Most PSPs use wcs_order_contains_subscription(),
+	*	but it is extremely inefficient. It is 5-10 times faster to use wc_get_orders directly.
+	*/
+	$wcs_subs = wc_get_orders([
+		'type'   => 'shop_subscription',
+		'status' => ( $wco->get_status() === 'pending' ) ? 'wc-pending' : null,
+		'parent' => $oid,
+		'return' => 'ids',
+	]);
+	if ( $wcs_subs ) {
+		// TODO: use new wcs# scheme
+		return (string) $oid;
+	}
+	return null;
+}
+
+
+
 function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	$wco = wc_get_order( $oid );
 	if ( ! $wco ) {
@@ -40,6 +72,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 
 	$client = new WC_Scanpay_Client( $settings['apikey'] );
 	$data   = [
+		'orderid'     => (string) $oid,
 		'autocapture' => 'yes' === ( $settings['capture_on_complete'] ?? '' ) && ! $wco->needs_processing(),
 		'successurl'  => apply_filters( 'woocommerce_get_return_url', $wco->get_checkout_order_received_url(), $wco ),
 		'billing'     => [
@@ -67,31 +100,21 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	if ( class_exists( 'WC_Subscriptions', false ) ) {
 		$subid = (int) $wco->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
 		if ( $subid ) {
+			// Request to renew a scanpay payment method
 			return [
 				'result'   => 'success',
 				'redirect' => $client->renew( $subid, $data ),
 			];
 		}
-		/*
-			Check if the order has any subscriptions. We don't want to use wcs_order_contains_subscription();
-			it has a CRAZY overhead and loads the subscriptions, which is a waste of resources.
-		*/
-		if ( wc_get_orders(
-			[
-				'type'   => 'shop_subscription',
-				'status' => 'wc-pending',
-				'parent' => $oid,
-				'return' => 'ids',
-			]
-		) ) {
-			$data['subscriber'] = [ 'ref' => (string) $oid ];
+		$subref = wc_scanpay_subref( $oid, $wco );
+		if ( $subref ) {
+			$data['subscriber'] = [ 'ref' => $subref ];
 		}
 	}
 
 	if ( ! isset( $data['subscriber'] ) ) {
-		$data['orderid'] = (string) $oid;
-		$currency        = $wco->get_currency( 'edit' );
-		$order_total     = '0';
+		$currency    = $wco->get_currency( 'edit' );
+		$order_total = '0';
 
 		foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
 			$line_total = $wco->get_line_total( $item, true, true ); // w. taxes and rounded (how Woo does)
