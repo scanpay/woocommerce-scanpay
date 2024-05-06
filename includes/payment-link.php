@@ -2,6 +2,9 @@
 
 defined( 'ABSPATH' ) || exit();
 
+require WC_SCANPAY_DIR . '/library/client.php';
+require WC_SCANPAY_DIR . '/library/math.php';
+
 // phpcs:ignore WordPress.Security.NonceVerification.Missing
 if ( isset( $_POST['wcssp-terms-field'] ) && ! isset( $_POST['wcssp-terms'] ) ) {
 	wc_add_notice(
@@ -10,9 +13,6 @@ if ( isset( $_POST['wcssp-terms-field'] ) && ! isset( $_POST['wcssp-terms'] ) ) 
 	);
 	throw new Exception();
 }
-
-require WC_SCANPAY_DIR . '/library/client.php';
-require WC_SCANPAY_DIR . '/library/math.php';
 
 function wc_scanpay_phone_prefixer( string $phone, string $country ): string {
 	if ( ! empty( $phone ) ) {
@@ -57,8 +57,6 @@ function wc_scanpay_subref( int $oid, object $wco ) : ?string {
 	return null;
 }
 
-
-
 function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	$wco = wc_get_order( $oid );
 	if ( ! $wco ) {
@@ -73,7 +71,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	$client = new WC_Scanpay_Client( $settings['apikey'] );
 	$data   = [
 		'orderid'     => (string) $oid,
-		'autocapture' => 'yes' === ( $settings['capture_on_complete'] ?? '' ) && ! $wco->needs_processing(),
+		'autocapture' => 'yes' === $settings['capture_on_complete'] && ! $wco->needs_processing(),
 		'successurl'  => apply_filters( 'woocommerce_get_return_url', $wco->get_checkout_order_received_url(), $wco ),
 		'billing'     => [
 			'name'    => $wco->get_billing_first_name( 'edit' ) . ' ' . $wco->get_billing_last_name( 'edit' ),
@@ -112,14 +110,15 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		}
 	}
 
-	if ( ! isset( $data['subscriber'] ) ) {
+	$wc_total = $wco->get_total( 'edit' );
+	if ( $wc_total > 0 ) {
 		$currency    = $wco->get_currency( 'edit' );
-		$order_total = '0';
-
+		$calc_total = '0';
+		$wc_total = (string) $wc_total;
 		foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
 			$line_total = $wco->get_line_total( $item, true, true ); // w. taxes and rounded (how Woo does)
 			if ( $line_total >= 0 ) {
-				$order_total     = wc_scanpay_addmoney( $order_total, (string) $line_total );
+				$calc_total     = wc_scanpay_addmoney( $calc_total, (string) $line_total );
 				$data['items'][] = [
 					'name'     => $item->get_name( 'edit' ),
 					'quantity' => $item->get_quantity(),
@@ -127,8 +126,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 				];
 			}
 		}
-		$wc_total = (string) $wco->get_total( 'edit' );
-		if ( $wc_total !== $order_total && wc_scanpay_cmpmoney( $order_total, $wc_total ) !== 0 ) {
+		if ( $calc_total !== $wc_total && wc_scanpay_cmpmoney( $calc_total, $wc_total ) !== 0 ) {
 			$data['items'] = [
 				[
 					'name'  => 'Total',
@@ -137,7 +135,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 			];
 			scanpay_log(
 				'warning',
-				"Order #$oid: The sum of all items ($order_total) does not match the order total ($wc_total)." .
+				"Order #$oid: The sum of all items ($calc_total) does not match the order total ($wc_total)." .
 				'The item list will not be available in the scanpay dashboard.'
 			);
 		}
@@ -150,7 +148,6 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		$wco->add_meta_data( WC_SCANPAY_URI_SHOPID, $client->shopid, true );
 		$wco->add_meta_data( WC_SCANPAY_URI_AUTOCPT, (string) $data['autocapture'], true );
 		$wco->save_meta_data();
-
 		return [
 			'result'   => 'success',
 			'redirect' => $link,
