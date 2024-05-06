@@ -257,6 +257,44 @@ class WC_Scanpay_Sync {
 		}
 	}
 
+	private function wcs_subscriber( int $subid, array $subs, array $c ) {
+		global $wpdb;
+		$rev = (int) $c['rev'];
+		$wpdb->query( "SELECT rev FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid" );
+		$sub = $wpdb->last_result;
+		if ( 0 === $wpdb->num_rows ) {
+			$insert = $wpdb->query(
+				"INSERT INTO {$wpdb->prefix}scanpay_subs
+                	SET subid = $subid, nxt = 0, retries = 5, idem = '', rev = $rev, method = '" . $c['method']['type'] . "',
+						method_id = '" . $c['method']['id'] . "', method_exp = '" . $c['method']['card']['exp'] . "'"
+			);
+			if ( ! $insert ) {
+				throw new Exception( "could not insert subscriber data (id=$subid)" );
+			}
+			$count = count( $subs );
+			for ( $i = 0; $i < $count; $i++ ) {
+				$wcs_sub = wc_get_order( (int) $subs[ $i ] );
+				if ( ! $wcs_sub ) {
+					continue;
+				}
+				// Does wcs_sub have a free trial?
+
+				$wcs_sub->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
+				$wcs_sub->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
+				$wcs_sub->save_meta_data();
+			}
+		} elseif ( $rev > $sub[0]->rev ) {
+			$update = $wpdb->query(
+				"UPDATE {$wpdb->prefix}scanpay_subs SET nxt = 0, retries = 5, idem = '', rev = $rev,
+					method = '" . $c['method']['type'] . "', method_id = '" . $c['method']['id'] . "',
+					method_exp = '" . $c['method']['card']['exp'] . "' WHERE subid = $subid"
+			);
+			if ( false === $update ) {
+				throw new Exception( "could not update subscriber data (id=$subid)" );
+			}
+		}
+	}
+
 	private function apply_payment( int $trnid, int $oid, int $rev, array $c ) {
 		global $wpdb;
 		$wpdb->query( "SELECT id,rev FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
@@ -345,6 +383,16 @@ class WC_Scanpay_Sync {
 						}
 						break;
 					case 'subscriber':
+						if ( ! isset( $c['ref'], $c['id'] ) ) {
+							throw new Exception( "received an invalid response from server (seq=$seq)" );
+						}
+						if ( str_starts_with( $c['ref'], 'wcs[]' ) ) {
+							// New scheme where ref is a list of WCS ids
+							$subs = explode( ',', substr( $c['ref'], 5 ) );
+							$this->wcs_subscriber( (int) $c['id'], $subs, $c );
+							break;
+						}
+						// Old scheme where ref is the order id
 						$oid = isset( $c['ref'] ) ? (int) $c['ref'] : false;
 						if ( $this->subscriptions && $oid && $c['ref'] === (string) $oid ) {
 							$this->wc_scanpay_subscriber( $c['id'], $oid, $c['rev'], $c );

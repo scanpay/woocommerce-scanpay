@@ -33,28 +33,25 @@ function wc_scanpay_subref( int $oid, object $wco ): ?string {
 		&& WC_Subscriptions_Change_Payment_Gateway::$is_request_to_change_payment
 	) {
 		/*
-		*   This only happens when the user change PSP to us. This process DOES NOT
-		*   create a new order, it only updates the payment method of the WCS Subscription.
-		*   $oid and $wco both relate to the WCS Subscription, not the parent order.
+		*   This only happens when the user changes PSP to us. This process DOES NOT
+		*   create a new order; it only updates the payment method of the WCS Subscription.
 		*/
-		return 'wcs#' . $oid;
+		return 'wcs[]' . $oid; // $oid is the WCS subscription ID
 	}
-
 	/*
-	*   Check if order contains any subs. Most PSPs use wcs_order_contains_subscription(),
-	*   but it is extremely inefficient. It is 5-10 times faster to use wc_get_orders directly.
+	*   Check if the order contains subs. Most PSPs use wcs_order_contains_subscription(), but it is
+	*   incredibly inefficient. We can use wc_get_orders directly and optimize the search with status.
 	*/
-	$wcs_subs = wc_get_orders(
+	$wcs_subs_arr = wc_get_orders(
 		[
 			'type'   => 'shop_subscription',
 			'status' => ( $wco->get_status() === 'pending' ) ? 'wc-pending' : null,
 			'parent' => $oid,
-			'return' => 'ids',
+			'return' => 'ids', // array of ids (an order can have multiple subs)
 		]
 	);
-	if ( $wcs_subs ) {
-		// TODO: use new wcs# scheme
-		return (string) $oid;
+	if ( $wcs_subs_arr ) {
+		return 'wcs[]' . implode( ',', $wcs_subs_arr );
 	}
 	return null;
 }
@@ -71,9 +68,10 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	}
 
 	$client = new WC_Scanpay_Client( $settings['apikey'] );
+	$coc    = 'yes' === ( $settings['capture_on_complete'] ?? '' );
 	$data   = [
 		'orderid'     => (string) $oid,
-		'autocapture' => 'yes' === $settings['capture_on_complete'] && ! $wco->needs_processing(),
+		'autocapture' => $coc && ! $wco->needs_processing(),
 		'successurl'  => apply_filters( 'woocommerce_get_return_url', $wco->get_checkout_order_received_url(), $wco ),
 		'billing'     => [
 			'name'    => $wco->get_billing_first_name( 'edit' ) . ' ' . $wco->get_billing_last_name( 'edit' ),
@@ -109,6 +107,9 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		$subref = wc_scanpay_subref( $oid, $wco );
 		if ( $subref ) {
 			$data['subscriber'] = [ 'ref' => $subref ];
+			if ( $coc && ! $data['autocapture'] ) {
+				$data['autocapture'] = ( 'yes' === $settings['wcs_complete_initial'] ?? '' );
+			}
 		}
 	}
 
