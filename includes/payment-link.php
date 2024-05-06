@@ -27,7 +27,7 @@ function wc_scanpay_phone_prefixer( string $phone, string $country ): string {
 	return $phone;
 }
 
-function wc_scanpay_subref( int $oid, object $wco ) : ?string {
+function wc_scanpay_subref( int $oid, object $wco ): ?string {
 	if (
 		class_exists( 'WC_Subscriptions_Change_Payment_Gateway', false )
 		&& WC_Subscriptions_Change_Payment_Gateway::$is_request_to_change_payment
@@ -35,21 +35,23 @@ function wc_scanpay_subref( int $oid, object $wco ) : ?string {
 		/*
 		*   This only happens when the user change PSP to us. This process DOES NOT
 		*   create a new order, it only updates the payment method of the WCS Subscription.
-		*	$oid and $wco both relate to the WCS Subscription, not the parent order.
+		*   $oid and $wco both relate to the WCS Subscription, not the parent order.
 		*/
 		return 'wcs#' . $oid;
 	}
 
 	/*
-	*	Check if order contains any subs. Most PSPs use wcs_order_contains_subscription(),
-	*	but it is extremely inefficient. It is 5-10 times faster to use wc_get_orders directly.
+	*   Check if order contains any subs. Most PSPs use wcs_order_contains_subscription(),
+	*   but it is extremely inefficient. It is 5-10 times faster to use wc_get_orders directly.
 	*/
-	$wcs_subs = wc_get_orders([
-		'type'   => 'shop_subscription',
-		'status' => ( $wco->get_status() === 'pending' ) ? 'wc-pending' : null,
-		'parent' => $oid,
-		'return' => 'ids',
-	]);
+	$wcs_subs = wc_get_orders(
+		[
+			'type'   => 'shop_subscription',
+			'status' => ( $wco->get_status() === 'pending' ) ? 'wc-pending' : null,
+			'parent' => $oid,
+			'return' => 'ids',
+		]
+	);
 	if ( $wcs_subs ) {
 		// TODO: use new wcs# scheme
 		return (string) $oid;
@@ -112,13 +114,13 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 
 	$wc_total = $wco->get_total( 'edit' );
 	if ( $wc_total > 0 ) {
-		$currency    = $wco->get_currency( 'edit' );
+		$currency   = $wco->get_currency( 'edit' );
 		$calc_total = '0';
-		$wc_total = (string) $wc_total;
+		$wc_total   = (string) $wc_total;
 		foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
 			$line_total = $wco->get_line_total( $item, true, true ); // w. taxes and rounded (how Woo does)
 			if ( $line_total >= 0 ) {
-				$calc_total     = wc_scanpay_addmoney( $calc_total, (string) $line_total );
+				$calc_total      = wc_scanpay_addmoney( $calc_total, (string) $line_total );
 				$data['items'][] = [
 					'name'     => $item->get_name( 'edit' ),
 					'quantity' => $item->get_quantity(),
