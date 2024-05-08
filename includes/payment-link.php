@@ -67,9 +67,13 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		throw new Exception( 'Error: The payment plugin is not configured. Please contact support.' );
 	}
 
+	$type   = 'wc';
 	$client = new WC_Scanpay_Client( $settings['apikey'] );
+	$wcs    = class_exists( 'WC_Subscriptions', false );
 	$coc    = 'yes' === ( $settings['capture_on_complete'] ?? '' );
-	$data   = [
+	$subref = false;
+
+	$data = [
 		'orderid'     => (string) $oid,
 		'autocapture' => $coc && ! $wco->needs_processing(),
 		'successurl'  => apply_filters( 'woocommerce_get_return_url', $wco->get_checkout_order_received_url(), $wco ),
@@ -95,54 +99,78 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		],
 	];
 
-	if ( class_exists( 'WC_Subscriptions', false ) ) {
+	if ( $wcs ) {
 		$subid = (int) $wco->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
 		if ( $subid ) {
-			// Request to renew a scanpay payment method
+			$data['successurl'] = add_query_arg(
+				[
+					'gw'   => 'scanpay',
+					'type' => 'wcs_renew',
+				],
+				$data['successurl']
+			);
 			return [
 				'result'   => 'success',
 				'redirect' => $client->renew( $subid, $data ),
 			];
 		}
+	}
+
+	$currency = $wco->get_currency( 'edit' );
+	$wc_total = (string) $wco->get_total( 'edit' );
+	$sum      = '0';
+
+	foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
+		// Check if the item is a subscription
+		if ( $wcs && $item->get_type() === 'line_item' ) {
+			$product = $item->get_product();
+			if ( $product && $product->is_type( 'subscription' ) ) {
+				$subref = true;
+			}
+		}
+		$line_total = $wco->get_line_total( $item, true, true ); // w. taxes and rounded (how Woo does)
+		if ( $line_total >= 0 ) {
+			$sum             = wc_scanpay_addmoney( $sum, (string) $line_total );
+			$data['items'][] = [
+				'name'     => $item->get_name( 'edit' ),
+				'quantity' => $item->get_quantity(),
+				'total'    => $line_total . ' ' . $currency,
+			];
+		}
+	}
+
+	if ( $sum !== $wc_total && wc_scanpay_cmpmoney( $sum, $wc_total ) !== 0 ) {
+		$data['items'] = [
+			[
+				'name'  => 'Total',
+				'total' => $wc_total . ' ' . $currency,
+			],
+		];
+		scanpay_log(
+			'warning',
+			"Order #$oid: The sum of all items ($sum) does not match the order total ($wc_total)." .
+			'The item list will not be available in the scanpay dashboard.'
+		);
+	}
+	if ( $subref ) {
 		$subref = wc_scanpay_subref( $oid, $wco );
 		if ( $subref ) {
 			$data['subscriber'] = [ 'ref' => $subref ];
+			$type               = ( $wc_total > 0 ) ? 'wcs' : 'wcs_free';
 			if ( $coc && ! $data['autocapture'] ) {
 				$data['autocapture'] = ( 'yes' === $settings['wcs_complete_initial'] ?? '' );
 			}
 		}
 	}
-
-	$wc_total = $wco->get_total( 'edit' );
-	if ( $wc_total > 0 ) {
-		$currency   = $wco->get_currency( 'edit' );
-		$calc_total = '0';
-		$wc_total   = (string) $wc_total;
-		foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
-			$line_total = $wco->get_line_total( $item, true, true ); // w. taxes and rounded (how Woo does)
-			if ( $line_total >= 0 ) {
-				$calc_total      = wc_scanpay_addmoney( $calc_total, (string) $line_total );
-				$data['items'][] = [
-					'name'     => $item->get_name( 'edit' ),
-					'quantity' => $item->get_quantity(),
-					'total'    => $line_total . ' ' . $currency,
-				];
-			}
-		}
-		if ( $calc_total !== $wc_total && wc_scanpay_cmpmoney( $calc_total, $wc_total ) !== 0 ) {
-			$data['items'] = [
-				[
-					'name'  => 'Total',
-					'total' => $wc_total . ' ' . $currency,
-				],
-			];
-			scanpay_log(
-				'warning',
-				"Order #$oid: The sum of all items ($calc_total) does not match the order total ($wc_total)." .
-				'The item list will not be available in the scanpay dashboard.'
-			);
-		}
-	}
+	// Update the success URL (args are used on the thank you page)
+	$data['successurl'] = add_query_arg(
+		[
+			'gw'   => 'scanpay',
+			'type' => $type,
+			'ref'  => $subref,
+		],
+		$data['successurl']
+	);
 
 	try {
 		$link = $client->newURL( $data );
