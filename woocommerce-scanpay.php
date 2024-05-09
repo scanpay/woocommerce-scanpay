@@ -1,5 +1,4 @@
 <?php
-declare(strict_types = 1);
 
 /*
  * Version: 2.2.2
@@ -7,6 +6,7 @@ declare(strict_types = 1);
  * Requires PHP: 7.4
  * WC requires at least: 3.6.0
  * WC tested up to: 8.8.2
+ * Requires Plugins: woocommerce
  * Plugin Name: Scanpay for WooCommerce
  * Plugin URI: https://wordpress.org/plugins/scanpay-for-woocommerce/
  * Description: Accept payments in WooCommerce with a secure payment gateway.
@@ -30,6 +30,7 @@ const WC_SCANPAY_URI_PAYID    = '_scanpay_payid';
 const WC_SCANPAY_URI_PTIME    = '_scanpay_payid_time';
 const WC_SCANPAY_URI_SUBID    = '_scanpay_subid';
 const WC_SCANPAY_URI_AUTOCPT  = '_scanpay_autocpt';
+const WC_SCANPAY_URI_STATUS   = '_scanpay_status';
 
 define( 'WC_SCANPAY_DIR', __DIR__ );
 define( 'WC_SCANPAY_URL', set_url_scheme( WP_PLUGIN_URL ) . '/scanpay-for-woocommerce' );
@@ -286,9 +287,10 @@ add_action( 'plugins_loaded', function () {
 		}
 	}, 10 );
 
-	add_action( 'woocommerce_before_thankyou', function ( $order_id ) {
-		require WC_SCANPAY_DIR . '/hooks/wc-before-thankyou.php';
-	}, 3, 1);
+	add_action( 'woocommerce_thankyou_order_id', function ( $oid ) {
+		require WC_SCANPAY_DIR . '/hooks/wc-thankyou-order-id.php';
+		return $oid;
+	}, 10, 1 );
 
 	add_action( 'woocommerce_blocks_payment_method_type_registration', function ( $registry ) {
 		require WC_SCANPAY_DIR . '/hooks/class-wc-scanpay-blocks-support.php';
