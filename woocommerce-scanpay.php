@@ -7,6 +7,7 @@ declare(strict_types = 1);
  * Requires PHP: 7.4
  * WC requires at least: 3.6.0
  * WC tested up to: 8.8.2
+ * Requires Plugins: woocommerce
  * Plugin Name: Scanpay for WooCommerce
  * Plugin URI: https://wordpress.org/plugins/scanpay-for-woocommerce/
  * Description: Accept payments in WooCommerce with a secure payment gateway.
