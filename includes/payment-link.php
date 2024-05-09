@@ -102,13 +102,6 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	if ( $wcs ) {
 		$subid = (int) $wco->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
 		if ( $subid ) {
-			$data['successurl'] = add_query_arg(
-				[
-					'gw'   => 'scanpay',
-					'type' => 'wcs_renew',
-				],
-				$data['successurl']
-			);
 			return [
 				'result'   => 'success',
 				'redirect' => $client->renew( $subid, $data ),
