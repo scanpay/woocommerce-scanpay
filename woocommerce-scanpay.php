@@ -1,5 +1,4 @@
 <?php
-declare(strict_types = 1);
 
 /*
  * Version: 2.2.2
