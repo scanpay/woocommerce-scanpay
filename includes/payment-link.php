@@ -67,7 +67,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		throw new Exception( 'Error: The payment plugin is not configured. Please contact support.' );
 	}
 
-	$type   = 'wc';
+	$otype  = 'wc';
 	$client = new WC_Scanpay_Client( $settings['apikey'] );
 	$wcs    = class_exists( 'WC_Subscriptions', false );
 	$coc    = 'yes' === ( $settings['capture_on_complete'] ?? '' );
@@ -117,9 +117,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	}
 
 	$currency = $wco->get_currency( 'edit' );
-	$wc_total = (string) $wco->get_total( 'edit' );
 	$sum      = '0';
-
 	foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
 		// Check if the item is a subscription
 		if ( $wcs && $item->get_type() === 'line_item' ) {
@@ -139,6 +137,8 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		}
 	}
 
+	$wc_totalf = $wco->get_total( 'edit' );
+	$wc_total  = (string) $wc_totalf;
 	if ( $sum !== $wc_total && wc_scanpay_cmpmoney( $sum, $wc_total ) !== 0 ) {
 		$data['items'] = [
 			[
@@ -156,7 +156,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		$subref = wc_scanpay_subref( $oid, $wco );
 		if ( $subref ) {
 			$data['subscriber'] = [ 'ref' => $subref ];
-			$type               = ( $wc_total > 0 ) ? 'wcs' : 'wcs_free';
+			$otype              = ( $wc_totalf > 0 ) ? 'wcs' : 'wcs_free';
 			if ( $coc && ! $data['autocapture'] ) {
 				$data['autocapture'] = ( 'yes' === $settings['wcs_complete_initial'] ?? '' );
 			}
@@ -166,7 +166,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	$data['successurl'] = add_query_arg(
 		[
 			'gw'   => 'scanpay',
-			'type' => $type,
+			'type' => $otype,
 			'ref'  => $subref,
 		],
 		$data['successurl']
