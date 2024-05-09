@@ -31,7 +31,7 @@ if ( 'wc' === $_GET['type'] || 'wcs' === $_GET['type'] ) {
 */
 if ( 'wcs_free' === $_GET['type'] && isset( $_GET['ref'] ) && str_starts_with( $_GET['ref'], 'wcs[]' ) ) {
 	$subs  = explode( ',', substr( $_GET['ref'], 5 ) );
-	$wcsid = (int) $subs[0];
+	$wcsid = (int) end( $subs );
 	while ( $count++ < 8 ) {
 		$wco = wc_get_order( $wcsid );
 		if ( $wco && 'active' === $wco->get_status( 'edit' ) ) {
