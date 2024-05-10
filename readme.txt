@@ -96,6 +96,14 @@ You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us
 
 == Changelog ==
 
+= 2.3.0 - 2024-05-10 =
+* Add - Add support for Initial Charge in WooCommerce Subscriptions
+* Add - Add support for free trials in WooCommerce Subscriptions
+* Add - Add WordPress plugin dependency header
+* Fix - Refactor `thankyou` page to be much faster and use fewer resources
+* Fix - Refactor WooCommerce Subscriptions (optimization)
+* Fix - Various optimizations and smaller changes
+
 = 2.2.2 - 2024-04-23 =
 * Add - Add extra ToS checkbox for Subscriptions (optional)
 * Fix - Minor fixes
