@@ -359,10 +359,6 @@ class WC_Scanpay_Sync {
 	private function seq( int $ping_seq, int $seq ) {
 		global $wpdb;
 		while ( $ping_seq > $seq ) {
-			set_time_limit( 60 );
-			$this->renew_lock();
-			wp_cache_flush();
-
 			$res = $this->client->seq( $seq );
 			if ( ! $res['changes'] ) {
 				return;
@@ -414,13 +410,13 @@ class WC_Scanpay_Sync {
 			}
 			$seq = $res['seq'];
 			$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET mtime = " . time() . ", seq = $seq WHERE shopid = " . $this->shopid );
-
-			// Check for blocked ping
 			if ( $ping_seq === $seq ) {
-				$db_ping = (int) $wpdb->get_var( "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = " . $this->shopid );
-				if ( $db_ping > $ping_seq ) {
-					$ping_seq = $db_ping;
-				}
+				$ping_seq = (int) $wpdb->get_var( "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = " . $this->shopid );
+			}
+			if ( $ping_seq > $seq ) {
+				$this->renew_lock();
+				set_time_limit( 60 );
+				wp_cache_flush(); // TODO: consider using wp_cache_flush_group( 'orders' ) instead
 			}
 		}
 		return $seq;
