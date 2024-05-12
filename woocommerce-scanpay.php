@@ -76,6 +76,12 @@ if ( isset( $_SERVER['HTTP_X_SCANPAY'], $_GET['x'], $_GET['s'] ) ) {
 	}
 }
 
+/*
+*   Order received page (thankyou).
+*/
+if ( isset( $_GET['scanpay_thankyou'], $_GET['scanpay_type'] ) ) {
+	return require WC_SCANPAY_DIR . '/hooks/wp-scanpay-thankyou.php';
+}
 
 function scanpay_admin_hooks() {
 	// Add plugin version number to JS: wcSettings.admin
@@ -284,11 +290,6 @@ add_action( 'plugins_loaded', function () {
 			}
 		}
 	}, 10 );
-
-	add_action( 'woocommerce_thankyou_order_id', function ( $oid ) {
-		require WC_SCANPAY_DIR . '/hooks/wc-thankyou-order-id.php';
-		return $oid;
-	}, 10, 1 );
 
 	add_action( 'woocommerce_blocks_payment_method_type_registration', function ( $registry ) {
 		require WC_SCANPAY_DIR . '/hooks/class-wc-scanpay-blocks-support.php';

@@ -158,9 +158,9 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	// Update the success URL (args are used on the thank you page)
 	$data['successurl'] = add_query_arg(
 		[
-			'gw'   => 'scanpay',
-			'type' => $otype,
-			'ref'  => $subref,
+			'scanpay_thankyou' => $oid,
+			'scanpay_type'     => $otype,
+			'scanpay_ref'      => $subref,
 		],
 		$data['successurl']
 	);
