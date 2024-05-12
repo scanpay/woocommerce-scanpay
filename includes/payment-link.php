@@ -112,8 +112,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	$currency = $wco->get_currency( 'edit' );
 	$sum      = '0';
 	foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
-		// Check if the item is a subscription
-		if ( $wcs && $item->get_type() === 'line_item' ) {
+		if ( $wcs && ! $subref && $item instanceof WC_Order_Item_Product ) {
 			$product = $item->get_product();
 			if ( $product && $product->is_type( 'subscription' ) ) {
 				$subref = true;
