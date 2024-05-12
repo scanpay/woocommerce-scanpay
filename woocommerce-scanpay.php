@@ -47,25 +47,6 @@ function scanpay_log( string $level, string $msg ): void {
 }
 
 /*
-	JavaScript endpoints /wp-scanpay/fetch?x={ping,meta,sub}&s=$secret  ...
-	Bypass WooCommerce and WordPress. Saves >40 ms and a lot of resources
-*/
-
-if ( isset( $_SERVER['HTTP_X_SCANPAY'], $_GET['x'], $_GET['s'] ) ) {
-	switch ( $_GET['x'] ) {
-		case 'meta':
-			require WC_SCANPAY_DIR . '/hooks/wp-scanpay-fetch-meta.php';
-			break;
-		case 'ping':
-			require WC_SCANPAY_DIR . '/hooks/wp-scanpay-fetch-ping.php';
-			break;
-		case 'sub':
-			require WC_SCANPAY_DIR . '/hooks/wp-scanpay-fetch-sub.php';
-			break;
-	}
-}
-
-/*
 	Ping handler /wc-api/wc_scanpay/
 */
 if ( isset( $_SERVER['HTTP_X_SIGNATURE'], $_SERVER['REQUEST_URI'] ) ) {
@@ -78,6 +59,23 @@ if ( isset( $_SERVER['HTTP_X_SIGNATURE'], $_SERVER['REQUEST_URI'] ) ) {
 		return;
 	}
 }
+
+/*
+	JavaScript endpoints /wp-scanpay/fetch?x={ping,meta,sub}&s=$secret  ...
+	Bypass WooCommerce and WordPress. Saves >40 ms and a lot of resources
+*/
+
+if ( isset( $_SERVER['HTTP_X_SCANPAY'], $_GET['x'], $_GET['s'] ) ) {
+	switch ( $_GET['x'] ) {
+		case 'meta':
+			return require WC_SCANPAY_DIR . '/hooks/wp-scanpay-fetch-meta.php';
+		case 'ping':
+			return require WC_SCANPAY_DIR . '/hooks/wp-scanpay-fetch-ping.php';
+		case 'sub':
+			return require WC_SCANPAY_DIR . '/hooks/wp-scanpay-fetch-sub.php';
+	}
+}
+
 
 function scanpay_admin_hooks() {
 	// Add plugin version number to JS: wcSettings.admin
