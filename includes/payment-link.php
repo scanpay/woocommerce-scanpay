@@ -77,6 +77,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		'orderid'     => (string) $oid,
 		'autocapture' => $coc && ! $wco->needs_processing(),
 		'successurl'  => apply_filters( 'woocommerce_get_return_url', $wco->get_checkout_order_received_url(), $wco ),
+		'lifetime'    => '15m',
 		'billing'     => [
 			'name'    => $wco->get_billing_first_name( 'edit' ) . ' ' . $wco->get_billing_last_name( 'edit' ),
 			'email'   => $wco->get_billing_email( 'edit' ),
