@@ -3,6 +3,10 @@
     prefix with wcsp-meta-
 */
 
+#wcsp-meta {
+    min-height: 80px;
+}
+
 #wcsp-meta-box > .inside {
     margin: 10px 0 0;
     padding: 0;
@@ -49,8 +53,8 @@
 
 /* Meta box */
 .wcsp-meta-ul {
-    margin: 10px 0 11px;
-    padding: 0 12px;
+    margin: 10px 0 0;
+    padding: 0 12px 5px;
     list-style: none !important;
 }
 

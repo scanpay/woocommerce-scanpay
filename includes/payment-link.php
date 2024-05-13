@@ -77,6 +77,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		'orderid'     => (string) $oid,
 		'autocapture' => $coc && ! $wco->needs_processing(),
 		'successurl'  => apply_filters( 'woocommerce_get_return_url', $wco->get_checkout_order_received_url(), $wco ),
+		'lifetime'    => '15m',
 		'billing'     => [
 			'name'    => $wco->get_billing_first_name( 'edit' ) . ' ' . $wco->get_billing_last_name( 'edit' ),
 			'email'   => $wco->get_billing_email( 'edit' ),
@@ -112,8 +113,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	$currency = $wco->get_currency( 'edit' );
 	$sum      = '0';
 	foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
-		// Check if the item is a subscription
-		if ( $wcs && $item->get_type() === 'line_item' ) {
+		if ( $wcs && ! $subref && $item instanceof WC_Order_Item_Product ) {
 			$product = $item->get_product();
 			if ( $product && $product->is_type( 'subscription' ) ) {
 				$subref = true;
@@ -158,9 +158,9 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	// Update the success URL (args are used on the thank you page)
 	$data['successurl'] = add_query_arg(
 		[
-			'gw'   => 'scanpay',
-			'type' => $otype,
-			'ref'  => $subref,
+			'scanpay_thankyou' => $oid,
+			'scanpay_type'     => $otype,
+			'scanpay_ref'      => $subref,
 		],
 		$data['successurl']
 	);

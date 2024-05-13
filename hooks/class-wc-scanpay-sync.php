@@ -306,6 +306,16 @@ class WC_Scanpay_Sync {
 		}
 	}
 
+	private function parse_payment_method( array $method ): string {
+		if ( isset( $method['type'] ) ) {
+			if ( isset( $method['card'], $method['card']['brand'], $method['card']['last4'] ) ) {
+				return $method['type'] . ' ' . $method['card']['brand'] . ' ' . $method['card']['last4'];
+			}
+			return $method['type'];
+		}
+		return 'scanpay';
+	}
+
 	private function apply_payment( int $trnid, int $oid, int $rev, array $c ) {
 		global $wpdb;
 		$wpdb->query( "SELECT id,rev FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
@@ -317,6 +327,7 @@ class WC_Scanpay_Sync {
 			}
 			if ( empty( $wco->get_transaction_id( 'edit' ) ) ) {
 				$wco->set_payment_method( 'scanpay' );
+				$wco->set_payment_method_title( $this->parse_payment_method( $c['method'] ) );
 				$wco->set_date_paid( $c['time']['authorized'] );
 				$wco->set_transaction_id( $trnid );
 				if ( 'yes' === $this->settings['capture_on_complete'] ) {
@@ -327,17 +338,13 @@ class WC_Scanpay_Sync {
 				$wco->save();
 				do_action( 'woocommerce_payment_complete', $oid, $trnid );
 			}
-			$subid  = ( 'charge' === $c['type'] ) ? (int) $c['subscriber']['id'] : 0;
-			$method = $c['method']['type'];
-			if ( 'card' === $method ) {
-				$method = 'card ' . $c['method']['card']['brand'] . ' ' . $c['method']['card']['last4'];
-			}
+			$subid = ( 'charge' === $c['type'] ) ? (int) $c['subscriber']['id'] : 0;
 			list( $authorized, $captured, $refunded, $voided, $currency ) = $this->totals( $c['totals'] );
 			$insert = $wpdb->query(
 				"INSERT INTO {$wpdb->prefix}scanpay_meta
 					SET orderid = $oid, subid = $subid, shopid = $this->shopid, id = $trnid,
 						rev = $rev, nacts = " . count( $c['acts'] ) . ", currency = '$currency', authorized = '$authorized',
-						captured = '$captured', refunded = '$refunded', voided = '$voided', method = '$method'"
+						captured = '$captured', refunded = '$refunded', voided = '$voided'"
 			);
 			if ( ! $insert ) {
 				throw new Exception( "could not save payment data to order #$oid" );
@@ -359,10 +366,6 @@ class WC_Scanpay_Sync {
 	private function seq( int $ping_seq, int $seq ) {
 		global $wpdb;
 		while ( $ping_seq > $seq ) {
-			set_time_limit( 60 );
-			$this->renew_lock();
-			wp_cache_flush();
-
 			$res = $this->client->seq( $seq );
 			if ( ! $res['changes'] ) {
 				return;
@@ -414,13 +417,13 @@ class WC_Scanpay_Sync {
 			}
 			$seq = $res['seq'];
 			$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET mtime = " . time() . ", seq = $seq WHERE shopid = " . $this->shopid );
-
-			// Check for blocked ping
 			if ( $ping_seq === $seq ) {
-				$db_ping = (int) $wpdb->get_var( "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = " . $this->shopid );
-				if ( $db_ping > $ping_seq ) {
-					$ping_seq = $db_ping;
-				}
+				$ping_seq = (int) $wpdb->get_var( "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = " . $this->shopid );
+			}
+			if ( $ping_seq > $seq ) {
+				$this->renew_lock();
+				set_time_limit( 60 );
+				wp_cache_flush(); // TODO: consider using wp_cache_flush_group( 'orders' ) instead
 			}
 		}
 		return $seq;
