@@ -87,20 +87,24 @@
 		<exclude-pattern>woocommerce-scanpay.php</exclude-pattern>
 		<exclude-pattern>gateways/class-wc-scanpay-gateway.php</exclude-pattern>
 		<exclude-pattern>hooks/class-wc-scanpay-sync.php</exclude-pattern>
+		<exclude-pattern>hooks/wp-scanpay-thankyou.php</exclude-pattern>
 	</rule>
 	<rule ref="PEAR.Functions.FunctionCallSignature.ContentAfterOpenBracket">
 		<exclude-pattern>woocommerce-scanpay.php</exclude-pattern>
 		<exclude-pattern>gateways/class-wc-scanpay-gateway.php</exclude-pattern>
 		<exclude-pattern>hooks/class-wc-scanpay-sync.php</exclude-pattern>
+		<exclude-pattern>hooks/wp-scanpay-thankyou.php</exclude-pattern>
 	</rule>
 	<rule ref="PEAR.Functions.FunctionCallSignature.CloseBracketLine">
 		<exclude-pattern>woocommerce-scanpay.php</exclude-pattern>
 		<exclude-pattern>gateways/class-wc-scanpay-gateway.php</exclude-pattern>
 		<exclude-pattern>hooks/class-wc-scanpay-sync.php</exclude-pattern>
+		<exclude-pattern>hooks/wp-scanpay-thankyou.php</exclude-pattern>
 	</rule>
 
 	<rule ref="WordPress.Security.ValidatedSanitizedInput.InputNotValidated">
 		<exclude-pattern>hooks/class-wc-scanpay-sync.php</exclude-pattern>
+		<exclude-pattern>hooks/wp-scanpay-thankyou.php</exclude-pattern>
 	</rule>
 
 	<!--
