@@ -4,7 +4,7 @@ Tags: woocommerce, payments, subscriptions, scanpay, mobilepay
 Requires at least: 4.7.0
 Requires PHP: 7.4
 Tested up to: 6.5.4
-Stable tag: 2.3.0
+Stable tag: 2.4.0
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
 
@@ -95,6 +95,12 @@ Yes, this plugin supports MobilePay. You must enable MobilePay in both the plugi
 You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us on [IRC](https://chat.scanpay.dev/).
 
 == Changelog ==
+
+= 2.4.0 - 2024-05-13 =
+* Add - Add payment details on thankyou page
+* Add - Add lifetime parameter to payment links
+* Fix - Avoid unnecessary wp_cache_flush in synchronization
+* Fix - Optimize and tune thankyou page loading
 
 = 2.3.0 - 2024-05-10 =
 * Add - Add support for Initial Charge in WooCommerce Subscriptions
