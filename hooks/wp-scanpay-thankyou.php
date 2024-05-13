@@ -3,33 +3,56 @@
 defined( 'ABSPATH' ) || exit();
 
 /*
-*   Initial sleep before we start checking the database.
-*   On our demo shop WCS is ~50 ms slower than regular WC.
+*   This is the initial delay before we consume resources. The duration is based on tests conducted on our demo
+*   shop (AWS Ireland) with a basket of four items, each of which adds 5-10ms to the WC processing time.
+*   WCS is much slower than a regular WC but typically has fewer items in the basket.
 */
-// phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotValidated
-$initial_sleep = ( 'wc' === $_GET['scanpay_type'] ) ? 360000 : 450000;
+$initial_sleep = ( 'wc' === $_GET['scanpay_type'] ) ? 400000 : 450000;
 usleep( $initial_sleep );
 
-global $wpdb;
-$count = 0;
-$oid   = (int) $_GET['scanpay_thankyou'];
-
-// Regular one-off payment or WooCommerce Subscriptions
 if ( 'wc' === $_GET['scanpay_type'] || 'wcs' === $_GET['scanpay_type'] ) {
-	while ( $count++ < 14 ) {
-		$wpdb->query( "SELECT id FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
-		if ( $wpdb->num_rows ) {
-			return;
+	add_action( 'woocommerce_init', function () {
+		global $wpdb;
+		$count = 0;
+		$oid   = (int) $_GET['scanpay_thankyou'];
+		while ( $count++ < 14 ) {
+			$wpdb->query( "SELECT id FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
+			if ( $wpdb->num_rows ) {
+				break;
+			}
+			// Sleep: 40ms, 80ms ... (max 500ms, total 5.1s)
+			usleep( min( ( 20000 * pow( 2, $count ) ), 500000 ) );
 		}
-		// Sleep: 40ms, 80ms ... (max 500ms, total 5.1s)
-		usleep( min( ( 20000 * pow( 2, $count ) ), 500000 ) );
-	}
+
+		$cache = false;
+		add_filter( 'woocommerce_order_get_payment_method_title', function ( $str ) use ( &$cache ) {
+			if ( $cache ) {
+				return $cache;
+			}
+			$split = explode( ' ', $str );
+			if ( count( $split ) !== 3 ) {
+				return $str;
+			}
+			switch ( $split[0] ) {
+				case 'mobilepay':
+					$cache = 'MobilePay (' . ucfirst( $split[1] ) . ' ' . $split[2] . ')';
+					break;
+				case 'applepay':
+					$cache = 'Apple Pay (' . ucfirst( $split[1] ) . ' ' . $split[2] . ')';
+					break;
+				default:
+					$cache = ucfirst( $split[1] ) . ' ' . $split[2];
+					break;
+			}
+			return $cache;
+		}, 10, 1 );
+	}, 10, 1 );
 	return;
 }
 
 /*
 *   WooCommerce Subscription with free trial
-*   Note: scanpay_meta is not created (because amount is 0).
+*   Note: order is not created in scanpay_meta (because amount is 0).
 */
 
 if ( 'wcs_free' === $_GET['scanpay_type'] && isset( $_GET['scanpay_ref'] ) && str_starts_with( $_GET['scanpay_ref'], 'wcs[]' ) ) {
