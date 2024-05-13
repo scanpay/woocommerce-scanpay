@@ -83,6 +83,75 @@ if ( isset( $_GET['scanpay_thankyou'], $_GET['scanpay_type'] ) ) {
 	return require WC_SCANPAY_DIR . '/hooks/wp-scanpay-thankyou.php';
 }
 
+// Meta box
+function wc_scanpay_add_meta_box( $wc_order ) {
+	if ( ! $wc_order instanceof WC_Order ) {
+		$wc_order = wc_get_order( $wc_order->ID ); // Legacy support
+		if ( ! $wc_order ) {
+			return;
+		}
+	}
+	$psp = $wc_order->get_payment_method( 'edit' );
+	if ( 'scanpay' !== $psp && ! str_starts_with( $psp, 'scanpay' ) ) {
+		return;
+	}
+	wp_enqueue_style( 'wcsp-meta', WC_SCANPAY_URL . '/public/css/meta.css', null, WC_SCANPAY_VERSION );
+	wp_enqueue_script( 'wcsp-meta', WC_SCANPAY_URL . '/public/js/meta.js', false, WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
+
+	add_meta_box(
+		'wcsp-meta-box',
+		'Scanpay',
+		function ( $post, $args ) {
+			$wc_order = $args['args'][0];
+			$oid      = $wc_order->get_id();
+			$secret   = get_option( WC_SCANPAY_URI_SETTINGS )['secret'] ?? '';
+			$status   = $wc_order->get_status( 'edit' );
+			$total    = $wc_order->get_total( 'edit' ) - $wc_order->get_total_refunded();
+			$subid    = $wc_order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
+			$payid    = $wc_order->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' );
+			$ptime    = $wc_order->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' );
+			echo "<div id='wcsp-meta' data-id='$oid' data-secret='$secret' data-status='$status' data-total='$total' data-subid='$subid' data-payid='$payid' data-ptime='$ptime'></div>";
+		},
+		null,
+		'side',
+		'high',
+		[ $wc_order ]
+	);
+}
+
+// Meta box Subscriptions
+function wc_scanpay_add_meta_box_subs( $wc_order ) {
+	if ( ! $wc_order instanceof WC_Order ) {
+		$wc_order = wc_get_order( $wc_order->ID ); // Legacy support
+		if ( ! $wc_order ) {
+			return;
+		}
+	}
+	$psp = $wc_order->get_payment_method( 'edit' );
+	if ( 'scanpay' !== $psp && ! str_starts_with( $psp, 'scanpay' ) ) {
+		return;
+	}
+	wp_enqueue_style( 'wcsp-meta', WC_SCANPAY_URL . '/public/css/meta.css', null, WC_SCANPAY_VERSION );
+	wp_enqueue_script( 'wcsp-meta', WC_SCANPAY_URL . '/public/js/subs.js', false, WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
+
+	add_meta_box(
+		'wcsp-meta-box',
+		'Scanpay',
+		function ( $post, $args ) {
+			$wc_sub = $args['args'][0];
+			$secret = get_option( WC_SCANPAY_URI_SETTINGS )['secret'] ?? '';
+			echo '<div id="wcsp-meta" data-secret="' . $secret . '"
+				data-subid="' . $wc_sub->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ) . '"
+				data-payid="' . $wc_sub->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' ) . '"
+				data-ptime="' . $wc_sub->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' ) . '"></div>';
+		},
+		null,
+		'side',
+		'high',
+		[ $wc_order ]
+	);
+}
+
 function scanpay_admin_hooks() {
 	// Add plugin version number to JS: wcSettings.admin
 	add_filter( 'woocommerce_admin_shared_settings', function ( $settings ) {
@@ -90,89 +159,8 @@ function scanpay_admin_hooks() {
 		return $settings;
 	} );
 
-	// Meta box
-	function wc_scanpay_add_meta_box( $wc_order ) {
-		if ( ! $wc_order instanceof WC_Order ) {
-			$wc_order = wc_get_order( $wc_order->ID ); // Legacy support
-			if ( ! $wc_order ) {
-				return;
-			}
-		}
-		$psp = $wc_order->get_payment_method( 'edit' );
-		if ( 'scanpay' !== $psp && ! str_starts_with( $psp, 'scanpay' ) ) {
-			return;
-		}
-		wp_enqueue_style( 'wcsp-meta', WC_SCANPAY_URL . '/public/css/meta.css', null, WC_SCANPAY_VERSION );
-		wp_enqueue_script( 'wcsp-meta', WC_SCANPAY_URL . '/public/js/meta.js', false, WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
-
-		add_meta_box(
-			'wcsp-meta-box',
-			'Scanpay',
-			function ( $post, $args ) {
-				$wc_order = $args['args'][0];
-				$oid      = $wc_order->get_id();
-				$secret   = get_option( WC_SCANPAY_URI_SETTINGS )['secret'] ?? '';
-				$status   = $wc_order->get_status( 'edit' );
-				$total    = $wc_order->get_total( 'edit' ) - $wc_order->get_total_refunded();
-				$subid    = $wc_order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
-				$payid    = $wc_order->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' );
-				$ptime    = $wc_order->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' );
-				echo "<div id='wcsp-meta' data-id='$oid' data-secret='$secret' data-status='$status' data-total='$total' data-subid='$subid' data-payid='$payid' data-ptime='$ptime'></div>";
-			},
-			null,
-			'side',
-			'high',
-			[ $wc_order ]
-		);
-	}
-
-	// Meta box Subscriptions
-	function wc_scanpay_add_meta_box_subs( $wc_order ) {
-		if ( ! $wc_order instanceof WC_Order ) {
-			$wc_order = wc_get_order( $wc_order->ID ); // Legacy support
-			if ( ! $wc_order ) {
-				return;
-			}
-		}
-		$psp = $wc_order->get_payment_method( 'edit' );
-		if ( 'scanpay' !== $psp && ! str_starts_with( $psp, 'scanpay' ) ) {
-			return;
-		}
-		wp_enqueue_style( 'wcsp-meta', WC_SCANPAY_URL . '/public/css/meta.css', null, WC_SCANPAY_VERSION );
-		wp_enqueue_script( 'wcsp-meta', WC_SCANPAY_URL . '/public/js/subs.js', false, WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
-
-		add_meta_box(
-			'wcsp-meta-box',
-			'Scanpay',
-			function ( $post, $args ) {
-				$wc_sub = $args['args'][0];
-				$secret = get_option( WC_SCANPAY_URI_SETTINGS )['secret'] ?? '';
-				echo '<div id="wcsp-meta" data-secret="' . $secret . '"
-					data-subid="' . $wc_sub->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ) . '"
-					data-payid="' . $wc_sub->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' ) . '"
-					data-ptime="' . $wc_sub->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' ) . '"></div>';
-			},
-			null,
-			'side',
-			'high',
-			[ $wc_order ]
-		);
-	}
-
 	global $pagenow;
-	if ( 'plugins.php' === $pagenow || ! class_exists( 'WooCommerce', false ) ) {
-		// Add helpful links to the plugins table and check compatibility
-		add_filter( 'plugin_action_links_scanpay-for-woocommerce/woocommerce-scanpay.php', function ( $links ) {
-			if ( ! is_array( $links ) ) {
-				return $links;
-			}
-			return array_merge([
-				'<a href="' . admin_url( 'admin.php?page=wc-settings&tab=checkout&section=scanpay' ) . '">Settings</a>',
-			], $links);
-		});
-		require WC_SCANPAY_DIR . '/includes/compatibility.php';
-	} elseif ( 'admin.php' === $pagenow ) {
-
+	if ( 'admin.php' === $pagenow ) {
 		// Add CSS and JavaScript to the settings page
 		add_action( 'admin_print_styles-woocommerce_page_wc-settings', function () {
 			global $current_section;
@@ -204,12 +192,10 @@ function scanpay_admin_hooks() {
 		add_action( 'wp_ajax_woocommerce_mark_order_status', function () {
 			require WC_SCANPAY_DIR . '/hooks/wp-ajax-wc-mark-order-status.php';
 		}, 0, 0);
+		return;
+	}
 
-	} elseif ( 'post.php' === $pagenow ) {
-		// Add metabox (HPOS disabled)
-		add_action( 'add_meta_boxes_shop_order', 'wc_scanpay_add_meta_box', 9, 1 );
-		add_action( 'add_meta_boxes_shop_subscription', 'wc_scanpay_add_meta_box_subs', 9, 1 );
-	} elseif ( 'edit.php' === $pagenow ) {
+	if ( 'edit.php' === $pagenow ) {
 		// [hook] Add custom bulk action to the order list (HPOS disabled)
 		add_filter( 'bulk_actions-edit-shop_order', function ( array $actions ) {
 			$arr = [ 'scanpay_capture_complete' => 'Capture and complete' ];
@@ -228,7 +214,27 @@ function scanpay_admin_hooks() {
 		add_action( 'wp_ajax_woocommerce_mark_order_status', function () {
 			require WC_SCANPAY_DIR . '/hooks/wp-ajax-wc-mark-order-status.php';
 		}, 0, 0);
+		return;
+	}
 
+	if ( 'post.php' === $pagenow ) {
+		// Add metabox (HPOS disabled)
+		add_action( 'add_meta_boxes_shop_order', 'wc_scanpay_add_meta_box', 9, 1 );
+		add_action( 'add_meta_boxes_shop_subscription', 'wc_scanpay_add_meta_box_subs', 9, 1 );
+		return;
+	}
+
+	if ( 'plugins.php' === $pagenow ) {
+		// Add helpful links to the plugins table and check compatibility
+		add_filter( 'plugin_action_links_scanpay-for-woocommerce/woocommerce-scanpay.php', function ( $links ) {
+			if ( ! is_array( $links ) ) {
+				return $links; // Some plugins do not return the correct type (array)
+			}
+			return array_merge([
+				'<a href="' . admin_url( 'admin.php?page=wc-settings&tab=checkout&section=scanpay' ) . '">Settings</a>',
+			], $links);
+		});
+		return require WC_SCANPAY_DIR . '/includes/compatibility.php';
 	}
 }
 
@@ -268,7 +274,6 @@ add_action( 'plugins_loaded', function () {
 	} );
 
 	add_action( 'woocommerce_review_order_before_submit', function () {
-		// TODO: Ignore other PSPs
 		if ( class_exists( 'WC_Subscriptions_Cart', false ) && WC_Subscriptions_Cart::cart_contains_subscription() ) {
 			$settings = get_option( WC_SCANPAY_URI_SETTINGS );
 			if ( $settings && isset( $settings['wcs_terms'] ) && '0' !== $settings['wcs_terms'] ) {
