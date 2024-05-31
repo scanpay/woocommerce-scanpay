@@ -20,7 +20,7 @@
 
 defined( 'ABSPATH' ) || exit();
 
-const WC_SCANPAY_VERSION      = '2.4.0';
+const WC_SCANPAY_VERSION      = '2.4.1';
 const WC_SCANPAY_MIN_PHP      = '7.4.0';
 const WC_SCANPAY_MIN_WC       = '3.6.0';
 const WC_SCANPAY_DASHBOARD    = 'https://dashboard.scanpay.dk/';
