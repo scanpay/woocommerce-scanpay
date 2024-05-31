@@ -1,11 +1,11 @@
 <?php
 
 /*
- * Version: 2.4.0
+ * Version: 2.4.1
  * Requires at least: 4.7.0
  * Requires PHP: 7.4
  * WC requires at least: 3.6.0
- * WC tested up to: 8.9.0
+ * WC tested up to: 8.9.1
  * Requires Plugins: woocommerce
  * Plugin Name: Scanpay for WooCommerce
  * Plugin URI: https://wordpress.org/plugins/scanpay-for-woocommerce/
