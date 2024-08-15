@@ -85,7 +85,7 @@ if ( $wcs_exists && version_compare( $version, '2.1.3', '<' ) ) {
 	Version: 2.5.0
 	* Setting 'capture_on_complete' (checkbox) changed to 'wc_autocapture' (dropdown)
 */
-if ( $wcs_exists && version_compare( $version, '2.5.0', '<' ) ) {
+if ( version_compare( $version, '2.5.0', '<' ) ) {
 	$settings                   = get_option( WC_SCANPAY_URI_SETTINGS );
 	$settings['wc_autocapture'] = ( isset( $settings['capture_on_complete'] ) && 'yes' === $settings['capture_on_complete'] ) ? 'completed' : 'off';
 	unset( $settings['capture_on_complete'] );
