@@ -22,7 +22,7 @@ $sync = new WC_Scanpay_Sync();
 $wco  = wc_get_order( $oid );
 
 if ( $wco && str_starts_with( $wco->get_payment_method( 'edit' ), 'scanpay' ) ) {
-	if ( 'yes' === ( $sync->settings['capture_on_complete'] ?? '' ) ) {
+	if ( 'completed' === $sync->settings['wc_autocapture'] ) {
 		remove_filter( 'woocommerce_order_status_completed', [ $sync, 'capture_after_complete' ], 3, 2 );
 		$sync->capture_and_complete( $oid, $wco );
 	} else {

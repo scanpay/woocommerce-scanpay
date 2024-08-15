@@ -55,13 +55,15 @@ return [
 		'label'   => 'Use default checkout stylesheet (CSS).',
 		'default' => 'yes',
 	],
-	'capture_on_complete'  => [
-		'title'       => 'Auto-Capture',
-		'type'        => 'checkbox',
-		'label'       => 'Capture when order status is changed to "completed".',
-		'description' => 'Automatically capture the payment when the order status changes to "completed".',
-		'desc_tip'    => true,
-		'default'     => 'yes',
+	'wc_autocapture'       => [
+		'title'    => 'Auto-Capture',
+		'type'     => 'select',
+		'default'  => 'completed',
+		'options'  => [
+			'off'       => 'Disable',
+			'completed' => 'On order completion (recommended)',
+			'on'        => 'Immediately',
+		],
 	],
 	'wc_complete_virtual'  => [
 		'title'   => 'Auto-Complete',

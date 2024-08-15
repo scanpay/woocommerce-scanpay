@@ -22,7 +22,7 @@ class WC_Scanpay_Sync {
 		$this->shopid        = $this->client->shopid;
 		$this->subscriptions = class_exists( 'WC_Subscriptions', false );
 
-		if ( 'yes' === $this->settings['capture_on_complete'] ) {
+		if ( 'completed' === $this->settings['wc_autocapture'] ) {
 			// [hook] Order status changed to completed
 			add_filter( 'woocommerce_order_status_completed', [ $this, 'capture_after_complete' ], 3, 2 );
 		}
@@ -326,14 +326,17 @@ class WC_Scanpay_Sync {
 				return;
 			}
 			if ( empty( $wco->get_transaction_id( 'edit' ) ) ) {
+				$wco->set_transaction_id( $trnid );
+				$wco->set_date_paid( $c['time']['authorized'] );
 				$wco->set_payment_method( 'scanpay' );
 				$wco->set_payment_method_title( $this->parse_payment_method( $c['method'] ) );
-				$wco->set_date_paid( $c['time']['authorized'] );
-				$wco->set_transaction_id( $trnid );
-				if ( 'yes' === $this->settings['capture_on_complete'] ) {
-					$wco->set_status( ( '1' === $wco->get_meta( WC_SCANPAY_URI_AUTOCPT, true, 'edit' ) ) ? 'completed' : 'processing' );
-				} else {
-					$wco->set_status( apply_filters( 'woocommerce_payment_complete_order_status', $wco->needs_processing() ? 'processing' : 'completed', $oid, $wco ) );
+
+				if ( in_array( $wco->get_status(), [ 'on-hold', 'pending', 'failed', 'cancelled' ] ) ) {
+					if ( 'completed' === $this->settings['wc_autocapture'] ) {
+						$wco->set_status( ( '1' === $wco->get_meta( WC_SCANPAY_URI_AUTOCPT, true, 'edit' ) ) ? 'completed' : 'processing' );
+					} else {
+						$wco->set_status( apply_filters( 'woocommerce_payment_complete_order_status', $wco->needs_processing() ? 'processing' : 'completed', $oid, $wco ) );
+					}
 				}
 				$wco->save();
 				do_action( 'woocommerce_payment_complete', $oid, $trnid );
@@ -350,7 +353,7 @@ class WC_Scanpay_Sync {
 				throw new Exception( "could not save payment data to order #$oid" );
 			}
 		} elseif ( $trnid !== (int) $meta[0]->id ) {
-			scanpay_log( 'warning', "Scanpay payment ignored (id=$trnid); order #$oid is already paid (id=" . $meta[0]->id . ')' );
+			scanpay_log( 'warning', "Order #$oid is already paid (id=" . $meta[0]->id . "). Will ignore trnid $trnid" );
 		} elseif ( $rev > $meta[0]->rev ) {
 			list( $authorized, $captured, $refunded, $voided, $currency ) = $this->totals( $c['totals'] );
 			$update = $wpdb->query(
@@ -545,8 +548,9 @@ class WC_Scanpay_Sync {
 				];
 			}
 		}
-
-		$wc_total = (string) $wco->get_total( 'edit' );
+		$autoCompleted       = $is_virtual || 'yes' === $this->settings['wcs_complete_renewal'];
+		$data['autocapture'] = 'on' === $settings['wc_autocapture'] || ( 'completed' === $settings['wc_autocapture'] && $autoCompleted );
+		$wc_total            = (string) $wco->get_total( 'edit' );
 		if ( $sum !== $wc_total && wc_scanpay_cmpmoney( $sum, $wc_total ) !== 0 ) {
 			$data['items'] = [
 				[
@@ -560,7 +564,6 @@ class WC_Scanpay_Sync {
 				'The item list will not be available in the scanpay dashboard.'
 			);
 		}
-		$data['autocapture'] = 'yes' === $this->settings['capture_on_complete'] && ( $is_virtual || 'yes' === $this->settings['wcs_complete_renewal'] );
 
 		try {
 			// Final check before charge. We don't want to charge twice.
