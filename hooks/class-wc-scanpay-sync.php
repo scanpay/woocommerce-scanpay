@@ -332,7 +332,7 @@ class WC_Scanpay_Sync {
 				$wco->set_payment_method( 'scanpay' );
 				$wco->set_payment_method_title( $this->parse_payment_method( $c['method'] ) );
 
-				if ( in_array( $wco->get_status(), [ 'on-hold', 'pending', 'failed', 'cancelled' ] ) ) {
+				if ( in_array( $wco->get_status(), [ 'on-hold', 'pending', 'failed', 'cancelled' ], true ) ) {
 					if ( 'completed' === $this->settings['wc_autocapture'] ) {
 						$wco->set_status( ( '1' === $wco->get_meta( WC_SCANPAY_URI_AUTOCPT, true, 'edit' ) ) ? 'completed' : 'processing' );
 					} else {
@@ -550,8 +550,8 @@ class WC_Scanpay_Sync {
 				];
 			}
 		}
-		$autoCompleted       = $is_virtual || 'yes' === $this->settings['wcs_complete_renewal'];
-		$data['autocapture'] = 'on' === $settings['wc_autocapture'] || ( 'completed' === $settings['wc_autocapture'] && $autoCompleted );
+		$auto_completed      = $is_virtual || 'yes' === $this->settings['wcs_complete_renewal'];
+		$data['autocapture'] = 'on' === $settings['wc_autocapture'] || ( 'completed' === $settings['wc_autocapture'] && $auto_completed );
 		$wc_total            = (string) $wco->get_total( 'edit' );
 		if ( $sum !== $wc_total && wc_scanpay_cmpmoney( $sum, $wc_total ) !== 0 ) {
 			$data['items'] = [

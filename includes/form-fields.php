@@ -56,10 +56,10 @@ return [
 		'default' => 'yes',
 	],
 	'wc_autocapture'       => [
-		'title'    => 'Auto-Capture',
-		'type'     => 'select',
-		'default'  => 'completed',
-		'options'  => [
+		'title'   => 'Auto-Capture',
+		'type'    => 'select',
+		'default' => 'completed',
+		'options' => [
 			'off'       => 'Disable',
 			'completed' => 'On order completion (recommended)',
 			'on'        => 'Immediately',

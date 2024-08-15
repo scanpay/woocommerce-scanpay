@@ -67,15 +67,15 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		throw new Exception( 'Error: The payment plugin is not configured. Please contact support.' );
 	}
 
-	$otype             = 'wc';
-	$client            = new WC_Scanpay_Client( $settings['apikey'] );
-	$wcs               = class_exists( 'WC_Subscriptions', false );
-	$subref            = false;
-	$captureOnComplete = 'completed' === $settings['wc_autocapture'] && ! $wco->needs_processing();
+	$otype               = 'wc';
+	$client              = new WC_Scanpay_Client( $settings['apikey'] );
+	$wcs                 = class_exists( 'WC_Subscriptions', false );
+	$subref              = false;
+	$capture_on_complete = 'completed' === $settings['wc_autocapture'] && ! $wco->needs_processing();
 
 	$data = [
 		'orderid'     => (string) $oid,
-		'autocapture' => $captureOnComplete || 'on' === $settings['wc_autocapture'],
+		'autocapture' => $capture_on_complete || 'on' === $settings['wc_autocapture'],
 		'successurl'  => apply_filters( 'woocommerce_get_return_url', $wco->get_checkout_order_received_url(), $wco ),
 		'lifetime'    => '15m',
 		'billing'     => [
