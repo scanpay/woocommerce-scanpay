@@ -86,10 +86,10 @@ class WC_Scanpay_Client
 
         $statusCode = (int) curl_getinfo($this->ch, CURLINFO_RESPONSE_CODE);
         if ($statusCode !== 200) {
-            if (substr_count($result, "\n") > 1) {
-                throw new \Exception("internal server error (code: $statusCode)");
+            if (substr_count($result, "\n") !== 1 || strlen($result) > 512) {
+                $result = "server error";
             }
-            throw new \Exception($result);
+            throw new \Exception($statusCode . " " . $result);
         }
 
         if (isset($opts['headers']['Idempotency-Key']) && $this->idemstatus !== 'ok') {
