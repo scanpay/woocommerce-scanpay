@@ -537,7 +537,10 @@ class WC_Scanpay_Sync {
 			if ( $is_virtual && $item instanceof WC_Order_Item_Product ) {
 				$prod = $item->get_product();
 				if ( $prod ) {
-					$is_virtual = $prod->is_virtual() && ( 'yes' === $this->settings['wc_complete_virtual'] || $prod->is_downloadable() );
+					$is_virtual = $prod->is_virtual() && (
+						'yes' === $this->settings['wc_complete_virtual'] ||
+						$prod->is_downloadable()
+					);
 				}
 			}
 			$line_total = $wco->get_line_total( $item, true, true ); // w. taxes and rounded (how Woo does)
@@ -550,6 +553,8 @@ class WC_Scanpay_Sync {
 				];
 			}
 		}
+		set_transient( 'wc_order_' . $oid . '_needs_processing', ! $is_virtual, 1800 );
+
 		$auto_completed      = $is_virtual || 'yes' === $this->settings['wcs_complete_renewal'];
 		$data['autocapture'] = 'on' === $settings['wc_autocapture'] || ( 'completed' === $settings['wc_autocapture'] && $auto_completed );
 		$wc_total            = (string) $wco->get_total( 'edit' );
