@@ -3,8 +3,8 @@ Contributors: scanpay
 Tags: woocommerce, payments, subscriptions, scanpay, mobilepay
 Requires at least: 4.7.0
 Requires PHP: 7.4
-Tested up to: 6.5.4
-Stable tag: 2.4.1
+Tested up to: 6.6.2
+Stable tag: 2.5.0
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
 
@@ -19,7 +19,7 @@ This is an official payment plugin developed, maintained and supported by Scanpa
 ## Features
 
 * Dankort, Visa, Mastercard, JCB, Amex, Diners, et. al.
-* MobilePay, Apple Pay and soon Google Pay _(Q2-2024)_
+* MobilePay, Apple Pay and soon Google Pay _(Q4-2024)_
 * Full WooCommerce Subscriptions support
 * Option to automatically capture payments
 * Option to auto-complete orders
@@ -92,9 +92,14 @@ Available for merchants in all European countries.
 Yes, this plugin supports MobilePay. You must enable MobilePay in both the plugin and the [dashboard](https://dashboard.scanpay.dk).
 
 = How do I contact support? =
-You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us on [IRC](https://chat.scanpay.dev/).
+You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us on [IRC](https://irc.scanpay.dev/).
 
 == Changelog ==
+
+= 2.5.0 - 2024-08-15 =
+* Update - Refactor auto-capture settings to use dropdown instead of checkbox
+* Tweak - Trim server error messages
+* Performance - Save needs_processing transient (WCS)
 
 = 2.4.1 - 2024-05-31 =
 * Add - Add Forbrugsforeningen (payment method)

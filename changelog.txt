@@ -1,3 +1,8 @@
+= 2.5.0 - 2024-08-15 =
+* Update - Refactor auto-capture settings to use dropdown instead of checkbox
+* Tweak - Trim server error messages
+* Performance - Save needs_processing transient (WCS)
+
 = 2.4.1 - 2024-05-31 =
 * Add - Add Forbrugsforeningen (payment method)
 

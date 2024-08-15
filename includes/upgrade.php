@@ -45,6 +45,7 @@ if ( version_compare( $version, '2.0.0', '<' ) ) {
 }
 
 /*
+	Version: 2.1.3
 	Temporary fix for bug in old plugin (1.x.x)
 */
 if ( $wcs_exists && version_compare( $version, '2.1.3', '<' ) ) {
@@ -80,4 +81,16 @@ if ( $wcs_exists && version_compare( $version, '2.1.3', '<' ) ) {
 	}
 }
 
+/*
+	Version: 2.5.0
+	* Setting 'capture_on_complete' (checkbox) changed to 'wc_autocapture' (dropdown)
+*/
+if ( version_compare( $version, '2.5.0', '<' ) ) {
+	$settings                   = get_option( WC_SCANPAY_URI_SETTINGS );
+	$settings['wc_autocapture'] = ( isset( $settings['capture_on_complete'] ) && 'yes' === $settings['capture_on_complete'] ) ? 'completed' : 'off';
+	unset( $settings['capture_on_complete'] );
+	update_option( WC_SCANPAY_URI_SETTINGS, $settings, true );
+}
+
 update_option( 'wc_scanpay_version', WC_SCANPAY_VERSION, true ); // with autoload
+scanpay_log( 'info', 'Scanpay plugin upgrade complete' );

@@ -67,15 +67,15 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		throw new Exception( 'Error: The payment plugin is not configured. Please contact support.' );
 	}
 
-	$otype  = 'wc';
-	$client = new WC_Scanpay_Client( $settings['apikey'] );
-	$wcs    = class_exists( 'WC_Subscriptions', false );
-	$coc    = 'yes' === ( $settings['capture_on_complete'] ?? '' );
-	$subref = false;
+	$otype               = 'wc';
+	$client              = new WC_Scanpay_Client( $settings['apikey'] );
+	$wcs                 = class_exists( 'WC_Subscriptions', false );
+	$subref              = false;
+	$capture_on_complete = 'completed' === $settings['wc_autocapture'] && ! $wco->needs_processing();
 
 	$data = [
 		'orderid'     => (string) $oid,
-		'autocapture' => $coc && ! $wco->needs_processing(),
+		'autocapture' => $capture_on_complete || 'on' === $settings['wc_autocapture'],
 		'successurl'  => apply_filters( 'woocommerce_get_return_url', $wco->get_checkout_order_received_url(), $wco ),
 		'lifetime'    => '15m',
 		'billing'     => [
@@ -150,8 +150,9 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		if ( $subref ) {
 			$data['subscriber'] = [ 'ref' => $subref ];
 			$otype              = ( $wc_totalf > 0 ) ? 'wcs' : 'wcs_free';
-			if ( $coc && ! $data['autocapture'] ) {
-				$data['autocapture'] = ( 'yes' === $settings['wcs_complete_initial'] ?? '' );
+			// Check if the initial subscription charge should be auto-captured
+			if ( 'yes' === $settings['wcs_complete_initial'] && 'completed' === $settings['wc_autocapture'] ) {
+				$data['autocapture'] = true;
 			}
 		}
 	}
@@ -177,7 +178,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 			'redirect' => $link,
 		];
 	} catch ( Exception $e ) {
-		scanpay_log( 'error', 'Payment link creation failed: ' . $e->getMessage() );
+		scanpay_log( 'error', 'Payment link creation failed: ' . trim( $e->getMessage() ) );
 		throw new Exception( 'Error: We could not create a link to the payment window. Please wait a moment and try again.' );
 	}
 }

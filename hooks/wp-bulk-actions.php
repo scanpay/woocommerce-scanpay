@@ -19,7 +19,7 @@ if ( 'scanpay_mark_completed' === $action ) {
 
 require WC_SCANPAY_DIR . '/hooks/class-wc-scanpay-sync.php';
 $sync    = new WC_Scanpay_Sync();
-$capture = 'scanpay_capture_complete' === $action || 'yes' === ( $sync->settings['capture_on_complete'] ?? '' );
+$capture = 'scanpay_capture_complete' === $action || 'completed' === $sync->settings['wc_autocapture'];
 
 if ( $capture ) {
 	// Disable capture_after_complete hook

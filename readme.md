@@ -6,7 +6,7 @@
 
 WooCommerce is a free and open-source e-commerce plugin for WordPress. At Scanpay, we have developed a payment plugin for WooCommerce that allows you to accept payments through our payment platform in your WooCommerce store.
 
-If you have any questions, concerns or ideas, please do not hesitate to e-mail us at [support@scanpay.dk](mailto:support@scanpay.dk). Feel free to join our IRC server `irc.scanpay.dev:6697 #support` or chat with us at [chat.scanpay.dev](https://chat.scanpay.dev).
+If you have any questions, concerns or ideas, please do not hesitate to e-mail us at [support@scanpay.dk](mailto:support@scanpay.dk). Feel free to join our IRC server `irc.scanpay.dev:6697 #support` or chat with us at [irc.scanpay.dev](https://irc.scanpay.dev).
 
 ## Requirements
 
