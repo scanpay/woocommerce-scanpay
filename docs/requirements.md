@@ -6,12 +6,12 @@
 | :---------------------------------------- | :-----: |
 | ~~str_starts_with()~~                     | 8.0     |
 | ~~str_ends_with()~~                       | 8.0     |
-| WooCommerce (8.2)                         | **7.4** |
+| WooCommerce (9.1.4)                       | **7.4** |
+| WordPress (6.6.2)                         | 7.4     |
 | Array Spread operator                     | 7.4     |
 | Typed class properties                    | 7.4     |
 | Nullable Types                            | 7.1     |
 | Void return type                          | 7.1     |
-| WordPress (6.3)                           | 7.0     |
 | Return type declarations                  | 7.0     |
 | Null coalescing operator                  | 7.0     |
 
