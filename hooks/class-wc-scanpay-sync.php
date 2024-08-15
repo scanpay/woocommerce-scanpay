@@ -106,8 +106,9 @@ class WC_Scanpay_Sync {
 			] );
 			return [ true, 'Captured ' . wc_price( (float) $amount ) ];
 		} catch ( \Exception $e ) {
-			scanpay_log( 'info', "Capture failed on order #$oid: " . $e->getMessage() );
-			return [ false, 'Capture failed: ' . $e->getMessage() . '.' ];
+			$str = trim( $e->getMessage() );
+			scanpay_log( 'info', "Capture failed on order #$oid: $str" );
+			return [ false, "Capture failed: $str." ];
 		}
 	}
 
@@ -461,8 +462,9 @@ class WC_Scanpay_Sync {
 			wp_send_json_success();
 		} catch ( Exception $e ) {
 			$this->release_lock();
-			scanpay_log( 'error', 'Scanpay Sync Error: ' . $e->getMessage() );
-			wp_send_json( [ 'error' => $e->getMessage() ], 500 );
+			$str = trim( $e->getMessage() );
+			scanpay_log( 'error', "Scanpay Sync Error: $str" );
+			wp_send_json( [ 'error' => $str ], 500 );
 		}
 	}
 
@@ -589,8 +591,9 @@ class WC_Scanpay_Sync {
 			$sub = $wpdb->get_row( "SELECT retries, nxt, idem FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid", ARRAY_A );
 			$rt  = $sub['retries'] - 1;
 			$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_subs SET nxt = $nxt, idem = '', retries = $rt WHERE subid = $subid" );
-			scanpay_log( 'error', "charge failed on #$oid: " . $e->getMessage() );
-			$wco->update_status( 'failed', 'Charge failed: ' . $e->getMessage() );
+			$str = trim( $e->getMessage() );
+			scanpay_log( 'error', "charge failed on #$oid: $str" );
+			$wco->update_status( 'failed', "Charge failed: $str" );
 		}
 	}
 }
