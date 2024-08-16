@@ -556,7 +556,7 @@ class WC_Scanpay_Sync {
 		set_transient( 'wc_order_' . $oid . '_needs_processing', ! $is_virtual, 1800 );
 
 		$auto_completed      = $is_virtual || 'yes' === $this->settings['wcs_complete_renewal'];
-		$data['autocapture'] = 'on' === $settings['wc_autocapture'] || ( 'completed' === $settings['wc_autocapture'] && $auto_completed );
+		$data['autocapture'] = 'on' === $this->settings['wc_autocapture'] || ( 'completed' === $this->settings['wc_autocapture'] && $auto_completed );
 		$wc_total            = (string) $wco->get_total( 'edit' );
 		if ( $sum !== $wc_total && wc_scanpay_cmpmoney( $sum, $wc_total ) !== 0 ) {
 			$data['items'] = [

@@ -1,3 +1,6 @@
+= 2.5.1 - 2024-08-16 =
+* Fix - Undefined variable in subscription charge (since 2.5.0)
+
 = 2.5.0 - 2024-08-15 =
 * Update - Refactor auto-capture settings to use dropdown instead of checkbox
 * Tweak - Trim server error messages
