@@ -1,23 +1,34 @@
 {
-    "name": "woocommerce-scanpay",
     "private": true,
+    "name": "woocommerce-scanpay",
+    "version": "2.5.1",
+    "description": "Scanpay payment plugin for WordPress and WooCommerce.",
+    "author": "Scanpay ApS",
+    "license": "GPL-2.0-or-later",
+    "title": "Scanpay for WooCommerce",
+    "keywords": [
+        "woocommerce",
+        "payments",
+        "scanpay"
+    ],
+    "homepage": "https://wordpress.org/plugins/scanpay-for-woocommerce/",
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/scanpay/woocommerce-scanpay.git"
+    },
+    "bugs": {
+        "url": "https://github.com/scanpay/woocommerce-scanpay/issues"
+    },
+    "packageManager": "pnpm@9.8.0",
     "dependencies": {
         "@woocommerce/eslint-plugin": "latest",
-        "@wordpress/scripts": "latest",
-        "node-wp-i18n": "latest",
-        "npm": "^10.2.5",
-        "prettier": "latest"
+        "@wordpress/scripts": "latest"
     },
     "scripts": {
-        "start": "wp-scripts start",
-        "build": "wp-scripts build && npm run i18n:build",
-        "build:webpack": "wp-scripts build public/js/index.js",
-        "start:webpack": "wp-scripts start public/js/index.js",
-        "lint:js": "wp-scripts lint-js",
-        "postbuild": "npm run -s && npm run archive",
-        "archive": "composer archive --file=$npm_package_name --format=zip",
-        "makepot": "wpi18n makepot --pot-file $npm_package_name.pot --type plugin --main-file $npm_package_name.php --exclude node_modules,.vendor,build",
-        "phpcs": "./.vendor/bin/phpcs.phar *.php includes -p",
-        "phpcompat": "./.vendor/bin/phpcs.phar *.php includes -p --standard=PSR12 --extensions=php --runtime-set testVersion 7.4-"
+        "lint:js": "wp-scripts lint-js src/public/js/",
+        "lint:style": "wp-scripts lint-style src/public/css/",
+        "lint:pkg-json": "wp-scripts lint-pkg-json",
+        "lint:md:docs": "wp-scripts lint-md-docs",
+        "phpcs": "./vendor/bin/phpcs -p src/"
     }
 }
