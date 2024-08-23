@@ -22,7 +22,7 @@ class WC_Scanpay_Client {
 		$this->ch      = curl_init();
 		$this->headers = [
 			'Authorization: Basic ' . base64_encode( $apikey ),
-			'X-Shop-Plugin: WC-' . WC_SCANPAY_VERSION . '/' . WC_VERSION . '; PHP-' . PHP_VERSION,
+			'X-Shop-Plugin: WC-' . WC_SCANPAY_VERSION . '/' . WC()->version . '; PHP-' . PHP_VERSION,
 			'Content-Type: application/json',
 			'Expect: ',
 		];
