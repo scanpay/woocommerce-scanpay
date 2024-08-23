@@ -14,11 +14,12 @@
 		</properties>
 	</rule>
 
-	<!-- Rules -->
+	<!-- WooCommerce Rules -->
 	<rule ref="WooCommerce-Core">
 		<exclude name="WooCommerce.Commenting.CommentHooks.MissingHookComment" />
 	</rule>
 
+	<!-- WordPress Rules -->
 	<rule ref="WordPress">
 		<!-- Allow short array syntax [] -->
 		<exclude name="Generic.Arrays.DisallowShortArraySyntax"/>
@@ -109,26 +110,4 @@
 		<exclude-pattern>hooks/class-wc-scanpay-sync.php</exclude-pattern>
 		<exclude-pattern>hooks/wp-scanpay-thankyou.php</exclude-pattern>
 	</rule>
-
-	<!--
-	<rule ref="WordPress-Extra">
-		<exclude name="Generic.Commenting.DocComment.SpacingAfter" />
-		<exclude name="Generic.Files.LineEndings.InvalidEOLChar" />
-		<exclude name="Generic.Functions.FunctionCallArgumentSpacing.SpaceBeforeComma" />
-		<exclude name="Generic.WhiteSpace" />
-		<exclude name="PEAR.Functions.FunctionCallSignature" />
-		<exclude name="Squiz.Commenting" />
-		<exclude name="Squiz.PHP.DisallowSizeFunctionsInLoops.Found" />
-		<exclude name="Squiz.WhiteSpace" />
-		<exclude name="WordPress.Arrays" />
-		<exclude name="WordPress.Files.FileName" />
-		<exclude name="WordPress.NamingConventions" />
-		<exclude name="WordPress.Security.ValidatedSanitizedInput.MissingUnslash" />
-		<exclude name="WordPress.WP.I18n.NonSingularStringLiteralText" />
-		<exclude name="WordPress.WhiteSpace" />
-		<exclude name="WordPress.Security.EscapeOutput" />
-		<exclude name="Squiz.PHP.EmbeddedPhp" />
-	</rule>
-	-->
-
 </ruleset>
