@@ -12,7 +12,7 @@ if ( version_compare( $version, '2.0.0', '<' ) ) {
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}woocommerce_scanpay_queuedcharges" );
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}woocommerce_scanpay_seq" );
 
-	require WC_SCANPAY_DIR . '/includes/install.php';
+	require WC_SCANPAY_DIR . '/install.php';
 
 	// Migrate old settings to new settings
 	$old = get_option( WC_SCANPAY_URI_SETTINGS );

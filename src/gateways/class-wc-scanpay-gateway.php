@@ -38,7 +38,7 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 		// Check if plugin needs to be upgraded (todo: merge wc_scanpay_version with settings)
 		if ( get_option( 'wc_scanpay_version' ) !== WC_SCANPAY_VERSION && ! get_transient( 'wc_scanpay_updating' ) ) {
 			set_transient( 'wc_scanpay_updating', true, 5 * 60 );  // Set a transient for 5 minutes
-			require WC_SCANPAY_DIR . '/includes/upgrade.php';
+			require WC_SCANPAY_DIR . '/upgrade.php';
 			delete_transient( 'wc_scanpay_updating' );
 		}
 
@@ -110,7 +110,7 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_meta" );
 			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_subs" );
 			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_queue" );
-			require WC_SCANPAY_DIR . '/includes/install.php';
+			require WC_SCANPAY_DIR . '/install.php';
 		}
 	}
 
