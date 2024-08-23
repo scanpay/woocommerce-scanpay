@@ -2,7 +2,7 @@
 
 defined( 'ABSPATH' ) || exit();
 
-require WC_SCANPAY_DIR . '/library/client.php';
+require WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
 require WC_SCANPAY_DIR . '/library/math.php';
 
 // phpcs:ignore WordPress.Security.NonceVerification.Missing
@@ -167,7 +167,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	);
 
 	try {
-		$link = $client->newURL( $data );
+		$link = $client->new_url( $data );
 		$wco->add_meta_data( WC_SCANPAY_URI_PAYID, basename( $link ), true );
 		$wco->add_meta_data( WC_SCANPAY_URI_PTIME, time(), true );
 		$wco->add_meta_data( WC_SCANPAY_URI_SHOPID, $client->shopid, true );
