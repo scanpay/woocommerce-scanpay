@@ -26,4 +26,4 @@ Please follow the instructions in the [installation guide](https://wordpress.org
 
 ## License
 
-Everything in this repository is licensed under the [MIT license](LICENSE).
+Everything in this repository is licensed under the [GPLv3 license](LICENSE).

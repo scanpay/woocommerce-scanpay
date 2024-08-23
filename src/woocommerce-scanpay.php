@@ -1,21 +1,21 @@
 <?php
 
-/*
- * Version: 2.5.1
- * Requires at least: 4.7.0
- * Requires PHP: 7.4
- * WC requires at least: 3.6.0
- * WC tested up to: 9.1.4
- * Requires Plugins: woocommerce
+/**
  * Plugin Name: Scanpay for WooCommerce
  * Plugin URI: https://wordpress.org/plugins/scanpay-for-woocommerce/
  * Description: Accept payments in WooCommerce with a secure payment gateway.
  * Author: Scanpay
  * Author URI: https://scanpay.dk
+ * Version: 2.5.1
+ * Requires Plugins: woocommerce
+ * Requires at least: 4.7.0
+ * Requires PHP: 7.4
+ * WC requires at least: 3.6.0
+ * WC tested up to: 9.1.4
  * Text Domain: scanpay-for-woocommerce
  * Domain Path: /languages
- * License: MIT License
- * License URI: https://opensource.org/licenses/MIT
+ * License: GPLv3
+ * License URI: https://www.gnu.org/licenses/gpl-3.0.html
  */
 
 defined( 'ABSPATH' ) || exit();
