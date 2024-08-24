@@ -1,6 +1,6 @@
 # Requirements
 
-### PHP compatibility table
+## PHP compatibility table
 
 | PHP Features                              | Version |
 | :---------------------------------------- | :-----: |
@@ -16,7 +16,7 @@
 | Null coalescing operator                  | 7.0     |
 
 
-### WooCommerce compatibility table
+## WooCommerce compatibility table
 
 | WooCommerce                               | Version  |
 | :---------------------------------------- | :------: |
@@ -42,7 +42,7 @@
 | WC_Settings_API:get_form_fields           | 1.0.0    |
 
 
-### WordPress compatibility table
+## WordPress compatibility table
 
 | WordPress                                 | Version  |
 | :---------------------------------------- | :------: |
@@ -70,7 +70,7 @@
 | wpautop                                   | 0.71     |
 
 
-### WooCommerce Subscriptions
+## WooCommerce Subscriptions
 
 | WooCommerce Subscriptions                 | Version  |
 | :---------------------------------------- | :------: |
@@ -80,7 +80,7 @@
 | wcs_order_contains_subscription           | 1.0.0    |
 
 
-### libcurl compatibility table
+## libcurl compatibility table
 
 **Note**: We might at some point require `CURLOPT_DNS_SHUFFLE_ADDRESSES`.
 
