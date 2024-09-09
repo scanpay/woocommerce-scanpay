@@ -309,6 +309,7 @@ add_action( 'plugins_loaded', function () {
 
 // Declare support for High-Performance Order Storage (custom_order_tables)
 add_action( 'before_woocommerce_init', function () {
+	// Note: Our plugin may load before WC, so class_exists is set to autoload to ensure the class is available.
 	if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class, true ) ) {
 		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
 	}
