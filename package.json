@@ -1,34 +1,45 @@
 {
-    "private": true,
-    "name": "woocommerce-scanpay",
-    "version": "2.5.1",
-    "description": "Scanpay payment plugin for WordPress and WooCommerce.",
-    "author": "Scanpay ApS",
-    "license": "GPL-2.0-or-later",
-    "title": "Scanpay for WooCommerce",
-    "keywords": [
-        "woocommerce",
-        "payments",
-        "scanpay"
-    ],
-    "homepage": "https://wordpress.org/plugins/scanpay-for-woocommerce/",
-    "repository": {
-        "type": "git",
-        "url": "git://github.com/scanpay/woocommerce-scanpay.git"
-    },
-    "bugs": {
-        "url": "https://github.com/scanpay/woocommerce-scanpay/issues"
-    },
-    "packageManager": "pnpm@9.8.0",
-    "dependencies": {
-        "@woocommerce/eslint-plugin": "latest",
-        "@wordpress/scripts": "latest"
-    },
-    "scripts": {
-        "lint:js": "wp-scripts lint-js src/public/js/",
-        "lint:style": "wp-scripts lint-style src/public/css/",
-        "lint:pkg-json": "wp-scripts lint-pkg-json",
-        "lint:md:docs": "wp-scripts lint-md-docs",
-        "phpcs": "./vendor/bin/phpcs -p src/"
-    }
+	"private": true,
+	"name": "woocommerce-scanpay",
+	"version": "2.5.1",
+	"description": "Scanpay payment plugin for WordPress and WooCommerce.",
+	"author": "Scanpay ApS",
+	"license": "GPL-2.0-or-later",
+	"title": "Scanpay for WooCommerce",
+	"keywords": [
+		"woocommerce",
+		"payments",
+		"scanpay"
+	],
+	"homepage": "https://wordpress.org/plugins/scanpay-for-woocommerce/",
+	"repository": {
+		"type": "git",
+		"url": "git://github.com/scanpay/woocommerce-scanpay.git"
+	},
+	"bugs": {
+		"url": "https://github.com/scanpay/woocommerce-scanpay/issues"
+	},
+	"packageManager": "pnpm@9.8.0",
+	"prettier": "@wordpress/prettier-config",
+	"dependencies": {
+		"@wordpress/prettier-config": "latest",
+		"@wordpress/scripts": "latest",
+		"sass": "latest"
+	},
+	"devDependencies": {
+		"@wordpress/element": "latest",
+		"@woocommerce/eslint-plugin": "latest",
+		"eslint-import-resolver-typescript": "latest",
+		"ts-loader": "latest",
+		"typescript": "latest"
+	},
+	"scripts": {
+		"build:css": "sass --style compressed --no-source-map ./src/public/css/:build/public/css/",
+		"build:js": "wp-scripts build",
+		"lint:js": "wp-scripts lint-js src/public/js/",
+		"lint:style": "wp-scripts lint-style src/public/css/",
+		"lint:pkg-json": "wp-scripts lint-pkg-json",
+		"lint:md:docs": "wp-scripts lint-md-docs",
+		"phpcs": "./vendor/bin/phpcs -p src/"
+	}
 }
