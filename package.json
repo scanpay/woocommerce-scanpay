@@ -27,8 +27,8 @@
 		"sass": "latest"
 	},
 	"devDependencies": {
-		"@wordpress/element": "latest",
 		"@woocommerce/eslint-plugin": "latest",
+		"@wordpress/element": "latest",
 		"eslint-import-resolver-typescript": "latest",
 		"ts-loader": "latest",
 		"typescript": "latest"
