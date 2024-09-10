@@ -6,7 +6,7 @@
  * Description: Accept payments in WooCommerce with a secure payment gateway.
  * Author: Scanpay
  * Author URI: https://scanpay.dk
- * Version: 2.5.1
+ * Version: {{ VERSION }}
  * Requires Plugins: woocommerce
  * Requires at least: 4.7.0
  * Requires PHP: 7.4
@@ -20,7 +20,7 @@
 
 defined( 'ABSPATH' ) || exit();
 
-const WC_SCANPAY_VERSION      = '2.5.1';
+const WC_SCANPAY_VERSION      = '{{ VERSION }}';
 const WC_SCANPAY_MIN_PHP      = '7.4.0';
 const WC_SCANPAY_MIN_WC       = '3.6.0';
 const WC_SCANPAY_DASHBOARD    = 'https://dashboard.scanpay.dk/';
