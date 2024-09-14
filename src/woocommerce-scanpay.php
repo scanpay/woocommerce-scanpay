@@ -148,9 +148,9 @@ function wc_scanpay_add_meta_box_subs( $wc_order ) {
 				data-subid="' . $wc_sub->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ) . '"
 				data-payid="' . $wc_sub->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' ) . '"
 				data-ptime="' . $wc_sub->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' ) . '">
-					<div id="wcsp-meta-sub"></div>
-					<ul id="wcsp-meta-ul"></ul>
-				</div>';
+				<div id="wcsp-meta-head"></div>
+				<ul id="wcsp-meta-ul" class="wcsp-meta-ul"></ul>
+			</div>';
 		},
 		null,
 		'side',
