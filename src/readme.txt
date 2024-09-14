@@ -95,6 +95,8 @@ Yes, this plugin supports MobilePay. You must enable MobilePay in both the plugi
 You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us on [IRC](https://irc.scanpay.dev/).
 
 == Changelog ==
+= 2.6.1 - 2024-09-14 =
+* Update - Display plugin version warning only if a newer version is available.
 
 = 2.6.0 - 2024-09-14 =
 * Fix - Resolved an issue where an HPOS incompatibility warning was incorrectly triggered.
