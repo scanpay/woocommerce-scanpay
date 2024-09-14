@@ -27,17 +27,18 @@ function wc_scanpay_check_plugin_requirements(): ?string {
 	}
 
 	// Check if WooCommerce is active
-	if ( ! defined( 'WC_VERSION' ) ) {
+	if ( ! function_exists( 'WC' ) ) {
 		return 'requires <b><u>WooCommerce</u></b>. Please install and activate WooCommerce.';
 	}
 
 	// Check WooCommerce version
-	if ( version_compare( WC_SCANPAY_MIN_WC, WC_VERSION ) >= 0 ) {
+	$wc_version = WC()->version ?? '0.0.0';
+	if ( version_compare( WC_SCANPAY_MIN_WC, $wc_version ) >= 0 ) {
 		return sprintf(
 			'requires WooCommerce version <b>%s</b> or higher, but
 			your WooCommerce version is <b>%s</b>. Please update WooCommerce.',
 			WC_SCANPAY_MIN_WC,
-			WC_VERSION
+			$wc_version
 		);
 	}
 	return null;

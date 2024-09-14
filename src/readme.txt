@@ -3,10 +3,10 @@ Contributors: scanpay
 Tags: woocommerce, payments, subscriptions, scanpay, mobilepay
 Requires at least: 4.7.0
 Requires PHP: 7.4
-Tested up to: 6.6.2
-Stable tag: 2.5.1
-License: MIT License
-License URI: https://opensource.org/licenses/MIT
+Tested up to: 6.6.3
+Stable tag: {{ VERSION }}
+License: GPLv3
+License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
 Accept payments in WooCommerce with a reliable and secure Scandinavian payment gateway.
 
@@ -95,6 +95,12 @@ Yes, this plugin supports MobilePay. You must enable MobilePay in both the plugi
 You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us on [IRC](https://irc.scanpay.dev/).
 
 == Changelog ==
+
+= 2.6.0 - 2024-09-14 =
+* Fix - Resolved an issue where an HPOS incompatibility warning was incorrectly triggered.
+* Fix - Fixed misleading warning message in settings before the first successful ping is received.
+* Update - Refactored JavaScript to TypeScript for improved maintainability and code quality.
+* Performance - Minified CSS and JavaScript files.
 
 = 2.5.1 - 2024-08-16 =
 * Fix - Undefined variable in subscription charge (since 2.5.0)

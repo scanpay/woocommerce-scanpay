@@ -2,7 +2,7 @@
 /vendor/
 /node_modules
 /build
-/.*
+/.vscode
 /pnpm-lock.yaml
 /package-lock.json
 /composer.lock

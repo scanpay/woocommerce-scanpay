@@ -1,26 +1,26 @@
 <?php
 
-/*
- * Version: 2.5.1
- * Requires at least: 4.7.0
- * Requires PHP: 7.4
- * WC requires at least: 3.6.0
- * WC tested up to: 9.1.4
- * Requires Plugins: woocommerce
+/**
  * Plugin Name: Scanpay for WooCommerce
  * Plugin URI: https://wordpress.org/plugins/scanpay-for-woocommerce/
  * Description: Accept payments in WooCommerce with a secure payment gateway.
  * Author: Scanpay
  * Author URI: https://scanpay.dk
+ * Version: {{ VERSION }}
+ * Requires Plugins: woocommerce
+ * Requires at least: 4.7.0
+ * Requires PHP: 7.4
+ * WC requires at least: 3.6.0
+ * WC tested up to: 9.3.1
  * Text Domain: scanpay-for-woocommerce
  * Domain Path: /languages
- * License: MIT License
- * License URI: https://opensource.org/licenses/MIT
+ * License: GPLv3
+ * License URI: https://www.gnu.org/licenses/gpl-3.0.html
  */
 
 defined( 'ABSPATH' ) || exit();
 
-const WC_SCANPAY_VERSION      = '2.5.1';
+const WC_SCANPAY_VERSION      = '{{ VERSION }}';
 const WC_SCANPAY_MIN_PHP      = '7.4.0';
 const WC_SCANPAY_MIN_WC       = '3.6.0';
 const WC_SCANPAY_DASHBOARD    = 'https://dashboard.scanpay.dk/';
@@ -96,7 +96,7 @@ function wc_scanpay_add_meta_box( $wc_order ) {
 		return;
 	}
 	wp_enqueue_style( 'wcsp-meta', WC_SCANPAY_URL . '/public/css/meta.css', null, WC_SCANPAY_VERSION );
-	wp_enqueue_script( 'wcsp-meta', WC_SCANPAY_URL . '/public/js/meta.js', false, WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
+	wp_enqueue_script( 'wcsp-meta', WC_SCANPAY_URL . '/public/js/order.js', false, WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
 
 	add_meta_box(
 		'wcsp-meta-box',
@@ -110,7 +110,11 @@ function wc_scanpay_add_meta_box( $wc_order ) {
 			$subid    = $wc_order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
 			$payid    = $wc_order->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' );
 			$ptime    = $wc_order->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' );
-			echo "<div id='wcsp-meta' data-id='$oid' data-secret='$secret' data-status='$status' data-total='$total' data-subid='$subid' data-payid='$payid' data-ptime='$ptime'></div>";
+			echo "<div id='wcsp-meta' data-id='$oid' data-secret='$secret' data-status='$status' data-total='$total' data-subid='$subid' data-payid='$payid' data-ptime='$ptime'>
+				<div id='wcsp-meta-head'></div>
+				<ul id='wcsp-meta-ul' class='wcsp-meta-ul'></ul>
+				<div id='wcsp-meta-foot'></div>
+			</div>";
 		},
 		null,
 		'side',
@@ -143,7 +147,10 @@ function wc_scanpay_add_meta_box_subs( $wc_order ) {
 			echo '<div id="wcsp-meta" data-secret="' . $secret . '"
 				data-subid="' . $wc_sub->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ) . '"
 				data-payid="' . $wc_sub->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' ) . '"
-				data-ptime="' . $wc_sub->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' ) . '"></div>';
+				data-ptime="' . $wc_sub->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' ) . '">
+				<div id="wcsp-meta-head"></div>
+				<ul id="wcsp-meta-ul" class="wcsp-meta-ul"></ul>
+			</div>';
 		},
 		null,
 		'side',
@@ -309,7 +316,8 @@ add_action( 'plugins_loaded', function () {
 
 // Declare support for High-Performance Order Storage (custom_order_tables)
 add_action( 'before_woocommerce_init', function () {
-	if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class, false ) ) {
+	// Note: Our plugin may load before WC, so class_exists is set to autoload to ensure the class is available.
+	if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class, true ) ) {
 		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
 	}
 } );

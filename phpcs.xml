@@ -1,19 +1,10 @@
 <?xml version="1.0"?>
 <ruleset name="scanpay-woocommerce-cs">
-	<description>Scanpay WooCommerce Coding Standards</description>
+    <exclude-pattern>^(?!.*\.php$).*</exclude-pattern>
+    <file>src</file>
+    <arg name="basepath" value="."/>
+    <arg name="colors"/>
 
-	<!-- Exclude paths -->
-	<exclude-pattern>library/*</exclude-pattern>
-	<exclude-pattern>.vscode/*</exclude-pattern>
-	<exclude-pattern>node_modules/*</exclude-pattern>
-	<exclude-pattern>build/*</exclude-pattern>
-	<exclude-pattern>languages/*</exclude-pattern>
-	<exclude-pattern>public/*</exclude-pattern>
-	<exclude-pattern>vendor/*</exclude-pattern>
-	<exclude-pattern>*.js</exclude-pattern>
-	<exclude-pattern>deprecated/*</exclude-pattern>
-
-	<!-- Configs -->
 	<config name="minimum_supported_wp_version" value="4.7" />
 	<config name="testVersion" value="7.4-" />
 
@@ -23,11 +14,12 @@
 		</properties>
 	</rule>
 
-	<!-- Rules -->
+	<!-- WooCommerce Rules -->
 	<rule ref="WooCommerce-Core">
 		<exclude name="WooCommerce.Commenting.CommentHooks.MissingHookComment" />
 	</rule>
 
+	<!-- WordPress Rules -->
 	<rule ref="WordPress">
 		<!-- Allow short array syntax [] -->
 		<exclude name="Generic.Arrays.DisallowShortArraySyntax"/>
@@ -43,6 +35,18 @@
 
 		<!-- Only relevant to PHP 7.0 and older -->
 		<exclude name="WordPress.WP.AlternativeFunctions.parse_url_parse_url" />
+
+		<!-- Ignore warnings about cURL -->
+		<exclude name="WordPress.WP.AlternativeFunctions.curl_curl_init" />
+		<exclude name="WordPress.WP.AlternativeFunctions.curl_curl_reset" />
+		<exclude name="WordPress.WP.AlternativeFunctions.curl_curl_setopt_array" />
+		<exclude name="WordPress.WP.AlternativeFunctions.curl_curl_exec" />
+		<exclude name="WordPress.WP.AlternativeFunctions.curl_curl_strerror" />
+		<exclude name="WordPress.WP.AlternativeFunctions.curl_curl_errno" />
+		<exclude name="WordPress.WP.AlternativeFunctions.curl_curl_getinfo" />
+
+		<!-- Ignore warnings about json_encode() -->
+		<exclude name="WordPress.WP.AlternativeFunctions.json_encode_json_encode" />
 
 		<!-- Ignore prepared statements -->
 		<exclude name="WordPress.DB.PreparedSQL"/>
@@ -106,26 +110,4 @@
 		<exclude-pattern>hooks/class-wc-scanpay-sync.php</exclude-pattern>
 		<exclude-pattern>hooks/wp-scanpay-thankyou.php</exclude-pattern>
 	</rule>
-
-	<!--
-	<rule ref="WordPress-Extra">
-		<exclude name="Generic.Commenting.DocComment.SpacingAfter" />
-		<exclude name="Generic.Files.LineEndings.InvalidEOLChar" />
-		<exclude name="Generic.Functions.FunctionCallArgumentSpacing.SpaceBeforeComma" />
-		<exclude name="Generic.WhiteSpace" />
-		<exclude name="PEAR.Functions.FunctionCallSignature" />
-		<exclude name="Squiz.Commenting" />
-		<exclude name="Squiz.PHP.DisallowSizeFunctionsInLoops.Found" />
-		<exclude name="Squiz.WhiteSpace" />
-		<exclude name="WordPress.Arrays" />
-		<exclude name="WordPress.Files.FileName" />
-		<exclude name="WordPress.NamingConventions" />
-		<exclude name="WordPress.Security.ValidatedSanitizedInput.MissingUnslash" />
-		<exclude name="WordPress.WP.I18n.NonSingularStringLiteralText" />
-		<exclude name="WordPress.WhiteSpace" />
-		<exclude name="WordPress.Security.EscapeOutput" />
-		<exclude name="Squiz.PHP.EmbeddedPhp" />
-	</rule>
-	-->
-
 </ruleset>

@@ -38,13 +38,13 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 		// Check if plugin needs to be upgraded (todo: merge wc_scanpay_version with settings)
 		if ( get_option( 'wc_scanpay_version' ) !== WC_SCANPAY_VERSION && ! get_transient( 'wc_scanpay_updating' ) ) {
 			set_transient( 'wc_scanpay_updating', true, 5 * 60 );  // Set a transient for 5 minutes
-			require WC_SCANPAY_DIR . '/includes/upgrade.php';
+			require WC_SCANPAY_DIR . '/upgrade.php';
 			delete_transient( 'wc_scanpay_updating' );
 		}
 
 		if ( 'yes' === $this->settings['stylesheet'] ) {
 			add_action( 'woocommerce_blocks_enqueue_checkout_block_scripts_before', function () {
-				wp_enqueue_style( 'wcsp-blocks', WC_SCANPAY_URL . '/public/css/blocks.css', null, WC_SCANPAY_VERSION );
+				wp_enqueue_style( 'wcsp-blocks', WC_SCANPAY_URL . '/public/css/checkout.css', null, WC_SCANPAY_VERSION );
 			} );
 		}
 
@@ -67,7 +67,7 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 		if ( $array ) {
 			if ( 'yes' === $this->settings['stylesheet'] ) {
 				// TODO: find a better way to load this stylesheet or use prefetch
-				wp_enqueue_style( 'wcsp-pay', WC_SCANPAY_URL . '/public/css/pay.css', null, WC_SCANPAY_VERSION );
+				wp_enqueue_style( 'wcsp-pay', WC_SCANPAY_URL . '/public/css/checkout.css', null, WC_SCANPAY_VERSION );
 			}
 			$icons = '<span class="wcsp-methods wcsp-cards">';
 			foreach ( $array as $key => $card ) {
@@ -110,7 +110,7 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_meta" );
 			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_subs" );
 			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_queue" );
-			require WC_SCANPAY_DIR . '/includes/install.php';
+			require WC_SCANPAY_DIR . '/install.php';
 		}
 	}
 

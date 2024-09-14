@@ -15,7 +15,7 @@ class WC_Scanpay_Sync {
 	public function __construct() {
 		if ( ! class_exists( 'WC_Scanpay_Client', false ) ) {
 			require WC_SCANPAY_DIR . '/library/math.php';
-			require WC_SCANPAY_DIR . '/library/client.php';
+			require WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
 		}
 		$this->settings      = get_option( WC_SCANPAY_URI_SETTINGS );
 		$this->client        = new WC_Scanpay_Client( $this->settings['apikey'] ?? '' );
@@ -436,7 +436,7 @@ class WC_Scanpay_Sync {
 	public function handle_ping() {
 		global $wpdb;
 		ignore_user_abort( true );
-		$ping = $this->client->parsePing();
+		$ping = $this->client->parse_ping();
 		if ( ! $ping ) {
 			return wp_send_json( [ 'error' => 'invalid signature' ], 403 );
 		}
