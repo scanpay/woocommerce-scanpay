@@ -2,14 +2,15 @@
 	"compilerOptions": {
 		"moduleResolution": "node",
 		"target": "ES2020",
-		"module": "es6",
+		"module": "esnext",
 		"lib": [ "dom", "ES2020" ],
 		"strict": true,
 		"alwaysStrict": true,
 		"typeRoots": [
 			"./node_modules/@types/",
 			"./node_modules/@wordpress/element/build-types"
-		]
+		],
+		"outDir": "./build/public/js"
 	},
 	"include": [ "src/public/js/**/*" ],
 	"exclude": [ "node_modules" ]
