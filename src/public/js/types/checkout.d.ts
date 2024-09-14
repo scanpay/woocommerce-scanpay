@@ -14,7 +14,7 @@ declare global {
 				registerPaymentMethod: any;
 			};
 			wcSettings: {
-				getSetting: ( key: string ) => any;
+				getSetting: (key: string) => any;
 			};
 		};
 	}
@@ -26,7 +26,7 @@ declare global {
 
 interface WooPaymentMethodData {
 	methods: {
-		[ key: string ]: {
+		[key: string]: {
 			title: string;
 			description: string;
 			icons: string[];
