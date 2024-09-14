@@ -31,14 +31,11 @@ for file in "$SRC/public/js/"*.ts; do
     "$DIR/node_modules/.bin/esbuild" --bundle --minify "$file" --outfile="$BUILD/public/js/$(basename "$file" .ts).js"
 done
 
-#"build:css": "sass --style compressed --no-source-map ./src/public/css/:build/public/css/",
-#"build:js": "esbuild --bundle --minify --sourcemap",
-
 # Insert the version number into the files
-for file in $(find "$BUILD" -type f); do
-    mtime=$(stat -c %y "$file")
-    sed -i "s/{{ VERSION }}/$VERSION/g" "$file"
-    touch -d "$mtime" "$file"
+for file in $(find "$BUILD" -type f \( -name "*.php" -o -name "*.js" -o -name "*.txt" \)); do
+    if grep -q "{{ VERSION }}" "$file"; then
+        sed -i "s/{{ VERSION }}/$VERSION/g" "$file"
+    fi
 done
 
 read -p "Do you want to push to woocommerce.scanpay.dev? (y/N): " answer
