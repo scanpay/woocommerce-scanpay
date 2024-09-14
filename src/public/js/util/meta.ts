@@ -3,7 +3,7 @@
 	Prevent duplicate messages.
 */
 
-import { checkVersion, getLastSync } from './compat';
+import { checkVersion, isVersionGreater, getLastSync } from './compat';
 
 export function showError(msg: string) {
 	showWarning(msg, 'error');
@@ -29,8 +29,7 @@ export function buildTable(arr: [string, any][]) {
 
 export function pluginVersionCheck() {
 	checkVersion().then((version) => {
-		if (version !== '{{ VERSION }}') {
-			// TODO: This warning should be permanent
+		if (isVersionGreater(version, '{{ VERSION }}')) {
 			showWarning(
 				`Your scanpay plugin is <b class="scanpay-outdated">outdated</b>. Please update to ${version}
 				(<a href="//github.com/scanpay/woocommerce-scanpay/releases" target="_blank">changelog</a>)`,

@@ -5,7 +5,7 @@
 /**
  * Internal dependencies
  */
-import { getLastSync, checkVersion } from './util/compat';
+import { getLastSync, checkVersion, isVersionGreater } from './util/compat';
 
 function showWarning(title: string, msg: string, id: string | false = false) {
 	const html = '<h4>' + title + '</h4>' + msg;
@@ -83,7 +83,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 checkVersion().then((version) => {
-	if (version !== '{{ VERSION }}') {
+	if (isVersionGreater(version, '{{ VERSION }}')) {
 		showWarning(
 			'There is a new version of the plugin available. ',
 			`Your Scanpay extension (<i>{{ VERSION }}</i>) needs to be updated to ${version}
