@@ -10,19 +10,30 @@ If you have any questions, concerns or ideas, please do not hesitate to e-mail u
 
 ## Requirements
 
-* WooCommerce >= 3.6.0
-* WordPress >= 4.7.0
-* PHP version >= 7.4 ([requirements](./docs/requirements.md)).
-* php-curl (libcurl >= 7.25.0).
-* [Scanpay](https://scanpay.dk) account.
+-   WooCommerce >= 3.6.0 ([details](./docs/requirements.md#woocommerce-compatibility-table))
+-   WordPress >= 4.7.0 ([details](./docs/requirements.md#wordpress-compatibility-table))
+-   PHP version >= 7.4 ([details](./docs/requirements.md#php-compatibility-table))
+-   libcurl >= 7.25.0 ([details](./docs/requirements.md#libcurl-compatibility-table))
+-   [Scanpay](https://scanpay.dk) account.
 
 ## Plugin compatibility
 
-* WooCommerce Subscriptions (>= 1.0)
+-   WooCommerce Subscriptions >= 1.0
 
 ## Installation
 
-Please follow the instructions in the [installation guide](https://wordpress.org/plugins/scanpay-for-woocommerce/#installation).
+To install the plugin in your WooCommerce store, please follow the instructions in the [installation guide](https://wordpress.org/plugins/scanpay-for-woocommerce/#installation).
+
+If you wish to set up the development environment, follow these steps:
+
+```bash
+npm install
+./build.sh
+```
+
+## Contribution
+
+We greatly appreciate all contributions to this project. Whether you are fixing bugs, adding new features, improving documentation, or providing feedback, your efforts help make this project better for everyone. Please feel free to submit pull requests, report issues, or suggest enhancements. Thank you for your support and collaboration!
 
 ## License
 
