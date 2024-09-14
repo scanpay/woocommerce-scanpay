@@ -6,7 +6,7 @@ Features marked with ~~strikethrough~~ are managed using polyfills or other miti
 
 ## PHP compatibility table
 
-WordPress and WooCommerce require PHP 7.4, so we have aligned our requirements accordingly. However, PHP 7.4 reached its End-Of-Life on November 28, 2022. Therefore, we are considering upgrading our requirement to PHP 8.0 in the near future. For now, we have added polyfills for the `str_starts_with()` and `str_ends_with()` functions.
+WordPress and WooCommerce require PHP 7.4, so we have aligned our requirements accordingly. However, PHP 7.4 reached its End-Of-Life on November 28, 2022. Therefore, we are considering upgrading our requirement to PHP 8.0 in the near future.
 
 | PHP Features             | Version |
 | :----------------------- | :-----: |
