@@ -5,11 +5,10 @@
 /**
  * Internal dependencies
  */
-import { getLastSync, checkVersion } from './util/compat';
-import { showWarning } from './util/meta';
+import { showWarning, buildTable, pluginVersionCheck, pluginSyncCheck } from './util/meta';
 declare let wcSettings: any;
 
-const order = (document.getElementById('wcsp-meta') as HTMLElement).dataset as {
+const wco = (document.getElementById('wcsp-meta') as HTMLElement).dataset as {
 	secret?: string;
 	id?: string;
 	payid?: string;
@@ -17,28 +16,13 @@ const order = (document.getElementById('wcsp-meta') as HTMLElement).dataset as {
 	status?: string;
 	total?: string;
 };
-const secret = order.secret as string;
+const secret = wco.secret as string;
 const iso = (wcSettings as any).currency.decimalSeparator === ',' ? 'da-DK' : 'en-US';
 const currency = new Intl.NumberFormat(iso, {
 	style: 'currency',
 	currency: 'DKK',
 });
 let rev = 0;
-
-function verifySync() {
-	getLastSync(secret).then((unixtime) => {
-		const dmins = Math.floor((Math.floor(Date.now() / 1000) - unixtime) / 60);
-		if (unixtime === 0 || dmins > 60 * 24 * 3) {
-			return showWarning(
-				`Your plugin is not synchronized with the Scanpay backend. Please follow the instructions
-				<a href="https://wordpress.org/plugins/scanpay-for-woocommerce/#installation">here</a>.`
-			);
-		}
-		if (dmins > 10) {
-			showWarning('Your scanpay extension is out of sync: ' + dmins + 'minutes since last synchronization.');
-		}
-	});
-}
 
 function buildDataArray(o: any) {
 	const data = [
@@ -55,17 +39,6 @@ function buildDataArray(o: any) {
 	return data;
 }
 
-function buildTable(arr: [string, any][]) {
-	let html = '';
-	for (const x of arr) {
-		html += `<li class="wcsp-meta-li">
-			<div class="wcsp-meta-li-title">${x[0]}:</div>
-			<div class="wcsp-meta-li-value">${x[1]}</div>
-		</li>`;
-	}
-	document.getElementById('wcsp-meta-ul')!.innerHTML = html;
-}
-
 function buildFooter(meta: any) {
 	let btns = '';
 	const link = 'https://dashboard.scanpay.dk/' + meta.shopid + '/' + meta.id;
@@ -80,14 +53,14 @@ function buildFooter(meta: any) {
 
 function handleMetaError(error: string) {
 	if (error === 'not found') {
-		if (!order.payid) return showWarning('No payment details found for this order.');
-		const dtime = 30 - Math.floor((Date.now() / 1000 - order.ptime!) / 60);
+		if (!wco.payid) return showWarning('No payment details found for this order.');
+		const dtime = 30 - Math.floor((Date.now() / 1000 - wco.ptime!) / 60);
 		if (dtime > 0) {
 			showWarning(`The order has not been paid yet. The payment link expires in ${dtime} minutes.`);
 		} else {
 			showWarning('The payment link has expired. No payment received.');
 		}
-		buildTable([['Pay ID', order.payid]]);
+		buildTable([['Pay ID', wco.payid]]);
 	} else if (error === 'invalid shopid') {
 		showWarning('Invalid or missing API key. Please check your plugin settings or contact support.');
 	}
@@ -115,10 +88,11 @@ function clearWarnings() {
 
 let abortCtrl: AbortController;
 function loadOrderMeta() {
-	if (!order.id) return; // TODO: lookup data
+	if (!wco.id) return; // TODO: lookup order ID with AJAX request
+
 	abortCtrl = new AbortController();
 	const warningsCleared = clearWarnings();
-	fetch('../wp-scanpay/fetch?x=meta&s=' + secret + '&oid=' + order.id + '&rev=' + rev, {
+	fetch('../wp-scanpay/fetch?x=meta&s=' + secret + '&oid=' + wco.id + '&rev=' + rev, {
 		signal: abortCtrl.signal,
 		headers: { 'X-Scanpay': 'fetch' },
 	})
@@ -133,12 +107,12 @@ function loadOrderMeta() {
 			buildTable(buildDataArray(meta) as [string, any][]);
 			buildFooter(meta);
 
-			if (order.status === 'completed' || order.status === 'refunded') {
+			if (wco.status === 'completed' || wco.status === 'refunded') {
 				const total = parseFloat(meta.captured) - parseFloat(meta.refunded);
-				if (parseFloat(order.total!) !== total) {
+				if (parseFloat(wco.total!) !== total) {
 					showWarning(
 						'The order total (<b><i>' +
-							currency.format(parseFloat(order.total ?? '0')) +
+							currency.format(parseFloat(wco.total ?? '0')) +
 							'</i></b>) does not match the net payment.'
 					);
 				}
@@ -149,23 +123,13 @@ function loadOrderMeta() {
 			if (name === 'AbortError') return;
 			showWarning('Error: could not load payment details.');
 		});
-	// Check synchronization
-	verifySync();
+	pluginSyncCheck(secret);
 }
 
 loadOrderMeta();
+pluginVersionCheck();
+
 document.addEventListener('visibilitychange', () => {
 	if (document.visibilityState == 'visible') return loadOrderMeta();
 	abortCtrl.abort();
-});
-
-checkVersion().then((version) => {
-	if (version !== '{{ VERSION }}') {
-		// TODO: This warning should be permanent
-		showWarning(
-			`Your scanpay plugin is <b class="scanpay-outdated">outdated</b>. Please update to ${version}
-				(<a href="//github.com/scanpay/woocommerce-scanpay/releases" target="_blank">changelog</a>)`,
-			'info'
-		);
-	}
 });
