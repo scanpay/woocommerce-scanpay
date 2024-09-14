@@ -96,6 +96,12 @@ You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us
 
 == Changelog ==
 
+= 2.6.0 - 2024-09-14 =
+* Fix - Resolved an issue where an HPOS incompatibility warning was incorrectly triggered.
+* Fix - Fixed misleading warning message in settings before the first successful ping is received.
+* Update - Refactored JavaScript to TypeScript for improved maintainability and code quality.
+* Performance - Minified CSS and JavaScript files.
+
 = 2.5.1 - 2024-08-16 =
 * Fix - Undefined variable in subscription charge (since 2.5.0)
 
