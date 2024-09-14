@@ -28,7 +28,7 @@ rsync -am --exclude='public/js' --exclude='public/css' "$SRC/" "$BUILD/"
 # Compile TypeScript to JavaScript (+minify)
 for file in "$SRC/public/js/"*.ts; do
     echo "Compiling $file"
-    "$DIR/node_modules/.bin/esbuild" --bundle --minify --sourcemap "$file" --outfile="$BUILD/public/js/$(basename "$file" .ts).js"
+    "$DIR/node_modules/.bin/esbuild" --bundle --minify "$file" --outfile="$BUILD/public/js/$(basename "$file" .ts).js"
 done
 
 #"build:css": "sass --style compressed --no-source-map ./src/public/css/:build/public/css/",
