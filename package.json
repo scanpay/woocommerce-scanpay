@@ -20,26 +20,24 @@
 		"url": "https://github.com/scanpay/woocommerce-scanpay/issues"
 	},
 	"packageManager": "pnpm@9.8.0",
-	"prettier": "@wordpress/prettier-config",
 	"dependencies": {
+		"@wordpress/element": "latest",
 		"@wordpress/prettier-config": "latest",
 		"@wordpress/scripts": "latest",
-		"sass": "latest"
-	},
-	"devDependencies": {
-		"@woocommerce/eslint-plugin": "latest",
-		"@wordpress/element": "latest",
+		"esbuild": "latest",
 		"eslint-import-resolver-typescript": "latest",
+		"globals": "latest",
+		"prettier": "latest",
+		"sass": "latest",
 		"ts-loader": "latest",
-		"typescript": "latest"
+		"typescript-eslint": "latest"
 	},
 	"scripts": {
-		"build:css": "sass --style compressed --no-source-map ./src/public/css/:build/public/css/",
-		"build:js": "wp-scripts build",
 		"lint:js": "wp-scripts lint-js src/public/js/",
 		"lint:style": "wp-scripts lint-style src/public/css/",
 		"lint:pkg-json": "wp-scripts lint-pkg-json",
 		"lint:md:docs": "wp-scripts lint-md-docs",
-		"phpcs": "./vendor/bin/phpcs -p src/"
+		"phpcs": "./vendor/bin/phpcs -p src/",
+		"phpcbf": "./vendor/bin/phpcbf -p src/"
 	}
 }

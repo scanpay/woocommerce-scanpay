@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -e
+shopt -s nullglob
+
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC="$DIR/src"
 BUILD="$DIR/build"
@@ -19,31 +22,42 @@ fi
 # Copy static files to the build directory
 rsync -am --exclude='public/js' --exclude='public/css' "$SRC/" "$BUILD/"
 
-# Build the JavaScript and CSS files
-pnpm run build:js
-pnpm run build:css
+# Convert SASS to CSS
+"$DIR/node_modules/.bin/sass" --style compressed --no-source-map --verbose "$SRC/public/css/":"$BUILD/public/css/"
+
+# Compile TypeScript to JavaScript (+minify)
+for file in "$SRC/public/js/"*.ts; do
+    echo "Compiling $file"
+    "$DIR/node_modules/.bin/esbuild" --bundle --minify --sourcemap "$file" --outfile="$BUILD/public/js/$(basename "$file" .ts).js"
+done
+
+#"build:css": "sass --style compressed --no-source-map ./src/public/css/:build/public/css/",
+#"build:js": "esbuild --bundle --minify --sourcemap",
 
 # Insert the version number into the files
 for file in $(find "$BUILD" -type f); do
+    mtime=$(stat -c %y "$file")
     sed -i "s/{{ VERSION }}/$VERSION/g" "$file"
+    touch -d "$mtime" "$file"
 done
 
 read -p "Do you want to push to woocommerce.scanpay.dev? (y/N): " answer
 if [ "$answer" != "${answer#[Yy]}" ]; then
     # Copy build files to a tmp directory
     mkdir -p "$TMP"
-    rsync -am "$BUILD/" "$TMP/"
+    rsync -am --delete "$BUILD/" "$TMP/"
 
     # Replace production URLs with dev URLs
     for file in $(find "$TMP" -type f); do
+        mtime=$(stat -c %y "$file")
         sed -i 's/dashboard\.scanpay\.dk/dashboard\.scanpay\.dev/' "$file"
         sed -i 's/betal\.scanpay\.dk/betal\.scanpay\.dev/' "$file"
         sed -i 's/api\.scanpay\.dk/api\.scanpay\.dev/g' "$file"
+        touch -d "$mtime" "$file"
     done
 
     # Push the build to woocommerce.scanpay.dev
-    rsync -vr --delete --rsync-path="/usr/bin/sudo -u nobody rsync" \
+    rsync -vrt --delete --rsync-path="/usr/bin/sudo -u nobody rsync" \
         -e ssh "$TMP/" modules:"/var/www/woocommerce.scanpay.dev/wp-content/plugins/scanpay-for-woocommerce/" || exit 1
-
     rm -rf "$TMP"
 fi
