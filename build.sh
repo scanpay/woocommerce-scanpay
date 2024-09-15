@@ -13,7 +13,7 @@ VERSION=$(node -p "require('$DIR/package.json').version")
 echo -e "Building version: \033[0;31m$VERSION\033[0m\n"
 
 if [ -d "$BUILD" ]; then
-    rm -rf "$BUILD"/*
+    rm -rf "${BUILD:?}/"*
     echo "Contents of $BUILD have been removed."
 else
     mkdir -p "$BUILD"
@@ -38,7 +38,7 @@ for file in $(find "$BUILD" -type f \( -name "*.php" -o -name "*.js" -o -name "*
     fi
 done
 
-read -p "Do you want to push to woocommerce.scanpay.dev? (y/N): " answer
+read -r -p "Do you want to push to woocommerce.scanpay.dev? (y/N): " answer
 if [ "$answer" != "${answer#[Yy]}" ]; then
     # Copy build files to a tmp directory
     mkdir -p "$TMP"
@@ -56,5 +56,5 @@ if [ "$answer" != "${answer#[Yy]}" ]; then
     # Push the build to woocommerce.scanpay.dev
     rsync -vrt --delete --rsync-path="/usr/bin/sudo -u nobody rsync" \
         -e ssh "$TMP/" modules:"/var/www/woocommerce.scanpay.dev/wp-content/plugins/scanpay-for-woocommerce/" || exit 1
-    rm -rf "$TMP"
+    rm -rf "${TMP:?}"
 fi
