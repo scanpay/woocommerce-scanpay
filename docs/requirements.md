@@ -86,9 +86,9 @@ We previously used `CURLOPT_DNS_SHUFFLE_ADDRESSES` (7.60.0), but this is not a r
 
 We have full support for [WooCommerce Subscriptions](https://woocommerce.com/products/woocommerce-subscriptions/).
 
-| WooCommerce Subscriptions       | Version |
-| :------------------------------ | :-----: |
-| wcs_get_subscription            |  1.0.0  |
-| wcs_get_subscriptions_for_order |  1.0.0  |
-| wcs_order_contains_renewal      |  1.0.0  |
-| wcs_order_contains_subscription |  1.0.0  |
+| WooCommerce Subscriptions                 | Version |
+| :---------------------------------------- | :-----: |
+| wcs_get_subscription                      |  1.0.0  |
+| wcs_get_subscriptions_for_order           |  1.0.0  |
+| is_request_to_change_payment              |  1.0.0  |
+| WC_Subscriptions_Product::is_subscription |  1.0.0  |
