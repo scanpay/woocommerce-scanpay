@@ -69,8 +69,6 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 
 	$otype               = 'wc';
 	$client              = new WC_Scanpay_Client( $settings['apikey'] );
-	$wcs                 = class_exists( 'WC_Subscriptions', false );
-	$subref              = false;
 	$capture_on_complete = 'completed' === $settings['wc_autocapture'] && ! $wco->needs_processing();
 
 	$data = [
@@ -100,6 +98,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		],
 	];
 
+	$wcs = class_exists( 'WC_Subscriptions', false ) && method_exists( 'WC_Subscriptions_Product', 'is_subscription' );
 	if ( $wcs ) {
 		$subid = (int) $wco->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
 		if ( $subid ) {
@@ -110,12 +109,13 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		}
 	}
 
+	$subref   = false;
 	$currency = $wco->get_currency( 'edit' );
 	$sum      = '0';
 	foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
 		if ( $wcs && ! $subref && $item instanceof WC_Order_Item_Product ) {
 			$product = $item->get_product();
-			if ( $product && $product->is_type( 'subscription' ) ) {
+			if ( $product && WC_Subscriptions_Product::is_subscription( $product ) ) {
 				$subref = true;
 			}
 		}
