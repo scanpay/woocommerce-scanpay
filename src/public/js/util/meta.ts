@@ -49,7 +49,7 @@ export function pluginSyncCheck(secret: string) {
 			);
 		}
 		if (dmins > 10) {
-			showWarning('Your scanpay extension is out of sync: ' + dmins + 'minutes since last synchronization.');
+			showWarning('Your scanpay extension is out of sync: ' + dmins + ' minutes since last synchronization.');
 		}
 	});
 }
