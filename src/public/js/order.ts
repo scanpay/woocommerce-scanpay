@@ -15,12 +15,13 @@ const wco = (document.getElementById('wcsp-meta') as HTMLElement).dataset as {
 	ptime?: number;
 	status?: string;
 	total?: string;
+	currency?: string; // TODO: consider wcSettings.currency.currencyCode
 };
 const secret = wco.secret as string;
 const iso = (wcSettings as any).currency.decimalSeparator === ',' ? 'da-DK' : 'en-US';
 const currency = new Intl.NumberFormat(iso, {
 	style: 'currency',
-	currency: 'DKK',
+	currency: wco.currency,
 });
 let rev = 0;
 

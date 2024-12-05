@@ -107,10 +107,11 @@ function wc_scanpay_add_meta_box( $wc_order ) {
 			$secret   = get_option( WC_SCANPAY_URI_SETTINGS )['secret'] ?? '';
 			$status   = $wc_order->get_status( 'edit' );
 			$total    = $wc_order->get_total( 'edit' ) - $wc_order->get_total_refunded();
+			$currency = $wc_order->get_currency();
 			$subid    = $wc_order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
 			$payid    = $wc_order->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' );
 			$ptime    = $wc_order->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' );
-			echo "<div id='wcsp-meta' data-id='$oid' data-secret='$secret' data-status='$status' data-total='$total' data-subid='$subid' data-payid='$payid' data-ptime='$ptime'>
+			echo "<div id='wcsp-meta' data-id='$oid' data-secret='$secret' data-status='$status' data-total='$total' data-currency='$currency' data-subid='$subid' data-payid='$payid' data-ptime='$ptime'>
 				<div id='wcsp-meta-head'></div>
 				<ul id='wcsp-meta-ul' class='wcsp-meta-ul'></ul>
 				<div id='wcsp-meta-foot'></div>
