@@ -1,3 +1,7 @@
+= 2.7.0 - 2024-12-06 =
+* Fix - Fix currency issue in admin meta box
+* Fix - Add missing whitespace to out-of-sync warning
+
 = 2.6.2 - 2024-09-24 =
 * Fix - Fix issue with variable subscriptions
 

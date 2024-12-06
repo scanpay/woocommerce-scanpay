@@ -3,7 +3,7 @@ Contributors: scanpay
 Tags: woocommerce, payments, subscriptions, scanpay, mobilepay
 Requires at least: 4.7.0
 Requires PHP: 7.4
-Tested up to: 6.6.3
+Tested up to: 6.7.2
 Stable tag: {{ VERSION }}
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -95,6 +95,10 @@ Yes, this plugin supports MobilePay. You must enable MobilePay in both the plugi
 You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us on [IRC](https://irc.scanpay.dev/).
 
 == Changelog ==
+= 2.7.0 - 2024-12-06 =
+* Fix - Fix currency issue in admin meta box
+* Fix - Add missing whitespace to out-of-sync warning
+
 = 2.6.2 - 2024-09-24 =
 * Fix - Fix issue with variable subscriptions
 
