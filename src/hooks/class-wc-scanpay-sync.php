@@ -382,7 +382,7 @@ class WC_Scanpay_Sync {
 					scanpay_log( 'error', "Synchronization error: transaction [id={$c['id']}] skipped due to error: {$c['error']}" );
 					continue;
 				}
-				if ( ! is_array( $c['acts'] ) || ! is_array( $c['time'] ) || ! is_array( $c['method'] ) ) {
+				if ( ! is_array( $c['acts'] ) || ! is_array( $c['time'] ) || ! is_array( $c['method'] ) || ! is_int( $c['rev'] ) ) {
 					throw new Exception( "received an invalid response from server (seq=$seq)" );
 				}
 
@@ -407,7 +407,7 @@ class WC_Scanpay_Sync {
 							scanpay_log( 'warning', "Subscriber skipped (seq=$seq). WooCommerce Subscriptions is not active." );
 							break;
 						}
-						if ( ! isset( $c['ref'], $c['id'] ) ) {
+						if ( ! isset( $c['ref'], $c['id'] ) || ! is_int( $c['id'] ) ) {
 							throw new Exception( "received an invalid response from server (seq=$seq)" );
 						}
 						if ( str_starts_with( $c['ref'], 'wcs[]' ) ) {
