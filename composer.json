@@ -1,8 +1,9 @@
 {
-    "private": true,
-    "require-dev": {
-        "squizlabs/php_codesniffer": "*",
-        "wp-coding-standards/wpcs": "*",
-        "woocommerce/woocommerce-sniffs": "*"
-    }
+	"private": true,
+	"require-dev": {
+		"squizlabs/php_codesniffer": "*",
+		"wp-coding-standards/wpcs": "*",
+		"wp-cli/wp-cli-bundle": "*",
+		"woocommerce/woocommerce-sniffs": "*"
+	}
 }
