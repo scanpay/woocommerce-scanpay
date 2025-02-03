@@ -2,6 +2,30 @@
 
 defined( 'ABSPATH' ) || exit();
 
+// Manipulate the payment method title
+$cache = false;
+add_filter( 'woocommerce_order_get_payment_method_title', function ( $str ) use ( &$cache ) {
+	if ( $cache ) {
+		return $cache;
+	}
+	$split = explode( ' ', $str );
+	if ( count( $split ) !== 3 ) {
+		return $str;
+	}
+	switch ( $split[0] ) {
+		case 'mobilepay':
+			$cache = 'MobilePay (' . ucfirst( $split[1] ) . ' ' . $split[2] . ')';
+			break;
+		case 'applepay':
+			$cache = 'Apple Pay (' . ucfirst( $split[1] ) . ' ' . $split[2] . ')';
+			break;
+		default:
+			$cache = ucfirst( $split[1] ) . ' ' . $split[2];
+			break;
+	}
+	return $cache;
+}, 10, 1 );
+
 /*
 *   This is the initial delay before we consume resources. The duration is based on tests conducted on our demo
 *   shop (AWS Ireland) with a basket of four items, each of which adds 5-10ms to the WC processing time.
@@ -23,38 +47,11 @@ if ( 'wc' === $_GET['scanpay_type'] || 'wcs' === $_GET['scanpay_type'] ) {
 			// Sleep: 40ms, 80ms ... (max 500ms, total 5.1s)
 			usleep( min( ( 20000 * pow( 2, $count ) ), 500000 ) );
 		}
-
-		$cache = false;
-		add_filter( 'woocommerce_order_get_payment_method_title', function ( $str ) use ( &$cache ) {
-			if ( $cache ) {
-				return $cache;
-			}
-			$split = explode( ' ', $str );
-			if ( count( $split ) !== 3 ) {
-				return $str;
-			}
-			switch ( $split[0] ) {
-				case 'mobilepay':
-					$cache = 'MobilePay (' . ucfirst( $split[1] ) . ' ' . $split[2] . ')';
-					break;
-				case 'applepay':
-					$cache = 'Apple Pay (' . ucfirst( $split[1] ) . ' ' . $split[2] . ')';
-					break;
-				default:
-					$cache = ucfirst( $split[1] ) . ' ' . $split[2];
-					break;
-			}
-			return $cache;
-		}, 10, 1 );
 	}, 10, 1 );
 	return;
 }
 
-/*
-*   WooCommerce Subscription with free trial
-*   Note: order is not created in scanpay_meta (because amount is 0).
-*/
-
+// Handle cases with free subscriptions (no payment)
 if ( 'wcs_free' === $_GET['scanpay_type'] && isset( $_GET['scanpay_ref'] ) && str_starts_with( $_GET['scanpay_ref'], 'wcs[]' ) ) {
 	add_action(
 		'woocommerce_thankyou_order_id',
