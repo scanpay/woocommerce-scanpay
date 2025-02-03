@@ -19,7 +19,7 @@ This is an official payment plugin developed, maintained and supported by Scanpa
 ## Features
 
 * Dankort, Visa, Mastercard, JCB, Amex, Diners, et. al.
-* MobilePay, Apple Pay and soon Google Pay _(Q4-2024)_
+* MobilePay, Apple Pay and soon Google Pay _(Q2-2025)_
 * Full WooCommerce Subscriptions support
 * Option to automatically capture payments
 * Option to auto-complete orders
@@ -95,6 +95,9 @@ Yes, this plugin supports MobilePay. You must enable MobilePay in both the plugi
 You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us on [IRC](https://irc.scanpay.dev/).
 
 == Changelog ==
+= 2.8.0 - 2025-02-03 =
+* Fix - Fix issue with WCS coupons
+
 = 2.7.0 - 2024-12-06 =
 * Fix - Fix currency issue in admin meta box
 * Fix - Add missing whitespace to out-of-sync warning
