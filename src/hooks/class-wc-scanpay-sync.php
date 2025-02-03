@@ -113,6 +113,9 @@ class WC_Scanpay_Sync {
 	}
 
 	public function capture_after_complete( int $oid, object $wco ): void {
+		if ( (float) $wco->get_total() === 0.0 || ! $this->order_is_valid( $wco ) ) {
+			return;
+		}
 		if ( '1' !== $wco->get_meta( WC_SCANPAY_URI_AUTOCPT, true, 'edit' ) ) {
 			$res = $this->capture_order( $oid, $wco );
 			$wco->add_order_note( $res[1], false, true );
