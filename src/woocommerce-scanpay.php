@@ -13,7 +13,7 @@
  * WC requires at least: 3.6.0
  * WC tested up to: 9.6.0
  * Text Domain: scanpay-for-woocommerce
- * Domain Path: /languages
+ * Domain Path: /languages/
  * License: GPLv3
  * License URI: https://www.gnu.org/licenses/gpl-3.0.html
  */
@@ -238,9 +238,8 @@ function scanpay_admin_hooks() {
 			if ( ! is_array( $links ) ) {
 				return $links; // Some plugins do not return the correct type (array)
 			}
-			return array_merge([
-				'<a href="' . admin_url( 'admin.php?page=wc-settings&tab=checkout&section=scanpay' ) . '">Settings</a>',
-			], $links);
+			$url = admin_url( 'admin.php?page=wc-settings&tab=checkout&section=scanpay' );
+			return array_merge( [ "<a href='$url'>" . __( 'Settings', 'scanpay-for-woocommerce' ) . '</a>' ], $links );
 		});
 		return require WC_SCANPAY_DIR . '/includes/compatibility.php';
 	}

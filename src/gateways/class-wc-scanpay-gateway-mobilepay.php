@@ -6,25 +6,25 @@ class WC_Scanpay_Gateway_Mobilepay extends WC_Payment_Gateway {
 	public function __construct() {
 		$this->id                 = 'scanpay_mobilepay';
 		$this->method_title       = 'MobilePay (Scanpay)';
-		$this->method_description = 'MobilePay Online through Scanpay.';
+		$this->method_description = __( 'MobilePay Online through Scanpay.', 'scanpay-for-woocommerce' );
 		$this->form_fields        = [
 			'enabled'     => [
-				'title'   => 'Enable',
+				'title'   => __( 'Enable', 'scanpay-for-woocommerce' ),
 				'type'    => 'checkbox',
-				'label'   => 'Enable MobilePay in the checkout.',
+				'label'   => __( 'Enable MobilePay in the checkout.', 'scanpay-for-woocommerce' ),
 				'default' => 'no',
 			],
 			'title'       => [
-				'title'       => 'Title',
+				'title'       => __( 'Title', 'scanpay-for-woocommerce' ),
 				'type'        => 'text',
-				'description' => 'A title for the payment method on the checkout page.',
+				'description' => __( 'A title for the payment method on the checkout page.', 'scanpay-for-woocommerce' ),
 				'desc_tip'    => true,
 				'default'     => 'MobilePay',
 			],
 			'description' => [
-				'title'       => 'Description',
+				'title'       => __( 'Description', 'scanpay-for-woocommerce' ),
 				'type'        => 'text',
-				'description' => 'A description of the payment method. This is displayed on the checkout page.',
+				'description' => __( 'A description of the payment method. This is displayed on the checkout page.', 'scanpay-for-woocommerce' ),
 				'desc_tip'    => true,
 				'default'     => 'Betal med MobilePay',
 			],

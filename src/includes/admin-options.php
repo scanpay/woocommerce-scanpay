@@ -46,10 +46,13 @@ echo wp_kses_post( wpautop( $this->get_method_description() ) );
 	<?php if ( ! $shopid ) : ?>
 		<div class="wcsp-set-alert wcsp-set-alert--show">
 			<div class="wcsp-set-alert-title">
-				Welcome to Scanpay for WooCommerce!
+				<?php echo __( 'Welcome to Scanpay for WooCommerce!', 'scanpay-for-woocommerce' ); ?>
 			</div>
-			Please follow the instructions in the
-			<a href="https://wordpress.org/plugins/scanpay-for-woocommerce/#installation">installation guide</a>.
+			<?php
+				$splink = '<a target=”_blank” href="https://wordpress.org/plugins/scanpay-for-woocommerce/#installation">' . __( 'installation guide', 'scanpay-for-woocommerce' ) . '</a>';
+				$msg  = sprintf( __( 'Please follow the instructions in the %s.', 'scanpay-for-woocommerce' ), $splink );
+				echo $message;
+			?>
 		</div>
 	<?php endif; ?>
 </div>

@@ -52,7 +52,7 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 				],
 				'scanpay_mobilepay' => [
 					'title'       => 'MobilePay',
-					'description' => 'Betal med MobilePay',
+					'description' => __( 'Betal med MobilePay', 'scanpay-for-woocommerce' ),
 					'icons'       => [ 'mobilepay' ],
 					'supports'    => [
 						'products',
@@ -60,7 +60,7 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 				],
 				'scanpay_applepay'  => [
 					'title'       => 'Apple Pay',
-					'description' => 'Betal med Apple Pay',
+					'description' => __( 'Betal med Apple Pay', 'scanpay-for-woocommerce' ),
 					'icons'       => [ 'applepay' ],
 					'supports'    => [
 						'products',

@@ -1,0 +1,169 @@
+# Copyright (C) 2025 Scanpay
+# This file is distributed under the GPLv3.
+msgid ""
+msgstr ""
+"Project-Id-Version: Scanpay for WooCommerce {{ VERSION }}\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/src\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2025-02-03T15:43:17+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.11.0\n"
+"X-Domain: scanpay-for-woocommerce\n"
+
+#. Plugin Name of the plugin
+#: woocommerce-scanpay.php
+msgid "Scanpay for WooCommerce"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: woocommerce-scanpay.php
+msgid "https://wordpress.org/plugins/scanpay-for-woocommerce/"
+msgstr ""
+
+#. Description of the plugin
+#: woocommerce-scanpay.php
+msgid "Accept payments in WooCommerce with a secure payment gateway."
+msgstr ""
+
+#. Author of the plugin
+#: woocommerce-scanpay.php
+msgid "Scanpay"
+msgstr ""
+
+#. Author URI of the plugin
+#: woocommerce-scanpay.php
+msgid "https://scanpay.dk"
+msgstr ""
+
+#: gateways/class-wc-scanpay-gateway-applepay.php:9
+msgid "Apple Pay through Scanpay."
+msgstr ""
+
+#: gateways/class-wc-scanpay-gateway-applepay.php:12
+#: gateways/class-wc-scanpay-gateway-mobilepay.php:12
+#: includes/form-fields.php:7
+msgid "Enable"
+msgstr ""
+
+#: gateways/class-wc-scanpay-gateway-applepay.php:14
+msgid "Enable Apple Pay in the checkout."
+msgstr ""
+
+#: gateways/class-wc-scanpay-gateway-applepay.php:18
+#: gateways/class-wc-scanpay-gateway-mobilepay.php:18
+#: includes/form-fields.php:19
+msgid "Title"
+msgstr ""
+
+#: gateways/class-wc-scanpay-gateway-applepay.php:20
+#: gateways/class-wc-scanpay-gateway-mobilepay.php:20
+msgid "A title for the payment method on the checkout page."
+msgstr ""
+
+#: gateways/class-wc-scanpay-gateway-applepay.php:25
+#: gateways/class-wc-scanpay-gateway-mobilepay.php:25
+#: includes/form-fields.php:26
+msgid "Description"
+msgstr ""
+
+#: gateways/class-wc-scanpay-gateway-applepay.php:27
+#: gateways/class-wc-scanpay-gateway-mobilepay.php:27
+#: includes/form-fields.php:28
+msgid "A description of the payment method. This is displayed on the checkout page."
+msgstr ""
+
+#: gateways/class-wc-scanpay-gateway-mobilepay.php:9
+msgid "MobilePay Online through Scanpay."
+msgstr ""
+
+#: gateways/class-wc-scanpay-gateway-mobilepay.php:14
+msgid "Enable MobilePay in the checkout."
+msgstr ""
+
+#: gateways/class-wc-scanpay-gateway.php:9
+msgid "Accept payment cards through Scanpay."
+msgstr ""
+
+#: hooks/class-wc-scanpay-blocks-support.php:55
+msgid "Betal med MobilePay"
+msgstr ""
+
+#: hooks/class-wc-scanpay-blocks-support.php:63
+msgid "Betal med Apple Pay"
+msgstr ""
+
+#: includes/admin-options.php:49
+msgid "Welcome to Scanpay for WooCommerce!"
+msgstr ""
+
+#: includes/admin-options.php:52
+msgid "installation guide"
+msgstr ""
+
+#: includes/admin-options.php:53
+msgid "Please follow the instructions in the %s."
+msgstr ""
+
+#: includes/form-fields.php:9
+msgid "Enable Scanpay in the checkout."
+msgstr ""
+
+#: includes/form-fields.php:13
+msgid "API key"
+msgstr ""
+
+#: includes/form-fields.php:21
+msgid "A title for the payment method. This is displayed on the checkout page."
+msgstr ""
+
+#: includes/form-fields.php:33
+msgid "Card icons"
+msgstr ""
+
+#: includes/form-fields.php:35
+msgid "Choose which card icons to display on the checkout page."
+msgstr ""
+
+#: includes/form-fields.php:55
+msgid "Use default checkout stylesheet (CSS)."
+msgstr ""
+
+#: includes/form-fields.php:63
+msgid "Disable"
+msgstr ""
+
+#: includes/form-fields.php:64
+msgid "On order completion (recommended)"
+msgstr ""
+
+#: includes/form-fields.php:65
+msgid "Immediately"
+msgstr ""
+
+#: includes/form-fields.php:71
+msgid "Auto-complete virtual orders."
+msgstr ""
+
+#: includes/form-fields.php:77
+msgid "Auto-complete new subscribers <i>(Subscriptions only)</i>."
+msgstr ""
+
+#: includes/form-fields.php:83
+msgid "Auto-complete renewal orders <i>(Subscriptions only)</i>."
+msgstr ""
+
+#: includes/form-fields.php:87
+msgid "Subscription Terms"
+msgstr ""
+
+#: includes/form-fields.php:89
+msgid "Add a checkbox for Subscription Terms and Conditions."
+msgstr ""
+
+#: woocommerce-scanpay.php:242
+msgid "Settings"
+msgstr ""

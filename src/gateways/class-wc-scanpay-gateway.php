@@ -6,7 +6,7 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 	public function __construct() {
 		$this->id                   = 'scanpay';
 		$this->method_title         = 'Scanpay'; // In settings
-		$this->method_description   = 'Accept payment cards through Scanpay.';
+		$this->method_description   = __( 'Accept payment cards through Scanpay.', 'scanpay-for-woocommerce' );
 		$this->view_transaction_url = WC_SCANPAY_DASHBOARD . '%s';
 		$this->supports             = [
 			'products',
