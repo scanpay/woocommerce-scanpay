@@ -54,6 +54,7 @@ function buildFooter(meta: any) {
 
 function handleMetaError(error: string) {
 	if (error === 'not found') {
+		if (wco.total === '0') return showWarning('No payment details found for this order.');
 		if (!wco.payid) return showWarning('No payment details found for this order.');
 		const dtime = 30 - Math.floor((Date.now() / 1000 - wco.ptime!) / 60);
 		if (dtime > 0) {
