@@ -50,8 +50,9 @@ echo wp_kses_post( wpautop( $this->get_method_description() ) );
 			</div>
 			<?php
 				$splink = '<a target=”_blank” href="https://wordpress.org/plugins/scanpay-for-woocommerce/#installation">' . __( 'installation guide', 'scanpay-for-woocommerce' ) . '</a>';
-				$msg  = sprintf( __( 'Please follow the instructions in the %s.', 'scanpay-for-woocommerce' ), $splink );
-				echo $message;
+				// translators: %s is a link to the installation guide
+				$msg = sprintf( __( 'Please follow the instructions in the %s.', 'scanpay-for-woocommerce' ), $splink );
+				echo $msg;
 			?>
 		</div>
 	<?php endif; ?>
