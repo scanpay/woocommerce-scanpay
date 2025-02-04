@@ -61,6 +61,14 @@ if ( isset( $_SERVER['HTTP_X_SIGNATURE'], $_SERVER['REQUEST_URI'] ) ) {
 }
 
 /*
+	Load translations (i18n)
+*/
+add_action('plugins_loaded', function () {
+	load_plugin_textdomain( 'scanpay-for-woocommerce', false, 'scanpay-for-woocommerce/languages' );
+});
+
+
+/*
 	JavaScript endpoints /wp-scanpay/fetch?x={ping,meta,sub}&s=$secret  ...
 	Bypass WooCommerce and WordPress. Saves >40 ms and a lot of resources
 */
