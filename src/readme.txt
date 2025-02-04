@@ -19,7 +19,7 @@ This is an official payment plugin developed, maintained and supported by Scanpa
 ## Features
 
 * Dankort, Visa, Mastercard, JCB, Amex, Diners, et. al.
-* MobilePay, Apple Pay and soon Google Pay _(Q2-2025)_
+* MobilePay and Apple Pay
 * Full WooCommerce Subscriptions support
 * Option to automatically capture payments
 * Option to auto-complete orders
@@ -89,10 +89,10 @@ We believe we have created the most performant payment platform in the world. Th
 Available for merchants in all European countries.
 
 = Do you support MobilePay? =
-Yes, this plugin supports MobilePay. You must enable MobilePay in both the plugin and the [dashboard](https://dashboard.scanpay.dk).
+Yes, this plugin supports MobilePay. You must enable MobilePay in both the plugin and our dashboard.
 
 = How do I contact support? =
-You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us on [IRC](https://irc.scanpay.dev/).
+You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us on IRC.
 
 == Changelog ==
 = 2.9.0 - 2025-02-04 =
@@ -125,71 +125,5 @@ You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us
 * Update - Refactor auto-capture settings to use dropdown instead of checkbox
 * Tweak - Trim server error messages
 * Performance - Save needs_processing transient (WCS)
-
-= 2.4.1 - 2024-05-31 =
-* Add - Add Forbrugsforeningen (payment method)
-
-= 2.4.0 - 2024-05-13 =
-* Add - Add payment details on thankyou page
-* Add - Add lifetime parameter to payment links
-* Fix - Avoid unnecessary wp_cache_flush in synchronization
-* Fix - Optimize and tune thankyou page loading
-
-= 2.3.0 - 2024-05-10 =
-* Add - Add support for Initial Charge in WooCommerce Subscriptions
-* Add - Add support for free trials in WooCommerce Subscriptions
-* Add - Add WordPress plugin dependency header
-* Fix - Refactor `thankyou` page to be much faster and use fewer resources
-* Fix - Refactor WooCommerce Subscriptions (optimization)
-* Fix - Various optimizations and smaller changes
-
-= 2.2.2 - 2024-04-23 =
-* Add - Add extra ToS checkbox for Subscriptions (optional)
-* Fix - Minor fixes
-
-= 2.2.1 - 2024-03-17 =
-* Add - Add support for old versions of WooCommerce
-* Fix - Improve some error messages
-* Fix - Minor optimizations
-
-= 2.2.0 - 2024-03-13 =
-* Add - Add bulk action: Capture and Complete
-* Add - WooCommerce Subscriptions retry failed charges
-* Fix - 'Capture on Complete' now tries to capture before the order status changes (i.e. before e-mails)
-* Fix - Various performance optimizations
-* Fix - Fix PHP warnings
-
-= 2.1.4 - 2024-03-02 =
-* Add - Add default values to all options
-* Fix - Fix PHP warning
-
-= 2.1.3 - 2024-03-01 =
-* Add - Improve WCS redirect by adding payment window to allowed_redirect_hosts
-* Fix - Fix Woo Subscriptions bug caused by our old plugin (<= 1.3.15)
-
-= 2.1.2 - 2024-03-01 =
-* Fix - Fix missing type cast.
-
-= 2.1.1 - 2024-02-21 =
-* Fix - Fix conflict when multiple payments have the same orderid
-
-= 2.1.0 - 2024-02-20 =
-* Add - Add support for all WooCommerce Subscription features
-* Add - Add option to auto-complete virtual orders
-* Add - Send Subscription items to the scanpay dashboard
-* Fix - Display metaboxes in shops without HPOS.
-* Fix - Use preemptive synchronization after capture and charge.
-* Fix - Performance optimizations
-
-= 2.0.7 =
-* Fix - Fix TypeError in plugins.php (PHP 7.4 only)
-
-= 2.0.3 =
-* Fix - Only show meta boxes in scanpay orders.
-* Fix - Refund button disappearing when it should not.
-* Add - Add warning if order total does not match net payment.
-
-= 2.0.1 =
-* Add - Add CSS height to card icons
 
 [See changelog for all versions](https://raw.githubusercontent.com/scanpay/woocommerce-scanpay/master/changelog.txt).
