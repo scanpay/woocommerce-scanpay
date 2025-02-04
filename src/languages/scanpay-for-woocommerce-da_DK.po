@@ -1,174 +1,173 @@
-# Copyright (C) 2025 Scanpay
-# This file is distributed under the GPLv3.
 msgid ""
 msgstr ""
 "Project-Id-Version: Scanpay for WooCommerce {{ VERSION }}\n"
-"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/src\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/scanpay-for-woocommerce\n"
+"Last-Translator: FULDE NAVN <EMAIL@ADRESSE>\n"
+"Language-Team: Dansk <support@scanpay.dk>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-02-04T12:41:11+00:00\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"POT-Creation-Date: 2025-02-03T15:43:17+00:00\n"
+"PO-Revision-Date: ÅR-MD-DAG TT:MM+ZONE\n"
+"Language: da_DK\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: scanpay-for-woocommerce\n"
 
 #. Plugin Name of the plugin
 #: woocommerce-scanpay.php
 msgid "Scanpay for WooCommerce"
-msgstr ""
+msgstr "Scanpay for WooCommerce"
 
 #. Plugin URI of the plugin
 #: woocommerce-scanpay.php
 msgid "https://wordpress.org/plugins/scanpay-for-woocommerce/"
-msgstr ""
+msgstr "https://wordpress.org/plugins/scanpay-for-woocommerce/"
 
 #. Description of the plugin
 #: woocommerce-scanpay.php
 msgid "Accept payments in WooCommerce with a secure payment gateway."
-msgstr ""
+msgstr "Accepter betalinger i WooCommerce med en sikker betalingsgateway."
 
 #. Author of the plugin
 #: woocommerce-scanpay.php
 msgid "Scanpay"
-msgstr ""
+msgstr "Scanpay"
 
 #. Author URI of the plugin
 #: woocommerce-scanpay.php
 msgid "https://scanpay.dk"
-msgstr ""
+msgstr "https://scanpay.dk"
 
 #: gateways/class-wc-scanpay-gateway-applepay.php:9
 msgid "Apple Pay through Scanpay."
-msgstr ""
+msgstr "Apple Pay via Scanpay."
 
 #: gateways/class-wc-scanpay-gateway-applepay.php:12
 #: gateways/class-wc-scanpay-gateway-mobilepay.php:12
 #: includes/form-fields.php:7
 msgid "Enable"
-msgstr ""
+msgstr "Aktiver"
 
 #: gateways/class-wc-scanpay-gateway-applepay.php:14
 msgid "Enable Apple Pay in the checkout."
-msgstr ""
+msgstr "Aktiver Apple Pay i betalingsprocessen."
 
 #: gateways/class-wc-scanpay-gateway-applepay.php:18
 #: gateways/class-wc-scanpay-gateway-mobilepay.php:18
 #: includes/form-fields.php:19
 msgid "Title"
-msgstr ""
+msgstr "Titel"
 
 #: gateways/class-wc-scanpay-gateway-applepay.php:20
 #: gateways/class-wc-scanpay-gateway-mobilepay.php:20
 msgid "A title for the payment method on the checkout page."
-msgstr ""
+msgstr "En titel for betalingsmetoden på betalingsside."
 
 #: gateways/class-wc-scanpay-gateway-applepay.php:25
 #: gateways/class-wc-scanpay-gateway-mobilepay.php:25
 #: includes/form-fields.php:26
 msgid "Description"
-msgstr ""
+msgstr "Beskrivelse"
 
 #: gateways/class-wc-scanpay-gateway-applepay.php:27
 #: gateways/class-wc-scanpay-gateway-mobilepay.php:27
 #: includes/form-fields.php:28
 msgid "A description of the payment method. This is displayed on the checkout page."
-msgstr ""
+msgstr "En beskrivelse af betalingsmetoden. Denne vises på betalingsside."
 
 #: gateways/class-wc-scanpay-gateway-mobilepay.php:9
 msgid "MobilePay Online through Scanpay."
-msgstr ""
+msgstr "MobilePay Online via Scanpay."
 
 #: gateways/class-wc-scanpay-gateway-mobilepay.php:14
 msgid "Enable MobilePay in the checkout."
-msgstr ""
+msgstr "Aktiver MobilePay i betalingsprocessen."
 
 #: gateways/class-wc-scanpay-gateway.php:9
 msgid "Accept payment cards through Scanpay."
-msgstr ""
+msgstr "Accepter betalingskort via Scanpay."
 
 #: hooks/class-wc-scanpay-blocks-support.php:55
 msgid "Betal med MobilePay"
-msgstr ""
+msgstr "Betal med MobilePay"
 
 #: hooks/class-wc-scanpay-blocks-support.php:63
 msgid "Betal med Apple Pay"
-msgstr ""
+msgstr "Betal med Apple Pay"
 
 #: includes/admin-options.php:49
 msgid "Welcome to Scanpay for WooCommerce!"
-msgstr ""
+msgstr "Velkommen til Scanpay for WooCommerce!"
 
 #: includes/admin-options.php:52
 msgid "installation guide"
-msgstr ""
+msgstr "installationsvejledning"
 
 #. translators: %s is a link to the installation guide
 #: includes/admin-options.php:54
 msgid "Please follow the instructions in the %s."
-msgstr ""
+msgstr "Følg venligst instruktionerne i %s."
 
 #: includes/form-fields.php:9
 msgid "Enable Scanpay in the checkout."
-msgstr ""
+msgstr "Aktiver Scanpay i betalingsprocessen."
 
 #: includes/form-fields.php:13
 msgid "API key"
-msgstr ""
+msgstr "API-nøgle"
 
 #: includes/form-fields.php:21
 msgid "A title for the payment method. This is displayed on the checkout page."
-msgstr ""
+msgstr "En titel for betalingsmetoden. Denne vises på betalingsside."
 
 #: includes/form-fields.php:33
 msgid "Card icons"
-msgstr ""
+msgstr "Kortikoner"
 
 #: includes/form-fields.php:35
 msgid "Choose which card icons to display on the checkout page."
-msgstr ""
+msgstr "Vælg hvilke kortikoner, der skal vises på betalingsside."
 
 #: includes/form-fields.php:55
 msgid "Use default checkout stylesheet (CSS)."
-msgstr ""
+msgstr "Brug standard betalings-CSS-stilark."
 
 #: includes/form-fields.php:63
 msgid "Disable"
-msgstr ""
+msgstr "Deaktiver"
 
 #: includes/form-fields.php:64
 msgid "On order completion (recommended)"
-msgstr ""
+msgstr "Ved ordreafslutning (anbefalet)"
 
 #: includes/form-fields.php:65
 msgid "Immediately"
-msgstr ""
+msgstr "Omgående"
 
 #: includes/form-fields.php:71
 msgid "Auto-complete virtual orders."
-msgstr ""
+msgstr "Automatisk fuldførelse af virtuelle ordrer."
 
 #: includes/form-fields.php:77
 msgid "Auto-complete new subscribers <i>(Subscriptions only)</i>."
-msgstr ""
+msgstr "Automatisk fuldførelse af nye abonnenter <i>(Kun for abonnementer)</i>."
 
 #: includes/form-fields.php:83
 msgid "Auto-complete renewal orders <i>(Subscriptions only)</i>."
-msgstr ""
+msgstr "Automatisk fuldførelse af fornyelsesordrer <i>(Kun for abonnementer)</i>."
 
 #: includes/form-fields.php:87
 msgid "Subscription Terms"
-msgstr ""
+msgstr "Abonnementsbetingelser"
 
 #: includes/form-fields.php:89
 msgid "Add a checkbox for Subscription Terms and Conditions."
-msgstr ""
-
-#: includes/form-fields.php:92
-msgid "Hide checkbox"
-msgstr ""
+msgstr "Tilføj en afkrydsningsboks for abonnementsbetingelser."
 
 #: woocommerce-scanpay.php:250
 msgid "Settings"
-msgstr ""
+msgstr "Indstillinger"
+
+#: includes/form-fields.php:92
+msgid "Hide checkbox"
+msgstr "Skjul checkbox"

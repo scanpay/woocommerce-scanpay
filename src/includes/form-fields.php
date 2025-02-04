@@ -89,6 +89,6 @@ return [
 		'description' => __( 'Add a checkbox for Subscription Terms and Conditions.', 'scanpay-for-woocommerce' ),
 		'desc_tip'    => true,
 		'default'     => '0',
-		'options'     => [ '0' => 'Hide checkbox' ],
+		'options'     => [ '0' => __( 'Hide checkbox', 'scanpay-for-woocommerce' ) ],
 	],
 ];
