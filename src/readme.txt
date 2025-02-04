@@ -12,39 +12,38 @@ Accept payments in WooCommerce with a reliable and secure Scandinavian payment g
 
 == Description ==
 
-With this plugin, you can quickly and easily accept payments in WooCommerce through [Scanpay](https://scanpay.dk), a reliable and secure Scandinavian payment gateway.
+Easily accept payments in WooCommerce with [Scanpay](https://scanpay.dk), a secure and reliable Scandinavian payment gateway.
 
-This is an official payment plugin developed, maintained and supported by Scanpay. Feel free to follow or contribute to the development on [GitHub](https://github.com/scanpay/woocommerce-scanpay).
+This official payment plugin is developed, maintained, and supported by Scanpay. Follow or contribute to its development on [GitHub](https://github.com/scanpay/woocommerce-scanpay).
 
 ## Features
 
-* Dankort, Visa, Mastercard, JCB, Amex, Diners, et. al.
-* MobilePay and Apple Pay
-* Full WooCommerce Subscriptions support
-* Option to automatically capture payments
+* Accepts Dankort, Visa, Mastercard, JCB, Amex, Diners, and more
+* Supports MobilePay and Apple Pay
+* Full compatibility with WooCommerce Subscriptions
+* Option for automatic payment capture
 * Option to auto-complete orders
-* HPOS and WooCommerce Blocks support
-* An optimized, bloat-free and thoroughly tested plugin
-* E-mail, phone and [IRC](https://chat.scanpay.dev/) support
+* Supports HPOS and WooCommerce Blocks
+* Optimized, lightweight, and thoroughly tested
+* Dedicated support via email, phone, and [IRC](https://chat.scanpay.dev/)
 
-### Why choose Scanpay?
+### Why Choose Scanpay?
 
-#### Acquirer agnostic
+#### Acquirer-Agnostic Flexibility
 
-Scanpay is a neutral and acquirer-agnostic payment gateway with connections to several acquiring banks. With our platform, you can have multiple acquirers and easily add or remove an acquirer. This allows you to obtain the best prices in the market and acquirer failover _(redundancy)_.
+Scanpay is a neutral, acquirer-agnostic payment gateway that connects to multiple acquiring banks — meaning you're never locked into a single acquirer. This flexibility allows you to optimize your acquiring costs and set up a multi-acquirer configuration with automatic failover, ensuring uninterrupted payment processing and greater reliability.
 
-#### Low pricing
+#### Transparent, Low-Cost Pricing
 
-We do not charge any setup, monthly or hidden fees. Our only fee is a transaction fee of 0.25 DKK (~ €0.034).
+No setup fees, no monthly fees, and no hidden charges. You only pay 0.25 DKK (~€0.034) per transaction.
 
-#### Security
+#### Security by Design
 
-Our platform is programmed in C and designed with a security-by-design approach, making security considerations the core of our engineering process. The emphasis has been on creating a secure, stable, efficient platform with a small and auditable codebase.
+Our platform is built in C with a security-first approach, prioritizing a small, auditable codebase for maximum security, efficiency, and stability.
 
 #### Performance
 
-We believe we have created the most performant payment platform in the world. The platform is battle-tested and capable of handling millions of transactions. As engineers, this is something we are genuinely proud of.
-
+Scanpay is engineered for speed and scalability, handling millions of transactions with ease. We take pride in delivering one of the most performant payment platforms available today.
 
 == Installation ==
 
@@ -58,12 +57,11 @@ We believe we have created the most performant payment platform in the world. Th
 
 4. Insert your Scanpay API key in the *"API key"* field and click *"Save changes"*. You can generate an API key [here](https://dashboard.scanpay.dk/settings/api).
 
-5. A yellow box should appear at the top of the page. Click *"Send ping"* to initiate the synchronization process.
+5. A yellow box will appear at the top of the page. Click *"Send ping"* to initiate the synchronization process.
 
-6. Now, in the scanpay dashboard, save the *"ping URL"*. The system will perform an initial synchronization and show you the result.
+6. In your Scanpay dashboard, save the *"Ping URL"*. Scanpay will then perform an initial synchronization and show the result.
 
-7. Your WooCommerce store is now connected and synchronized with Scanpay. When ready, change the status from *"Disabled"* to *"Enabled"* to enable the extension in your checkout.
-
+7. Your WooCommerce store is now connected and synchronized with Scanpay. When ready, change the status from *"Disabled"* to *"Enabled"* to activate the payment gateway in your checkout.
 
 **Update the plugin**
 
