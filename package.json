@@ -37,7 +37,8 @@
 		"lint:style": "wp-scripts lint-style src/public/css/",
 		"lint:pkg-json": "wp-scripts lint-pkg-json",
 		"lint:md:docs": "wp-scripts lint-md-docs",
-		"i18n": "./vendor/bin/wp i18n make-pot src src/languages/scanpay-for-woocommerce.pot",
+		"i18n:po": "./vendor/bin/wp i18n make-pot src src/languages/scanpay-for-woocommerce.pot",
+		"i18n:pot": "./vendor/bin/wp i18n update-po src/languages/scanpay-for-woocommerce.pot src/languages",
 		"phpcs": "./vendor/bin/phpcs -p src/",
 		"phpcbf": "./vendor/bin/phpcbf -p src/"
 	}

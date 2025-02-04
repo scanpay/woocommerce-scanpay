@@ -31,16 +31,17 @@ for file in "$SRC/public/js/"*.ts; do
     "$DIR/node_modules/.bin/esbuild" --bundle --minify "$file" --outfile="$BUILD/public/js/$(basename "$file" .ts).js"
 done
 
+# Generate .mo files
+"$DIR/vendor/bin/wp" i18n make-mo "$BUILD/languages"
+
+# Generate PHP translation files
+"$DIR/vendor/bin/wp" i18n make-php "$BUILD/languages"
+
 # Insert the version number into the files
 for file in $(find "$BUILD" -type f \( -name "*.php" -o -name "*.js" -o -name "*.txt" \)); do
     if grep -q "{{ VERSION }}" "$file"; then
         sed -i "s/{{ VERSION }}/$VERSION/g" "$file"
     fi
-done
-
-# Build mo files
-for file in "$SRC/languages/"*.po; do
-    msgfmt -o "$BUILD/languages/$(basename "$file" .po).mo" "$file"
 done
 
 read -r -p "Do you want to push to woocommerce.scanpay.dev? (y/N): " answer
