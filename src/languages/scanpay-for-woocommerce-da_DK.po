@@ -2,13 +2,13 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Scanpay for WooCommerce {{ VERSION }}\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/scanpay-for-woocommerce\n"
-"Last-Translator: FULDE NAVN <EMAIL@ADRESSE>\n"
+"Last-Translator: \n"
 "Language-Team: Dansk <support@scanpay.dk>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "POT-Creation-Date: 2025-02-03T15:43:17+00:00\n"
-"PO-Revision-Date: ÅR-MD-DAG TT:MM+ZONE\n"
+"POT-Creation-Date: 2025-02-04T14:39:00+00:00\n"
 "Language: da_DK\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: scanpay-for-woocommerce\n"
@@ -50,7 +50,7 @@ msgstr "Aktiver"
 
 #: gateways/class-wc-scanpay-gateway-applepay.php:14
 msgid "Enable Apple Pay in the checkout."
-msgstr "Aktiver Apple Pay i betalingsprocessen."
+msgstr "Aktiver Apple Pay i checkout."
 
 #: gateways/class-wc-scanpay-gateway-applepay.php:18
 #: gateways/class-wc-scanpay-gateway-mobilepay.php:18
@@ -81,7 +81,7 @@ msgstr "MobilePay Online via Scanpay."
 
 #: gateways/class-wc-scanpay-gateway-mobilepay.php:14
 msgid "Enable MobilePay in the checkout."
-msgstr "Aktiver MobilePay i betalingsprocessen."
+msgstr "Aktiver MobilePay i checkout."
 
 #: gateways/class-wc-scanpay-gateway.php:9
 msgid "Accept payment cards through Scanpay."
@@ -110,7 +110,7 @@ msgstr "Følg venligst instruktionerne i %s."
 
 #: includes/form-fields.php:9
 msgid "Enable Scanpay in the checkout."
-msgstr "Aktiver Scanpay i betalingsprocessen."
+msgstr "Aktiver Scanpay i checkout."
 
 #: includes/form-fields.php:13
 msgid "API key"
@@ -118,7 +118,7 @@ msgstr "API-nøgle"
 
 #: includes/form-fields.php:21
 msgid "A title for the payment method. This is displayed on the checkout page."
-msgstr "En titel for betalingsmetoden. Denne vises på betalingsside."
+msgstr "En titel for betalingsmetoden. Denne vises i din checkout."
 
 #: includes/form-fields.php:33
 msgid "Card icons"
@@ -126,11 +126,11 @@ msgstr "Kortikoner"
 
 #: includes/form-fields.php:35
 msgid "Choose which card icons to display on the checkout page."
-msgstr "Vælg hvilke kortikoner, der skal vises på betalingsside."
+msgstr "Vælg hvilke kortikoner, der skal vises i din checkout."
 
 #: includes/form-fields.php:55
 msgid "Use default checkout stylesheet (CSS)."
-msgstr "Brug standard betalings-CSS-stilark."
+msgstr "Brug vores checkout stylesheet (CSS)."
 
 #: includes/form-fields.php:63
 msgid "Disable"
@@ -138,7 +138,7 @@ msgstr "Deaktiver"
 
 #: includes/form-fields.php:64
 msgid "On order completion (recommended)"
-msgstr "Ved ordreafslutning (anbefalet)"
+msgstr "Når ordren er gennemført (anbefalet)"
 
 #: includes/form-fields.php:65
 msgid "Immediately"
@@ -150,11 +150,11 @@ msgstr "Automatisk fuldførelse af virtuelle ordrer."
 
 #: includes/form-fields.php:77
 msgid "Auto-complete new subscribers <i>(Subscriptions only)</i>."
-msgstr "Automatisk fuldførelse af nye abonnenter <i>(Kun for abonnementer)</i>."
+msgstr "Automatisk fuldførelse af nye abonnenter <i>(abonnementsbetalinger)</i>."
 
 #: includes/form-fields.php:83
 msgid "Auto-complete renewal orders <i>(Subscriptions only)</i>."
-msgstr "Automatisk fuldførelse af fornyelsesordrer <i>(Kun for abonnementer)</i>."
+msgstr "Automatisk fuldførelse af fornyelsesordrer <i>(abonnementsbetalinger)</i>."
 
 #: includes/form-fields.php:87
 msgid "Subscription Terms"
@@ -162,7 +162,7 @@ msgstr "Abonnementsbetingelser"
 
 #: includes/form-fields.php:89
 msgid "Add a checkbox for Subscription Terms and Conditions."
-msgstr "Tilføj en afkrydsningsboks for abonnementsbetingelser."
+msgstr "Tilføj en checkbox for abonnementsbetingelser."
 
 #: woocommerce-scanpay.php:250
 msgid "Settings"
