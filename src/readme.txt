@@ -95,6 +95,10 @@ Yes, this plugin supports MobilePay. You must enable MobilePay in both the plugi
 You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us on [IRC](https://irc.scanpay.dev/).
 
 == Changelog ==
+= 2.9.0 - 2025-02-04 =
+* Add - Add localization
+* Add - Add danish localization
+
 = 2.8.0 - 2025-02-03 =
 * Fix - Fix issue with WCS coupons
 

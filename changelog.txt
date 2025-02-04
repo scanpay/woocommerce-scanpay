@@ -1,3 +1,7 @@
+= 2.9.0 - 2025-02-04 =
+* Add - Add localization
+* Add - Add danish localization
+
 = 2.8.0 - 2025-02-03 =
 * Fix - Fix issue with WCS coupons
 
