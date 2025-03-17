@@ -28,6 +28,7 @@ If you wish to set up the development environment, follow these steps:
 
 ```bash
 npm install
+composer install
 ./build.sh
 ```
 
