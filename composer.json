@@ -4,6 +4,12 @@
 		"squizlabs/php_codesniffer": "*",
 		"wp-coding-standards/wpcs": "*",
 		"wp-cli/wp-cli-bundle": "*",
-		"woocommerce/woocommerce-sniffs": "*"
+		"woocommerce/woocommerce-sniffs": "*",
+		"wp-cli/wp-cli": "*"
+	},
+	"config": {
+		"allow-plugins": {
+			"dealerdirect/phpcodesniffer-composer-installer": true
+		}
 	}
 }
