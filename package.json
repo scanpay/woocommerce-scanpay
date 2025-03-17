@@ -6,6 +6,10 @@
 	"author": "Scanpay ApS",
 	"license": "GPL-2.0-or-later",
 	"title": "Scanpay for WooCommerce",
+	"tested": {
+		"wordpress": "6.7.3",
+		"woocommerce": "9.7.1"
+	},
 	"keywords": [
 		"woocommerce",
 		"payments",
@@ -19,7 +23,6 @@
 	"bugs": {
 		"url": "https://github.com/scanpay/woocommerce-scanpay/issues"
 	},
-	"packageManager": "pnpm@9.8.0",
 	"dependencies": {
 		"@wordpress/element": "latest",
 		"@wordpress/prettier-config": "latest",

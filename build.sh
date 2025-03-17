@@ -10,6 +10,8 @@ TMP="/tmp/scanpay-for-woocommerce"
 
 # Get the verison number from package.json
 VERSION=$(node -p "require('$DIR/package.json').version")
+WP_VERSION=$(node -p "require('$DIR/package.json').tested.wordpress")
+WC_VERSION=$(node -p "require('$DIR/package.json').tested.woocommerce")
 echo -e "Building version: \033[0;31m$VERSION\033[0m\n"
 
 if [ -d "$BUILD" ]; then
@@ -37,10 +39,17 @@ done
 # Generate PHP translation files
 "$DIR/vendor/bin/wp" i18n make-php "$BUILD/languages"
 
-# Insert the version number into the files
 for file in $(find "$BUILD" -type f \( -name "*.php" -o -name "*.js" -o -name "*.txt" \)); do
+    # Insert the version number into the files
     if grep -q "{{ VERSION }}" "$file"; then
         sed -i "s/{{ VERSION }}/$VERSION/g" "$file"
+    fi
+    # Insert tested up to versions
+    if grep -q "{{ WP_VERSION_TESTED }}" "$file"; then
+        sed -i "s/{{ WP_VERSION_TESTED }}/$WP_VERSION/g" "$file"
+    fi
+    if grep -q "{{ WC_VERSION_TESTED }}" "$file"; then
+        sed -i "s/{{ WC_VERSION_TESTED }}/$WC_VERSION/g" "$file"
     fi
 done
 
