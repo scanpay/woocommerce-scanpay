@@ -218,20 +218,42 @@ class WC_Scanpay_Sync {
 		return true;
 	}
 
-	private function parse_payment_method( array $method ): string {
-		if ( isset( $method['type'] ) ) {
-			if ( isset( $method['card'], $method['card']['brand'], $method['card']['last4'] ) ) {
-				return $method['type'] . ' ' . $method['card']['brand'] . ' ' . $method['card']['last4'];
-			}
-			return $method['type'];
+
+	private function parse_card_brand( string $brand ): string {
+		switch ( $brand ) {
+			case 'visadankort':
+				return 'Visa/Dankort';
+			case 'diners':
+				return 'Diners Club';
+			case 'jcb':
+				return 'JCB';
+			case 'amex':
+				return 'American Express';
+			default:
+				return ucfirst( $brand );
 		}
-		return 'scanpay';
 	}
 
 
+	private function parse_payment_method( array $m ): string {
+		if ( empty( $m['type'] ) ) {
+			return 'scanpay';
+		}
+		$card = isset( $m['card'], $m['card']['brand'], $m['card']['last4'] )
+			? $this->parse_card_brand( $m['card']['brand'] ) . ' ' . $m['card']['last4']
+			: '';
 
-
-
+		switch ( $m['type'] ) {
+			case 'card':
+				return $card;
+			case 'mobilepay':
+				return empty( $card ) ? 'MobilePay' : "MobilePay ($card)";
+			case 'applepay':
+				return empty( $card ) ? 'Apple Pay' : "Apple Pay ($card)";
+			default:
+				return 'scanpay';
+		}
+	}
 
 	private function seq( int $ping_seq, int $seq ) {
 		global $wpdb;

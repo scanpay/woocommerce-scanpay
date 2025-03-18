@@ -2,30 +2,6 @@
 
 defined( 'ABSPATH' ) || exit();
 
-// Manipulate the payment method title
-$cache = false;
-add_filter( 'woocommerce_order_get_payment_method_title', function ( $str ) use ( &$cache ) {
-	if ( $cache ) {
-		return $cache;
-	}
-	$split = explode( ' ', $str );
-	if ( count( $split ) !== 3 ) {
-		return $str;
-	}
-	switch ( $split[0] ) {
-		case 'mobilepay':
-			$cache = 'MobilePay (' . ucfirst( $split[1] ) . ' ' . $split[2] . ')';
-			break;
-		case 'applepay':
-			$cache = 'Apple Pay (' . ucfirst( $split[1] ) . ' ' . $split[2] . ')';
-			break;
-		default:
-			$cache = ucfirst( $split[1] ) . ' ' . $split[2];
-			break;
-	}
-	return $cache;
-}, 10, 1 );
-
 /*
 *   This is the initial delay before we consume resources. The duration is based on tests conducted on our demo
 *   shop (AWS Ireland) with a basket of four items, each of which adds 5-10ms to the WC processing time.

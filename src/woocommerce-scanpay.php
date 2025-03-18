@@ -91,6 +91,11 @@ if ( isset( $_GET['scanpay_thankyou'], $_GET['scanpay_type'] ) ) {
 	return require WC_SCANPAY_DIR . '/hooks/wp-scanpay-thankyou.php';
 }
 
+add_filter('woocommerce_subscription_payment_method_to_display', function ( $s, $sub ) {
+	// Show the payment method title and not the gateway title
+	return $sub->get_payment_method() === 'scanpay' ? $sub->get_payment_method_title() : $s;
+}, 10, 2);
+
 // Meta box
 function wc_scanpay_add_meta_box( $wc_order ) {
 	if ( ! $wc_order instanceof WC_Order ) {
