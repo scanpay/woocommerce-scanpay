@@ -227,54 +227,43 @@ class WC_Scanpay_Sync {
 		return [];
 	}
 
-	/**
-	 *  Initiate WCS Subscription if there is no payment (e.g. free trial or coupon)
-	 */
-	private function maybe_init_sub( object $sub, array $c ): void {
-		$parent = $sub->get_parent();
-		if ( $parent && $parent->get_status() === 'pending' && (float) $parent->get_total( 'edit' ) === 0.0 ) {
-			$parent->add_meta_data( WC_SCANPAY_URI_SUBID, $c['id'], true );
-			$parent->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
-			$parent->add_meta_data( WC_SCANPAY_URI_STATUS, 'free trial', true );
-			$parent->set_payment_method_title( $this->parse_payment_method( $c['method'] ) );
-			$parent->set_status( 'completed', 'Subscription initiated without payment.', true );
-			$parent->save();
-		}
-	}
-
 	private function wcs_subscriber( array $c ) {
 		global $wpdb;
-		$subid = $c['id'];
-		$wpdb->query( "SELECT rev FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid" );
-		if ( 0 === $wpdb->num_rows ) {
-			$insert = $wpdb->query(
-				"INSERT INTO {$wpdb->prefix}scanpay_subs
-					SET subid = $subid, nxt = 0, retries = 5, idem = '', rev = " . $c['rev'] . ", method = '" . $c['method']['type'] . "',
-						method_id = '" . $c['method']['id'] . "', method_exp = '" . $c['method']['card']['exp'] . "'"
-			);
-			if ( ! $insert ) {
-				throw new Exception( "could not insert subscriber data (id=$subid)" );
+		$subid    = $c['id']; // int
+		$rev      = $c['rev']; // int
+		$subs     = $this->find_subs_from_ref( $c['ref'] );
+		$pm_title = $this->parse_payment_method( $c['method'] );
+		$pm_type  = $c['method']['type'] ?? 'NULL';
+		$pm_exp   = $c['method']['card']['exp'] ?? 'NULL';
+
+		$wpdb->query(
+			"INSERT INTO {$wpdb->prefix}scanpay_subs (subid, nxt, retries, idem, rev, method, method_exp)
+			VALUES ($subid, 0, 5, '', $rev, '$pm_type', '$pm_exp')
+			ON DUPLICATE KEY UPDATE
+			nxt = 0, retries = 5, idem = '', rev = $rev,
+			method = '$pm_type', method_exp = '$pm_exp'"
+		);
+
+		foreach ( $subs as $i ) {
+			$wcs_sub = wcs_get_subscription( (int) $i );
+			if ( ! $wcs_sub ) {
+				continue;
 			}
-			$subs = $this->find_subs_from_ref( $c['ref'] );
-			foreach ( $subs as $i ) {
-				$wcsid   = (int) $i;
-				$wcs_sub = wcs_get_subscription( (int) $wcsid );
-				if ( ! $wcs_sub || $wcs_sub->get_status() !== 'pending' ) {
-					continue;
-				}
-				$wcs_sub->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
-				$wcs_sub->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
-				$wcs_sub->save_meta_data();
-				$this->maybe_init_sub( $wcs_sub, $c );
-			}
-		} elseif ( $c['rev'] > $wpdb->last_result[0]->rev ) {
-			$update = $wpdb->query(
-				"UPDATE {$wpdb->prefix}scanpay_subs SET nxt = 0, retries = 5, idem = '', rev = " . $c['rev'] . ",
-					method = '" . $c['method']['type'] . "', method_id = '" . $c['method']['id'] . "',
-					method_exp = '" . $c['method']['card']['exp'] . "' WHERE subid = $subid"
-			);
-			if ( false === $update ) {
-				throw new Exception( "could not update subscriber data (id=$subid)" );
+			// Update subscription metadata
+			$wcs_sub->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
+			$wcs_sub->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
+			$wcs_sub->set_payment_method_title( $pm_title );
+			$wcs_sub->save();
+
+			// Handle free trial and coupons
+			$parent = $wcs_sub->get_parent();
+			if ( $parent && $parent->get_status() === 'pending' && (float) $parent->get_total( 'edit' ) === 0.0 ) {
+				$parent->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
+				$parent->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
+				$parent->add_meta_data( WC_SCANPAY_URI_STATUS, 'free trial', true );
+				$parent->set_payment_method_title( $pm_title );
+				$parent->set_status( 'completed', 'Subscription initiated without payment.', true );
+				$parent->save();
 			}
 		}
 	}
