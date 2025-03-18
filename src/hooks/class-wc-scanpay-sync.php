@@ -67,7 +67,6 @@ class WC_Scanpay_Sync {
 		remove_filter( 'woocommerce_order_status_completed', 'wc_scanpay_load_sync', 1, 0 );
 	}
 
-
 	private function capture_order( int $oid, object $wco ): array {
 		global $wpdb;
 		try {
@@ -176,9 +175,9 @@ class WC_Scanpay_Sync {
 		return $sfloat;
 	}
 
-	/*
-		Parse and validate totals array. Return without currency.
-		[ auhtorized, captured, refunded, voided, currency ]
+	/**
+	 * Parse and validate totals array. Return without currency.
+	 * [ auhtorized, captured, refunded, voided, currency ]
 	*/
 	private function totals( array $arr ): array {
 		$currency   = substr( $arr['authorized'], -3 );
@@ -219,55 +218,6 @@ class WC_Scanpay_Sync {
 		return true;
 	}
 
-
-	private function find_subs_from_ref( string $ref ): array {
-		if ( str_starts_with( $ref, 'wcs[]' ) ) {
-			return explode( ',', substr( $ref, 5 ) );
-		}
-		return [];
-	}
-
-	private function wcs_subscriber( array $c ) {
-		global $wpdb;
-		$subid    = $c['id']; // int
-		$rev      = $c['rev']; // int
-		$subs     = $this->find_subs_from_ref( $c['ref'] );
-		$pm_title = $this->parse_payment_method( $c['method'] );
-		$pm_type  = $c['method']['type'] ?? 'NULL';
-		$pm_exp   = $c['method']['card']['exp'] ?? 'NULL';
-
-		$wpdb->query(
-			"INSERT INTO {$wpdb->prefix}scanpay_subs (subid, nxt, retries, idem, rev, method, method_exp)
-			VALUES ($subid, 0, 5, '', $rev, '$pm_type', '$pm_exp')
-			ON DUPLICATE KEY UPDATE
-			nxt = 0, retries = 5, idem = '', rev = $rev,
-			method = '$pm_type', method_exp = '$pm_exp'"
-		);
-
-		foreach ( $subs as $i ) {
-			$wcs_sub = wcs_get_subscription( (int) $i );
-			if ( ! $wcs_sub ) {
-				continue;
-			}
-			// Update subscription metadata
-			$wcs_sub->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
-			$wcs_sub->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
-			$wcs_sub->set_payment_method_title( $pm_title );
-			$wcs_sub->save();
-
-			// Handle free trial and coupons
-			$parent = $wcs_sub->get_parent();
-			if ( $parent && $parent->get_status() === 'pending' && (float) $parent->get_total( 'edit' ) === 0.0 ) {
-				$parent->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
-				$parent->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
-				$parent->add_meta_data( WC_SCANPAY_URI_STATUS, 'free trial', true );
-				$parent->set_payment_method_title( $pm_title );
-				$parent->set_status( 'completed', 'Subscription initiated without payment.', true );
-				$parent->save();
-			}
-		}
-	}
-
 	private function parse_payment_method( array $method ): string {
 		if ( isset( $method['type'] ) ) {
 			if ( isset( $method['card'], $method['card']['brand'], $method['card']['last4'] ) ) {
@@ -278,55 +228,10 @@ class WC_Scanpay_Sync {
 		return 'scanpay';
 	}
 
-	private function apply_payment( int $trnid, int $oid, int $rev, array $c ) {
-		global $wpdb;
-		$wpdb->query( "SELECT id,rev FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
-		$meta = $wpdb->last_result;
-		if ( 0 === $wpdb->num_rows ) {
-			$wco = wc_get_order( $oid );
-			if ( ! $wco || ! $this->order_is_valid( $wco ) ) {
-				return;
-			}
-			if ( empty( $wco->get_transaction_id( 'edit' ) ) ) {
-				$wco->set_transaction_id( $trnid );
-				$wco->set_date_paid( $c['time']['authorized'] );
-				$wco->set_payment_method( 'scanpay' );
-				$wco->set_payment_method_title( $this->parse_payment_method( $c['method'] ) );
 
-				if ( in_array( $wco->get_status(), [ 'on-hold', 'pending', 'failed', 'cancelled' ], true ) ) {
-					if ( 'completed' === $this->settings['wc_autocapture'] ) {
-						$wco->set_status( ( '1' === $wco->get_meta( WC_SCANPAY_URI_AUTOCPT, true, 'edit' ) ) ? 'completed' : 'processing' );
-					} else {
-						$wco->set_status( apply_filters( 'woocommerce_payment_complete_order_status', $wco->needs_processing() ? 'processing' : 'completed', $oid, $wco ) );
-					}
-				}
-				$wco->save();
-				do_action( 'woocommerce_payment_complete', $oid, $trnid );
-			}
-			$subid = ( 'charge' === $c['type'] ) ? (int) $c['subscriber']['id'] : 0;
-			list( $authorized, $captured, $refunded, $voided, $currency ) = $this->totals( $c['totals'] );
-			$insert = $wpdb->query(
-				"INSERT INTO {$wpdb->prefix}scanpay_meta
-					SET orderid = $oid, subid = $subid, shopid = $this->shopid, id = $trnid,
-						rev = $rev, nacts = " . count( $c['acts'] ) . ", currency = '$currency', authorized = '$authorized',
-						captured = '$captured', refunded = '$refunded', voided = '$voided'"
-			);
-			if ( ! $insert ) {
-				throw new Exception( "could not save payment data to order #$oid" );
-			}
-		} elseif ( $trnid !== (int) $meta[0]->id ) {
-			scanpay_log( 'warning', "Order #$oid is already paid (id=" . $meta[0]->id . "). Will ignore trnid $trnid" );
-		} elseif ( $rev > $meta[0]->rev ) {
-			list( $authorized, $captured, $refunded, $voided, $currency ) = $this->totals( $c['totals'] );
-			$update = $wpdb->query(
-				"UPDATE {$wpdb->prefix}scanpay_meta SET rev = $rev, nacts = " . count( $c['acts'] ) . ",
-				captured = '$captured', refunded = '$refunded', voided = '$voided' WHERE orderid = $oid"
-			);
-			if ( false === $update ) {
-				throw new Exception( "could not save payment data to order #$oid" );
-			}
-		}
-	}
+
+
+
 
 	private function seq( int $ping_seq, int $seq ) {
 		global $wpdb;
@@ -420,6 +325,61 @@ class WC_Scanpay_Sync {
 			wp_send_json( [ 'error' => $str ], 500 );
 		}
 	}
+
+
+	private function apply_payment( int $trnid, int $oid, int $rev, array $c ) {
+		global $wpdb;
+		$wpdb->query( "SELECT id,rev FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
+		$meta = $wpdb->last_result;
+		if ( 0 === $wpdb->num_rows ) {
+			$wco = wc_get_order( $oid );
+			if ( ! $wco || ! $this->order_is_valid( $wco ) ) {
+				return;
+			}
+			if ( empty( $wco->get_transaction_id( 'edit' ) ) ) {
+				$wco->set_transaction_id( $trnid );
+				$wco->set_date_paid( $c['time']['authorized'] );
+				$wco->set_payment_method( 'scanpay' );
+				$wco->set_payment_method_title( $this->parse_payment_method( $c['method'] ) );
+
+				if ( in_array( $wco->get_status(), [ 'on-hold', 'pending', 'failed', 'cancelled' ], true ) ) {
+					if ( 'completed' === $this->settings['wc_autocapture'] ) {
+						$wco->set_status( ( '1' === $wco->get_meta( WC_SCANPAY_URI_AUTOCPT, true, 'edit' ) ) ? 'completed' : 'processing' );
+					} else {
+						$wco->set_status( apply_filters( 'woocommerce_payment_complete_order_status', $wco->needs_processing() ? 'processing' : 'completed', $oid, $wco ) );
+					}
+				}
+				$wco->save();
+				do_action( 'woocommerce_payment_complete', $oid, $trnid );
+			}
+			$subid = ( 'charge' === $c['type'] ) ? (int) $c['subscriber']['id'] : 0;
+			list( $authorized, $captured, $refunded, $voided, $currency ) = $this->totals( $c['totals'] );
+			$insert = $wpdb->query(
+				"INSERT INTO {$wpdb->prefix}scanpay_meta
+					SET orderid = $oid, subid = $subid, shopid = $this->shopid, id = $trnid,
+						rev = $rev, nacts = " . count( $c['acts'] ) . ", currency = '$currency', authorized = '$authorized',
+						captured = '$captured', refunded = '$refunded', voided = '$voided'"
+			);
+			if ( ! $insert ) {
+				throw new Exception( "could not save payment data to order #$oid" );
+			}
+		} elseif ( $trnid !== (int) $meta[0]->id ) {
+			scanpay_log( 'warning', "Order #$oid is already paid (id=" . $meta[0]->id . "). Will ignore trnid $trnid" );
+		} elseif ( $rev > $meta[0]->rev ) {
+			list( $authorized, $captured, $refunded, $voided, $currency ) = $this->totals( $c['totals'] );
+			$update = $wpdb->query(
+				"UPDATE {$wpdb->prefix}scanpay_meta SET rev = $rev, nacts = " . count( $c['acts'] ) . ",
+				captured = '$captured', refunded = '$refunded', voided = '$voided' WHERE orderid = $oid"
+			);
+			if ( false === $update ) {
+				throw new Exception( "could not save payment data to order #$oid" );
+			}
+		}
+	}
+
+	/**
+	 * Subscriptions
+	 */
 
 	private function idempotency_key( int $oid, int $subid ): string {
 		global $wpdb;
@@ -552,6 +512,55 @@ class WC_Scanpay_Sync {
 			$str = trim( $e->getMessage() );
 			scanpay_log( 'error', "charge failed on #$oid: $str" );
 			$wco->update_status( 'failed', "Charge failed: $str" );
+		}
+	}
+
+
+	private function find_subs_from_ref( string $ref ): array {
+		if ( str_starts_with( $ref, 'wcs[]' ) ) {
+			return explode( ',', substr( $ref, 5 ) );
+		}
+		return [];
+	}
+
+	private function wcs_subscriber( array $c ) {
+		global $wpdb;
+		$subid    = $c['id']; // int
+		$rev      = $c['rev']; // int
+		$subs     = $this->find_subs_from_ref( $c['ref'] );
+		$pm_title = $this->parse_payment_method( $c['method'] );
+		$pm_type  = $c['method']['type'] ?? 'NULL';
+		$pm_exp   = $c['method']['card']['exp'] ?? 'NULL';
+
+		$wpdb->query(
+			"INSERT INTO {$wpdb->prefix}scanpay_subs (subid, nxt, retries, idem, rev, method, method_exp)
+			VALUES ($subid, 0, 5, '', $rev, '$pm_type', '$pm_exp')
+			ON DUPLICATE KEY UPDATE
+			nxt = 0, retries = 5, idem = '', rev = $rev,
+			method = '$pm_type', method_exp = '$pm_exp'"
+		);
+
+		foreach ( $subs as $i ) {
+			$wcs_sub = wcs_get_subscription( (int) $i );
+			if ( ! $wcs_sub ) {
+				continue;
+			}
+			// Update subscription metadata
+			$wcs_sub->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
+			$wcs_sub->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
+			$wcs_sub->set_payment_method_title( $pm_title );
+			$wcs_sub->save();
+
+			// Handle free trial and coupons
+			$parent = $wcs_sub->get_parent();
+			if ( $parent && $parent->get_status() === 'pending' && (float) $parent->get_total( 'edit' ) === 0.0 ) {
+				$parent->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
+				$parent->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
+				$parent->add_meta_data( WC_SCANPAY_URI_STATUS, 'free trial', true );
+				$parent->set_payment_method_title( $pm_title );
+				$parent->set_status( 'completed', 'Subscription initiated without payment.', true );
+				$parent->save();
+			}
 		}
 	}
 }
