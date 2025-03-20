@@ -79,8 +79,14 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 		return '';
 	}
 
+	/**
+	 * Get the title of the payment method, e.g. "Pay by card"
+	 *
+	 * @return string
+	 */
 	public function get_title(): string {
-		if ( defined( 'WP_ADMIN' ) && isset( $_GET['page'] ) && 'wc-orders' === $_GET['page'] ) {
+		// In the admin, we want to show "scanpay"
+		if ( defined( 'WP_ADMIN' ) && isset( $_GET['page'] ) && ( 'wc-orders' === $_GET['page'] || 'wc-orders--shop_subscription' === $_GET['page'] ) ) {
 			return 'Scanpay';
 		}
 		return $this->settings['title'];
