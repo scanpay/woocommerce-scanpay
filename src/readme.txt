@@ -93,6 +93,11 @@ Yes, this plugin supports MobilePay. You must enable MobilePay in both the plugi
 You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us on IRC.
 
 == Changelog ==
+= 2.9.1 - 2025-03-20 =
+* Enhancement - Improved payment method parsing and ensured details are saved across all subscriptions.
+* Enhancement - Minor code refactoring for better maintainability (WCS only).
+* Fix - Show "scanpay" as payment method in WCS order edit.
+
 = 2.9.0 - 2025-02-04 =
 * Add - Add localization
 * Add - Add danish localization
