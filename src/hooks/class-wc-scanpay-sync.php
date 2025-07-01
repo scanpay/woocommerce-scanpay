@@ -111,8 +111,22 @@ class WC_Scanpay_Sync {
 		}
 	}
 
+	/*
+	 *  Attempt to capture a Scanpay payment when the order completes.
+	 *  This is called by the 'woocommerce_order_status_completed' hook,
+	 *  but only if the 'wc_autocapture' setting is set to 'completed'.
+	 */
 	public function capture_after_complete( int $oid, object $wco ): void {
-		if ( (float) $wco->get_total() === 0.0 || ! $this->order_is_valid( $wco ) ) {
+		if ( (float) $wco->get_total() === 0.0 ) {
+			return; // Skip free orders
+		}
+		// Skip if the payment method is not Scanpay
+		if ( str_starts_with( $wco->get_payment_method( 'edit' ), 'scanpay' ) ) {
+			return;
+		}
+		// Skip if order's shop ID doesn't match the configured shop ID
+		if ( (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' ) !== $this->shopid ) {
+			scanpay_log( 'warning', 'Skipped order #' . $wco->get_id() . ': shopid mismatch' );
 			return;
 		}
 		if ( '1' !== $wco->get_meta( WC_SCANPAY_URI_AUTOCPT, true, 'edit' ) ) {
