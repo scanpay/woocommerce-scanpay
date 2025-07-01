@@ -205,7 +205,7 @@ class WC_Scanpay_Sync {
 
 	private function order_is_valid( $wco ): bool {
 		$psp = $wco->get_payment_method( 'edit' );
-		if ( 'scanpay' !== $psp && ! str_starts_with( $psp, 'scanpay' ) ) {
+		if ( str_starts_with( $psp, 'scanpay' ) ) {
 			scanpay_log( 'warning', 'Skipped order #' . $wco->get_id() . ': payment method mismatch' );
 			return false;
 		}
