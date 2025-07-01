@@ -47,15 +47,17 @@ function scanpay_log( string $level, string $msg ): void {
 }
 
 /*
-	Ping handler /wc-api/wc_scanpay/
-*/
-if ( isset( $_SERVER['HTTP_X_SIGNATURE'], $_SERVER['REQUEST_URI'] ) ) {
-	if ( str_ends_with( $_SERVER['REQUEST_URI'], 'wc_scanpay/' ) ) {
-		add_action( 'woocommerce_api_wc_scanpay', function () {
-			require WC_SCANPAY_DIR . '/hooks/class-wc-scanpay-sync.php';
-			$sync = new WC_Scanpay_Sync();
-			$sync->handle_ping();
-		} );
+ * Handle pings (callbacks) to /wc-api/wc_scanpay/
+ * Only register the handler if the required X-Signature is present.
+ */
+if ( isset( $_SERVER['HTTP_X_SIGNATURE'] ) ) {
+	add_action( 'woocommerce_api_wc_scanpay', function () {
+		require WC_SCANPAY_DIR . '/hooks/class-wc-scanpay-sync.php';
+		$sync = new WC_Scanpay_Sync();
+		$sync->handle_ping();
+	} );
+	// Optimization: skip full plugin initialization for valid ping requests
+	if ( isset( $_SERVER['REQUEST_URI'] ) && str_ends_with( $_SERVER['REQUEST_URI'], 'wc_scanpay/' ) ) {
 		return;
 	}
 }
