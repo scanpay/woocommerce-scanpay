@@ -33,15 +33,15 @@ function wc_scanpay_subref( int $oid, object $wco ): ?string {
 		&& WC_Subscriptions_Change_Payment_Gateway::$is_request_to_change_payment
 	) {
 		/*
-		*   This only happens when the user changes PSP to us. This process DOES NOT
-		*   create a new order; it only updates the payment method of the WCS Subscription.
-		*/
+		 *   This only happens when the user changes PSP to us. This process DOES NOT
+		 *   create a new order; it only updates the payment method of the WCS Subscription.
+		 */
 		return 'wcs[]' . $oid; // $oid is the WCS subscription ID
 	}
 	/*
-	*   Check if the order contains subs. Most PSPs use wcs_order_contains_subscription(), but it is
-	*   incredibly inefficient. We can use wc_get_orders directly and optimize the search with status.
-	*/
+	 *   Check if the order contains subs. Most PSPs use wcs_order_contains_subscription(), but it is
+	 *   incredibly inefficient. We can use wc_get_orders directly and optimize the search with status.
+	 */
 	$wcs_subs_arr = wc_get_orders(
 		[
 			'type'   => 'shop_subscription',

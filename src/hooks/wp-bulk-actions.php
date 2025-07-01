@@ -3,10 +3,10 @@
 defined( 'ABSPATH' ) || exit();
 
 /*
-	Hook: handle_bulk_actions-woocommerce_page_wc-orders
-	The hook is called by ListTable::handle_bulk_actions()
-	Woo has validated the nonce and user permissions for us.
-*/
+ *  Hook: handle_bulk_actions-woocommerce_page_wc-orders
+ *  The hook is called by ListTable::handle_bulk_actions()
+ *  Woo has validated the nonce and user permissions for us.
+ */
 
 if ( 'scanpay_capture_complete' !== $action && 'scanpay_mark_completed' !== $action ) {
 	return $redirect_to;

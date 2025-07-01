@@ -25,9 +25,9 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 	}
 
 	/*
-		get_payment_method_data() is only called in the checkout
-		The data returned here will be used to render the payment method in the frontend.
-	*/
+	 *  get_payment_method_data() is only called in the checkout
+	 *  The data returned here will be used to render the payment method in the frontend.
+	 */
 	public function get_payment_method_data() {
 		$settings = get_option( WC_SCANPAY_URI_SETTINGS );
 		return [

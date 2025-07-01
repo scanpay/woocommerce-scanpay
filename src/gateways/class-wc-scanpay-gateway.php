@@ -49,9 +49,9 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 		}
 
 		/*
-			WC auto-completes downloadable orders, but not virtual orders. This filter
-			will set virtual products to not need processing, so they are auto-completed.
-		*/
+		 *  WC auto-completes downloadable orders, but not virtual orders. This filter
+		 *  will set virtual products to not need processing, so they are auto-completed.
+		 */
 		if ( 'yes' === $this->settings['wc_complete_virtual'] ) {
 			add_filter( 'woocommerce_order_item_needs_processing', function ( $needs_processing, $product ) {
 				if ( $needs_processing && true === $product->get_virtual( 'edit' ) ) {

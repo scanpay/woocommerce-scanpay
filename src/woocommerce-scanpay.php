@@ -62,19 +62,16 @@ if ( isset( $_SERVER['HTTP_X_SIGNATURE'] ) ) {
 	}
 }
 
-/*
-	Load translations (i18n)
-*/
+// Load translations (i18n)
 add_action('plugins_loaded', function () {
 	load_plugin_textdomain( 'scanpay-for-woocommerce', false, 'scanpay-for-woocommerce/languages' );
 });
 
 
 /*
-	JavaScript endpoints /wp-scanpay/fetch?x={ping,meta,sub}&s=$secret  ...
-	Bypass WooCommerce and WordPress. Saves >40 ms and a lot of resources
-*/
-
+ *  JavaScript endpoints /wp-scanpay/fetch?x={ping,meta,sub}&s=$secret  ...
+ *  Bypass WooCommerce and WordPress. Saves >40 ms and a lot of resources
+ */
 if ( isset( $_SERVER['HTTP_X_SCANPAY'], $_GET['x'], $_GET['s'] ) ) {
 	switch ( $_GET['x'] ) {
 		case 'meta':
@@ -86,9 +83,7 @@ if ( isset( $_SERVER['HTTP_X_SCANPAY'], $_GET['x'], $_GET['s'] ) ) {
 	}
 }
 
-/*
-*   Order received page (thankyou).
-*/
+//  Order received page (thankyou).
 if ( isset( $_GET['scanpay_thankyou'], $_GET['scanpay_type'] ) ) {
 	return require WC_SCANPAY_DIR . '/hooks/wp-scanpay-thankyou.php';
 }

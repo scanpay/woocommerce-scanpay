@@ -45,9 +45,9 @@ if ( version_compare( $version, '2.0.0', '<' ) ) {
 }
 
 /*
-	Version: 2.1.3
-	Temporary fix for bug in old plugin (1.x.x)
-*/
+ *  Version: 2.1.3
+ *  Temporary fix for bug in old plugin (1.x.x)
+ */
 if ( $wcs_exists && version_compare( $version, '2.1.3', '<' ) ) {
 	$args    = [
 		'type'     => 'shop_subscription',
@@ -82,9 +82,9 @@ if ( $wcs_exists && version_compare( $version, '2.1.3', '<' ) ) {
 }
 
 /*
-	Version: 2.5.0
-	* Setting 'capture_on_complete' (checkbox) changed to 'wc_autocapture' (dropdown)
-*/
+ *  Version: 2.5.0
+ *  - Setting 'capture_on_complete' (checkbox) changed to 'wc_autocapture' (dropdown)
+ */
 if ( version_compare( $version, '2.5.0', '<' ) ) {
 	$settings                   = get_option( WC_SCANPAY_URI_SETTINGS );
 	$settings['wc_autocapture'] = ( isset( $settings['capture_on_complete'] ) && 'yes' === $settings['capture_on_complete'] ) ? 'completed' : 'off';

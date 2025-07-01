@@ -3,10 +3,10 @@
 defined( 'ABSPATH' ) || exit();
 
 /*
-*   This is the initial delay before we consume resources. The duration is based on tests conducted on our demo
-*   shop (AWS Ireland) with a basket of four items, each of which adds 5-10ms to the WC processing time.
-*   WCS is much slower than a regular WC but typically has fewer items in the basket.
-*/
+ *   This is the initial delay before we consume resources. The duration is based on tests conducted on our demo
+ *   shop (AWS Ireland) with a basket of four items, each of which adds 5-10ms to the WC processing time.
+ *   WCS is much slower than a regular WC but typically has fewer items in the basket.
+ */
 $initial_sleep = ( 'wc' === $_GET['scanpay_type'] ) ? 400000 : 450000;
 usleep( $initial_sleep );
 

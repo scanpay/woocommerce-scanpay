@@ -54,9 +54,9 @@ class WC_Scanpay_Sync {
 
 		if ( 'yes' === $this->settings['wc_complete_virtual'] ) {
 			/*
-				WC auto-completes downloadable orders, but not virtual orders. This filter
-				will set virtual products to not need processing, so they are auto-completed.
-			*/
+			 *  WC auto-completes downloadable orders, but not virtual orders. This filter
+			 *  will set virtual products to not need processing, so they are auto-completed.
+			 */
 			add_filter( 'woocommerce_order_item_needs_processing', function ( $needs_processing, $product ) {
 				if ( $needs_processing && true === $product->get_virtual( 'edit' ) ) {
 					return false; // Product is virtual, but not downloadable.
@@ -129,9 +129,7 @@ class WC_Scanpay_Sync {
 	}
 
 
-	/*
-		Simple "filelock" with mkdir (because it's atomic, fast and dirty!)
-	*/
+	// Simple "filelock" with mkdir (because it's atomic, fast and dirty!)
 	public function acquire_lock(): bool {
 		if ( $this->lockfile ) {
 			return true;
@@ -175,10 +173,10 @@ class WC_Scanpay_Sync {
 		return $sfloat;
 	}
 
-	/**
+	/*
 	 * Parse and validate totals array. Return without currency.
 	 * [ auhtorized, captured, refunded, voided, currency ]
-	*/
+	 */
 	private function totals( array $arr ): array {
 		$currency   = substr( $arr['authorized'], -3 );
 		$authorized = $this->currency_amount( $arr['authorized'] );
@@ -462,9 +460,9 @@ class WC_Scanpay_Sync {
 		];
 
 		/*
-			Calculate the sum of all items and check if the order needs processing. WC_Order->needs_payment() is not in
-			the cache here, and WCS does not use it, so we make our own is_virtual check.
-		*/
+		 *  Calculate the sum of all items and check if the order needs processing. WC_Order->needs_payment() is not in
+		 *  the cache here, and WCS does not use it, so we make our own is_virtual check.
+		 */
 		$sum        = '0';
 		$currency   = $wco->get_currency( 'edit' );
 		$is_virtual = 1;
@@ -524,9 +522,9 @@ class WC_Scanpay_Sync {
 			do_action( 'woocommerce_payment_complete', $oid, $res['id'] );
 		} catch ( \Exception $e ) {
 			/*
-				WCS default is 5 retries: +12h, +12h, +24h, +48h, +72h. We will let WCS handle the retry logic,
-				but as a safeguard we set a minimum requirement of 8 hours between automatic retries.
-			*/
+			 *  WCS default is 5 retries: +12h, +12h, +24h, +48h, +72h. We will let WCS handle the retry logic,
+			 *  but as a safeguard we set a minimum requirement of 8 hours between automatic retries.
+			 */
 			$nxt = time() + 28800; // 8 hours
 			$sub = $wpdb->get_row( "SELECT retries, nxt, idem FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid", ARRAY_A );
 			$rt  = $sub['retries'] - 1;

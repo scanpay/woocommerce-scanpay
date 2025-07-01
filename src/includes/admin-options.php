@@ -1,9 +1,9 @@
 <?php
 
 /*
-*   admin-options.php
-*   Override WC_Payment_Gateway/WC_Settings_API:: admin_options()
-*/
+ *   admin-options.php
+ *   Override WC_Payment_Gateway/WC_Settings_API:: admin_options()
+ */
 
 defined( 'ABSPATH' ) || exit();
 
@@ -66,9 +66,9 @@ if ( isset( $this->settings['subscriptions_enabled'] ) && 'no' === $this->settin
 }
 
 /*
-	The following is copied from WC_Settings_API::admin_options()
-	Last verified on 2023-10
-*/
+ *  The following is copied from WC_Settings_API::admin_options()
+ *  Last verified on 2023-10
+ */
 echo '<table class="' . $class_name . '">' .
 	$this->generate_settings_html( $this->get_form_fields(), false ) .
 '</table>';

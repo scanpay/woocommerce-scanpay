@@ -1,12 +1,12 @@
 <?php
 
 /*
-	Scanpay module client lib
-	Version 2.2.3 (2024-03-17)
-	- remove data[] from renew() and new_url() params
-	+ Add parse_ping and shopid
-	+ Optimizations
-*/
+ *  Scanpay module client lib
+ *  Version 2.2.3 (2024-03-17)
+ *  - remove data[] from renew() and new_url() params
+ *  + Add parse_ping and shopid
+ *  + Optimizations
+ */
 
 class WC_Scanpay_Client {
 

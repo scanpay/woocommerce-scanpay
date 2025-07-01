@@ -1,9 +1,9 @@
 <?php
 
 /*
-	Scanpay compatibility checker.
-	Used in settings to warn admins of impending doom!
-*/
+ *  Scanpay compatibility checker.
+ *  Used in settings to warn admins of impending doom!
+ */
 
 defined( 'ABSPATH' ) || exit();
 
