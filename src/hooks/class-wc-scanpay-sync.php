@@ -121,7 +121,7 @@ class WC_Scanpay_Sync {
 			return; // Skip free orders
 		}
 		// Skip if the payment method is not Scanpay
-		if ( str_starts_with( $wco->get_payment_method( 'edit' ), 'scanpay' ) ) {
+		if ( ! str_starts_with( $wco->get_payment_method( 'edit' ), 'scanpay' ) ) {
 			return;
 		}
 		// Skip if order's shop ID doesn't match the configured shop ID
@@ -219,7 +219,7 @@ class WC_Scanpay_Sync {
 
 	private function order_is_valid( $wco ): bool {
 		$psp = $wco->get_payment_method( 'edit' );
-		if ( str_starts_with( $psp, 'scanpay' ) ) {
+		if ( ! str_starts_with( $psp, 'scanpay' ) ) {
 			scanpay_log( 'warning', 'Skipped order #' . $wco->get_id() . ': payment method mismatch' );
 			return false;
 		}
