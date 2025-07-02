@@ -39,7 +39,10 @@ foreach ( $ids as $oid ) {
 			continue;
 		}
 		if ( $capture ) {
-			$sync->capture_and_complete( $oid, $wco );
+			$res    = $sync->capture_order( $oid, $wco );
+			$status = $res[0] ? 'completed' : 'failed';
+			$wco->update_status( $status, $res[1], true );
+			do_action( 'woocommerce_order_edit_status', $oid, $status );
 			++$changed;
 			continue;
 		}

@@ -67,7 +67,7 @@ class WC_Scanpay_Sync {
 		remove_filter( 'woocommerce_order_status_completed', 'wc_scanpay_load_sync', 1, 0 );
 	}
 
-	private function capture_order( int $oid, object $wco ): array {
+	public function capture_order( int $oid, object $wco ): array {
 		global $wpdb;
 		try {
 			$meta = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid", ARRAY_A );
@@ -134,14 +134,6 @@ class WC_Scanpay_Sync {
 			$wco->add_order_note( $res[1], false, true );
 		}
 	}
-
-	public function capture_and_complete( int $oid, object $wco ) {
-		$res    = $this->capture_order( $oid, $wco );
-		$status = $res[0] ? 'completed' : 'failed';
-		$wco->update_status( $status, $res[1], true );
-		do_action( 'woocommerce_order_edit_status', $oid, $status );
-	}
-
 
 	// Simple "filelock" with mkdir (because it's atomic, fast and dirty!)
 	public function acquire_lock(): bool {
