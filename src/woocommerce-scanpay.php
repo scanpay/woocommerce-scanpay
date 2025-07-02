@@ -205,11 +205,6 @@ function scanpay_admin_hooks() {
 		add_filter( 'handle_bulk_actions-woocommerce_page_wc-orders', function ( string $redirect_to, string $action, array $ids ) {
 			return require WC_SCANPAY_DIR . '/hooks/wp-bulk-actions.php';
 		}, 0, 3 );
-
-		// [hook] Ajax action to mark order status (HPOS enabled)
-		add_action( 'wp_ajax_woocommerce_mark_order_status', function () {
-			require WC_SCANPAY_DIR . '/hooks/wp-ajax-wc-mark-order-status.php';
-		}, 0, 0);
 		return;
 	}
 
@@ -227,11 +222,6 @@ function scanpay_admin_hooks() {
 		add_filter( 'handle_bulk_actions-edit-shop_order', function ( string $redirect_to, string $action, array $ids ) {
 			return require WC_SCANPAY_DIR . '/hooks/wp-bulk-actions.php';
 		}, 0, 3 );
-
-		// [hook] Ajax action to mark order status (HPOS disabled)
-		add_action( 'wp_ajax_woocommerce_mark_order_status', function () {
-			require WC_SCANPAY_DIR . '/hooks/wp-ajax-wc-mark-order-status.php';
-		}, 0, 0);
 		return;
 	}
 
@@ -278,6 +268,14 @@ add_action( 'plugins_loaded', function () {
 			require WC_SCANPAY_DIR . '/hooks/class-wc-scanpay-sync.php';
 			new WC_Scanpay_Sync(); // will handle the hooks
 		}
+	}
+
+	if ( 'admin-ajax.php' === $GLOBALS['pagenow'] ) {
+		// [hook] Ajax action to mark order status
+		add_action( 'wp_ajax_woocommerce_mark_order_status', function () {
+			require WC_SCANPAY_DIR . '/hooks/wp-ajax-wc-mark-order-status.php';
+		}, 0, 0);
+		return;
 	}
 
 	// Ignore JSON requests
