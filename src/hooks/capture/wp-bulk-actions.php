@@ -31,17 +31,18 @@ remove_action( 'woocommerce_order_status_completed', 'wc_scanpay_order_status_co
 
 $changed = 0;
 foreach ( $ids as $oid ) {
-	$wco    = wc_get_order( $oid );
-	$status = $wco->get_status( 'edit' );
-	$msg    = '';
-	if ( ! $wco || 'completed' === $status ) {
+	$wco     = wc_get_order( $oid );
+	$ostatus = $wco->get_status( 'edit' );
+	$msg     = '';
+	if ( ! $wco || 'completed' === $ostatus ) {
 		continue;
 	}
-	$new_status = 'completed';
+
+	$nstatus = 'completed';
 	if ( $capture ) {
 		$res = WC_Scanpay_Capture::capture( $wco );
 		$msg = $res['msg'];
-		if ( $res['status'] === 'skipped' ) {
+		if ( 'skipped' === $res['status'] ) {
 			scanpay_log( 'debug', "Capture skipped on order #$oid: $msg" );
 			continue;
 		}
@@ -50,26 +51,26 @@ foreach ( $ids as $oid ) {
 				$msg = "Scanpay captured $msg.";
 				break;
 			case 'failed':
-				$new_status = 'failed';
-				$msg    = "Scanpay capture failed: $msg.";
+				$nstatus = 'failed';
+				$msg     = "Scanpay capture failed: $msg.";
 				scanpay_log( 'warning', "Capture failed on order #$oid: $msg" );
 				break;
 			case 'aborted':
-				$new_status = 'failed';
-				$msg    = "Scanpay capture aborted: $msg.";
+				$nstatus = 'failed';
+				$msg     = "Scanpay capture aborted: $msg.";
 				scanpay_log( 'warning', "Capture aborted on order #$oid: $msg" );
 				break;
 		}
 	}
 
-	if ( $new_status === $status ) {
+	if ( $nstatus === $ostatus ) {
 		scanpay_log( 'debug', "No status change for order #$oid, adding note: $msg" );
 		// No change in status, just add a note
 		$wco->add_order_note( "$msg.", false, true );
 	} else {
-		scanpay_log( 'debug', "Changing status of order #$oid from $status to $new_status" );
-		$wco->update_status( $new_status, $msg, true );
-		do_action( 'woocommerce_order_edit_status', $oid, $new_status );
+		scanpay_log( 'debug', "Changing status of order #$oid from $ostatus to $nstatus" );
+		$wco->update_status( $nstatus, $msg, true );
+		do_action( 'woocommerce_order_edit_status', $oid, $nstatus );
 		++$changed;
 	}
 }

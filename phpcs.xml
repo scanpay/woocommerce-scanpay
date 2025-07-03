@@ -72,42 +72,8 @@
 	</rule>
 
 	<!-- Add 3rd-party and custom capabilities -->
-	<rule ref="WordPress.WP.Capabilities">
-		<properties>
-			<property name="custom_capabilities" type="array" value="manage_woocommerce,edit_shop_orders" />
-		</properties>
-	</rule>
-
-	<rule ref="Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed">
-		<exclude-pattern>woocommerce-scanpay.php</exclude-pattern>
-	</rule>
-
-	<rule ref="Generic.CodeAnalysis.UnusedFunctionParameter.Found">
-		<exclude-pattern>woocommerce-scanpay.php</exclude-pattern>
-	</rule>
-
-	<!-- Tmp solution to allow inline add_action / add_filter -->
-	<rule ref="PEAR.Functions.FunctionCallSignature.MultipleArguments">
-		<exclude-pattern>woocommerce-scanpay.php</exclude-pattern>
-		<exclude-pattern>gateways/class-wc-scanpay-gateway.php</exclude-pattern>
-		<exclude-pattern>hooks/class-wc-scanpay-sync.php</exclude-pattern>
-		<exclude-pattern>hooks/wp-scanpay-thankyou.php</exclude-pattern>
-	</rule>
-	<rule ref="PEAR.Functions.FunctionCallSignature.ContentAfterOpenBracket">
-		<exclude-pattern>woocommerce-scanpay.php</exclude-pattern>
-		<exclude-pattern>gateways/class-wc-scanpay-gateway.php</exclude-pattern>
-		<exclude-pattern>hooks/class-wc-scanpay-sync.php</exclude-pattern>
-		<exclude-pattern>hooks/wp-scanpay-thankyou.php</exclude-pattern>
-	</rule>
-	<rule ref="PEAR.Functions.FunctionCallSignature.CloseBracketLine">
-		<exclude-pattern>woocommerce-scanpay.php</exclude-pattern>
-		<exclude-pattern>gateways/class-wc-scanpay-gateway.php</exclude-pattern>
-		<exclude-pattern>hooks/class-wc-scanpay-sync.php</exclude-pattern>
-		<exclude-pattern>hooks/wp-scanpay-thankyou.php</exclude-pattern>
-	</rule>
-
 	<rule ref="WordPress.Security.ValidatedSanitizedInput.InputNotValidated">
-		<exclude-pattern>hooks/class-wc-scanpay-sync.php</exclude-pattern>
+		<exclude-pattern>hooks/wc-scanpay-ping.php</exclude-pattern>
 		<exclude-pattern>hooks/wp-scanpay-thankyou.php</exclude-pattern>
 	</rule>
 </ruleset>

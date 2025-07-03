@@ -19,7 +19,7 @@ if ( empty( $shopid ) ) {
 }
 
 $body = file_get_contents( 'php://input', false, null, 0, 512 );
-if ( $body === false ) {
+if ( false === $body ) {
 	scanpay_log( 'error', 'Failed to read input from php://input' );
 	wp_send_json( [ 'error' => 'failed to read input' ], 400 );
 	return;

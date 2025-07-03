@@ -32,10 +32,11 @@ class WC_Scanpay_Sync {
 		}
 	}
 
-    /**
-     * Parse currency amount from string.
-     * @throws \Exception
-     */
+	/**
+	 * Parse currency amount from string.
+	 *
+	 * @throws \Exception
+	 */
 	private function currency_amount( string $str ): string {
 		$sfloat = substr( $str, 0, -4 );
 		if ( ! is_numeric( $sfloat ) ) {
@@ -73,9 +74,9 @@ class WC_Scanpay_Sync {
 		return [ $authorized, $this->currency_amount( $arr['captured'] ), $refunded, '0', $currency ];
 	}
 
-    /**
-     * Get and validate order. Logs reason and returns false on failure.
-     */
+	/**
+	 * Get and validate order. Logs reason and returns false on failure.
+	 */
 	private function order_is_valid( $wco ): bool {
 		$psp = $wco->get_payment_method( 'edit' );
 		if ( ! str_starts_with( $psp, 'scanpay' ) ) {

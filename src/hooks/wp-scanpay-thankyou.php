@@ -11,7 +11,7 @@ $initial_sleep = ( 'wc' === $_GET['scanpay_type'] ) ? 400000 : 450000;
 usleep( $initial_sleep );
 
 if ( 'wc' === $_GET['scanpay_type'] || 'wcs' === $_GET['scanpay_type'] ) {
-	add_action( 'woocommerce_init', function () {
+	function wc_scanpay_thankyou_sleep() {
 		global $wpdb;
 		$count = 0;
 		$oid   = (int) $_GET['scanpay_thankyou'];
@@ -23,32 +23,29 @@ if ( 'wc' === $_GET['scanpay_type'] || 'wcs' === $_GET['scanpay_type'] ) {
 			// Sleep: 40ms, 80ms ... (max 500ms, total 5.1s)
 			usleep( min( ( 20000 * pow( 2, $count ) ), 500000 ) );
 		}
-	}, 10, 1 );
+	}
+	add_action( 'woocommerce_thankyou_order_id', 'wc_scanpay_thankyou_sleep', 10, 1 );
 	return;
 }
 
 // Handle cases with free subscriptions (no payment)
 if ( 'wcs_free' === $_GET['scanpay_type'] && isset( $_GET['scanpay_ref'] ) && str_starts_with( $_GET['scanpay_ref'], 'wcs[]' ) ) {
-	add_action(
-		'woocommerce_thankyou_order_id',
-		function ( $oid ) {
-			$count = 0;
-			$subs  = explode( ',', substr( $_GET['scanpay_ref'], 5 ) );
-			$wcsid = (int) end( $subs );
-			while ( $count++ < 8 ) {
-				$wco = wc_get_order( $wcsid );
-				if ( $wco && 'active' === $wco->get_status( 'edit' ) ) {
-					return $oid;
-				}
-				// Clear the WooCommerce orders cache (from WC_Cache_Helper::invalidate_cache_group)
-				wp_cache_set( 'wc_orders_cache_prefix', microtime(), 'orders' );
-
-				// Sleep: 100ms, 200ms ... (max 800ms, total 4.5s)
-				usleep( min( ( 50000 * pow( 2, $count ) ), 800000 ) );
+	function wcs_scanpay_thankyou_sleep( $oid ) {
+		$count = 0;
+		$subs  = explode( ',', substr( $_GET['scanpay_ref'], 5 ) );
+		$wcsid = (int) end( $subs );
+		while ( $count++ < 8 ) {
+			$wco = wc_get_order( $wcsid );
+			if ( $wco && 'active' === $wco->get_status( 'edit' ) ) {
+				return $oid;
 			}
-			return $oid;
-		},
-		10,
-		1
-	);
+			// Clear the WooCommerce orders cache (from WC_Cache_Helper::invalidate_cache_group)
+			wp_cache_set( 'wc_orders_cache_prefix', microtime(), 'orders' );
+
+			// Sleep: 100ms, 200ms ... (max 800ms, total 4.5s)
+			usleep( min( ( 50000 * pow( 2, $count ) ), 800000 ) );
+		}
+		return $oid;
+	}
+	add_action( 'woocommerce_thankyou_order_id', 'wcs_scanpay_thankyou_sleep', 10, 1 );
 }

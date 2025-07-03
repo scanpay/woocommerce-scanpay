@@ -20,15 +20,8 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 			'subscription_payment_method_change_admin',
 			'multiple_subscriptions',
 		];
+		add_filter( 'woocommerce_settings_api_form_fields_scanpay', [ $this, 'get_scanpay_settings_fields' ], 1, 0 );
 
-		add_filter( 'woocommerce_settings_api_form_fields_scanpay', function () {
-			$settings = require WC_SCANPAY_DIR . '/includes/form-fields.php';
-			$pages    = get_pages();
-			foreach ( $pages as $page ) {
-				$settings['wcs_terms']['options'][ $page->ID ] = $page->post_title . ' (' . $page->ID . ')';
-			}
-			return $settings;
-		}, 1, 0 );
 		$this->init_settings();
 		$this->title       = $this->settings['title'];
 		$this->description = $this->settings['description'];
@@ -43,9 +36,7 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 		}
 
 		if ( 'yes' === $this->settings['stylesheet'] ) {
-			add_action( 'woocommerce_blocks_enqueue_checkout_block_scripts_before', function () {
-				wp_enqueue_style( 'wcsp-blocks', WC_SCANPAY_URL . '/public/css/checkout.css', null, WC_SCANPAY_VERSION );
-			} );
+			add_action( 'woocommerce_blocks_enqueue_checkout_block_scripts_before', [ $this, 'enqueue_blocks_checkout_styles' ] );
 		}
 
 		/*
@@ -53,13 +44,33 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 		 *  will set virtual products to not need processing, so they are auto-completed.
 		 */
 		if ( 'yes' === $this->settings['wc_complete_virtual'] ) {
-			add_filter( 'woocommerce_order_item_needs_processing', function ( $needs_processing, $product ) {
-				if ( $needs_processing && true === $product->get_virtual( 'edit' ) ) {
-					return false; // Product is virtual, but not downloadable.
-				}
-				return $needs_processing;
-			}, 10, 2 );
+			add_filter( 'woocommerce_order_item_needs_processing', [ $this, 'filter_virtual_items' ], 10, 2 );
 		}
+	}
+
+	private function enqueue_blocks_checkout_styles() {
+		wp_enqueue_style(
+			'wcsp-blocks',
+			WC_SCANPAY_URL . '/public/css/checkout.css',
+			null,
+			WC_SCANPAY_VERSION
+		);
+	}
+
+	private function filter_virtual_items( $needs_processing, $product ) {
+		if ( $needs_processing && true === $product->get_virtual( 'edit' ) ) {
+			return false;
+		}
+		return $needs_processing;
+	}
+
+	private function get_scanpay_settings_fields(): array {
+		$settings = require WC_SCANPAY_DIR . '/includes/form-fields.php';
+		$pages    = get_pages();
+		foreach ( $pages as $page ) {
+			$settings['wcs_terms']['options'][ $page->ID ] = $page->post_title . ' (' . $page->ID . ')';
+		}
+		return $settings;
 	}
 
 	public function get_icon(): string {

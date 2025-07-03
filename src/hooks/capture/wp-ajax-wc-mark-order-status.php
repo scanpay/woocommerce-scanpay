@@ -15,6 +15,7 @@ defined( 'ABSPATH' ) || exit();
  */
 
 // Verify the user has permission to edit orders and that the nonce is valid.
+// phpcs:ignore WordPress.WP.Capabilities.Unknown
 if ( ! current_user_can( 'edit_shop_orders' ) || ! check_admin_referer( 'woocommerce-mark-order-status' ) ) {
 	return;
 }
@@ -38,14 +39,14 @@ if ( ! $wco ) {
 
 require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-capture.php';
 
-$res    = WC_Scanpay_Capture::capture( $wco );
-$msg    = $res['msg'] ?? 'unknown error';
-$status = 'failed';
+$res     = WC_Scanpay_Capture::capture( $wco );
+$msg     = $res['msg'] ?? 'unknown error';
+$nstatus = 'failed';
 
 switch ( $res['status'] ) {
 	case 'ok':
-		$status = 'completed';
-		$msg    = "Scanpay captured $msg.";
+		$nstatus = 'completed';
+		$msg     = "Scanpay captured $msg.";
 		break;
 	case 'failed':
 		scanpay_log( 'warning', "Capture failed on order #$oid: $str" );
@@ -63,7 +64,7 @@ switch ( $res['status'] ) {
 // Optimization: Avoid Capture after Complete hook (request is about to end)
 remove_action( 'woocommerce_order_status_completed', 'wc_scanpay_order_status_completed', 5 );
 
-$wco->update_status( $status, $msg, true );
-do_action( 'woocommerce_order_edit_status', $oid, $status );
+$wco->update_status( $nstatus, $msg, true );
+do_action( 'woocommerce_order_edit_status', $oid, $nstatus );
 wp_safe_redirect( wp_get_referer() ? wp_get_referer() : admin_url( 'edit.php?post_type=shop_order' ) );
 exit;

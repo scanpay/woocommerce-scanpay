@@ -23,6 +23,7 @@ add_filter( 'woocommerce_subscription_payment_method_to_display', 'wcs_scanpay_p
 
 
 // [hook] Handle the custom bulk action
+// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 function wc_scanpay_handle_bulk_actions( string $redirect_to, string $action, array $ids ) {
 	return require WC_SCANPAY_DIR . '/hooks/capture/wp-bulk-actions.php';
 }
