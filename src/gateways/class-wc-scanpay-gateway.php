@@ -48,7 +48,7 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 		}
 	}
 
-	private function enqueue_blocks_checkout_styles() {
+	public function enqueue_blocks_checkout_styles() {
 		wp_enqueue_style(
 			'wcsp-blocks',
 			WC_SCANPAY_URL . '/public/css/checkout.css',
@@ -57,14 +57,14 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 		);
 	}
 
-	private function filter_virtual_items( $needs_processing, $product ) {
+	public function filter_virtual_items( $needs_processing, $product ) {
 		if ( $needs_processing && true === $product->get_virtual( 'edit' ) ) {
 			return false;
 		}
 		return $needs_processing;
 	}
 
-	private function get_scanpay_settings_fields(): array {
+	public function get_scanpay_settings_fields(): array {
 		$settings = require WC_SCANPAY_DIR . '/includes/form-fields.php';
 		$pages    = get_pages();
 		foreach ( $pages as $page ) {
