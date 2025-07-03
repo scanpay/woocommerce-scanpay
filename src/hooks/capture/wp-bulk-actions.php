@@ -64,11 +64,9 @@ foreach ( $ids as $oid ) {
 	}
 
 	if ( $nstatus === $ostatus ) {
-		scanpay_log( 'debug', "No status change for order #$oid, adding note: $msg" );
 		// No change in status, just add a note
 		$wco->add_order_note( "$msg.", false, true );
 	} else {
-		scanpay_log( 'debug', "Changing status of order #$oid from $ostatus to $nstatus" );
 		$wco->update_status( $nstatus, $msg, true );
 		do_action( 'woocommerce_order_edit_status', $oid, $nstatus );
 		++$changed;
