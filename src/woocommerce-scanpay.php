@@ -65,10 +65,13 @@ if ( isset( $_SERVER['HTTP_X_SCANPAY'], $_GET['x'], $_GET['s'] ) ) {
 	switch ( $_GET['x'] ) {
 		case 'meta':
 			require WC_SCANPAY_DIR . '/hooks/ajax/wp-scanpay-fetch-meta.php';
+			break;
 		case 'ping':
 			require WC_SCANPAY_DIR . '/hooks/ajax/wp-scanpay-fetch-ping.php';
+			break;
 		case 'sub':
 			require WC_SCANPAY_DIR . '/hooks/ajax/wp-scanpay-fetch-sub.php';
+			break;
 	}
 	return; // Exit early
 }
