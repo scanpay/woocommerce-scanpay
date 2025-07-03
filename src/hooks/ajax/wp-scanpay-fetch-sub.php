@@ -10,7 +10,7 @@ if ( ! $settings || rtrim( $_GET['s'] ) !== $settings['secret'] ) {
 	die();
 }
 
-$shopid = (int) explode( ':', $settings['apikey'] ?? '' )[0];
+$shopid = (int) strstr( $settings['apikey'] ?? '', ':', true );
 $rev    = (int) ( $_GET['rev'] ?? 0 );
 $subid  = (int) ( $_GET['subid'] ?? 0 );
 

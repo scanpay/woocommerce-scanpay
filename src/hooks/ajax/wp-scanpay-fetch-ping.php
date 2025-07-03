@@ -13,7 +13,7 @@ if ( ! $settings || rtrim( $_GET['s'] ) !== $settings['secret'] ) {
 }
 
 global $wpdb;
-$shopid = (int) explode( ':', $settings['apikey'] ?? '' )[0];
+$shopid = (int) strstr( $settings['apikey'] ?? '', ':', true );
 if ( 0 === $shopid ) {
 	status_header( 403, 'Forbidden' );
 	header( 'Content-Type: text/plain' );

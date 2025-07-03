@@ -35,297 +35,185 @@ const WC_SCANPAY_URI_STATUS   = '_scanpay_status';
 define( 'WC_SCANPAY_DIR', __DIR__ );
 define( 'WC_SCANPAY_URL', set_url_scheme( WP_PLUGIN_URL ) . '/scanpay-for-woocommerce' );
 
-// Add polyfills for PHP < 8.0
-if ( ! function_exists( 'str_starts_with' ) ) {
-	require WC_SCANPAY_DIR . '/includes/polyfill.php';
-}
-
+/**
+ * Write messages to the WooCommerce log.
+ */
 function scanpay_log( string $level, string $msg ): void {
 	if ( function_exists( 'wc_get_logger' ) ) {
 		wc_get_logger()->log( $level, $msg, [ 'source' => 'woo-scanpay' ] );
 	}
 }
 
-/*
- * Handle pings (callbacks) to /wc-api/wc_scanpay/
- * Only register the handler if the required X-Signature is present.
+/**
+ * Handle ping (callback) requests sent to /wc-api/wc_scanpay/.
  */
-if ( isset( $_SERVER['HTTP_X_SIGNATURE'] ) ) {
-	add_action( 'woocommerce_api_wc_scanpay', function () {
-		require WC_SCANPAY_DIR . '/hooks/class-wc-scanpay-sync.php';
-		$sync = new WC_Scanpay_Sync();
-		$sync->handle_ping();
-	} );
-	// Optimization: skip full plugin initialization for valid ping requests
-	if ( isset( $_SERVER['REQUEST_URI'] ) && str_ends_with( $_SERVER['REQUEST_URI'], 'wc_scanpay/' ) ) {
-		return;
+if (
+	isset( $_SERVER['HTTP_X_SIGNATURE'] ) &&
+	str_ends_with( $_SERVER['REQUEST_URI'] ?? '', 'wc_scanpay/' )
+) {
+	function wc_scanpay_handle_ping() {
+		require WC_SCANPAY_DIR . '/hooks/wc-scanpay-ping.php';
 	}
+	add_action( 'woocommerce_api_wc_scanpay', 'wc_scanpay_handle_ping' );
+	return; // Exit early
 }
 
-// Load translations (i18n)
-add_action('plugins_loaded', function () {
-	load_plugin_textdomain( 'scanpay-for-woocommerce', false, 'scanpay-for-woocommerce/languages' );
-});
-
-
-/*
- *  JavaScript endpoints /wp-scanpay/fetch?x={ping,meta,sub}&s=$secret  ...
- *  Bypass WooCommerce and WordPress. Saves >40 ms and a lot of resources
+/**
+ * Endpoints for admin AJAX lookups. Bypassing WordPress/WooCommerce.
  */
 if ( isset( $_SERVER['HTTP_X_SCANPAY'], $_GET['x'], $_GET['s'] ) ) {
 	switch ( $_GET['x'] ) {
 		case 'meta':
-			return require WC_SCANPAY_DIR . '/hooks/wp-scanpay-fetch-meta.php';
+			require WC_SCANPAY_DIR . '/hooks/ajax/wp-scanpay-fetch-meta.php';
 		case 'ping':
-			return require WC_SCANPAY_DIR . '/hooks/wp-scanpay-fetch-ping.php';
+			require WC_SCANPAY_DIR . '/hooks/ajax/wp-scanpay-fetch-ping.php';
 		case 'sub':
-			return require WC_SCANPAY_DIR . '/hooks/wp-scanpay-fetch-sub.php';
+			require WC_SCANPAY_DIR . '/hooks/ajax/wp-scanpay-fetch-sub.php';
 	}
+	return; // Exit early
 }
 
-//  Order received page (thankyou).
+/**
+ * Handle the "thank you" page.
+ * Triggered when users return after payment.
+ */
 if ( isset( $_GET['scanpay_thankyou'], $_GET['scanpay_type'] ) ) {
-	return require WC_SCANPAY_DIR . '/hooks/wp-scanpay-thankyou.php';
+	require WC_SCANPAY_DIR . '/hooks/wp-scanpay-thankyou.php';
+	return; // Exit early
 }
 
-add_filter('woocommerce_subscription_payment_method_to_display', function ( $s, $sub ) {
-	// Show the payment method title and not the gateway title
-	return $sub->get_payment_method() === 'scanpay' ? $sub->get_payment_method_title() : $s;
-}, 10, 2);
-
-// Meta box
-function wc_scanpay_add_meta_box( $wc_order ) {
-	if ( ! $wc_order instanceof WC_Order ) {
-		$wc_order = wc_get_order( $wc_order->ID ); // Legacy support
-		if ( ! $wc_order ) {
-			return;
-		}
-	}
-	$psp = $wc_order->get_payment_method( 'edit' );
-	if ( 'scanpay' !== $psp && ! str_starts_with( $psp, 'scanpay' ) ) {
-		return;
-	}
-	wp_enqueue_style( 'wcsp-meta', WC_SCANPAY_URL . '/public/css/meta.css', null, WC_SCANPAY_VERSION );
-	wp_enqueue_script( 'wcsp-meta', WC_SCANPAY_URL . '/public/js/order.js', false, WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
-
-	add_meta_box(
-		'wcsp-meta-box',
-		'Scanpay',
-		function ( $post, $args ) {
-			$wc_order = $args['args'][0];
-			$oid      = $wc_order->get_id();
-			$secret   = get_option( WC_SCANPAY_URI_SETTINGS )['secret'] ?? '';
-			$status   = $wc_order->get_status( 'edit' );
-			$total    = $wc_order->get_total( 'edit' ) - $wc_order->get_total_refunded();
-			$currency = $wc_order->get_currency();
-			$subid    = $wc_order->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
-			$payid    = $wc_order->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' );
-			$ptime    = $wc_order->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' );
-			echo "<div id='wcsp-meta' data-id='$oid' data-secret='$secret' data-status='$status' data-total='$total' data-currency='$currency' data-subid='$subid' data-payid='$payid' data-ptime='$ptime'>
-				<div id='wcsp-meta-head'></div>
-				<ul id='wcsp-meta-ul' class='wcsp-meta-ul'></ul>
-				<div id='wcsp-meta-foot'></div>
-			</div>";
-		},
-		null,
-		'side',
-		'high',
-		[ $wc_order ]
-	);
+/**
+ * Register payment gateways with WooCommerce.
+ * Filter: woocommerce_payment_gateways
+ */
+function wc_scanpay_register_gateways( array $methods ): array {
+	$methods[] = 'WC_Scanpay_Gateway';
+	$methods[] = 'WC_Scanpay_Gateway_Mobilepay';
+	$methods[] = 'WC_Scanpay_Gateway_ApplePay';
+	return $methods;
 }
 
-// Meta box Subscriptions
-function wc_scanpay_add_meta_box_subs( $wc_order ) {
-	if ( ! $wc_order instanceof WC_Order ) {
-		$wc_order = wc_get_order( $wc_order->ID ); // Legacy support
-		if ( ! $wc_order ) {
-			return;
-		}
-	}
-	$psp = $wc_order->get_payment_method( 'edit' );
-	if ( 'scanpay' !== $psp && ! str_starts_with( $psp, 'scanpay' ) ) {
-		return;
-	}
-	wp_enqueue_style( 'wcsp-meta', WC_SCANPAY_URL . '/public/css/meta.css', null, WC_SCANPAY_VERSION );
-	wp_enqueue_script( 'wcsp-meta', WC_SCANPAY_URL . '/public/js/subs.js', false, WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
-
-	add_meta_box(
-		'wcsp-meta-box',
-		'Scanpay',
-		function ( $post, $args ) {
-			$wc_sub = $args['args'][0];
-			$secret = get_option( WC_SCANPAY_URI_SETTINGS )['secret'] ?? '';
-			echo '<div id="wcsp-meta" data-secret="' . $secret . '"
-				data-subid="' . $wc_sub->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ) . '"
-				data-payid="' . $wc_sub->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' ) . '"
-				data-ptime="' . $wc_sub->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' ) . '">
-				<div id="wcsp-meta-head"></div>
-				<ul id="wcsp-meta-ul" class="wcsp-meta-ul"></ul>
-			</div>';
-		},
-		null,
-		'side',
-		'high',
-		[ $wc_order ]
-	);
+/**
+ * Register support for WooCommerce Blocks.
+ * Action: woocommerce_blocks_payment_method_type_registration
+ */
+function wc_scanpay_register_blocks( $registry ) {
+	require WC_SCANPAY_DIR . '/hooks/class-wc-scanpay-blocks-support.php';
+	$registry->register( new WC_Scanpay_Blocks_Support() );
 }
 
-function scanpay_admin_hooks() {
-	// Add plugin version number to JS: wcSettings.admin
-	add_filter( 'woocommerce_admin_shared_settings', function ( $settings ) {
-		$settings['scanpay'] = WC_SCANPAY_VERSION;
-		return $settings;
-	} );
+/**
+ * Allow redirects to betal.scanpay.dk.
+ * Filter: allowed_redirect_hosts
+ */
+function wp_scanpay_allowed_redirect_hosts( array $hosts ): array {
+	$hosts[] = 'betal.scanpay.dk';
+	return $hosts;
+}
 
-	global $pagenow;
-	if ( 'admin.php' === $pagenow ) {
-		// Add CSS and JavaScript to the settings page
-		add_action( 'admin_print_styles-woocommerce_page_wc-settings', function () {
-			global $current_section;
-			if ( str_starts_with( $current_section, 'scanpay' ) ) {
-				wp_enqueue_script( 'wc-scanpay-settings', WC_SCANPAY_URL . '/public/js/settings.js', false, WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
-				wp_enqueue_style( 'wc-scanpay-settings', WC_SCANPAY_URL . '/public/css/settings.css', null, WC_SCANPAY_VERSION );
-			}
-		}, 0, 0 );
+/**
+ * Capture payments when orders are marked as completed.
+ * Action: woocommerce_order_status_completed
+ */
+function wc_scanpay_order_status_completed( int $oid, object $wco ) {
+	scanpay_log( 'debug', "[Capture after Complete] processing capture for order #$oid" );
+	require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-capture.php';
+	$res = WC_Scanpay_Capture::capture( $wco );
+	$str = $res['msg'] ?? 'unknown error';
 
-		// Add metaboxes (HPOS enabled)
-		add_action( 'add_meta_boxes_woocommerce_page_wc-orders', 'wc_scanpay_add_meta_box', 9, 1 );
-		add_action( 'add_meta_boxes_woocommerce_page_wc-orders--shop_subscription', 'wc_scanpay_add_meta_box_subs', 9, 1 );
-
-		// [hook] Add custom bulk action to the order list (HPOS enabled)
-		add_filter( 'bulk_actions-woocommerce_page_wc-orders', function ( array $actions ) {
-			$arr = [ 'scanpay_capture_complete' => 'Capture and complete' ];
-			foreach ( $actions as $k => $v ) {
-				$arr[ ( 'mark_completed' === $k ) ? 'scanpay_mark_completed' : $k ] = $v;
-			}
-			return $arr;
-		}, 10, 1 );
-
-		// [hook] Handle the custom bulk action (HPOS enabled)
-		add_filter( 'handle_bulk_actions-woocommerce_page_wc-orders', function ( string $redirect_to, string $action, array $ids ) {
-			return require WC_SCANPAY_DIR . '/hooks/wp-bulk-actions.php';
-		}, 0, 3 );
-		return;
-	}
-
-	if ( 'edit.php' === $pagenow ) {
-		// [hook] Add custom bulk action to the order list (HPOS disabled)
-		add_filter( 'bulk_actions-edit-shop_order', function ( array $actions ) {
-			$arr = [ 'scanpay_capture_complete' => 'Capture and complete' ];
-			foreach ( $actions as $k => $v ) {
-				$arr[ ( 'mark_completed' === $k ) ? 'scanpay_mark_completed' : $k ] = $v;
-			}
-			return $arr;
-		}, 10, 1 );
-
-		// [hook] Handle the custom bulk action (HPOS disabled)
-		add_filter( 'handle_bulk_actions-edit-shop_order', function ( string $redirect_to, string $action, array $ids ) {
-			return require WC_SCANPAY_DIR . '/hooks/wp-bulk-actions.php';
-		}, 0, 3 );
-		return;
-	}
-
-	if ( 'post.php' === $pagenow ) {
-		// Add metabox (HPOS disabled)
-		add_action( 'add_meta_boxes_shop_order', 'wc_scanpay_add_meta_box', 9, 1 );
-		add_action( 'add_meta_boxes_shop_subscription', 'wc_scanpay_add_meta_box_subs', 9, 1 );
-		return;
-	}
-
-	if ( 'plugins.php' === $pagenow ) {
-		// Add helpful links to the plugins table and check compatibility
-		add_filter( 'plugin_action_links_scanpay-for-woocommerce/woocommerce-scanpay.php', function ( $links ) {
-			if ( ! is_array( $links ) ) {
-				return $links; // Some plugins do not return the correct type (array)
-			}
-			$url = admin_url( 'admin.php?page=wc-settings&tab=checkout&section=scanpay' );
-			return array_merge( [ "<a href='$url'>" . __( 'Settings', 'scanpay-for-woocommerce' ) . '</a>' ], $links );
-		});
-		return require WC_SCANPAY_DIR . '/includes/compatibility.php';
+	switch ( $res['status'] ) {
+		case 'ok':
+			$wco->add_order_note( "Scanpay captured $str.", false, true );
+			break;
+		case 'failed':
+			scanpay_log( 'warning', "Capture failed on order #$oid: $str" );
+			$wco->update_status( 'failed', "Scanpay capture failed: $str.", true );
+			break;
+		case 'aborted':
+			scanpay_log( 'warning', "Capture aborted on order #$oid: $str" );
+			$wco->update_status( 'failed', "Scanpay capture aborted: $str.", true );
+			break;
+		case 'skipped':
+			scanpay_log( 'debug', "[Capture after Complete] skipped on order #$oid: $str" );
+			break;
 	}
 }
 
-add_action( 'plugins_loaded', function () {
-	// [hook] Returns the list of gateways. Always called before gateways are needed
-	add_filter( 'woocommerce_payment_gateways', function ( array $methods ) {
-		if ( ! class_exists( 'WC_Scanpay_Gateway', false ) ) {
-			require WC_SCANPAY_DIR . '/gateways/class-wc-scanpay-gateway.php';
-			require WC_SCANPAY_DIR . '/gateways/class-wc-scanpay-gateway-mobilepay.php';
-			require WC_SCANPAY_DIR . '/gateways/class-wc-scanpay-gateway-applepay.php';
-		}
-		$methods[] = 'WC_Scanpay_Gateway';
-		$methods[] = 'WC_Scanpay_Gateway_Mobilepay';
-		$methods[] = 'WC_Scanpay_Gateway_ApplePay';
-		return $methods;
-	} );
+/**
+ * Add subscription terms checkbox on the checkout page (for WCS).
+ * Action: woocommerce_review_order_before_submit
+ */
+function wcs_scanpay_checkout_terms() {
+	require WC_SCANPAY_DIR . '/hooks/wcs-scanpay-checkout-terms.php';
+}
 
-	// [hook] Load WC_Scanpay_Sync class (will process the hooks)
-	add_action( 'woocommerce_scheduled_subscription_payment_scanpay', 'wc_scanpay_load_sync', 1, 0 );
-	add_action( 'woocommerce_order_status_completed', 'wc_scanpay_load_sync', 1, 0 );
-	function wc_scanpay_load_sync() {
-		// Load the sync class and let it handle the hooks (switch to singleton pattern?)
-		if ( ! class_exists( 'WC_Scanpay_Sync', false ) ) {
-			require WC_SCANPAY_DIR . '/hooks/class-wc-scanpay-sync.php';
-			new WC_Scanpay_Sync(); // will handle the hooks
-		}
+/**
+ * Handle scheduled subscription payments (charges).
+ * Action: woocommerce_scheduled_subscription_payment_scanpay
+ *
+ * @param float    $amount  Amount to charge.
+ * @param WC_Order $wco     WooCommerce order object.
+ */
+function wcs_scanpay_scheduled_charge( float $amount, object $wco ) {
+	require_once WC_SCANPAY_DIR . '/library/class-wcs-scanpay-sub.php';
+	$sub = new WCS_Scanpay_Sub();
+	$sub->scheduled_charge( $amount, $wco );
+}
+
+/**
+ * Main plugin loader.
+ * Action: plugins_loaded (runs before init)
+ */
+function wc_scanpay_plugins_loaded() {
+	if ( ! class_exists( 'WC_Payment_Gateway', false ) ) {
+		return; // WooCommerce not active
 	}
+	require WC_SCANPAY_DIR . '/gateways/class-wc-scanpay-gateway.php';
+	require WC_SCANPAY_DIR . '/gateways/class-wc-scanpay-gateway-mobilepay.php';
+	require WC_SCANPAY_DIR . '/gateways/class-wc-scanpay-gateway-applepay.php';
 
-	if ( 'admin-ajax.php' === $GLOBALS['pagenow'] ) {
-		// [hook] Ajax action to mark order status
-		add_action( 'wp_ajax_woocommerce_mark_order_status', function () {
-			require WC_SCANPAY_DIR . '/hooks/wp-ajax-wc-mark-order-status.php';
-		}, 0, 0);
-		return;
+	add_filter( 'allowed_redirect_hosts', 'wp_scanpay_allowed_redirect_hosts' );
+	add_filter( 'woocommerce_payment_gateways', 'wc_scanpay_register_gateways' );
+	add_action( 'woocommerce_order_status_completed', 'wc_scanpay_order_status_completed', 5, 2 );
+	add_action( 'woocommerce_blocks_payment_method_type_registration', 'wc_scanpay_register_blocks' );
+
+	// WooCommerce Subscriptions hooks
+	if ( class_exists( 'WC_Subscriptions', false ) ) {
+		add_action( 'woocommerce_scheduled_subscription_payment_scanpay', 'wcs_scanpay_scheduled_charges', 3, 2 );
+		add_action( 'woocommerce_review_order_before_submit', 'wcs_scanpay_checkout_terms', 10 );
 	}
-
-	// Ignore JSON requests
-	if ( defined( 'DOING_AJAX' ) || defined( 'DOING_CRON' ) || str_starts_with( $_SERVER['HTTP_ACCEPT'] ?? '', 'application/json' ) ) {
-		return true;
-	}
-
-	add_filter( 'allowed_redirect_hosts', function ( array $hosts ) {
-		$hosts[] = 'betal.scanpay.dk';
-		return $hosts;
-	} );
-
-	add_action( 'woocommerce_review_order_before_submit', function () {
-		if ( class_exists( 'WC_Subscriptions_Cart', false ) && WC_Subscriptions_Cart::cart_contains_subscription() ) {
-			$settings = get_option( WC_SCANPAY_URI_SETTINGS );
-			if ( $settings && isset( $settings['wcs_terms'] ) && '0' !== $settings['wcs_terms'] ) {
-				$url = get_page_link( $settings['wcs_terms'] );
-				$txt = 'Jeg accepterer <a href="' . $url . ' ">abonnementsbetingelserne</a>.';
-
-				woocommerce_form_field( 'wcssp-terms-field', [
-					'type'  => 'hidden',
-					'value' => '1',
-				] );
-				woocommerce_form_field( 'wcssp-terms', [
-					'type'        => 'checkbox',
-					'class'       => [ 'form-row wcssp-terms' ],
-					'label_class' => [ 'woocommerce-form__label woocommerce-form__label-for-checkbox checkbox' ],
-					'input_class' => [ 'woocommerce-form__input woocommerce-form__input-checkbox input-checkbox' ],
-					'required'    => true,
-					'label'       => $txt,
-				]);
-			}
-		}
-	}, 10 );
-
-	add_action( 'woocommerce_blocks_payment_method_type_registration', function ( $registry ) {
-		require WC_SCANPAY_DIR . '/hooks/class-wc-scanpay-blocks-support.php';
-		$registry->register( new WC_Scanpay_Blocks_Support() );
-	} );
-
-	if ( ( defined( 'WP_ADMIN' ) && WP_ADMIN ) ) {
-		scanpay_admin_hooks();
-	}
-}, 11);
+}
+add_action( 'plugins_loaded', 'wc_scanpay_plugins_loaded', 10 );
 
 
-// Declare support for High-Performance Order Storage (custom_order_tables)
-add_action( 'before_woocommerce_init', function () {
+/**
+ * Declare compatibility with WooCommerce High-Performance Order Storage (HPOS).
+ * Action: before_woocommerce_init
+ */
+function wc_scanpay_before_woocommerce_init() {
 	// Note: Our plugin may load before WC, so class_exists is set to autoload to ensure the class is available.
 	if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class, true ) ) {
 		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
 	}
-} );
+}
+add_action( 'before_woocommerce_init', 'wc_scanpay_before_woocommerce_init' );
+
+
+/**
+ * Initialize plugin (i18n needs to be initialized here).
+ * Action: init (runs after plugins_loaded)
+ */
+function wc_scanpay_init() {
+	load_plugin_textdomain( 'scanpay-for-woocommerce', false, 'scanpay-for-woocommerce/languages' );
+}
+add_action( 'init', 'wc_scanpay_init', 0 );
+
+
+/**
+ *  Initialize the admin interface.
+ *  action: admin_init (runs after init)
+ */
+function wc_scanpay_admin_init() {
+	require WC_SCANPAY_DIR . '/admin/init.php';
+}
+add_action( 'admin_init', 'wc_scanpay_admin_init', 0 );

@@ -86,3 +86,8 @@ function wc_scanpay_cmpmoney( string $a, string $b ): int {
 	}
 	return strcmp( $h['a'], $h['b'] );
 }
+
+function wc_scanpay_money_equals( string $a, string $b ): bool {
+	$h = wc_scanpay_dighomogenize( $a, $b );
+	return $h['as'] === $h['bs'] && $h['a'] === $h['b'];
+}

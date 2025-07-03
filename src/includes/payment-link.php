@@ -167,10 +167,11 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	);
 
 	try {
-		$link = $client->new_url( $data );
+		$link   = $client->new_url( $data );
+		$shopid = (int) strstr( $settings['apikey'] ?? '', ':', true );
 		$wco->add_meta_data( WC_SCANPAY_URI_PAYID, basename( $link ), true );
 		$wco->add_meta_data( WC_SCANPAY_URI_PTIME, time(), true );
-		$wco->add_meta_data( WC_SCANPAY_URI_SHOPID, $client->shopid, true );
+		$wco->add_meta_data( WC_SCANPAY_URI_SHOPID, $shopid, true );
 		$wco->add_meta_data( WC_SCANPAY_URI_AUTOCPT, (string) $data['autocapture'], true );
 		$wco->save_meta_data();
 		return [
