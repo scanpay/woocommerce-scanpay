@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit();
  * so it has minimal impact on the user experience.
  */
 
- $order_type = $_GET['scanpay_type'] ?? '';
+$order_type = $_GET['scanpay_type'] ?? '';
 
 /**
  * Waits for payment data to become available in WC and WCS orders.
@@ -23,7 +23,7 @@ defined( 'ABSPATH' ) || exit();
  */
 function wc_scanpay_init_thankyou(): void {
 	global $wpdb;
-	$oid = (int) ($_GET['scanpay_thankyou'] ?? 0);
+	$oid = (int) ( $_GET['scanpay_thankyou'] ?? 0 );
 	$i   = 0;
 	while ( $i++ < 17 ) {
 		$wpdb->query( "SELECT 1 FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid LIMIT 1" );
@@ -33,7 +33,7 @@ function wc_scanpay_init_thankyou(): void {
 		if ( 1 === $i ) {
 			usleep( 400_000 );
 		} else {
-			usleep((int) (20_000 + 10_000 * pow(1.3, $i)));
+			usleep( (int) ( 20_000 + 10_000 * pow( 1.3, $i ) ) );
 		}
 	}
 }
@@ -49,13 +49,13 @@ if ( 'wcs' === $order_type || 'wc' === $order_type ) {
  */
 function wcs_scanpay_init_thankyou_free(): void {
 	global $wpdb;
-	$ref = (string) ($_GET['scanpay_ref'] ?? '');
+	$ref = (string) ( $_GET['scanpay_ref'] ?? '' );
 	if ( ! str_starts_with( $ref, 'wcs[]' ) ) {
 		return;
 	}
 	$subs  = explode( ',', substr( $ref, 5 ) );
 	$wcsid = (int) end( $subs );
-	$hpos = defined( 'WC_VERSION' ) && class_exists( '\Automattic\WooCommerce\Utilities\OrderUtil' )
+	$hpos  = defined( 'WC_VERSION' ) && class_exists( '\Automattic\WooCommerce\Utilities\OrderUtil' )
 		&& \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
 
 	$i = 0;
@@ -71,7 +71,7 @@ function wcs_scanpay_init_thankyou_free(): void {
 		if ( 1 === $i ) {
 			usleep( 450_000 );
 		} else {
-			usleep((int) (20_000 + 10_000 * pow(1.3, $i)));
+			usleep( (int) ( 20_000 + 10_000 * pow( 1.3, $i ) ) );
 		}
 	}
 }
