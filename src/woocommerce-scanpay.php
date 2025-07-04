@@ -119,7 +119,6 @@ function wp_scanpay_allowed_redirect_hosts( array $hosts ): array {
  * Action: woocommerce_order_status_completed
  */
 function wc_scanpay_order_status_completed( int $oid, object $wco ) {
-	scanpay_log( 'debug', "[Capture after Complete] processing capture for order #$oid" );
 	require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-capture.php';
 	$res = WC_Scanpay_Capture::capture( $wco );
 	$str = $res['msg'] ?? 'unknown error';
@@ -135,9 +134,6 @@ function wc_scanpay_order_status_completed( int $oid, object $wco ) {
 		case 'aborted':
 			scanpay_log( 'warning', "Capture aborted on order #$oid: $str" );
 			$wco->update_status( 'failed', "Scanpay capture aborted: $str.", true );
-			break;
-		case 'skipped':
-			scanpay_log( 'debug', "[Capture after Complete] skipped on order #$oid: $str" );
 			break;
 	}
 }
