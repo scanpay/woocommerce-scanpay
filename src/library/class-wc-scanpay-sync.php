@@ -14,18 +14,19 @@ class WC_Scanpay_Sync {
 		$this->subscriptions = class_exists( 'WC_Subscriptions', false );
 
 		if ( 'yes' === $this->settings['wc_complete_virtual'] ) {
-			/*
-			 *  WC auto-completes downloadable orders, but not virtual orders. This filter
-			 *  will set virtual products to not need processing, so they are auto-completed.
-			 */
-			function wc_scanpay_order_item_needs_processing( $needs_processing, $product ) {
-				if ( $needs_processing && true === $product->get_virtual( 'edit' ) && ! $product->get_downloadable( 'edit' ) ) {
-					return false; // Product is virtual, but not downloadable.
-				}
-				return $needs_processing;
-			}
-			add_filter( 'woocommerce_order_item_needs_processing', 'wc_scanpay_order_item_needs_processing', 10, 2 );
+			add_filter( 'woocommerce_order_item_needs_processing', [ $this, 'item_needs_processing' ], 10, 2 );
 		}
+	}
+
+	/*
+	 *  WC auto-completes downloadable orders, but not virtual orders. This filter
+	 *  will set virtual products to not need processing, so they are auto-completed.
+	 */
+	public function item_needs_processing( bool $needs_processing, $product ): bool {
+		if ( $needs_processing && true === $product->get_virtual( 'edit' ) && ! $product->get_downloadable( 'edit' ) ) {
+			return false; // Product is virtual, but not downloadable.
+		}
+		return $needs_processing;
 	}
 
 	/**
