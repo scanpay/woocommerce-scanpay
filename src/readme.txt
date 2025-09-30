@@ -1,7 +1,7 @@
 === Scanpay for WooCommerce ===
 Contributors: scanpay
 Tags: woocommerce, payments, subscriptions, scanpay, mobilepay
-Requires at least: 4.7.0
+Requires at least: 4.7
 Requires PHP: 7.4
 Tested up to: {{ WP_VERSION_TESTED }}
 Stable tag: {{ VERSION }}
