@@ -410,9 +410,6 @@ class WC_Scanpay_Sync {
 		if ( ! $sub ) {
 			throw new Exception( "subscriber (subid=$subid) does not exist" );
 		}
-		if ( 0 === $sub['retries'] ) {
-			throw new Exception( "no retries left on subscriber (subid=$subid)" );
-		}
 		if ( (int) $sub['nxt'] > time() ) {
 			throw new Exception( 'charge not allowed until ' . gmdate( $sub['nxt'] ) );
 		}
