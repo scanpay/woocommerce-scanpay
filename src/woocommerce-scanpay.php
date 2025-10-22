@@ -9,7 +9,7 @@
  * Version: {{ VERSION }}
  * Requires Plugins: woocommerce
  * Requires at least: 4.7
- * Requires PHP: 7.4
+ * Requires PHP: 8.0
  * WC requires at least: 3.6
  * WC tested up to: {{ WC_VERSION_TESTED }}
  * Text Domain: scanpay-for-woocommerce
