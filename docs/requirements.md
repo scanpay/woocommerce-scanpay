@@ -10,10 +10,10 @@ WordPress and WooCommerce require PHP 7.4, so we have aligned our requirements a
 
 | PHP Features             | Version |
 | :----------------------- | :-----: |
-| ~~str_starts_with()~~    |   8.0   |
-| ~~str_ends_with()~~      |   8.0   |
-| WooCommerce (9.1.4)      | **7.4** |
-| WordPress (6.6.2)        |   7.4   |
+| str_starts_with()        | **8.0** |
+| str_ends_with()          |   8.0   |
+| WooCommerce (10.3)       |   7.4   |
+| WordPress (6.8)          |   7.4   |
 | Array Spread operator    |   7.4   |
 | Typed class properties   |   7.4   |
 | Nullable Types           |   7.1   |
@@ -52,7 +52,8 @@ We use `wp_enqueue_script()` with the `defer` attribute, which officially requir
 
 | WordPress                     |  Version  |
 | :---------------------------- | :-------: |
-| WooCommerce 3.6.0             | **4.7.0** |
+| WooCommerce 10.3              | ~~6.7.0~~ |
+| WooCommerce 3.6               | **4.7.0** |
 | wp_send_json                  |   4.7.0   |
 | wp_send_json_success          |   3.5.0   |
 | wc_back_link                  |   3.3.0   |
