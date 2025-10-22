@@ -178,7 +178,7 @@ function wc_scanpay_plugins_loaded() {
 
 	// WooCommerce Subscriptions hooks
 	if ( class_exists( 'WC_Subscriptions', false ) ) {
-		add_action( 'woocommerce_scheduled_subscription_payment_scanpay', 'wcs_scanpay_scheduled_charges', 3, 2 );
+		add_action( 'woocommerce_scheduled_subscription_payment_scanpay', 'wcs_scanpay_scheduled_charge', 3, 2 );
 		add_action( 'woocommerce_review_order_before_submit', 'wcs_scanpay_checkout_terms', 10 );
 	}
 }
