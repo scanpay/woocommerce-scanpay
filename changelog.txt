@@ -1,3 +1,6 @@
+= 2.9.2 - 2025-09-30 =
+* Fix - Removed custom limit on charge retries to let WCS manage retry logic fully (WCS only)
+
 = 2.9.1 - 2025-03-20 =
 * Enhancement - Improved payment method parsing and ensured details are saved across all subscriptions.
 * Enhancement - Minor code refactoring for better maintainability (WCS only).
