@@ -12,10 +12,12 @@ WordPress and WooCommerce require PHP 7.4, so we have aligned our requirements a
 | :----------------------- | :-----: |
 | str_starts_with()        | **8.0** |
 | str_ends_with()          |   8.0   |
+| CurlHandle type          |   8.0   |
 | WooCommerce (10.3)       |   7.4   |
 | WordPress (6.8)          |   7.4   |
 | Array Spread operator    |   7.4   |
 | Typed class properties   |   7.4   |
+| JSON_THROW_ON_ERROR      |   7.3   |
 | Nullable Types           |   7.1   |
 | Void return type         |   7.1   |
 | Return type declarations |   7.0   |
