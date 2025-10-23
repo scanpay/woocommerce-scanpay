@@ -195,7 +195,7 @@ class WCS_Scanpay_Sub {
 			if ( 0 !== $wpdb->num_rows || $wco->get_transaction_id( 'edit' ) ) {
 				throw new Exception( 'order is already paid' );
 			}
-			$res = $this->client->charge( $subid, $data, [ 'headers' => [ 'Idempotency-Key' => $this->idempotency_key( $oid, $subid ) ] ] );
+			$res = $this->client->charge( $subid, $data, $this->idempotency_key( $oid, $subid ) );
 			$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_subs SET nxt = 0, idem = '', retries = 5 WHERE subid = $subid" );
 			$wco->set_payment_method( 'scanpay' );
 			$wco->set_date_paid( time() );
