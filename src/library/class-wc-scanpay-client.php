@@ -50,9 +50,9 @@ class WC_Scanpay_Client {
 		];
 
 		$headers = $this->headers;
-		if ( isset( $opts['headers'] ) ) {
-			foreach ( $opts['headers'] as $key => $val ) {
-				$headers[] = $key . ': ' . $val;
+		if ( ! empty( $opts['headers'] ) ) {
+			foreach ( $opts['headers'] as $k => $v ) {
+				$headers[] = $k . ': ' . $v;
 			}
 			if ( isset( $opts['headers']['Idempotency-Key'] ) ) {
 				$curlopts[ CURLOPT_HEADERFUNCTION ] = [ $this, 'header_callback' ];
