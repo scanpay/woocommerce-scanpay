@@ -2,140 +2,145 @@
 
 /*
  *  Scanpay module client lib
- *  Version 3.0.0 (2025-07-02)
+ *  Version 4.0.0 (2025-10-23)
  */
 
-class WC_Scanpay_Client {
+declare(strict_types=1);
 
-	private $ch; // CurlHandle class is added PHP 8.0
+class WC_Scanpay_Client {
+	private \CurlHandle $ch;
 	private array $headers;
-	private string $idemstatus;
+	private bool $idem         = false;
+	private string $idemstatus = '';
 
 	public function __construct( string $apikey ) {
 		$this->ch      = curl_init();
 		$this->headers = [
 			'Authorization: Basic ' . base64_encode( $apikey ),
 			'X-Shop-Plugin: WC-' . WC_SCANPAY_VERSION . '/' . WC()->version . '; PHP-' . PHP_VERSION,
-			'Content-Type: application/json',
-			'Expect: ',
+			'Accept: application/json',
+			'Expect: ', // avoid 100-continue roundtrip (hack)
 		];
-		/* The 'Expect' header will disable libcurl's expect-logic,
-			which will save us a HTTP roundtrip on POSTs >1024b. */
 	}
 
-	// header_callback: find idempotency-status header and store it in $this->idemstatus
-	private function header_callback( $handle, string $header ) {
-		// Note: $handle is the cURL resource. The type is resource in PHP 7, but object in PHP 8+
-		$len = strlen( $header );
-		if ( $len < 19 || $len > 26 ) {
-			return $len; // Not a header we are interested in
+	public function __destruct() {
+		if ( isset( $this->ch ) ) {
+			curl_close( $this->ch );
 		}
-		$arr = explode( ':', $header );
-		if ( isset( $arr[1] ) && strtolower( trim( $arr[0] ) ) === 'idempotency-status' ) {
-			$this->idemstatus = strtolower( trim( $arr[1] ) );
-		}
-		return $len;
 	}
 
-	private function request( string $path, ?array $opts, ?array $data ): array {
-		$this->idemstatus = '';
-		$curlopts         = [
+	private function header_callback( $ch, string $line ): int {
+		if ( stripos( $line, 'Idempotency-Status:' ) === 0 ) {
+			$this->idem       = true;
+			$this->idemstatus = strtolower( trim( substr( $line, 19 ) ) );
+		}
+		return strlen( $line );
+	}
+
+	private function request( string $path, ?array $data = null, array $hdrs = [] ): array {
+		$this->idem  = false;
+		$expect_idem = false;
+
+		$headers  = $this->headers;
+		$curlopts = [
 			CURLOPT_URL               => 'https://api.scanpay.dk' . $path,
 			CURLOPT_TCP_KEEPALIVE     => 1,
 			CURLOPT_RETURNTRANSFER    => 1,
 			CURLOPT_CONNECTTIMEOUT    => 20,
 			CURLOPT_TIMEOUT           => 40,
 			CURLOPT_DNS_CACHE_TIMEOUT => 180,
-			//CURLOPT_DNS_SHUFFLE_ADDRESSES => 1,
+			CURLOPT_HTTP_VERSION      => CURL_HTTP_VERSION_1_1,
+			CURLOPT_NOSIGNAL          => 1,
 		];
-
-		$headers = $this->headers;
-		if ( ! empty( $opts['headers'] ) ) {
-			foreach ( $opts['headers'] as $k => $v ) {
+		if ( null !== $data ) {
+			$headers[]                      = 'Content-Type: application/json';
+			$curlopts[ CURLOPT_POSTFIELDS ] = json_encode( $data, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE );
+		}
+		if ( ! empty( $hdrs ) ) {
+			foreach ( $hdrs as $k => $v ) {
 				$headers[] = $k . ': ' . $v;
 			}
-			if ( isset( $opts['headers']['Idempotency-Key'] ) ) {
+			if ( isset( $hdrs['Idempotency-Key'] ) ) {
+				$expect_idem                        = true;
 				$curlopts[ CURLOPT_HEADERFUNCTION ] = [ $this, 'header_callback' ];
 			}
 		}
 		$curlopts[ CURLOPT_HTTPHEADER ] = $headers;
 
-		if ( isset( $data ) ) {
-			$curlopts[ CURLOPT_POSTFIELDS ] = json_encode( $data, JSON_UNESCAPED_SLASHES );
-			if ( false === $curlopts[ CURLOPT_POSTFIELDS ] ) {
-				throw new \Exception( 'Failed to JSON encode request to Scanpay: ' . json_last_error_msg() );
-			}
-		}
-
 		curl_reset( $this->ch );
 		curl_setopt_array( $this->ch, $curlopts );
 		$result = curl_exec( $this->ch );
 		if ( false === $result ) {
-			throw new \Exception( curl_strerror( curl_errno( $this->ch ) ) );
+			$err    = curl_strerror( curl_errno( $this->ch ) );
+			$detail = curl_error( $this->ch );
+			throw new \RuntimeException( $detail ? "$err: $detail" : $err );
 		}
 
 		$status_code = (int) curl_getinfo( $this->ch, CURLINFO_RESPONSE_CODE );
 		if ( 200 !== $status_code ) {
-			if ( substr_count( $result, "\n" ) !== 1 || strlen( $result ) > 512 ) {
-				$result = 'server error';
+			$body = (string) $result;
+			if ( substr_count( $body, "\n" ) !== 1 || strlen( $body ) > 512 ) {
+				$body = 'server error';
 			}
-			throw new \Exception( $status_code . ' ' . $result );
+			throw new \RuntimeException( $status_code . ' ' . $body );
 		}
-
-		if ( isset( $opts['headers']['Idempotency-Key'] ) && 'ok' !== $this->idemstatus ) {
-			throw new \Exception( 'Server failed to provide idempotency: ' . $result );
+		if ( $expect_idem && ! $this->idem ) {
+			throw new \RuntimeException( 'Missing Idempotency-Status header' );
 		}
-
-		$json = json_decode( $result, true );
+		if ( $this->idem && 'ok' !== $this->idemstatus ) {
+			throw new \RuntimeException( 'Server failed to provide idempotency: ' . (string) $result );
+		}
+		$json = json_decode( (string) $result, true, 64, JSON_THROW_ON_ERROR );
 		if ( ! is_array( $json ) ) {
-			throw new \Exception( 'Invalid JSON response from server' );
+			throw new \RuntimeException( 'Invalid JSON response from server' );
 		}
 		return $json;
 	}
 
 	// new_url: Create a new payment link
 	public function new_url( array $data ): string {
-		$opts = [ 'headers' => [ 'X-Cardholder-IP' => $_SERVER['REMOTE_ADDR'] ?? '' ] ];
-		$o    = $this->request( '/v1/new', $opts, $data );
-		if ( isset( $o['url'] ) && filter_var( $o['url'], FILTER_VALIDATE_URL ) ) {
-			return $o['url'];
+		$hdr = [ 'X-Cardholder-IP' => $_SERVER['REMOTE_ADDR'] ?? '' ];
+		$res = $this->request( '/v1/new', $data, $hdr );
+		if ( isset( $res['url'] ) && filter_var( $res['url'], FILTER_VALIDATE_URL ) ) {
+			return $res['url'];
 		}
-		throw new \Exception( 'Invalid response from server' );
+		throw new \RuntimeException( 'Invalid response from server' );
 	}
 
-	// seq: Get array of changes since the reqested sequence number
-	public function seq( int $num ): array {
-		$o = $this->request( '/v1/seq/' . $num, null, null );
-		if ( isset( $o['seq'], $o['changes'] ) && is_int( $o['seq'] ) && is_array( $o['changes'] ) ) {
-			$empty = empty( $o['changes'] );
-			if ( ( $empty && $o['seq'] <= $num ) || ( ! $empty && $o['seq'] > $num ) ) {
-				return $o;
-			}
+	// seq: Get array of changes since the requested sequence number
+	public function seq( int $n ): array {
+		$res     = $this->request( "/v1/seq/$n" );
+		$seq     = $res['seq'] ?? null;
+		$changes = $res['changes'] ?? null;
+		if ( ! is_int( $seq ) || ! is_array( $changes ) ) {
+			throw new \RuntimeException( 'received invalid seq' );
 		}
-		throw new \Exception( 'Invalid seq from server' );
+		$has = ( [] !== $changes );
+		if ( ( $has && $seq <= $n ) || ( ! $has && $seq !== $n ) ) {
+			throw new \RuntimeException( 'invalid seq monotonicity' );
+		}
+		return $res;
 	}
 
 	public function capture( int $trnid, array $data ): array {
-		return $this->request( "/v1/transactions/$trnid/capture", null, $data );
+		return $this->request( "/v1/transactions/$trnid/capture", $data );
 	}
 
-	public function charge( int $subid, array $data, array $opts = [] ): array {
-		$o = $this->request( "/v1/subscribers/$subid/charge", $opts, $data );
-		if (
-			isset( $o['type'] ) && 'charge' === $o['type'] &&
-			isset( $o['id'] ) && is_int( $o['id'] )
-		) {
-			return $o;
+	public function charge( int $subid, array $data, string $idemkey ): array {
+		$hdr = [ 'Idempotency-Key' => $idemkey ];
+		$res = $this->request( "/v1/subscribers/$subid/charge", $data, $hdr );
+		if ( ( $res['type'] ?? null ) === 'charge' && is_int( $res['id'] ?? null ) ) {
+			return $res;
 		}
-		throw new \Exception( 'Invalid response from server' );
+		throw new \RuntimeException( 'Invalid response from server' );
 	}
 
 	public function renew( int $subid, array $data ): string {
-		$opts = [ 'headers' => [ 'X-Cardholder-IP' => $_SERVER['REMOTE_ADDR'] ?? '' ] ];
-		$o    = $this->request( "/v1/subscribers/$subid/renew", $opts, $data );
-		if ( isset( $o['url'] ) && filter_var( $o['url'], FILTER_VALIDATE_URL ) ) {
-			return $o['url'];
+		$hdr = [ 'X-Cardholder-IP' => $_SERVER['REMOTE_ADDR'] ?? '' ];
+		$res = $this->request( "/v1/subscribers/$subid/renew", $data, $hdr );
+		if ( isset( $res['url'] ) && filter_var( $res['url'], FILTER_VALIDATE_URL ) ) {
+			return $res['url'];
 		}
-		throw new \Exception( 'Invalid response from server' );
+		throw new \RuntimeException( 'Invalid response from server' );
 	}
 }
