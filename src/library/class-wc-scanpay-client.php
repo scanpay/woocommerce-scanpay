@@ -7,7 +7,7 @@
 
 declare(strict_types=1);
 
-class WC_Scanpay_Client {
+final class WC_Scanpay_Client {
 	private \CurlHandle $ch;
 	private array $headers;
 	private bool $idem         = false;
