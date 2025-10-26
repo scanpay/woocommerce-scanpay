@@ -1,17 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * Synchronizes Scanpay payments with WooCommerce orders and subscriptions.
  */
-class WC_Scanpay_Sync {
+final class WC_Scanpay_Sync {
 	public array $settings;
 	private int $shopid;
-	private bool $subscriptions;
+	private bool $wcs_enabled;
 
 	public function __construct( array $settings, int $shopid ) {
-		$this->settings      = $settings;
-		$this->shopid        = $shopid;
-		$this->subscriptions = class_exists( 'WC_Subscriptions', false );
+		$this->settings    = $settings;
+		$this->shopid      = $shopid;
+		$this->wcs_enabled = class_exists( 'WC_Subscriptions', false );
 
 		if ( 'yes' === $this->settings['wc_complete_virtual'] ) {
 			add_filter( 'woocommerce_order_item_needs_processing', [ $this, 'item_needs_processing' ], 10, 2 );
@@ -124,10 +126,25 @@ class WC_Scanpay_Sync {
 		}
 	}
 
-	private function apply_payment( int $trnid, int $oid, int $rev, array $c ) {
+	private function find_subs_from_ref( string $ref ): array {
+		if ( str_starts_with( $ref, 'wcs[]' ) ) {
+			return explode( ',', substr( $ref, 5 ) );
+		}
+		return [];
+	}
+
+	public function payment( array $c ) {
+		$oid = isset( $c['orderid'] ) ? (int) $c['orderid'] : false;
+		if ( ! $oid ) {
+			return;
+		}
+		$trnid = (int) $c['id'];
+		$rev   = (int) $c['rev'];
+
 		global $wpdb;
-		$wpdb->query( "SELECT id,rev FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
+		$wpdb->query( "SELECT id,rev FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid LIMIT 1" );
 		$meta = $wpdb->last_result;
+
 		if ( 0 === $wpdb->num_rows ) {
 			$wco = wc_get_order( $oid );
 			if ( ! $wco || ! $this->order_is_valid( $wco ) ) {
@@ -174,14 +191,11 @@ class WC_Scanpay_Sync {
 		}
 	}
 
-	private function find_subs_from_ref( string $ref ): array {
-		if ( str_starts_with( $ref, 'wcs[]' ) ) {
-			return explode( ',', substr( $ref, 5 ) );
+	public function subscriber( array $c ) {
+		if ( ! $this->wcs_enabled ) {
+			scanpay_log( 'warning', 'Received subscriber update but WooCommerce Subscriptions is not enabled' );
+			return;
 		}
-		return [];
-	}
-
-	private function wcs_subscriber( array $c ) {
 		global $wpdb;
 		$subid    = $c['id']; // int
 		$rev      = $c['rev']; // int
@@ -218,46 +232,6 @@ class WC_Scanpay_Sync {
 				$parent->set_payment_method_title( $pm_title );
 				$parent->set_status( 'completed', 'Subscription initiated without payment.', true );
 				$parent->save();
-			}
-		}
-	}
-
-	public function process_changes( array $changes, int $seq ): void {
-		foreach ( $changes as $c ) {
-			if ( isset( $c['error'] ) ) {
-				scanpay_log( 'error', "Synchronization error: transaction [id={$c['id']}] skipped due to error: {$c['error']}" );
-				continue;
-			}
-			if ( ! is_array( $c['acts'] ) || ! is_array( $c['time'] ) || ! is_array( $c['method'] ) || ! is_int( $c['rev'] ) ) {
-				throw new Exception( "received an invalid response from server (seq=$seq)" );
-			}
-
-			switch ( $c['type'] ) {
-				case 'charge':
-					if ( ! ( $c['subscriber']['id'] ?? null ) ) {
-						scanpay_log( 'warning', "Skipped charge #$c[id]: missing reference" );
-						break;
-					}
-					// fall-through
-				case 'transaction':
-					if ( ! isset( $c['totals'], $c['totals']['authorized'] ) ) {
-						throw new Exception( "received an invalid response from server (seq=$seq)" );
-					}
-					$oid = isset( $c['orderid'] ) ? (int) $c['orderid'] : false;
-					if ( $oid && $c['orderid'] === (string) $oid ) {
-						$this->apply_payment( $c['id'], $oid, $c['rev'], $c );
-					}
-					break;
-				case 'subscriber':
-					if ( ! $this->subscriptions ) {
-						scanpay_log( 'warning', "Subscriber skipped (seq=$seq). WooCommerce Subscriptions is not active." );
-						break;
-					}
-					if ( ! isset( $c['ref'], $c['id'] ) || ! is_int( $c['id'] ) ) {
-						throw new Exception( "received an invalid response from server (seq=$seq)" );
-					}
-					$this->wcs_subscriber( $c );
-					break;
 			}
 		}
 	}
