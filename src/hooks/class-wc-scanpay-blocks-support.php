@@ -1,16 +1,23 @@
 <?php
+declare(strict_types=1);
+
 use Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType;
 
 final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 	protected $name          = 'scanpay';
 	private bool $registered = false;
 
-	public function initialize() {
-		// This fn is called EVERYWHERE. Let's not do anything here.
-	}
+	/**
+	 * Called whenever the payment method is registered by WooCommerce Blocks.
+	 * This runs on most admin and frontend pages, so leave it empty to avoid overhead.
+	 */
+	public function initialize(): void {}
 
-	public function get_payment_method_script_handles() {
-		// Called EVERYWHERE and 5x per page load. So we cache the registration.
+	/*
+	 *  get_payment_method_script_handles() is called multiple times in the checkout
+	 *  to enqueue scripts needed for the payment method.
+	 */
+	public function get_payment_method_script_handles(): array {
 		if ( ! $this->registered ) {
 			wp_register_script(
 				'wcsp-blocks',
@@ -28,15 +35,17 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 	 *  get_payment_method_data() is only called in the checkout
 	 *  The data returned here will be used to render the payment method in the frontend.
 	 */
-	public function get_payment_method_data() {
+	public function get_payment_method_data(): array {
 		$settings = get_option( WC_SCANPAY_URI_SETTINGS );
-		return [
+		$data      = [
 			'url'     => WC_SCANPAY_URL . '/public/images/cards/',
-			'methods' => [
-				'scanpay'           => [
-					'title'       => $settings['title'],
-					'description' => $settings['description'],
-					'icons'       => $settings['card_icons'],
+			'methods' => [],
+		];
+		if ( is_array( $settings ) && ( 'yes' === ( $settings['enabled'] ?? 'no' ) ) ) {
+			$data['methods']['scanpay'] = [
+					'title'       => (string) ( $settings['title'] ?? 'Scanpay' ),
+					'description' => (string) ( $settings['description'] ?? '' ),
+					'icons'       => (array) ( $settings['card_icons'] ?? [] ),
 					'supports'    => [
 						'products',
 						'subscriptions',
@@ -49,24 +58,30 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 						'subscription_payment_method_change_admin',
 						'multiple_subscriptions',
 					],
+			];
+		}
+		$mobilepay = get_option( 'woocommerce_scanpay_mobilepay_settings' );
+		if ( is_array( $mobilepay ) && ( 'yes' === ( $mobilepay['enabled'] ?? 'no' ) ) ) {
+			$data['methods']['scanpay_mobilepay'] = [
+				'title'       => 'MobilePay',
+				'description' => __( 'Betal med MobilePay', 'scanpay-for-woocommerce' ),
+				'icons'       => [ 'mobilepay' ],
+				'supports'    => [
+					'products'
 				],
-				'scanpay_mobilepay' => [
-					'title'       => 'MobilePay',
-					'description' => __( 'Betal med MobilePay', 'scanpay-for-woocommerce' ),
-					'icons'       => [ 'mobilepay' ],
-					'supports'    => [
-						'products',
-					],
+			];
+		}
+		$applepay = get_option( 'woocommerce_scanpay_applepay_settings' );
+		if ( is_array( $applepay ) && ( 'yes' === ( $applepay['enabled'] ?? 'no' ) ) ) {
+			$data['methods']['scanpay_applepay'] = [
+				'title'       => 'Apple Pay',
+				'description' => __( 'Betal med Apple Pay', 'scanpay-for-woocommerce' ),
+				'icons'       => [ 'applepay' ],
+				'supports'    => [
+					'products'
 				],
-				'scanpay_applepay'  => [
-					'title'       => 'Apple Pay',
-					'description' => __( 'Betal med Apple Pay', 'scanpay-for-woocommerce' ),
-					'icons'       => [ 'applepay' ],
-					'supports'    => [
-						'products',
-					],
-				],
-			],
-		];
+			];
+		}
+		return $data;
 	}
 }
