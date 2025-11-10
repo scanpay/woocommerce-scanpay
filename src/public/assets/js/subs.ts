@@ -2,7 +2,7 @@
     JavaScript for the Subscriptions meta box
 */
 
-import { showWarning, buildTable, pluginVersionCheck, pluginSyncCheck } from './util/meta';
+import { showWarning, buildTable, pluginVersionCheck } from './util/meta';
 
 const wco = (document.getElementById('wcsp-meta') as HTMLElement).dataset as {
 	secret?: string;
@@ -35,5 +35,4 @@ function loadSubs() {
 		});
 }
 loadSubs();
-pluginSyncCheck(secret);
 pluginVersionCheck();

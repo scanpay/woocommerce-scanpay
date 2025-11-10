@@ -38,18 +38,3 @@ export function pluginVersionCheck() {
 		}
 	});
 }
-
-export function pluginSyncCheck(secret: string) {
-	getLastSync(secret).then((unixtime) => {
-		const dmins = Math.floor((Math.floor(Date.now() / 1000) - unixtime) / 60);
-		if (unixtime === 0 || dmins > 60 * 24 * 3) {
-			return showWarning(
-				`Your plugin is not synchronized with the Scanpay backend. Please follow the instructions
-				<a href="https://wordpress.org/plugins/scanpay-for-woocommerce/#installation">here</a>.`
-			);
-		}
-		if (dmins > 10) {
-			showWarning('Your scanpay extension is out of sync: ' + dmins + ' minutes since last synchronization.');
-		}
-	});
-}
