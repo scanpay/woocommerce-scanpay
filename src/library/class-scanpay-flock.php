@@ -37,7 +37,6 @@ final class Scanpay_Flock {
 			scanpay_log( 'debug', "lock busy: {$this->path}" );
 			return false;
 		}
-		scanpay_log( 'debug', "lock acquired: {$this->path}" );
 		return true;
 	}
 

@@ -37,27 +37,27 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 	 */
 	public function get_payment_method_data(): array {
 		$settings = get_option( WC_SCANPAY_URI_SETTINGS );
-		$data      = [
+		$data     = [
 			'url'     => WC_SCANPAY_URL . '/public/images/cards/',
 			'methods' => [],
 		];
 		if ( is_array( $settings ) && ( 'yes' === ( $settings['enabled'] ?? 'no' ) ) ) {
 			$data['methods']['scanpay'] = [
-					'title'       => (string) ( $settings['title'] ?? 'Scanpay' ),
-					'description' => (string) ( $settings['description'] ?? '' ),
-					'icons'       => (array) ( $settings['card_icons'] ?? [] ),
-					'supports'    => [
-						'products',
-						'subscriptions',
-						'subscription_cancellation',
-						'subscription_suspension',
-						'subscription_reactivation',
-						'subscription_amount_changes',
-						'subscription_date_changes',
-						'subscription_payment_method_change_customer',
-						'subscription_payment_method_change_admin',
-						'multiple_subscriptions',
-					],
+				'title'       => (string) ( $settings['title'] ?? 'Scanpay' ),
+				'description' => (string) ( $settings['description'] ?? '' ),
+				'icons'       => (array) ( $settings['card_icons'] ?? [] ),
+				'supports'    => [
+					'products',
+					'subscriptions',
+					'subscription_cancellation',
+					'subscription_suspension',
+					'subscription_reactivation',
+					'subscription_amount_changes',
+					'subscription_date_changes',
+					'subscription_payment_method_change_customer',
+					'subscription_payment_method_change_admin',
+					'multiple_subscriptions',
+				],
 			];
 		}
 		$mobilepay = get_option( 'woocommerce_scanpay_mobilepay_settings' );
@@ -67,7 +67,7 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 				'description' => __( 'Betal med MobilePay', 'scanpay-for-woocommerce' ),
 				'icons'       => [ 'mobilepay' ],
 				'supports'    => [
-					'products'
+					'products',
 				],
 			];
 		}
@@ -78,7 +78,7 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 				'description' => __( 'Betal med Apple Pay', 'scanpay-for-woocommerce' ),
 				'icons'       => [ 'applepay' ],
 				'supports'    => [
-					'products'
+					'products',
 				],
 			];
 		}

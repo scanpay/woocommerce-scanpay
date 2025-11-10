@@ -41,16 +41,16 @@ function scanpay_flush_order_runtime_cache(): void {
 }
 
 function scanpay_memory_usage_debug(): void {
-	$php_mem     = memory_get_usage(false);
-	$php_mem_real = memory_get_usage(true);
-	$php_peak    = memory_get_peak_usage(true);
-	$rusage      = getrusage();
-	$maxrss      = (int) ($rusage['ru_maxrss'] ?? 0); // kB
+	$php_mem      = memory_get_usage( false );
+	$php_mem_real = memory_get_usage( true );
+	$php_peak     = memory_get_peak_usage( true );
+	$rusage       = getrusage();
+	$maxrss       = (int) ( $rusage['ru_maxrss'] ?? 0 ); // kB
 
 	scanpay_log(
 		'debug',
 		sprintf(
-			"Memory usage: php=%.1fMB real=%.1fMB peak=%.1fMB maxrss=%.1fMB",
+			'Memory usage: php=%.1fMB real=%.1fMB peak=%.1fMB maxrss=%.1fMB',
 			$php_mem / 1048576,
 			$php_mem_real / 1048576,
 			$php_peak / 1048576,
@@ -60,13 +60,14 @@ function scanpay_memory_usage_debug(): void {
 
 	global $wp_object_cache;
 	$groups = [];
-	foreach ($wp_object_cache->cache as $g => $items) { $groups[$g] = count($items); }
-	arsort($groups);
-	scanpay_log('debug', "--- Object cache groups ---");
-	foreach (array_slice($groups, 0, 10, true) as $g => $n) {
-		scanpay_log('debug', "cache group $g items=$n");
+	foreach ( $wp_object_cache->cache as $g => $items ) {
+		$groups[ $g ] = count( $items ); }
+	arsort( $groups );
+	scanpay_log( 'debug', '--- Object cache groups ---' );
+	foreach ( array_slice( $groups, 0, 10, true ) as $g => $n ) {
+		scanpay_log( 'debug', "cache group $g items=$n" );
 	}
-	scanpay_log('debug', "---------------------------");
+	scanpay_log( 'debug', '---------------------------' );
 }
 
 
@@ -177,8 +178,10 @@ try {
 			if ( ! is_string( $ctype ) ) {
 				throw new Exception( 'invalid change type from seq' );
 			}
-			if ( 'transaction' === $ctype || 'charge' === $ctype ) {
-				$sync->payment( $c );
+			if ( 'transaction' === $ctype ) {
+				$sync->transaction( $c );
+			} elseif ( 'charge' === $ctype ) {
+				$sync->charge( $c );
 			} elseif ( 'subscriber' === $ctype ) {
 				$sync->subscriber( $c );
 			}
@@ -211,7 +214,6 @@ try {
 		$elapsed = microtime( true ) - $start;
 		scanpay_log( 'debug', "Sync loop: updated to seq $seq; elapsed time: $elapsed" );
 	}
-
 	scanpay_log( 'info', "Sync completed to seq $seq" );
 	$flock->release();
 	respond( 'ok', 200 );

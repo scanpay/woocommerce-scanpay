@@ -10,14 +10,60 @@ final class WC_Scanpay_Sync {
 	private int $shopid;
 	private bool $wcs_enabled;
 
+	/**
+	 * Order statuses considered incomplete by WooCommerce.
+	 * Used to decide when payment_complete() should update and finalize an order.
+	 */
+	private const PAYMENT_COMPLETE_STATUSES = [ 'on-hold', 'pending', 'failed', 'cancelled' ];
+
+	/**
+	 * Map Scanpay brand and wallet codes to labels.
+	 */
+	private const CARD_BRANDS = [
+		'amex'             => 'American Express',
+		'dankort'          => 'Dankort',
+		'diners'           => 'Diners Club',
+		'discover'         => 'Discover',
+		'forbrugsforening' => 'Forbrugsforeningen',
+		'jcb'              => 'JCB',
+		'maestro'          => 'Maestro',
+		'mastercard'       => 'Mastercard',
+		'unionpay'         => 'UnionPay',
+		'visa'             => 'Visa',
+		'visadankort'      => 'Visa/Dankort',
+	];
+
+	/**
+	 * Map Scanpay card wallet codes to human-readable names.
+	 */
+	private const CARD_WALLETS = [
+		'applepay'   => 'Apple Pay',
+		'googlepay'  => 'Google Pay',
+		'mobilepay'  => 'MobilePay',
+		'samsungpay' => 'Samsung Pay',
+	];
+
+
 	public function __construct( array $settings, int $shopid ) {
 		$this->settings    = $settings;
 		$this->shopid      = $shopid;
 		$this->wcs_enabled = class_exists( 'WC_Subscriptions', false );
 
-		if ( 'yes' === $this->settings['wc_complete_virtual'] ) {
+		if ( 'yes' === ( $this->settings['wc_complete_virtual'] ?? 'no' ) ) {
 			add_filter( 'woocommerce_order_item_needs_processing', [ $this, 'item_needs_processing' ], 10, 2 );
 		}
+	}
+
+	/**
+	 * Returns true if the order status is eligible for WooCommerce payment_complete().
+	 */
+	private function is_payment_complete_eligible( \WC_Order $order ): bool {
+		$valid = apply_filters(
+			'woocommerce_valid_order_statuses_for_payment_complete',
+			self::PAYMENT_COMPLETE_STATUSES,
+			$order
+		);
+		return $order->has_status( $valid );
 	}
 
 	/*
@@ -32,178 +78,255 @@ final class WC_Scanpay_Sync {
 	}
 
 	/**
-	 * Parse currency amount from string.
-	 *
-	 * @throws \Exception
+	 * Parse Scanpay payment method data into a human-readable string.
 	 */
-	private function currency_amount( string $str ): string {
-		$sfloat = substr( $str, 0, -4 );
-		if ( ! is_numeric( $sfloat ) ) {
-			throw new \Exception( "invalid currency amount: $str" );
+	private function parse_payment_method( array $m ): string {
+		$type = $m['type'] ?? '';
+		if ( '' === $type ) {
+			return 'Scanpay';
 		}
-		return $sfloat;
-	}
-
-	/*
-	 * Parse and validate totals array. Return without currency.
-	 * [ auhtorized, captured, refunded, voided, currency ]
-	 */
-	private function totals( array $arr ): array {
-		$currency   = substr( $arr['authorized'], -3 );
-		$authorized = $this->currency_amount( $arr['authorized'] );
-		if ( $arr['captured'] === $arr['authorized'] ) {
-			// Fully captured. Voided is 0. Refunded is unknown
-			if ( $arr['refunded'] === $arr['voided'] ) {
-				return [ $authorized, $authorized, '0', '0', $currency ];
-			}
-			if ( $arr['refunded'] === $arr['authorized'] ) {
-				return [ $authorized, $authorized, $authorized, '0', $currency ];
-			}
-			return [ $authorized, $authorized, $this->currency_amount( $arr['refunded'] ), '0', $currency ];
+		if ( isset( $m['card'], $m['card']['brand'] ) && is_string( $m['card']['brand'] ) ) {
+			$brand  = $m['card']['brand'];
+			$brand  = self::CARD_BRANDS[ $brand ] ?? ucfirst( $brand );
+			$last4  = $m['card']['last4'] ?? '';
+			$card   = $brand . ( '' !== $last4 ? " $last4" : '' );
+			$wallet = self::CARD_WALLETS[ $type ] ?? null;
+			return $wallet ? "$wallet ($card)" : $card;
 		}
-		if ( $arr['captured'] === $arr['voided'] ) {
-			// Captured and Voided can only be identical when they are both 0
-			return [ $authorized, '0', '0', '0', $currency ];
-		}
-		if ( $arr['voided'] === $arr['authorized'] ) {
-			// Fully voided
-			return [ $authorized, '0', '0', $authorized, $currency ];
-		}
-		$refunded = ( $arr['refunded'] === $arr['voided'] ) ? '0' : $this->currency_amount( $arr['refunded'] );
-		return [ $authorized, $this->currency_amount( $arr['captured'] ), $refunded, '0', $currency ];
+		return ucfirst( $type );
 	}
 
 	/**
-	 * Get and validate order. Logs reason and returns false on failure.
+	 * Extract subscription IDs from Scanpay subscriber reference string.
 	 */
-	private function order_is_valid( $wco ): bool {
-		$psp = $wco->get_payment_method( 'edit' );
-		if ( ! str_starts_with( $psp, 'scanpay' ) ) {
-			scanpay_log( 'warning', 'Skipped order #' . $wco->get_id() . ': payment method mismatch' );
-			return false;
-		}
-		if ( (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' ) !== $this->shopid ) {
-			scanpay_log( 'warning', 'Skipped order #' . $wco->get_id() . ': shopid mismatch' );
-			return false;
-		}
-		return true;
-	}
-
-
-	private function parse_card_brand( string $brand ): string {
-		switch ( $brand ) {
-			case 'visadankort':
-				return 'Visa/Dankort';
-			case 'diners':
-				return 'Diners Club';
-			case 'jcb':
-				return 'JCB';
-			case 'amex':
-				return 'American Express';
-			default:
-				return ucfirst( $brand );
-		}
-	}
-
-
-	private function parse_payment_method( array $m ): string {
-		if ( empty( $m['type'] ) ) {
-			return 'scanpay';
-		}
-		$card = isset( $m['card'], $m['card']['brand'], $m['card']['last4'] )
-			? $this->parse_card_brand( $m['card']['brand'] ) . ' ' . $m['card']['last4']
-			: '';
-
-		switch ( $m['type'] ) {
-			case 'card':
-				return $card;
-			case 'mobilepay':
-				return empty( $card ) ? 'MobilePay' : "MobilePay ($card)";
-			case 'applepay':
-				return empty( $card ) ? 'Apple Pay' : "Apple Pay ($card)";
-			default:
-				return 'scanpay';
-		}
-	}
-
 	private function find_subs_from_ref( string $ref ): array {
-		if ( str_starts_with( $ref, 'wcs[]' ) ) {
-			return explode( ',', substr( $ref, 5 ) );
-		}
-		return [];
+		return str_starts_with( $ref, 'wcs[]' )
+			? explode( ',', substr( $ref, 5 ) )
+			: [];
 	}
 
-	public function payment( array $c ) {
-		$oid = isset( $c['orderid'] ) ? (int) $c['orderid'] : false;
-		if ( ! $oid ) {
-			return;
+	/**
+	 * Validate and convert an order ID to integer.
+	 * Accepts only non-empty digit strings (0–9). Returns 0 if invalid.
+	 */
+	private function ordernumber( mixed $s ): int {
+		if ( ! is_string( $s ) || '' === $s || ! ctype_digit( $s ) ) {
+			return 0;
 		}
-		$trnid = (int) $c['id'];
-		$rev   = (int) $c['rev'];
+		return (int) $s;
+	}
+
+	/**
+	 * Extract numeric amount from a currency string like "199.99 DKK".
+	 *
+	 * @throws \RuntimeException if invalid format
+	 */
+	private function extract_amount( string $s ): string {
+		$n = strlen( $s );
+		if ( $n < 5 || ' ' !== $s[ $n - 4 ] ) {
+			throw new \RuntimeException( "missing space before currency: $s" );
+		}
+		$amount = substr( $s, 0, $n - 4 );
+		if ( ! is_numeric( $amount ) ) {
+			throw new \RuntimeException( "invalid currency amount: $s" );
+		}
+		return $amount;
+	}
+
+	/**
+	 * Syncs a Scanpay transaction with its WC order. Inserts metadata, verifies
+	 * data/ownership, then registers payment completion if applicable.
+	 *
+	 * @param array $c Transaction payload from Scanpay.
+	 * @throws \RuntimeException On validation, database, or payment errors.
+	 */
+	public function transaction( array $c ) {
+		$oid = $this->ordernumber( $c['orderid'] ?? '' );
+		if ( $oid <= 0 ) {
+			return; // skip: invalid orderID
+		}
+		$trnid = $c['id'] ?? null;
+		if ( ! is_int( $trnid ) || $trnid <= 0 ) {
+			throw new \RuntimeException( "transaction: invalid transaction ID for order #$oid (id=$trnid)" );
+		}
+		$rev = $c['rev'] ?? null;
+		if ( ! is_int( $rev ) || $rev <= 0 ) {
+			throw new \RuntimeException( "transaction #$trnid: invalid revision number (rev=$rev)" );
+		}
+		$nacts  = count( $c['acts'] );
+		$auth   = $this->extract_amount( $c['totals']['authorized'] );
+		$capt   = $this->extract_amount( $c['totals']['captured'] );
+		$refund = $this->extract_amount( $c['totals']['refunded'] );
+		$void   = $this->extract_amount( $c['totals']['voided'] );
+		$cur    = substr( $c['totals']['authorized'], -3 );
 
 		global $wpdb;
-		$wpdb->query( "SELECT id,rev FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid LIMIT 1" );
-		$meta = $wpdb->last_result;
+		$sql = "INSERT INTO {$wpdb->prefix}scanpay_meta (orderid, shopid, id, rev, nacts, currency, authorized, captured, refunded, voided)
+			VALUES ($oid, {$this->shopid}, $trnid, $rev, $nacts, '$cur', '$auth', '$capt', '$refund', '$void')
+			ON DUPLICATE KEY UPDATE
+			rev      = VALUES(rev),
+			nacts    = VALUES(nacts),
+			captured = VALUES(captured),
+			refunded = VALUES(refunded),
+			voided   = VALUES(voided)";
 
-		if ( 0 === $wpdb->num_rows ) {
-			$wco = wc_get_order( $oid );
-			if ( ! $wco || ! $this->order_is_valid( $wco ) ) {
+		$n = $wpdb->query( $sql );
+		if ( false === $n ) {
+			$err = $wpdb->last_error;
+			throw new \RuntimeException( "transaction #$trnid: could not save payment data to order #$oid: $err" );
+		} elseif ( 1 !== $n ) {
+			return; // Row updated. No further action needed.
+		}
+
+		$wco = wc_get_order( $oid );
+		if ( ! $wco ) {
+			scanpay_log( 'warning', "transaction #$trnid: order not found (order=$oid)" );
+			return;
+		}
+		if ( empty( $wco->get_transaction_id( 'edit' ) ) ) {
+			if ( ! str_starts_with( (string) $wco->get_payment_method( 'edit' ), 'scanpay' ) ) {
+				scanpay_log( 'error', "transaction #$trnid: order is not a scanpay order (order=$oid)" );
 				return;
 			}
-			if ( empty( $wco->get_transaction_id( 'edit' ) ) ) {
-				$wco->set_transaction_id( $trnid );
-				$wco->set_date_paid( $c['time']['authorized'] );
-				$wco->set_payment_method( 'scanpay' );
-				$wco->set_payment_method_title( $this->parse_payment_method( $c['method'] ) );
-
-				if ( in_array( $wco->get_status(), [ 'on-hold', 'pending', 'failed', 'cancelled' ], true ) ) {
-					if ( 'completed' === $this->settings['wc_autocapture'] ) {
-						$wco->set_status( ( '1' === $wco->get_meta( WC_SCANPAY_URI_AUTOCPT, true, 'edit' ) ) ? 'completed' : 'processing' );
-					} else {
-						$wco->set_status( apply_filters( 'woocommerce_payment_complete_order_status', $wco->needs_processing() ? 'processing' : 'completed', $oid, $wco ) );
-					}
-				}
+			if ( (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' ) !== $this->shopid ) {
+				scanpay_log( 'error', "transaction #$trnid: shopid mismatch (order=$oid)" );
+				return;
+			}
+			if ( $wco->get_currency( 'edit' ) !== $cur ) {
+				scanpay_log( 'error', "transaction #$trnid: currency mismatch (order=$oid)" );
+				return;
+			}
+			$txn = (string) $trnid;
+			$wco->set_transaction_id( $txn );
+			$ts = $c['time']['authorized'] ?? null;
+			if ( is_int( $ts ) && $ts < 10_000_000_000 ) {
+				$wco->set_date_paid( $ts );
+			}
+			$wco->set_payment_method( 'scanpay' );
+			$wco->set_payment_method_title( $this->parse_payment_method( $c['method'] ) );
+			/*
+			* Always invoke payment_complete() to trigger hooks. Save first if order status
+			* is ineligible, since payment_complete() only persists changes for eligible statuses.
+			*/
+			if ( ! $this->is_payment_complete_eligible( $wco ) ) {
+				scanpay_log( 'info', "transaction #$txn: Order is not eligible for payment_complete (order=$oid)" );
 				$wco->save();
-				do_action( 'woocommerce_payment_complete', $oid, $trnid );
 			}
-			$subid = ( 'charge' === $c['type'] ) ? (int) $c['subscriber']['id'] : 0;
-			list( $authorized, $captured, $refunded, $voided, $currency ) = $this->totals( $c['totals'] );
-			$insert = $wpdb->query(
-				"INSERT INTO {$wpdb->prefix}scanpay_meta
-					SET orderid = $oid, subid = $subid, shopid = $this->shopid, id = $trnid,
-						rev = $rev, nacts = " . count( $c['acts'] ) . ", currency = '$currency', authorized = '$authorized',
-						captured = '$captured', refunded = '$refunded', voided = '$voided'"
-			);
-			if ( ! $insert ) {
-				throw new Exception( "could not save payment data to order #$oid" );
-			}
-		} elseif ( $trnid !== (int) $meta[0]->id ) {
-			scanpay_log( 'warning', "Order #$oid is already paid (id=" . $meta[0]->id . "). Will ignore trnid $trnid" );
-		} elseif ( $rev > $meta[0]->rev ) {
-			list( $authorized, $captured, $refunded, $voided, $currency ) = $this->totals( $c['totals'] );
-			$update = $wpdb->query(
-				"UPDATE {$wpdb->prefix}scanpay_meta SET rev = $rev, nacts = " . count( $c['acts'] ) . ",
-				captured = '$captured', refunded = '$refunded', voided = '$voided' WHERE orderid = $oid"
-			);
-			if ( false === $update ) {
-				throw new Exception( "could not save payment data to order #$oid" );
-			}
+			$wco->payment_complete( $txn );
 		}
+	}
+
+	/**
+	 * Syncs a Scanpay charge with its WC order. Inserts metadata, verifies
+	 * data/ownership, then registers payment completion if applicable.
+	 *
+	 * @param array $c Charge payload from Scanpay.
+	 * @throws \RuntimeException On validation, database, or payment errors.
+	 */
+	public function charge( array $c ) {
+		$oid = $this->ordernumber( $c['orderid'] ?? '' );
+		if ( $oid <= 0 ) {
+			return; // skip: invalid orderID
+		}
+		$trnid = $c['id'] ?? null;
+		if ( ! is_int( $trnid ) || $trnid <= 0 ) {
+			throw new \RuntimeException( "charge: invalid transaction ID for order #$oid (id=$trnid)" );
+		}
+		$rev = $c['rev'] ?? null;
+		if ( ! is_int( $rev ) || $rev <= 0 ) {
+			throw new \RuntimeException( "charge #$trnid: invalid revision number (rev=$rev)" );
+		}
+		$subid = $c['subscriber']['id'] ?? null;
+		if ( ! is_int( $subid ) || $subid <= 0 ) {
+			throw new \RuntimeException( "charge #$trnid: invalid subscriber id (id=$subid)" );
+		}
+		$nacts  = count( $c['acts'] );
+		$auth   = $this->extract_amount( $c['totals']['authorized'] );
+		$capt   = $this->extract_amount( $c['totals']['captured'] );
+		$refund = $this->extract_amount( $c['totals']['refunded'] );
+		$void   = $this->extract_amount( $c['totals']['voided'] );
+		$cur    = substr( $c['totals']['authorized'], -3 );
+
+		global $wpdb;
+		$sql = "INSERT INTO {$wpdb->prefix}scanpay_meta (orderid, subid, shopid, id, rev, nacts, currency, authorized, captured, refunded, voided)
+			VALUES ($oid, $subid, {$this->shopid}, $trnid, $rev, $nacts, '$cur', '$auth', '$capt', '$refund', '$void')
+			ON DUPLICATE KEY UPDATE
+			rev      = VALUES(rev),
+			nacts    = VALUES(nacts),
+			captured = VALUES(captured),
+			refunded = VALUES(refunded),
+			voided   = VALUES(voided)";
+
+		$n = $wpdb->query( $sql );
+		if ( false === $n ) {
+			$err = $wpdb->last_error;
+			throw new \RuntimeException( "charge #$trnid: could not save payment data to order #$oid: $err" );
+		} elseif ( 1 !== $n ) {
+			scanpay_log( 'debug', "charge #$trnid: no changes to order #$oid" );
+			return; // Row updated. No further action needed.
+		}
+
+		$wco = wc_get_order( $oid );
+		if ( ! $wco ) {
+			scanpay_log( 'warning', "charge #$trnid: order not found (order=$oid)" );
+			return;
+		}
+		if ( empty( $wco->get_transaction_id( 'edit' ) ) ) {
+			if ( ! str_starts_with( (string) $wco->get_payment_method( 'edit' ), 'scanpay' ) ) {
+				scanpay_log( 'error', "charge #$trnid: order is not a scanpay order (order=$oid)" );
+				return;
+			}
+			if ( (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' ) !== $this->shopid ) {
+				scanpay_log( 'error', "charge #$trnid: shopid mismatch (order=$oid)" );
+				return;
+			}
+			if ( $wco->get_currency( 'edit' ) !== $cur ) {
+				scanpay_log( 'error', "charge #$trnid: currency mismatch (order=$oid)" );
+				return;
+			}
+			$txn = (string) $trnid;
+			$wco->set_transaction_id( $txn );
+			$ts = $c['time']['authorized'] ?? null;
+			if ( is_int( $ts ) && $ts < 10_000_000_000 ) {
+				$wco->set_date_paid( $ts );
+			}
+			$wco->set_payment_method( 'scanpay' );
+			$wco->set_payment_method_title( $this->parse_payment_method( $c['method'] ) );
+			/*
+			* Always invoke payment_complete() to trigger hooks. Save first if order status
+			* is ineligible, since payment_complete() only persists changes for eligible statuses.
+			*/
+			if ( ! $this->is_payment_complete_eligible( $wco ) ) {
+				scanpay_log( 'info', "charge #$txn: Order is not eligible for payment_complete (order=$oid)" );
+				$wco->save();
+			}
+			$wco->payment_complete( $txn );
+		}
+
+		// Move this to sync
+		// $wpdb->query( "UPDATE {$wpdb->prefix}scanpay_subs SET nxt = 0, idem = '', retries = 5 WHERE subid = $subid" );
 	}
 
 	public function subscriber( array $c ) {
 		if ( ! $this->wcs_enabled ) {
-			scanpay_log( 'warning', 'Received subscriber update but WooCommerce Subscriptions is not enabled' );
 			return;
 		}
-		global $wpdb;
-		$subid    = $c['id']; // int
-		$rev      = $c['rev']; // int
-		$subs     = $this->find_subs_from_ref( $c['ref'] );
-		$pm_title = $this->parse_payment_method( $c['method'] );
-		$pm_type  = $c['method']['type'] ?? 'NULL';
-		$pm_exp   = $c['method']['card']['exp'] ?? 'NULL';
+		$subid = $c['id'] ?? null;
+		if ( ! is_int( $subid ) || $subid <= 0 ) {
+			throw new \RuntimeException( "subscription: invalid scanpay subscription ID (id=$subid)" );
+		}
+		$rev = $c['rev'] ?? null;
+		if ( ! is_int( $rev ) || $rev <= 0 ) {
+			throw new \RuntimeException( "subscription #$subid: invalid revision number (rev=$rev)" );
+		}
+		$ref = $c['ref'] ?? null;
+		if ( ! is_string( $ref ) || '' === $ref ) {
+			return; // skip: missing subscriber reference
+		}
 
+		$pm_type = $c['method']['type'] ?? 'NULL';
+		$pm_exp  = $c['method']['card']['exp'] ?? 'NULL';
+		global $wpdb;
 		$wpdb->query(
 			"INSERT INTO {$wpdb->prefix}scanpay_subs (subid, nxt, retries, idem, rev, method, method_exp)
 			VALUES ($subid, 0, 5, '', $rev, '$pm_type', '$pm_exp')
@@ -212,11 +335,14 @@ final class WC_Scanpay_Sync {
 			method = '$pm_type', method_exp = '$pm_exp'"
 		);
 
+		$pm_title = $this->parse_payment_method( $c['method'] );
+		$subs     = $this->find_subs_from_ref( $c['ref'] );
 		foreach ( $subs as $i ) {
 			$wcs_sub = wcs_get_subscription( (int) $i );
 			if ( ! $wcs_sub ) {
 				continue;
 			}
+			scanpay_log( 'debug', 'sub order: #' . $wcs_sub->get_id() );
 			// Update subscription metadata
 			$wcs_sub->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
 			$wcs_sub->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
@@ -225,6 +351,7 @@ final class WC_Scanpay_Sync {
 
 			// Handle free trial and coupons
 			$parent = $wcs_sub->get_parent();
+			scanpay_log( 'debug', 'sub parent: #' . $parent->get_id() );
 			if ( $parent && $parent->get_status() === 'pending' && (float) $parent->get_total( 'edit' ) === 0.0 ) {
 				$parent->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
 				$parent->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );

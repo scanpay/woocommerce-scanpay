@@ -65,7 +65,7 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 	}
 
 	public function get_scanpay_settings_fields(): array {
-		$settings = require WC_SCANPAY_DIR . '/includes/form-fields.php';
+		$settings = require WC_SCANPAY_DIR . '/gateways/form-fields.php';
 		$pages    = get_pages();
 		foreach ( $pages as $page ) {
 			$settings['wcs_terms']['options'][ $page->ID ] = $page->post_title . ' (' . $page->ID . ')';
