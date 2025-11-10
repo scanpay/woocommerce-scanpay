@@ -55,8 +55,9 @@ We use `wp_enqueue_script()` with the `defer` attribute, which officially requir
 | WordPress                     |  Version  |
 | :---------------------------- | :-------: |
 | WooCommerce 10.3              | ~~6.7.0~~ |
-| wp_cache_flush_group          | **6.1.0** |
-| WooCommerce 3.6               |   4.7.0 |
+| wp_enqueue_script:defer       | **6.3.0** |
+| wp_cache_flush_group          |   6.1.0   |
+| WooCommerce 3.6               |   4.7.0   |
 | wp_send_json                  |   4.7.0   |
 | wp_send_json_success          |   3.5.0   |
 | wc_back_link                  |   3.3.0   |
