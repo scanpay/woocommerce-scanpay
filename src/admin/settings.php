@@ -33,8 +33,8 @@ function wc_scanpay_admin_assets( string $hook_suffix ): void {
 	if ( '' === $section || ! str_starts_with( $section, 'scanpay' ) ) {
 		return;
 	}
-	wp_enqueue_script( 'wc-scanpay-settings', WC_SCANPAY_URL . '/public/js/settings.js', [], WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
-	wp_enqueue_style( 'wc-scanpay-settings', WC_SCANPAY_URL . '/public/css/settings.css', [], WC_SCANPAY_VERSION );
+	wp_enqueue_script( 'wc-scanpay-settings', WC_SCANPAY_URL . '/admin/assets/js/settings.js', [], WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
+	wp_enqueue_style( 'wc-scanpay-settings', WC_SCANPAY_URL . '/admin/assets/css/settings.css', [], WC_SCANPAY_VERSION );
 }
 add_action( 'admin_enqueue_scripts', 'wc_scanpay_admin_assets' );
 

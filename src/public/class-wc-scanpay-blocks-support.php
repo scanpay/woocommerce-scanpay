@@ -21,7 +21,7 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 		if ( ! $this->registered ) {
 			wp_register_script(
 				'wcsp-blocks',
-				WC_SCANPAY_URL . '/public/js/checkout.js',
+				WC_SCANPAY_URL . '/public/assets/js/checkout.js',
 				[ 'wc-blocks-registry', 'wc-settings', 'wp-element' ],
 				WC_SCANPAY_VERSION,
 				true
@@ -38,7 +38,7 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 	public function get_payment_method_data(): array {
 		$settings = get_option( WC_SCANPAY_URI_SETTINGS );
 		$data     = [
-			'url'     => WC_SCANPAY_URL . '/public/images/cards/',
+			'url'     => WC_SCANPAY_URL . '/public/assets/images/cards/',
 			'methods' => [],
 		];
 		if ( is_array( $settings ) && ( 'yes' === ( $settings['enabled'] ?? 'no' ) ) ) {

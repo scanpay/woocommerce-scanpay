@@ -51,7 +51,7 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 	public function enqueue_blocks_checkout_styles() {
 		wp_enqueue_style(
 			'wcsp-blocks',
-			WC_SCANPAY_URL . '/public/css/checkout.css',
+			WC_SCANPAY_URL . '/public/assets/css/checkout.css',
 			null,
 			WC_SCANPAY_VERSION
 		);
@@ -78,11 +78,11 @@ class WC_Scanpay_Gateway extends WC_Payment_Gateway {
 		if ( $array ) {
 			if ( 'yes' === $this->settings['stylesheet'] ) {
 				// TODO: find a better way to load this stylesheet or use prefetch
-				wp_enqueue_style( 'wcsp-pay', WC_SCANPAY_URL . '/public/css/checkout.css', null, WC_SCANPAY_VERSION );
+				wp_enqueue_style( 'wcsp-pay', WC_SCANPAY_URL . '/public/assets/css/checkout.css', null, WC_SCANPAY_VERSION );
 			}
 			$icons = '<span class="wcsp-methods wcsp-cards">';
 			foreach ( $array as $key => $card ) {
-				$icons .= '<img src="' . WC_SCANPAY_URL . '/public/images/cards/' . $card .
+				$icons .= '<img src="' . WC_SCANPAY_URL . '/public/assets/images/cards/' . $card .
 					'.svg" class="wcsp-' . $card . '" alt="' . $card . '" title="' . $card . '">';
 			}
 			return $icons . '</span>';

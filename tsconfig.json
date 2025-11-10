@@ -3,7 +3,10 @@
 		"moduleResolution": "node",
 		"target": "ES2020",
 		"module": "esnext",
-		"lib": [ "dom", "ES2020" ],
+		"lib": [
+			"dom",
+			"ES2020"
+		],
 		"strict": true,
 		"alwaysStrict": true,
 		"typeRoots": [
@@ -12,6 +15,11 @@
 		],
 		"outDir": "./build/public/js"
 	},
-	"include": [ "src/public/js/**/*" ],
-	"exclude": [ "node_modules" ]
+	"include": [
+		"src/admin/assets/js/**/*",
+		"src/public/assets/js/**/*",
+	],
+	"exclude": [
+		"node_modules"
+	]
 }

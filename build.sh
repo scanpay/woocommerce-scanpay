@@ -22,15 +22,22 @@ else
 fi
 
 # Copy static files to the build directory
-rsync -am --exclude='public/js' --exclude='public/css' "$SRC/" "$BUILD/"
+rsync -am --exclude='*.css' --exclude='*.ts' "$SRC/" "$BUILD/"
 
 # Convert SASS to CSS
-"$DIR/node_modules/.bin/sass" --style compressed --no-source-map --verbose "$SRC/public/css/":"$BUILD/public/css/"
+"$DIR/node_modules/.bin/sass" --style compressed --no-source-map --verbose "$SRC/admin/assets/css/":"$BUILD/admin/assets/css/"
+"$DIR/node_modules/.bin/sass" --style compressed --no-source-map --verbose "$SRC/public/assets/css/":"$BUILD/public/assets/css/"
 
 # Compile TypeScript to JavaScript (+minify)
-for file in "$SRC/public/js/"*.ts; do
+for file in "$SRC/admin/assets/js/"*.ts; do
     echo "Compiling $file"
-    "$DIR/node_modules/.bin/esbuild" --bundle --minify "$file" --outfile="$BUILD/public/js/$(basename "$file" .ts).js"
+    "$DIR/node_modules/.bin/esbuild" --bundle --minify "$file" --outfile="$BUILD/admin/assets/js/$(basename "$file" .ts).js"
+done
+
+# Compile TypeScript to JavaScript (+minify)
+for file in "$SRC/public/assets/js/"*.ts; do
+    echo "Compiling $file"
+    "$DIR/node_modules/.bin/esbuild" --bundle --minify "$file" --outfile="$BUILD/public/assets/js/$(basename "$file" .ts).js"
 done
 
 # Generate .mo files

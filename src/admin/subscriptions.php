@@ -43,8 +43,8 @@ function wc_scanpay_add_meta_box_subs( $wc_order ) {
 	if ( 'scanpay' !== $psp && ! str_starts_with( $psp, 'scanpay' ) ) {
 		return;
 	}
-	wp_enqueue_style( 'wcsp-meta', WC_SCANPAY_URL . '/public/css/meta.css', null, WC_SCANPAY_VERSION );
-	wp_enqueue_script( 'wcsp-meta', WC_SCANPAY_URL . '/public/js/subs.js', false, WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
+	wp_enqueue_style( 'wcsp-meta', WC_SCANPAY_URL . '/admin/assets/css/meta.css', null, WC_SCANPAY_VERSION );
+	wp_enqueue_script( 'wcsp-meta', WC_SCANPAY_URL . '/admin/assets/js/subs.js', false, WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
 	add_meta_box( 'wcsp-meta-box', 'Scanpay', 'wc_scanpay_create_meta_box_subs', null, 'side', 'high', [ $wc_order ] );
 }
 add_action( 'add_meta_boxes_woocommerce_page_wc-orders--shop_subscription', 'wc_scanpay_add_meta_box_subs', 9, 1 ); // HPOS

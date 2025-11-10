@@ -3,7 +3,7 @@
 	Prevent duplicate messages.
 */
 
-import { checkVersion, isVersionGreater, getLastSync } from './compat';
+import { checkVersion, isVersionGreater, getLastSync } from '../util/compat';
 
 export function showError(msg: string) {
 	showWarning(msg, 'error');

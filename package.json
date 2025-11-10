@@ -36,8 +36,8 @@
 		"typescript-eslint": "latest"
 	},
 	"scripts": {
-		"lint:js": "wp-scripts lint-js src/public/js/",
-		"lint:style": "wp-scripts lint-style src/public/css/",
+		"lint:js": "wp-scripts lint-js src/public/assets/js/",
+		"lint:style": "wp-scripts lint-style src/public/assets/css/",
 		"lint:pkg-json": "wp-scripts lint-pkg-json",
 		"lint:md:docs": "wp-scripts lint-md-docs",
 		"i18n:po": "./vendor/bin/wp i18n make-pot src src/languages/scanpay-for-woocommerce.pot",

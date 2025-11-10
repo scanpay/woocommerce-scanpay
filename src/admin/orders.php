@@ -75,8 +75,8 @@ function wc_scanpay_admin_render_meta_box( $post ): void {
 	if ( 'scanpay' !== $pm && ! str_starts_with( $pm, 'scanpay' ) ) {
 		return;
 	}
-	wp_enqueue_style( 'wcsp-meta', WC_SCANPAY_URL . '/public/css/meta.css', [], WC_SCANPAY_VERSION );
-	wp_enqueue_script( 'wcsp-meta', WC_SCANPAY_URL . '/public/js/order.js', [], WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
+	wp_enqueue_style( 'wcsp-meta', WC_SCANPAY_URL . '/admin/assets/css/meta.css', [], WC_SCANPAY_VERSION );
+	wp_enqueue_script( 'wcsp-meta', WC_SCANPAY_URL . '/admin/assets/js/order.js', [], WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
 
 	$oid   = $wco->get_id();
 	$meta  = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid LIMIT 1", ARRAY_A );
