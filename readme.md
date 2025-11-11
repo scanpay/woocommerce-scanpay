@@ -10,15 +10,15 @@ If you have any questions, concerns or ideas, please do not hesitate to e-mail u
 
 ## Requirements
 
--   WooCommerce >= 3.6.0 ([details](./docs/requirements.md#woocommerce-compatibility-table))
--   WordPress >= 4.7.0 ([details](./docs/requirements.md#wordpress-compatibility-table))
--   PHP version >= 7.4 ([details](./docs/requirements.md#php-compatibility-table))
--   libcurl >= 7.25.0 ([details](./docs/requirements.md#libcurl-compatibility-table))
+-   WooCommerce >= 3.6 ([details](./docs/requirements.md#woocommerce-compatibility-table))
+-   WordPress >= 6.3 ([details](./docs/requirements.md#wordpress-compatibility-table))
+-   PHP version >= 8.0 ([details](./docs/requirements.md#php-compatibility-table))
+-   libcurl >= 7.25 ([details](./docs/requirements.md#libcurl-compatibility-table))
 -   [Scanpay](https://scanpay.dk) account.
 
 ## Plugin compatibility
 
--   WooCommerce Subscriptions >= 1.0
+-   WooCommerce Subscriptions >= 1.0 ([details](./docs/requirements.md#libcurl-compatibility-table))
 
 ## Installation
 
