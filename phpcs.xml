@@ -1,79 +1,47 @@
 <?xml version="1.0"?>
 <ruleset name="scanpay-woocommerce-cs">
-    <exclude-pattern>^(?!.*\.php$).*</exclude-pattern>
     <file>src</file>
-    <arg name="basepath" value="."/>
     <arg name="colors"/>
+    <config name="minimum_supported_wp_version" value="6.3"/>
+    <config name="testVersion" value="8.0-"/>
 
-	<config name="minimum_supported_wp_version" value="4.7" />
-	<config name="testVersion" value="7.4-" />
+    <!-- Base standards -->
+    <rule ref="WordPress"/>
+    <rule ref="WooCommerce-Core"/>
+    <rule ref="PHPCompatibilityWP"/>
 
-	<rule ref="WordPress.WP.I18n">
-		<properties>
-			<property name="text_domain" type="array" value="scanpay-for-woocommerce" />
-		</properties>
-	</rule>
+    <!-- I18n: enforce your text-domain -->
+    <rule ref="WordPress.WP.I18n">
+        <properties>
+            <property name="text_domain" type="array" value="scanpay-for-woocommerce"/>
+        </properties>
+    </rule>
 
-	<!-- WooCommerce Rules -->
-	<rule ref="WooCommerce-Core">
-		<exclude name="WooCommerce.Commenting.CommentHooks.MissingHookComment" />
-	</rule>
+    <!-- WordPress customizations -->
+    <rule ref="WordPress">
+        <!-- Prefer [] and forbid long arrays -->
+        <exclude name="Generic.Arrays.DisallowShortArraySyntax"/>
+        <exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
 
-	<!-- WordPress Rules -->
-	<rule ref="WordPress">
-		<!-- Allow short array syntax [] -->
-		<exclude name="Generic.Arrays.DisallowShortArraySyntax"/>
-		<exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
+		<!-- Allow fopen/fclose: used for flock -->
+		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_fopen"/>
+		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_fclose"/>
 
-		<exclude name="WordPress.Security.EscapeOutput" />
-		<exclude name="WordPress.Security.NonceVerification.Recommended" />
-		<exclude name="WordPress.Security.SafeRedirect.wp_redirect_wp_redirect" />
-		<exclude name="WordPress.PHP.NoSilencedErrors.Discouraged" />
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_mkdir" />
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_rmdir" />
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_touch" />
+		<!-- cURL: used in client lib -->
+        <exclude name="WordPress.WP.AlternativeFunctions.curl_curl_init"/>
+        <exclude name="WordPress.WP.AlternativeFunctions.curl_curl_reset"/>
+        <exclude name="WordPress.WP.AlternativeFunctions.curl_curl_setopt_array"/>
+        <exclude name="WordPress.WP.AlternativeFunctions.curl_curl_exec"/>
+        <exclude name="WordPress.WP.AlternativeFunctions.curl_curl_strerror"/>
+        <exclude name="WordPress.WP.AlternativeFunctions.curl_curl_errno"/>
+        <exclude name="WordPress.WP.AlternativeFunctions.curl_curl_getinfo"/>
 
-		<!-- Only relevant to PHP 7.0 and older -->
-		<exclude name="WordPress.WP.AlternativeFunctions.parse_url_parse_url" />
-
-		<!-- Ignore warnings about cURL -->
-		<exclude name="WordPress.WP.AlternativeFunctions.curl_curl_init" />
-		<exclude name="WordPress.WP.AlternativeFunctions.curl_curl_reset" />
-		<exclude name="WordPress.WP.AlternativeFunctions.curl_curl_setopt_array" />
-		<exclude name="WordPress.WP.AlternativeFunctions.curl_curl_exec" />
-		<exclude name="WordPress.WP.AlternativeFunctions.curl_curl_strerror" />
-		<exclude name="WordPress.WP.AlternativeFunctions.curl_curl_errno" />
-		<exclude name="WordPress.WP.AlternativeFunctions.curl_curl_getinfo" />
-
-		<!-- Ignore warnings about json_encode() -->
-		<exclude name="WordPress.WP.AlternativeFunctions.json_encode_json_encode" />
-
-		<!-- Ignore prepared statements -->
+		<!-- Prepared SQL: not always needed -->
 		<exclude name="WordPress.DB.PreparedSQL"/>
+    </rule>
 
-		<exclude name="WordPress.Security.ValidatedSanitizedInput.MissingUnslash" />
-		<exclude name="WordPress.Security.ValidatedSanitizedInput.InputNotSanitized" />
-	</rule>
-	<rule ref="Generic.Arrays.DisallowLongArraySyntax"/>
-
-	<rule ref="WordPress-Extra">
-		<!-- Ignore documentation requirements -->
-		<exclude name="Squiz.Commenting" />
-	</rule>
-
-	<!-- Allow base64 encode -->
-	<rule ref="WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode">
-		<exclude-pattern>*</exclude-pattern>
-	</rule>
-
-	<!-- Allow base64 encode -->
-	<rule ref="WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode">
-		<exclude-pattern>*</exclude-pattern>
-	</rule>
-
-	<!-- Add 3rd-party and custom capabilities -->
-	<rule ref="WordPress.Security.ValidatedSanitizedInput.InputNotValidated">
-		<exclude-pattern>hooks/wc-scanpay-ping.php</exclude-pattern>
-		<exclude-pattern>hooks/wp-scanpay-thankyou.php</exclude-pattern>
-	</rule>
+    <!-- Documentation sniffs off (Extra) -->
+    <rule ref="WordPress-Extra">
+        <exclude name="Squiz.Commenting"/>
+    </rule>
 </ruleset>
