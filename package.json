@@ -10,6 +10,11 @@
 		"wordpress": "6.8",
 		"woocommerce": "10.2"
 	},
+	"requires": {
+		"php": "8.0",
+		"wordpress": "6.3",
+		"woocommerce": "3.6"
+	},
 	"keywords": [
 		"woocommerce",
 		"payments",

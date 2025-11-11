@@ -10,9 +10,14 @@ TMP="/tmp/scanpay-for-woocommerce"
 
 # Get the verison number from package.json
 VERSION=$(node -p "require('$DIR/package.json').version")
-WP_VERSION=$(node -p "require('$DIR/package.json').tested.wordpress")
-WC_VERSION=$(node -p "require('$DIR/package.json').tested.woocommerce")
 echo -e "Building version: \033[0;31m$VERSION\033[0m\n"
+
+# Get requirements from package.json
+WP_MIN=$(node -p "require('$DIR/package.json').requires.wordpress")
+WP_TESTED=$(node -p "require('$DIR/package.json').tested.wordpress")
+WC_MIN=$(node -p "require('$DIR/package.json').requires.woocommerce")
+WC_TESTED=$(node -p "require('$DIR/package.json').tested.woocommerce")
+PHP_MIN=$(node -p "require('$DIR/package.json').requires.php")
 
 if [ -d "$BUILD" ]; then
     rm -rf "${BUILD:?}/"*
@@ -47,16 +52,23 @@ done
 "$DIR/vendor/bin/wp" i18n make-php "$BUILD/languages"
 
 for file in $(find "$BUILD" -type f \( -name "*.php" -o -name "*.js" -o -name "*.txt" \)); do
-    # Insert the version number into the files
     if grep -q "{{ VERSION }}" "$file"; then
         sed -i "s/{{ VERSION }}/$VERSION/g" "$file"
     fi
-    # Insert tested up to versions
-    if grep -q "{{ WP_VERSION_TESTED }}" "$file"; then
-        sed -i "s/{{ WP_VERSION_TESTED }}/$WP_VERSION/g" "$file"
+    if grep -q "{{ WP_TESTED }}" "$file"; then
+        sed -i "s/{{ WP_TESTED }}/$WP_TESTED/g" "$file"
     fi
-    if grep -q "{{ WC_VERSION_TESTED }}" "$file"; then
-        sed -i "s/{{ WC_VERSION_TESTED }}/$WC_VERSION/g" "$file"
+    if grep -q "{{ WP_MIN }}" "$file"; then
+        sed -i "s/{{ WP_MIN }}/$WP_MIN/g" "$file"
+    fi
+    if grep -q "{{ WC_TESTED }}" "$file"; then
+        sed -i "s/{{ WC_TESTED }}/$WC_TESTED/g" "$file"
+    fi
+    if grep -q "{{ WC_MIN }}" "$file"; then
+        sed -i "s/{{ WC_MIN }}/$WC_MIN/g" "$file"
+    fi
+    if grep -q "{{ PHP_MIN }}" "$file"; then
+        sed -i "s/{{ PHP_MIN }}/$PHP_MIN/g" "$file"
     fi
 done
 

@@ -8,10 +8,10 @@
  * Author URI: https://scanpay.dk
  * Version: {{ VERSION }}
  * Requires Plugins: woocommerce
- * Requires at least: 6.3
- * Requires PHP: 8.0
- * WC requires at least: 3.6
- * WC tested up to: {{ WC_VERSION_TESTED }}
+ * Requires at least: {{ WP_MIN }}
+ * Requires PHP: {{ PHP_MIN }}
+ * WC requires at least: {{ WC_MIN }}
+ * WC tested up to: {{ WC_TESTED }}
  * Text Domain: scanpay-for-woocommerce
  * Domain Path: /languages/
  * License: GPLv3
@@ -23,8 +23,6 @@ declare(strict_types=1);
 defined( 'ABSPATH' ) || exit();
 
 const WC_SCANPAY_VERSION      = '{{ VERSION }}';
-const WC_SCANPAY_MIN_PHP      = '8.0.0';
-const WC_SCANPAY_MIN_WC       = '3.6.0';
 const WC_SCANPAY_DASHBOARD    = 'https://dashboard.scanpay.dk/';
 const WC_SCANPAY_URI_SETTINGS = 'woocommerce_scanpay_settings';
 const WC_SCANPAY_URI_SHOPID   = '_scanpay_shopid';
