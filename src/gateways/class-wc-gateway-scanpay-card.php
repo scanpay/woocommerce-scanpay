@@ -30,7 +30,7 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 	}
 
 	/**
-	 * Get the icon HTML for display on checkout page
+	 * Get the icon HTML for display on the checkout page.
 	 *
 	 * @return string
 	 */
@@ -41,13 +41,8 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 		}
 		$html = '<span class="wcsp-methods wcsp-cards">';
 		foreach ( $cards as $card ) {
-			// Keep simple sanitation; only allow a–z, 0–9, dash, underscore
-			$slug = strtolower( preg_replace( '/[^a-z0-9_-]/', '', (string) $card ) );
-			if ( $slug === '' ) {
-				continue;
-			}
-			$html .= '<img src="' . WC_SCANPAY_URL . '/public/assets/images/cards/' . $slug .
-				'.svg" class="wcsp-' . $slug . '" alt="' . $slug . '" title="' . $slug . '">';
+			$html .= '<img src="' . WC_SCANPAY_URL . '/public/assets/images/cards/' . $card .
+				'.svg" class="wcsp-' . $card . '" alt="' . $card . '" title="' . $card . '">';
 		}
 		return $html . '</span>';
 	}
