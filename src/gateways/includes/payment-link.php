@@ -76,6 +76,8 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		throw new Exception( 'Error: The payment plugin is not configured. Please contact support.' );
 	}
 
+	scanpay_log( 'info', "Creating payment link for Order #$oid." );
+
 	$otype               = 'wc';
 	$client              = new WC_Scanpay_Client( $settings['apikey'] );
 	$capture_on_complete = 'completed' === $settings['wc_autocapture'] && ! $wco->needs_processing();

@@ -91,9 +91,9 @@ if ( isset( $_SERVER['HTTP_X_SCANPAY'], $_GET['x'], $_GET['s'] ) ) {
  * Register payment gateways with WooCommerce.
  */
 function wc_scanpay_register_gateways( array $methods ): array {
-	$methods[] = 'WC_Scanpay_Gateway';
-	$methods[] = 'WC_Scanpay_Gateway_Mobilepay';
-	$methods[] = 'WC_Scanpay_Gateway_ApplePay';
+	$methods[] = WC_Gateway_Scanpay_Card::class;
+	$methods[] = WC_Gateway_Scanpay_Mobilepay::class;
+	$methods[] = WC_Gateway_Scanpay_ApplePay::class;
 	return $methods;
 }
 
@@ -102,7 +102,7 @@ function wc_scanpay_register_gateways( array $methods ): array {
  */
 function wc_scanpay_register_blocks( $registry ): void {
 	if ( ! class_exists( 'WC_Scanpay_Blocks_Support', false ) ) {
-		require WC_SCANPAY_DIR . '/public/class-wc-scanpay-blocks-support.php';
+		require WC_SCANPAY_DIR . '/gateways/blocks/class-wc-scanpay-blocks-support.php';
 	}
 	$registry->register( new WC_Scanpay_Blocks_Support() );
 }
@@ -165,9 +165,10 @@ function wc_scanpay_plugins_loaded() {
 	if ( ! class_exists( 'WC_Payment_Gateway', false ) ) {
 		return; // WooCommerce not active
 	}
-	require WC_SCANPAY_DIR . '/gateways/class-wc-scanpay-gateway.php';
-	require WC_SCANPAY_DIR . '/gateways/class-wc-scanpay-gateway-mobilepay.php';
-	require WC_SCANPAY_DIR . '/gateways/class-wc-scanpay-gateway-applepay.php';
+	require WC_SCANPAY_DIR . '/gateways/abstract-wc-gateway-scanpay-base.php';
+	require WC_SCANPAY_DIR . '/gateways/class-wc-gateway-scanpay-card.php';
+	require WC_SCANPAY_DIR . '/gateways/class-wc-gateway-scanpay-mobilepay.php';
+	require WC_SCANPAY_DIR . '/gateways/class-wc-gateway-scanpay-applepay.php';
 
 	add_filter( 'allowed_redirect_hosts', 'wp_scanpay_allowed_redirect_hosts' );
 	add_filter( 'woocommerce_payment_gateways', 'wc_scanpay_register_gateways' );
