@@ -17,8 +17,8 @@ final class WC_Gateway_Scanpay_Mobilepay extends WC_Gateway_Scanpay_Base {
 	 * @return string
 	 */
 	public function get_icon(): string {
-		return '<span class="wcsp-methods"><img width="92" class="wcsp-mobilepay" src="' .
-			WC_SCANPAY_URL . '/public/images/cards/mobilepay.svg" alt="MobilePay" title="MobilePay"></span>';
+		return '<span class="wcsp-methods"><img width="92" height="23" class="wcsp-mobilepay" src="' .
+			WC_SCANPAY_URL . '/public/assets/images/mobilepay.svg" alt="MobilePay" title="MobilePay"></span>';
 	}
 
 	/**
