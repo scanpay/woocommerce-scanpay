@@ -5,8 +5,9 @@ defined( 'ABSPATH' ) || exit();
 final class WC_Gateway_Scanpay_Mobilepay extends WC_Gateway_Scanpay_Base {
 	public function __construct() {
 		$this->id                 = 'scanpay_mobilepay';
-		$this->method_title       = 'MobilePay (Scanpay)';
+		$this->method_title       = 'MobilePay';
 		$this->method_description = __( 'MobilePay Online through Scanpay.', 'scanpay-for-woocommerce' );
+		$this->icon = WC_SCANPAY_URL . '/admin/assets/images/icons/mobilepay.svg';
 		parent::__construct();
 	}
 

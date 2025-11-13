@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080">
+  <defs>
+    <radialGradient id="a" cx="5446.4" cy="-6330.4" r="2.1" fx="5446.4" fy="-6330.4" gradientTransform="matrix(17.1673 -87.5834 68.6045 13.4472 341343.1 562729)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#626262"/>
+      <stop offset="1" stop-color="#fff"/>
+    </radialGradient>
+    <radialGradient id="c" cx="5459.8" cy="-6208.5" r="2.1" fx="5459.8" fy="-6208.5" gradientTransform="matrix(0 58.65 -135.23 0 -838822 -319685.3)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#c4c2cc"/>
+      <stop offset=".6" stop-color="#c3c1cc"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="b" x1="474.4" x2="649.1" y1="-5254.8" y2="-5375" gradientTransform="translate(0 5843)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#bdbbc7"/>
+      <stop offset="1" stop-color="#fff"/>
+    </linearGradient>
+  </defs>
+  <path fill="#6077f6" d="M-.1 0h1080v1080H-.1z"/>
+  <path fill="url(#a)" fill-rule="evenodd" d="M486 242.8c-3.3 0-6.5.6-9.7 2l-199 82.7c-6.3 2.6-11.2 7.6-13.8 13.9s-2.5 13.2 0 19.4l190 460.8a25.4 25.4 0 0 0 33.2 13.8l199-82.8a25.5 25.5 0 0 0 13.8-33.3l-190-460.7a25.5 25.5 0 0 0-23.6-15.8ZM477 867.1a55 55 0 0 1-50.9-34.1l-190-460.8A55 55 0 0 1 266 300l199-82.7a55 55 0 0 1 71.8 29.8l190 460.8a55.4 55.4 0 0 1-29.7 72.2l-199 82.8c-7 2.8-14 4.2-21 4.2Z"/>
+  <path fill="url(#b)" fill-rule="evenodd" d="M654.5 553.5c-57.6 23.8-105.7 56.7-137.2 96.3L436 454c34.4-41.4 79.6-72.5 137.2-96.3 57.7-23.9 116-35.4 165.4-28.7L820 524.8c-51.4-5.4-107.7 4.8-165.4 28.6Z"/>
+  <path fill="url(#c)" fill-rule="evenodd" d="M654.5 553.5c-57.6 23.8-105.7 56.7-137.2 96.3L436 454c34.4-41.4 79.6-72.5 137.2-96.3 57.7-23.9 116-35.4 165.4-28.7L820 524.8c-51.4-5.4-107.7 4.8-165.4 28.6Z"/>
+  <path fill="#fff" fill-rule="evenodd" d="M681.7 613.6c-62.2 0-119.2 11.9-163.4 36.1V454c47.6-24.8 101.2-36.2 163.4-36.1 62.3 0 120.4 11.4 163.5 36.2v195.8c-45.4-24.3-101.2-36.2-163.5-36.2Z"/>
+</svg>

@@ -5,8 +5,9 @@ defined( 'ABSPATH' ) || exit();
 final class WC_Gateway_Scanpay_ApplePay extends WC_Gateway_Scanpay_Base {
 	public function __construct() {
 		$this->id                 = 'scanpay_applepay';
-		$this->method_title       = 'Apple Pay (Scanpay)';
+		$this->method_title       = 'Apple Pay';
 		$this->method_description = __( 'Apple Pay through Scanpay.', 'scanpay-for-woocommerce' );
+		$this->icon = WC_SCANPAY_URL . '/admin/assets/images/icons/apple-pay.svg';
 		parent::__construct();
 	}
 

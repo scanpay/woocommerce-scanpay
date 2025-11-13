@@ -7,6 +7,7 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 		$this->id                 = 'scanpay';
 		$this->method_title       = 'Scanpay';
 		$this->method_description = __( 'Accept payment cards through Scanpay.', 'scanpay-for-woocommerce' );
+		$this->icon = WC_SCANPAY_URL . '/admin/assets/images/icons/scanpay.svg';
 		parent::__construct();
 
 		$this->supports = [
