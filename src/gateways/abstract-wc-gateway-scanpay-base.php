@@ -3,9 +3,9 @@
 defined( 'ABSPATH' ) || exit();
 
 abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
-
 	public function __construct() {
 		$this->supports = [ 'products' ];
+		$this->has_fields = false;
 		$this->init_settings();
 		add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, [ $this, 'process_admin_options' ] );
 	}
