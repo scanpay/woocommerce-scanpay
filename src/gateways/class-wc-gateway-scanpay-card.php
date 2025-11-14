@@ -7,7 +7,7 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 		$this->id                 = 'scanpay';
 		$this->method_title       = 'Scanpay';
 		$this->method_description = __( 'Accept payment cards through Scanpay.', 'scanpay-for-woocommerce' );
-		$this->icon = WC_SCANPAY_URL . '/admin/assets/images/icons/scanpay.svg';
+		$this->icon               = WC_SCANPAY_URL . '/admin/assets/images/icons/scanpay.svg';
 		parent::__construct();
 
 		$this->supports = [
@@ -102,7 +102,6 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 	 * @param WC_Product $product          The product object.
 	 * @return bool
 	 */
-
 	public function item_needs_processing( bool $needs_processing, WC_Product $product ): bool {
 		if ( $needs_processing && $product->get_virtual( 'edit' ) ) {
 			return false;
