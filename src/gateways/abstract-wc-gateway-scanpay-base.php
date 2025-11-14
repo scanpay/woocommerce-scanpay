@@ -78,4 +78,15 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	public function can_refund_order( $order ): bool {
 		return false;
 	}
+
+	/**
+	 * Determine whether the gateway needs setup before it can be enabled.
+	 * This is used by WC admin to show a setup notice.
+	 *
+	 * @return bool
+	 */
+	public function needs_setup(): bool {
+		$settings = get_option( WC_SCANPAY_URI_SETTINGS, [] );
+		return '' === (string) ( $settings['apikey'] ?? '' );
+	}
 }
