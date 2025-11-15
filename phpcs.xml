@@ -39,4 +39,9 @@
     <rule ref="WordPress.Files.FileName.NotHyphenatedLowercase">
         <exclude-pattern>src/gateways/fields/</exclude-pattern>
     </rule>
+
+    <!-- Allow abstract class filenames -->
+    <rule ref="WordPress.Files.FileName.InvalidClassFileName">
+        <exclude-pattern>*/abstract-*.php</exclude-pattern>
+    </rule>
 </ruleset>
