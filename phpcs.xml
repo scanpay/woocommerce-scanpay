@@ -23,18 +23,8 @@
         <exclude name="Generic.Arrays.DisallowShortArraySyntax"/>
         <exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
 
-		<!-- Allow fopen/fclose: used for flock -->
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_fopen"/>
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_fclose"/>
-
-		<!-- cURL: used in client lib -->
-        <exclude name="WordPress.WP.AlternativeFunctions.curl_curl_init"/>
-        <exclude name="WordPress.WP.AlternativeFunctions.curl_curl_reset"/>
-        <exclude name="WordPress.WP.AlternativeFunctions.curl_curl_setopt_array"/>
-        <exclude name="WordPress.WP.AlternativeFunctions.curl_curl_exec"/>
-        <exclude name="WordPress.WP.AlternativeFunctions.curl_curl_strerror"/>
-        <exclude name="WordPress.WP.AlternativeFunctions.curl_curl_errno"/>
-        <exclude name="WordPress.WP.AlternativeFunctions.curl_curl_getinfo"/>
+		<!-- Allow cURL, fopen etc. -->
+		<exclude name="WordPress.WP.AlternativeFunctions"/>
 
 		<!-- Prepared SQL: not always needed -->
 		<exclude name="WordPress.DB.PreparedSQL"/>

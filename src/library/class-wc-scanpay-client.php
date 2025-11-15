@@ -16,6 +16,7 @@ final class WC_Scanpay_Client {
 	public function __construct( string $apikey ) {
 		$this->ch      = curl_init();
 		$this->headers = [
+			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 			'Authorization: Basic ' . base64_encode( $apikey ),
 			'X-Shop-Plugin: WC-' . WC_SCANPAY_VERSION . '/' . WC()->version . '; PHP-' . PHP_VERSION,
 			'Accept: application/json',
@@ -53,7 +54,8 @@ final class WC_Scanpay_Client {
 			CURLOPT_NOSIGNAL          => 1,
 		];
 		if ( null !== $data ) {
-			$headers[]                      = 'Content-Type: application/json';
+			$headers[] = 'Content-Type: application/json';
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode
 			$curlopts[ CURLOPT_POSTFIELDS ] = json_encode( $data, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE );
 		}
 		if ( ! empty( $hdrs ) ) {
@@ -73,6 +75,7 @@ final class WC_Scanpay_Client {
 		if ( false === $result ) {
 			$err    = curl_strerror( curl_errno( $this->ch ) );
 			$detail = curl_error( $this->ch );
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( $detail ? "$err: $detail" : $err );
 		}
 
@@ -82,12 +85,14 @@ final class WC_Scanpay_Client {
 			if ( substr_count( $body, "\n" ) !== 1 || strlen( $body ) > 512 ) {
 				$body = 'server error';
 			}
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( $status_code . ' ' . $body );
 		}
 		if ( $expect_idem && ! $this->idem ) {
 			throw new \RuntimeException( 'Missing Idempotency-Status header' );
 		}
 		if ( $this->idem && 'ok' !== $this->idemstatus ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( 'Server failed to provide idempotency: ' . (string) $result );
 		}
 		$json = json_decode( (string) $result, true, 64, JSON_THROW_ON_ERROR );
@@ -99,6 +104,7 @@ final class WC_Scanpay_Client {
 
 	// new_url: Create a new payment link
 	public function new_url( array $data ): string {
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 		$hdr = [ 'X-Cardholder-IP' => $_SERVER['REMOTE_ADDR'] ?? '' ];
 		$res = $this->request( '/v1/new', $data, $hdr );
 		if ( isset( $res['url'] ) && filter_var( $res['url'], FILTER_VALIDATE_URL ) ) {
@@ -136,6 +142,7 @@ final class WC_Scanpay_Client {
 	}
 
 	public function renew( int $subid, array $data ): string {
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 		$hdr = [ 'X-Cardholder-IP' => $_SERVER['REMOTE_ADDR'] ?? '' ];
 		$res = $this->request( "/v1/subscribers/$subid/renew", $data, $hdr );
 		if ( isset( $res['url'] ) && filter_var( $res['url'], FILTER_VALIDATE_URL ) ) {
