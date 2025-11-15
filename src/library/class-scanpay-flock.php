@@ -25,14 +25,15 @@ final class Scanpay_Flock {
 	 * @return bool True if lock acquired, false if busy or failed.
 	 */
 	public function acquire(): bool {
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 		$this->handle = @fopen( $this->path, 'c' );
 		if ( ! $this->handle ) {
 			scanpay_log( 'error', "could not open lock file: {$this->path}" );
 			return false;
 		}
-		if ( ! @flock( $this->handle, LOCK_EX | LOCK_NB ) ) {
+		if ( ! flock( $this->handle, LOCK_EX | LOCK_NB ) ) {
 			// Busy: release handle to avoid FD leak
-			@fclose( $this->handle );
+			fclose( $this->handle );
 			$this->handle = null;
 			scanpay_log( 'debug', "lock busy: {$this->path}" );
 			return false;
@@ -45,8 +46,8 @@ final class Scanpay_Flock {
 	 */
 	public function release(): void {
 		if ( null !== $this->handle ) {
-			@flock( $this->handle, LOCK_UN );
-			@fclose( $this->handle );
+			flock( $this->handle, LOCK_UN );
+			fclose( $this->handle );
 			$this->handle = null;
 		}
 	}
