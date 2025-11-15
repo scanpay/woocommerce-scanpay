@@ -44,4 +44,9 @@
     <rule ref="WordPress-Extra">
         <exclude name="Squiz.Commenting"/>
     </rule>
+
+    <!-- Allow underscores in specific filenames -->
+    <rule ref="WordPress.Files.FileName.NotHyphenatedLowercase">
+        <exclude-pattern>src/gateways/fields/</exclude-pattern>
+    </rule>
 </ruleset>

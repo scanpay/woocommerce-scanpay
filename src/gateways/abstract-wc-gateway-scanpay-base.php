@@ -25,8 +25,7 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	 */
 	public function get_form_fields(): array {
 		if ( empty( $this->form_fields ) ) {
-			$filename          = str_replace( '_', '-', $this->id );
-			$this->form_fields = require WC_SCANPAY_DIR . '/gateways/fields/' . $filename . '.php';
+			$this->form_fields = require WC_SCANPAY_DIR . '/gateways/fields/' . $this->id . '.php';
 		}
 		return $this->form_fields;
 	}

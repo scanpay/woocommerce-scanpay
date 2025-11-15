@@ -68,9 +68,7 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 	public function process_admin_options(): void {
 		global $wpdb;
 		$old = (int) explode( ':', (string) $this->get_option( 'apikey', '' ) )[0];
-
 		parent::process_admin_options();
-
 		$new = (int) explode( ':', (string) $this->get_option( 'apikey', '' ) )[0];
 		if ( $new !== $old ) {
 			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_seq" );
