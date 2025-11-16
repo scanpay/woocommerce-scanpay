@@ -51,3 +51,13 @@ function wc_scanpay_admin_settings_link( array $links ): array {
 	return $links;
 }
 add_filter( 'plugin_action_links_scanpay-for-woocommerce/woocommerce-scanpay.php', 'wc_scanpay_admin_settings_link' );
+
+
+/**
+ * Disable WooCommerce's promotional footer message.
+ * The footer adds no functional value and needlessly runs on every admin page.
+ *
+ * @return false
+ */
+add_filter( 'woocommerce_display_admin_footer_text', '__return_false' );
+add_filter( 'admin_footer_text', '__return_empty_string', 11 );
