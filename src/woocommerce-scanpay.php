@@ -57,6 +57,7 @@ if ( isset( $_SERVER['HTTP_X_SIGNATURE'] ) ) {
 		require WC_SCANPAY_DIR . '/callback/wc-scanpay-ping.php';
 	}
 	add_action( 'woocommerce_api_wc_scanpay', 'wc_scanpay_handle_ping' );
+	// phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 	$uri = $_SERVER['REQUEST_URI'] ?? '';
 	if ( str_ends_with( $uri, 'wc_scanpay/' ) || str_ends_with( $uri, 'wc_scanpay' ) ) {
 		return; // short-circuit
@@ -66,6 +67,7 @@ if ( isset( $_SERVER['HTTP_X_SIGNATURE'] ) ) {
 /**
  * Handle the "thank you" page for completed payments.
  */
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 if ( isset( $_GET['scanpay_thankyou'], $_GET['scanpay_type'] ) ) {
 	require WC_SCANPAY_DIR . '/public/wp-scanpay-thankyou.php';
 	return; // short-circuit
@@ -74,7 +76,9 @@ if ( isset( $_GET['scanpay_thankyou'], $_GET['scanpay_type'] ) ) {
 /**
  * Lightweight admin AJAX endpoints (bypass WP/WC bootstrap).
  */
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 if ( isset( $_SERVER['HTTP_X_SCANPAY'], $_GET['x'], $_GET['s'] ) ) {
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	$file = match ( $_GET['x'] ) {
 		'meta' => '/admin/ajax/wp-scanpay-fetch-meta.php',
 		'ping' => '/admin/ajax/wp-scanpay-fetch-ping.php',
