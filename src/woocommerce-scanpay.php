@@ -46,7 +46,7 @@ function scanpay_log( string $level, string $msg ): void {
 		}
 		$logger = wc_get_logger();
 	}
-	$logger->log( $level, $msg, [ 'source' => 'woo-scanpay' ] );
+	$logger->log( $level, $msg, [ 'source' => 'wc-scanpay' ] );
 }
 
 /**

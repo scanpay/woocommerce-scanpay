@@ -1,86 +1,127 @@
 <?php
 
-/*
- *   admin-options.php
- *   Override WC_Payment_Gateway/WC_Settings_API:: admin_options()
+/**
+ * Custom admin options for Scanpay gateways.
+ *
+ * Overrides the default WC_Payment_Gateway::admin_options() layout.
+ *
+ * @var WC_Payment_Gateway $gateway Current gateway instance.
  */
 
 defined( 'ABSPATH' ) || exit();
 
-$settings     = (array) get_option( WC_SCANPAY_URI_SETTINGS, [] );
-$shopid       = (int) explode( ':', $settings['apikey'] ?? '' )[0];
-$ping_url     = rawurlencode( WC()->api_request_url( 'wc_scanpay' ) );
-$sendping_url = WC_SCANPAY_DASHBOARD . $shopid . '/settings/api/setup?module=woocommerce&url=' . $ping_url;
-$log_handler  = new WC_Log_Handler_File();
-$log_file     = basename( $log_handler->get_log_file_path( 'woo-scanpay' ) );
 
-$class_name = 'form-table wcsp-set-' . $this->id;
-if ( isset( $this->settings['subscriptions_enabled'] ) && 'no' === $this->settings['subscriptions_enabled'] ) {
-	$class_name = 'form-table wcsp-set-no-subs';
+/**
+ * Display an admin notice.
+ *
+ * @param string $msg The message to display.
+ * @param string $type    The type of notice: 'info', 'warning', 'error', 'success'.
+ */
+function scanpay_admin_notice( string $msg, string $type = 'info' ): void {
+	echo '<div class="notice notice-' . esc_attr( $type ) . ' wcsp-notice"><p>' . $msg . '</p></div>';
 }
 
-$url_debug = add_query_arg(
-	[
-		'page'     => 'wc-status',
-		'tab'      => 'logs',
-		'log_file' => $log_file,
-		'source'   => 'woo-scanpay',
-	],
-	admin_url( 'admin.php' )
+// Get the shopID from the API key (first part before the colon).
+$settings = get_option( WC_SCANPAY_URI_SETTINGS, [] );
+$shopid   = (int) strtok( $settings['apikey'] ?? '', ':' );
+
+// Create the ping URL that we send to the dashboard.
+$callback_url = WC_SCANPAY_DASHBOARD . $shopid . '/settings/api/setup?module=woocommerce&url='
+	. rawurlencode( WC()->api_request_url( 'wc_scanpay' ) );
+
+// Add welcome notice if shopid is not set.
+if ( ! $shopid ) {
+	$link = sprintf(
+		'<a target="_blank" href="%s">%s</a>',
+		esc_url( 'https://wordpress.org/plugins/scanpay-for-woocommerce/#installation' ),
+		esc_html__( 'installation guide', 'scanpay-for-woocommerce' )
+	);
+	/* translators: %s is a link to the installation guide. */
+	$setup_text = sprintf(
+		__( 'To get started, please complete the setup using our %s.', 'scanpay-for-woocommerce' ),
+		$link
+	);
+	scanpay_admin_notice(
+		'<strong>' .
+			esc_html__( 'Thank you for choosing Scanpay!', 'scanpay-for-woocommerce' ) .
+		'</strong><br>' .
+		esc_html__(
+			'This plugin is built and maintained by Scanpay, and we aim to keep it efficient, stable, and simple to use. We hope it serves you well.',
+			'scanpay-for-woocommerce'
+		) . '<br>' .
+		$setup_text
+	);
+}
+
+// Check for unread scanpay logs
+$files = WC_Log_Handler_File::get_log_files();
+$scanpay_logs = array_filter(
+    array_keys( $files ),
+    fn ( $file ) => str_starts_with( $file, 'wc-scanpay' )
 );
+if ( count ( $scanpay_logs ) > 0 ) {
+	// Construct the log file name.
+	$logs_url    = add_query_arg(
+		[
+			'page'     => 'wc-status',
+			'tab'      => 'logs',
+			'log_file' => basename( WC_Log_Handler_File::get_log_file_path( 'wc-scanpay' ) ),
+			'source'   => 'wc-scanpay',
+		],
+		admin_url( 'admin.php' )
+	);
+	scanpay_admin_notice( "You have unread logs", "warning" );
+}
+
+
+
+
 ?>
 
-<div class="wcsp-set-nav">
-	<a class="button" target="_blank" href="<?php echo esc_url( 'https://github.com/scanpay/woocommerce-scanpay' ); ?>">
-		<img
-			width="16"
-			height="16"
-			src="<?php echo esc_url( WC_SCANPAY_URL . '/admin/assets/images/github.svg' ); ?>"
-			class="wcsp-set-nav-img-git"
-		>
-		<?php esc_html_e( 'Guide', 'scanpay-for-woocommerce' ); ?>
-	</a>
-	<a id="wcsp-set-ping" class="button" target="_blank" href="<?php echo esc_url( $sendping_url ); ?>">
-		<img
-			width="21"
-			height="16"
-			src="<?php echo esc_url( WC_SCANPAY_URL . '/admin/assets/images/ping.svg' ); ?>"
-			class="wcsp-set-nav-img-ping"
-		>
-		<?php esc_html_e( 'Send ping', 'scanpay-for-woocommerce' ); ?>
-	</a>
-	<a class="button" href="<?php echo esc_url( $url_debug ); ?>">
-		<?php esc_html_e( 'Debug logs', 'scanpay-for-woocommerce' ); ?>
-	</a>
-	<span id="wcsp-set-nav-mtime"></span>
+<h2 class="wc-admin-header">
+	<small>
+		<a href="/wp-admin/admin.php?page=wc-settings&amp;tab=checkout">
+			<span class="dashicons dashicons-arrow-left-alt2" aria-hidden="true"></span>
+		</a>
+	</small>
+	Scanpay
+</h2>
+
+<?php
+
+// Navigation tabs.
+$tabs = [
+	'scanpay'           => 'Generelt',
+	'scanpay_mobilepay' => 'MobilePay',
+	'scanpay_applepay'  => 'Apple Pay',
+];
+?>
+<div class="wcsp-nav wcsp-nav-<?php echo $gateway->id; ?>" aria-label="Scanpay menu">
+	<?php foreach ( $tabs as $id => $label ) : ?>
+		<?php
+		$url     = add_query_arg(
+			[
+				'page'    => 'wc-settings',
+				'tab'     => 'checkout',
+				'section' => $id,
+			],
+			admin_url( 'admin.php' )
+		);
+		$classes = 'wcsp-nav-tab';
+		if ( $gateway->id === $id ) {
+			$classes .= ' wcsp-nav-tab-active';
+		}
+		?>
+		<a class="<?php echo esc_attr( $classes ); ?>"
+			href="<?php echo esc_url( $url ); ?>">
+			<?php echo esc_html( $label ); ?>
+		</a>
+	<?php endforeach; ?>
 </div>
 
-<div
-	id="wcsp-set-alert"
-	data-shopid="<?php echo esc_attr( (string) $shopid ); ?>"
-	<?php // Only expose secret if absolutely necessary; otherwise drop this attribute. ?>
->
-	<?php if ( ! $shopid ) : ?>
-		<div class="wcsp-set-alert wcsp-set-alert--show">
-			<div class="wcsp-set-alert-title">
-				<?php esc_html_e( 'Welcome to Scanpay for WooCommerce!', 'scanpay-for-woocommerce' ); ?>
-			</div>
-			<?php
-			$splink = sprintf(
-				'<a target="_blank" href="%s">%s</a>',
-				esc_url( 'https://wordpress.org/plugins/scanpay-for-woocommerce/#installation' ),
-				esc_html__( 'installation guide', 'scanpay-for-woocommerce' )
-			);
-			// translators: %s is a link to the installation guide.
-			printf(
-				wp_kses_post( __( 'Please follow the instructions in the %s.', 'scanpay-for-woocommerce' ) ),
-				$splink
-			);
-			?>
-		</div>
-	<?php endif; ?>
-</div>
-
-<table class="<?php echo esc_attr( $class_name ); ?>">
-	<?php echo $this->generate_settings_html( $this->get_form_fields(), false ); ?>
+<table class="form-table wcsp-set-<?php echo esc_attr( $gateway->id ); ?>">
+	<?php
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		$gateway->generate_settings_html( $gateway->get_form_fields(), true );
+	?>
 </table>

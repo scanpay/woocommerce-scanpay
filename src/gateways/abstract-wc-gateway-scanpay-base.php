@@ -66,7 +66,17 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	 * @return void
 	 */
 	public function admin_options(): void {
+		$gateway = $this;
 		require WC_SCANPAY_DIR . '/gateways/includes/admin-options.php';
+	}
+
+	/**
+	 * Process and save admin options.
+	 *
+	 * @return bool
+	 */
+	public function process_admin_options() {
+		return require WC_SCANPAY_DIR . '/gateways/includes/process-admin-options.php';
 	}
 
 	/**
