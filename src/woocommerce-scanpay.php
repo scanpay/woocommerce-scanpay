@@ -225,3 +225,17 @@ function wc_scanpay_admin_init() {
 	}
 }
 add_action( 'admin_init', 'wc_scanpay_admin_init', 0 );
+
+/**
+ * Remove the WooCommerce Payments "Payments" admin menu entry.
+ *
+ * This menu item is injected by the WooCommerce Payments plugin and
+ * serves as a promotional shortcut to its settings. It is not part of
+ * WooCommerce core navigation. We remove it to make the admin UI
+ * cleaner and to avoid confusion.
+ */
+function scanpay_remove_wc_payments_menu() {
+    // Remove top-level "Payments" (localized as "Betalinger") menu entry.
+    remove_menu_page( 'admin.php?page=wc-settings&tab=checkout&from=PAYMENTS_MENU_ITEM' );
+}
+add_action( 'admin_menu', 'scanpay_remove_wc_payments_menu', 999 );
