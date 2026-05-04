@@ -88,7 +88,11 @@ if [ "$answer" != "${answer#[Yy]}" ]; then
     done
 
     # Push the build to woocommerce.scanpay.dev
-    rsync -vrt --delete --rsync-path="/usr/bin/sudo -u nobody rsync" \
-        -e ssh "$TMP/" modules:"/var/www/woocommerce.scanpay.dev/wp-content/plugins/scanpay-for-woocommerce/" || exit 1
+    rsync -rltvz --delete \
+        --no-o --no-g --no-p \
+        --omit-dir-times \
+        -e ssh "$TMP/" \
+        modules:/var/www/woocommerce.scanpay.dev/wp-content/plugins/scanpay-for-woocommerce/
+
     rm -rf "${TMP:?}"
 fi
