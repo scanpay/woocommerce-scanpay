@@ -86,17 +86,17 @@ return [
 	],
 
 	'wcs_complete_initial' => [
-		'type'        => 'checkbox',
-		'label'       => __( 'Auto-complete new subscription orders (Subscriptions only).', 'scanpay-for-woocommerce' ),
-		'desc_tip'    => true,
-		'default'     => 'no',
+		'type'     => 'checkbox',
+		'label'    => __( 'Auto-complete new subscription orders (Subscriptions only).', 'scanpay-for-woocommerce' ),
+		'desc_tip' => true,
+		'default'  => 'no',
 	],
 
 	'wcs_complete_renewal' => [
-		'type'        => 'checkbox',
-		'label'       => __( 'Auto-complete renewal orders (Subscriptions only).', 'scanpay-for-woocommerce' ),
-		'desc_tip'    => true,
-		'default'     => 'no',
+		'type'     => 'checkbox',
+		'label'    => __( 'Auto-complete renewal orders (Subscriptions only).', 'scanpay-for-woocommerce' ),
+		'desc_tip' => true,
+		'default'  => 'no',
 	],
 
 	'wcs_terms'            => [

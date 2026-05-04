@@ -235,7 +235,7 @@ add_action( 'admin_init', 'wc_scanpay_admin_init', 0 );
  * cleaner and to avoid confusion.
  */
 function scanpay_remove_wc_payments_menu() {
-    // Remove top-level "Payments" (localized as "Betalinger") menu entry.
-    remove_menu_page( 'admin.php?page=wc-settings&tab=checkout&from=PAYMENTS_MENU_ITEM' );
+	// Remove top-level "Payments" (localized as "Betalinger") menu entry.
+	remove_menu_page( 'admin.php?page=wc-settings&tab=checkout&from=PAYMENTS_MENU_ITEM' );
 }
 add_action( 'admin_menu', 'scanpay_remove_wc_payments_menu', 999 );
