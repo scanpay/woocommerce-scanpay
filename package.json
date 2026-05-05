@@ -1,14 +1,14 @@
 {
 	"private": true,
 	"name": "woocommerce-scanpay",
-	"version": "2.9.2",
+	"version": "2.9.4",
 	"description": "Scanpay payment plugin for WordPress and WooCommerce.",
 	"author": "Scanpay ApS",
 	"license": "GPL-2.0-or-later",
 	"title": "Scanpay for WooCommerce",
 	"tested": {
-		"wordpress": "6.8",
-		"woocommerce": "10.2"
+		"wordpress": "6.9",
+		"woocommerce": "10.7"
 	},
 	"keywords": [
 		"woocommerce",

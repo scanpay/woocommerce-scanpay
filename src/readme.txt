@@ -93,6 +93,12 @@ Yes, this plugin supports MobilePay. You must enable MobilePay in both the plugi
 You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us on IRC.
 
 == Changelog ==
+= 2.9.4 - 2026-05-05 =
+* Add - Add ApplePay Subscriptions support
+
+= 2.9.3 - 2026-04-24 =
+* Update - Bump version numbers etc.
+
 = 2.9.2 - 2025-09-30 =
 * Fix - Removed custom limit on charge retries to let WCS manage retry logic fully (WCS only)
 
