@@ -32,7 +32,18 @@ class WC_Scanpay_Gateway_ApplePay extends WC_Payment_Gateway {
 		$this->init_settings(); // Load the settings into $this->settings
 		$this->title       = $this->settings['title'];
 		$this->description = $this->settings['description'];
-		$this->supports    = [ 'products' ];
+		$this->supports             = [
+			'products',
+			'subscriptions',
+			'subscription_cancellation',
+			'subscription_suspension',
+			'subscription_reactivation',
+			'subscription_amount_changes',
+			'subscription_date_changes',
+			'subscription_payment_method_change_customer',
+			'subscription_payment_method_change_admin',
+			'multiple_subscriptions',
+		];
 
 		add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, [ $this, 'process_admin_options' ] );
 	}
