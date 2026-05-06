@@ -25,7 +25,7 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	 */
 	public function get_form_fields(): array {
 		if ( empty( $this->form_fields ) ) {
-			$this->form_fields = require WC_SCANPAY_DIR . '/gateways/fields/' . $this->id . '.php';
+			$this->form_fields = require WC_SCANPAY_DIR . '/settings/fields/' . $this->id . '.php';
 		}
 		return $this->form_fields;
 	}
@@ -67,7 +67,7 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	 */
 	public function admin_options(): void {
 		$gateway = $this;
-		require WC_SCANPAY_DIR . '/gateways/includes/admin-options.php';
+		require WC_SCANPAY_DIR . '/admin/settings/admin-options.php';
 	}
 
 	/**
@@ -76,7 +76,7 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	 * @return bool
 	 */
 	public function process_admin_options() {
-		return require WC_SCANPAY_DIR . '/gateways/includes/process-admin-options.php';
+		return require WC_SCANPAY_DIR . '/admin/settings/process-admin-options.php';
 	}
 
 	/**
