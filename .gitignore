@@ -1,9 +1,14 @@
-/.vendor/
+# Dependencies
 /vendor/
-/node_modules
-/build
-/.vscode
-/pnpm-lock.yaml
+/node_modules/
+
+# Build output
+/build/
+
+# npm guard — this project uses pnpm
 /package-lock.json
-/composer.lock
+
+# Local editor tooling (machine-specific symlinks)
+/.stubs/
+
 TODO
