@@ -91,8 +91,9 @@ final class WCS_Scanpay_Charge {
 	 *
 	 * @param object $wco    WooCommerce order object.
 	 * @param int    $subid  Scanpay subscriber ID.
+	 * @return void
 	 */
-	public function charge( object $wco, int $subid ) {
+	public function charge( object $wco, int $subid ): void {
 		$oid  = $wco->get_id();
 		$data = [
 			'orderid'  => (string) $oid,
