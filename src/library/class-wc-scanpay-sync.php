@@ -79,10 +79,14 @@ final class WC_Scanpay_Sync {
 
 	/**
 	 * Parse Scanpay payment method data into a human-readable string.
+	 * Accepts mixed and falls back to 'Scanpay' on missing/malformed data.
 	 */
-	private function parse_payment_method( array $m ): string {
+	private function parse_payment_method( mixed $m ): string {
+		if ( ! is_array( $m ) ) {
+			return 'Scanpay';
+		}
 		$type = $m['type'] ?? '';
-		if ( '' === $type ) {
+		if ( ! is_string( $type ) || '' === $type ) {
 			return 'Scanpay';
 		}
 		if ( isset( $m['card'], $m['card']['brand'] ) && is_string( $m['card']['brand'] ) ) {
@@ -203,7 +207,7 @@ final class WC_Scanpay_Sync {
 				$wco->set_date_paid( $ts );
 			}
 			$wco->set_payment_method( 'scanpay' );
-			$wco->set_payment_method_title( $this->parse_payment_method( $c['method'] ) );
+			$wco->set_payment_method_title( $this->parse_payment_method( $c['method'] ?? null ) );
 			/*
 			* Always invoke payment_complete() to trigger hooks. Save first if order status
 			* is ineligible, since payment_complete() only persists changes for eligible statuses.
@@ -291,7 +295,7 @@ final class WC_Scanpay_Sync {
 				$wco->set_date_paid( $ts );
 			}
 			$wco->set_payment_method( 'scanpay' );
-			$wco->set_payment_method_title( $this->parse_payment_method( $c['method'] ) );
+			$wco->set_payment_method_title( $this->parse_payment_method( $c['method'] ?? null ) );
 			/*
 			* Always invoke payment_complete() to trigger hooks. Save first if order status
 			* is ineligible, since payment_complete() only persists changes for eligible statuses.
@@ -335,7 +339,7 @@ final class WC_Scanpay_Sync {
 			method = '$pm_type', method_exp = '$pm_exp'"
 		);
 
-		$pm_title = $this->parse_payment_method( $c['method'] );
+		$pm_title = $this->parse_payment_method( $c['method'] ?? null );
 		$subs     = $this->find_subs_from_ref( $c['ref'] );
 		foreach ( $subs as $i ) {
 			$wcs_sub = wcs_get_subscription( (int) $i );
