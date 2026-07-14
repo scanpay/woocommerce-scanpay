@@ -37,7 +37,6 @@ if ( $wpdb->get_var( "SHOW TABLES LIKE '$meta_tbl'" ) !== $meta_tbl ) {
 			captured VARCHAR(64) NOT NULL,
 			refunded VARCHAR(64) NOT NULL,
 			voided VARCHAR(64) NOT NULL,
-			method VARCHAR(64) NOT NULL,
 			PRIMARY KEY (orderid)
 		) CHARSET = latin1;"
 	);
