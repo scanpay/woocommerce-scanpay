@@ -376,11 +376,16 @@ final class WC_Scanpay_Sync {
 			return; // skip: missing subscriber reference
 		}
 
-		$pm_type = $c['method']['type'] ?? '';
+		// Mirror parse_payment_method()'s tolerance: a scalar method/card is malformed
+		// display data that degrades to empty here, rather than fatally accessing an
+		// offset on a non-array.
+		$method  = is_array( $c['method'] ?? null ) ? $c['method'] : [];
+		$card    = is_array( $method['card'] ?? null ) ? $method['card'] : [];
+		$pm_type = $method['type'] ?? '';
 		if ( ! is_string( $pm_type ) || ! ctype_alnum( $pm_type ) ) {
 			$pm_type = '';
 		}
-		$pm_exp = (int) ( $c['method']['card']['exp'] ?? 0 );
+		$pm_exp = (int) ( $card['exp'] ?? 0 );
 		global $wpdb;
 		$wpdb->query(
 			"INSERT INTO {$wpdb->prefix}scanpay_subs (subid, nxt, retries, idem, rev, method, method_exp)
