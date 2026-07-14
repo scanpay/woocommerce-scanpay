@@ -18,8 +18,18 @@ final class WCS_Scanpay_Charge {
 	/**
 	 * Build the stateless Scanpay idempotency key: orderid_rev_day.
 	 * orderid = the renewal, rev = payment-method revision (bumps on card refresh),
-	 * day = UTC date so each WCS retry (>=24h apart) charges afresh. Scanpay binds
-	 * keys for 24h on both success and error, so same-(order,rev,day) repeats dedupe.
+	 * day = whole days since the renewal order was created. Scanpay binds keys for
+	 * 24h on both success and error, so repeats within a day dedupe: by design at
+	 * most one real charge attempt per (order, rev) per 24h day-bucket — a card
+	 * update (rev bump) is the only way to charge again sooner.
+	 *
+	 * The day is anchored to the order's creation time rather than the UTC calendar
+	 * so the bucket boundary — where two concurrent attempts could get different
+	 * keys and both charge — sits ~24h away from where attempts actually happen:
+	 * the first attempt fires seconds after WCS creates the renewal order, and
+	 * >=24h retries provably land in a strictly later bucket, just past its start.
+	 * intdiv truncation (not floor) merges small negative DB-vs-PHP clock skew
+	 * into day 0 instead of creating a day boundary at the creation time itself.
 	 *
 	 * The rev is read from the local (sync-written) scanpay_subs row on purpose: it
 	 * only advances when a sync ran, which also writes the scanpay_meta already-paid
@@ -27,14 +37,14 @@ final class WCS_Scanpay_Charge {
 	 *
 	 * @throws Exception If the subscriber row is missing (rev unknown).
 	 */
-	private function idempotency_key( int $oid, int $subid ): string {
+	private function idempotency_key( int $oid, int $subid, int $created ): string {
 		global $wpdb;
 		$rev = $wpdb->get_var( "SELECT rev FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid" );
 		if ( null === $rev ) {
 			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new Exception( "subscriber (subid=$subid) does not exist" );
 		}
-		return $oid . '_' . (int) $rev . '_' . gmdate( 'Ymd' );
+		return $oid . '_' . (int) $rev . '_' . intdiv( time() - $created, DAY_IN_SECONDS );
 	}
 
 
@@ -154,16 +164,15 @@ final class WCS_Scanpay_Charge {
 			);
 		}
 
+		// Authoritative double-charge guard:
 		global $wpdb;
+		$wpdb->query( "SELECT orderid FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
+		if ( 0 !== $wpdb->num_rows || $wco->get_transaction_id( 'edit' ) ) {
+			scanpay_log( 'warning', "charge skipped on #$oid: order is already paid (subid=$subid)" );
+			return;
+		}
 		try {
-			// Authoritative double-charge guard: the ping->sync writes scanpay_meta on a
-			// successful charge, so a synced success blocks re-charge here. The idem key is
-			// only a 24h backstop for the window before the ping lands.
-			$wpdb->query( "SELECT orderid FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
-			if ( 0 !== $wpdb->num_rows || $wco->get_transaction_id( 'edit' ) ) {
-				throw new Exception( 'order is already paid' );
-			}
-			$idem = $this->idempotency_key( $oid, $subid );
+			$idem = $this->idempotency_key( $oid, $subid, $wco->get_date_created( 'edit' )->getTimestamp() );
 			$this->client->charge( $subid, $data, $idem );
 		} catch ( \Exception $e ) {
 			// WCS owns retry scheduling; we keep no local retry/lock state.
