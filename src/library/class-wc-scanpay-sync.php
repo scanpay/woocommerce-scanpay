@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once WC_SCANPAY_DIR . '/library/math.php';
+
 /**
  * Synchronizes Scanpay payments with WooCommerce orders and subscriptions.
  */
@@ -417,7 +419,7 @@ final class WC_Scanpay_Sync {
 
 			// Handle free trial and coupons
 			$parent = $wcs_sub->get_parent();
-			if ( $parent && $parent->get_status() === 'pending' && (float) $parent->get_total( 'edit' ) === 0.0 ) {
+			if ( $parent && $parent->get_status() === 'pending' && wc_scanpay_money_equals( (string) $parent->get_total( 'edit' ), '0' ) ) {
 				scanpay_log( 'debug', 'sub parent: #' . $parent->get_id() );
 				$parent->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
 				$parent->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
