@@ -43,6 +43,7 @@ final class WC_Scanpay_Capture {
 
 		$order_shopid = (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' );
 		if ( $order_shopid !== self::$shopid ) {
+		    // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( "ShopID mismatch for order #$oid: order has $order_shopid, APIkey has " . self::$shopid );
 		}
 		// Retrieve payment metadata for this order
