@@ -160,7 +160,7 @@ final class WC_Scanpay_Sync {
 			throw new \RuntimeException( "invalid currency code: $s" );
 		}
 		$amount = substr( $s, 0, $n - 4 );
-		if ( ! is_numeric( $amount ) ) {
+		if ( ! wc_scanpay_is_money( $amount ) ) {
 			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( "invalid currency amount: $s" );
 		}

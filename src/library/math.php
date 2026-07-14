@@ -1,7 +1,19 @@
 <?php
 
+// canonical decimal: an optional '-' followed by digits, with an optional '.' + digits.
+// Anything else (whitespace, '+', exponents like '1e3' or '1.0E-7') would silently
+// corrupt the digit math below, so the homogenizer rejects it loudly.
+// The D modifier anchors $ at the true end: without it, "5\n" would pass.
+function wc_scanpay_is_money( string $s ): bool {
+	return 1 === preg_match( '/^-?[0-9]+(\.[0-9]+)?$/D', $s );
+}
+
 // turn '123.4' and '56.78' into '12340' and '05678'
 function wc_scanpay_dighomogenize( string $a, string $b ): array {
+	if ( ! wc_scanpay_is_money( $a ) || ! wc_scanpay_is_money( $b ) ) {
+		// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+		throw new \InvalidArgumentException( "invalid money amount: '$a' or '$b'" );
+	}
 	$h       = [];
 	$h['as'] = ( substr( $a, 0, 1 ) === '-' );
 	$h['bs'] = ( substr( $b, 0, 1 ) === '-' );
@@ -11,6 +23,13 @@ function wc_scanpay_dighomogenize( string $a, string $b ): array {
 	$h['fl'] = max( strlen( $aa[1] ), strlen( $bb[1] ) );
 	$h['a']  = str_pad( $aa[0], $h['il'], '0', STR_PAD_LEFT ) . str_pad( $aa[1], $h['fl'], '0' );
 	$h['b']  = str_pad( $bb[0], $h['il'], '0', STR_PAD_LEFT ) . str_pad( $bb[1], $h['fl'], '0' );
+	// '-0' and '-0.00' are zero: drop the sign so comparisons treat them as '0'
+	if ( $h['as'] && '' === ltrim( $h['a'], '0' ) ) {
+		$h['as'] = false;
+	}
+	if ( $h['bs'] && '' === ltrim( $h['b'], '0' ) ) {
+		$h['bs'] = false;
+	}
 	return $h;
 }
 
@@ -22,7 +41,8 @@ function wc_scanpay_digformat( bool $sign, string $s, int $fl ): string {
 		$s = '0' . $s;
 	}
 	for ($d = strlen( $s ) - 1; $d > 0 && '0' === $s[ $d ]; $d--);
-	return ( $sign ? '-' : '' ) . ( ( '.' === $s[ $d ] ) ? substr( $s, 0, $d ) : $s );
+	$s = ( '.' === $s[ $d ] ) ? substr( $s, 0, $d ) : $s;
+	return ( $sign && '0' !== $s ) ? '-' . $s : $s; // never '-0'
 }
 
 function wc_scanpay_digadd( string $a, string $b ): string {
@@ -69,8 +89,13 @@ function wc_scanpay_addmoney( string $a, string $b ): string {
 }
 
 function wc_scanpay_submoney( string $a, string $b ): string {
+	// validate before negating: stripping the '-' would launder '--5' into a valid '-5'
+	if ( ! wc_scanpay_is_money( $b ) ) {
+		// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+		throw new \InvalidArgumentException( "invalid money amount: '$b'" );
+	}
 	// a - b ≡ a + (-b)
-	return wc_scanpay_addmoney( $a, ( substr( $b, 0, 1 ) === '-' ) ? substr( $b, 1 ) : ( '-' . $b ) );
+	return wc_scanpay_addmoney( $a, ( '-' === $b[0] ) ? substr( $b, 1 ) : ( '-' . $b ) );
 }
 
 function wc_scanpay_cmpmoney( string $a, string $b ): int {
