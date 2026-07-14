@@ -192,7 +192,7 @@ final class WC_Scanpay_Sync {
 		$capt   = $this->extract_amount( $c['totals']['captured'] );
 		$refund = $this->extract_amount( $c['totals']['refunded'] );
 		$void   = $this->extract_amount( $c['totals']['voided'] );
-		$cur    = substr( $c['totals']['authorized'], -3 );
+		$cur    = substr( $c['totals']['authorized'], -3 ); // SQL-safe: validated by extract_amount()
 
 		global $wpdb;
 		$sql = "INSERT INTO {$wpdb->prefix}scanpay_meta (orderid, shopid, id, rev, nacts, currency, authorized, captured, refunded, voided)
@@ -285,7 +285,7 @@ final class WC_Scanpay_Sync {
 		$capt   = $this->extract_amount( $c['totals']['captured'] );
 		$refund = $this->extract_amount( $c['totals']['refunded'] );
 		$void   = $this->extract_amount( $c['totals']['voided'] );
-		$cur    = substr( $c['totals']['authorized'], -3 );
+		$cur    = substr( $c['totals']['authorized'], -3 ); // SQL-safe: validated by extract_amount()
 
 		global $wpdb;
 		$sql = "INSERT INTO {$wpdb->prefix}scanpay_meta (orderid, subid, shopid, id, rev, nacts, currency, authorized, captured, refunded, voided)
