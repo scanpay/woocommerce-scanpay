@@ -215,6 +215,9 @@ final class WC_Scanpay_Sync {
 
 		$wco = wc_get_order( $oid );
 		if ( ! $wco ) {
+			// Legitimate state, not a protocol violation: the order may have been deleted
+			// or the store reset while Scanpay still holds the old transaction. Log and
+			// continue — throwing would retry the same seq forever and wedge the sync.
 			scanpay_log( 'warning', "transaction #$trnid: order not found (order=$oid)" );
 			return;
 		}
@@ -309,6 +312,9 @@ final class WC_Scanpay_Sync {
 
 		$wco = wc_get_order( $oid );
 		if ( ! $wco ) {
+			// Legitimate state, not a protocol violation: the order may have been deleted
+			// or the store reset while Scanpay still holds the old charge. Log and
+			// continue — throwing would retry the same seq forever and wedge the sync.
 			scanpay_log( 'warning', "charge #$trnid: order not found (order=$oid)" );
 			return;
 		}
