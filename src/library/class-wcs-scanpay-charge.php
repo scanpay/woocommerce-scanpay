@@ -16,44 +16,25 @@ final class WCS_Scanpay_Charge {
 	}
 
 	/**
-	 * Generate an idempotency key for the charge.
-	 * This key is used to ensure that the same charge is not processed multiple times.
+	 * Build the stateless Scanpay idempotency key: orderid_rev_day.
+	 * orderid = the renewal, rev = payment-method revision (bumps on card refresh),
+	 * day = UTC date so each WCS retry (>=24h apart) charges afresh. Scanpay binds
+	 * keys for 24h on both success and error, so same-(order,rev,day) repeats dedupe.
 	 *
-	 * @param int $oid    Order ID.
-	 * @param int $subid  Subscriber ID.
-	 * @return string     The idempotency key.
-	 * @throws Exception  If the subscriber does not exist or has no retries left.
+	 * The rev is read from the local (sync-written) scanpay_subs row on purpose: it
+	 * only advances when a sync ran, which also writes the scanpay_meta already-paid
+	 * guard, so the key can never outrun that guard and double-charge.
+	 *
+	 * @throws Exception If the subscriber row is missing (rev unknown).
 	 */
 	private function idempotency_key( int $oid, int $subid ): string {
 		global $wpdb;
-		$now = time();
-		$sub = $wpdb->get_row( "SELECT retries, nxt, idem FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid", ARRAY_A );
-		if ( ! $sub ) {
+		$rev = $wpdb->get_var( "SELECT rev FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid" );
+		if ( null === $rev ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new Exception( "subscriber (subid=$subid) does not exist" );
 		}
-		$sub['retries'] = (int) $sub['retries']; // wpdb returns all columns as strings
-		if ( $sub['retries'] <= 0 ) {
-			throw new Exception( "no retries left on subscriber (subid=$subid)" );
-		}
-		// Idempotency keys last for 24 hours
-
-		if ( empty( $sub['idem'] ) ) {
-			$sub['idem'] = $oid . ':' . base64_encode( random_bytes( 18 ) );
-		} else {
-			// Previous charge was not be resolved. We want to reuse idem key.
-			$idem_order_id = (int) explode( ':', $sub['idem'] )[0];
-			if ( $idem_order_id !== $oid ) {
-				$old_order = wc_get_order( $idem_order_id );
-				if ( $old_order && $old_order->needs_payment() ) {
-					throw new Exception( "subscriber has unpaid order (#$idem_order_id). Please cancel or charge this order first." );
-				}
-				// Previous charge was successful or cancelled. Reset idempotency key.
-				$sub['idem'] = $oid . ':' . base64_encode( random_bytes( 18 ) );
-			}
-		}
-		$nxt = $now + 1800; // lock sub for 900s (30m) to limit races
-		$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_subs SET nxt = $nxt, idem = '" . $sub['idem'] . "' WHERE subid = $subid" );
-		return $sub['idem'];
+		return $oid . '_' . (int) $rev . '_' . gmdate( 'Ymd' );
 	}
 
 
@@ -175,28 +156,17 @@ final class WCS_Scanpay_Charge {
 
 		global $wpdb;
 		try {
-			// Final check before charge. We don't want to charge twice.
+			// Authoritative double-charge guard: the ping->sync writes scanpay_meta on a
+			// successful charge, so a synced success blocks re-charge here. The idem key is
+			// only a 24h backstop for the window before the ping lands.
 			$wpdb->query( "SELECT orderid FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
 			if ( 0 !== $wpdb->num_rows || $wco->get_transaction_id( 'edit' ) ) {
 				throw new Exception( 'order is already paid' );
 			}
 			$idem = $this->idempotency_key( $oid, $subid );
-			// $wco->set_payment_method( 'scanpay' );
-			// $wco->add_meta_data( WC_SCANPAY_URI_AUTOCPT, (string) $data['autocapture'], true );
-			// $wco->save();
-
 			$this->client->charge( $subid, $data, $idem );
 		} catch ( \Exception $e ) {
-			/*
-			 *  WCS default is 5 retries: +12h, +12h, +24h, +48h, +72h. We will let WCS handle the retry logic,
-			 *  but as a safeguard we set a minimum requirement of 8 hours between automatic retries.
-			 */
-			$nxt = time() + 28800; // 8 hours
-			$sub = $wpdb->get_row( "SELECT retries FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid", ARRAY_A );
-			if ( $sub ) {
-				$rt = max( (int) $sub['retries'] - 1, 0 );
-				$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_subs SET nxt = $nxt, idem = '', retries = $rt WHERE subid = $subid" );
-			}
+			// WCS owns retry scheduling; we keep no local retry/lock state.
 			$str = trim( $e->getMessage() );
 			scanpay_log( 'error', "charge failed on #$oid: $str" );
 			$wco->update_status( 'failed', "Charge failed: $str" );

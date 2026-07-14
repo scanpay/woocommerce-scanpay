@@ -353,9 +353,6 @@ final class WC_Scanpay_Sync {
 			}
 			$wco->payment_complete( $txn );
 		}
-
-		// Move this to sync
-		// $wpdb->query( "UPDATE {$wpdb->prefix}scanpay_subs SET nxt = 0, idem = '', retries = 5 WHERE subid = $subid" );
 	}
 
 	/**
@@ -396,11 +393,10 @@ final class WC_Scanpay_Sync {
 		$pm_exp = (int) ( $card['exp'] ?? 0 );
 		global $wpdb;
 		$wpdb->query(
-			"INSERT INTO {$wpdb->prefix}scanpay_subs (subid, nxt, retries, idem, rev, method, method_exp)
-			VALUES ($subid, 0, 5, '', $rev, '$pm_type', $pm_exp)
+			"INSERT INTO {$wpdb->prefix}scanpay_subs (subid, rev, method, method_exp)
+			VALUES ($subid, $rev, '$pm_type', $pm_exp)
 			ON DUPLICATE KEY UPDATE
-			nxt = 0, retries = 5, idem = '', rev = $rev,
-			method = '$pm_type', method_exp = $pm_exp"
+			rev = $rev, method = '$pm_type', method_exp = $pm_exp"
 		);
 
 		$pm_title = $this->parse_payment_method( $c['method'] ?? null );

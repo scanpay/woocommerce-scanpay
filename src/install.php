@@ -53,12 +53,9 @@ if ( $wpdb->get_var( "SHOW TABLES LIKE '$subs_tbl'" ) !== $subs_tbl ) {
 		"CREATE TABLE $subs_tbl (
 			subid INT unsigned UNIQUE,
 			rev INT unsigned,
-			retries INT unsigned,
-			nxt BIGINT unsigned,
 			method VARCHAR(64),
 			method_id VARCHAR(64),
 			method_exp BIGINT unsigned,
-			idem VARCHAR(64),
 			PRIMARY KEY (subid)
 		) CHARSET = latin1;"
 	);
