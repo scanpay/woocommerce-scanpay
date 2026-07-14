@@ -44,6 +44,12 @@ final class WC_Scanpay_Sync {
 	];
 
 
+	/**
+	 * Sets up the sync service with the gateway settings and shop context.
+	 *
+	 * @param array<string, mixed> $settings Gateway settings (the woocommerce_scanpay_settings option).
+	 * @param int                  $shopid   Scanpay shop ID for this store.
+	 */
 	public function __construct( array $settings, int $shopid ) {
 		$this->settings    = $settings;
 		$this->shopid      = $shopid;
@@ -58,6 +64,17 @@ final class WC_Scanpay_Sync {
 	 * Returns true if the order status is eligible for WooCommerce payment_complete().
 	 */
 	private function is_payment_complete_eligible( \WC_Order $order ): bool {
+		/**
+		 * Filters the order statuses eligible for WooCommerce payment_complete().
+		 *
+		 * Re-applies WooCommerce core's own filter so our eligibility check stays
+		 * in sync with WC_Order::payment_complete().
+		 *
+		 * @since 3.0.0
+		 *
+		 * @param string[]  $statuses Order statuses eligible for payment completion.
+		 * @param \WC_Order $order    The order being evaluated.
+		 */
 		$valid = apply_filters(
 			'woocommerce_valid_order_statuses_for_payment_complete',
 			self::PAYMENT_COMPLETE_STATUSES,
@@ -70,7 +87,7 @@ final class WC_Scanpay_Sync {
 	 *  WC auto-completes downloadable orders, but not virtual orders. This filter
 	 *  will set virtual products to not need processing, so they are auto-completed.
 	 */
-	public function item_needs_processing( bool $needs_processing, $product ): bool {
+	public function item_needs_processing( bool $needs_processing, \WC_Product $product ): bool {
 		if ( $needs_processing && true === $product->get_virtual( 'edit' ) && ! $product->get_downloadable( 'edit' ) ) {
 			return false; // Product is virtual, but not downloadable.
 		}
@@ -102,6 +119,8 @@ final class WC_Scanpay_Sync {
 
 	/**
 	 * Extract subscription IDs from Scanpay subscriber reference string.
+	 *
+	 * @return string[] Subscription IDs, or an empty array if $ref is not a wcs[] reference.
 	 */
 	private function find_subs_from_ref( string $ref ): array {
 		return str_starts_with( $ref, 'wcs[]' )
@@ -131,13 +150,16 @@ final class WC_Scanpay_Sync {
 	private function extract_amount( string $s ): string {
 		$n = strlen( $s );
 		if ( $n < 5 || ' ' !== $s[ $n - 4 ] ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( "missing space before currency: $s" );
 		}
 		if ( ! ctype_upper( substr( $s, -3 ) ) ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( "invalid currency code: $s" );
 		}
 		$amount = substr( $s, 0, $n - 4 );
 		if ( ! is_numeric( $amount ) ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( "invalid currency amount: $s" );
 		}
 		return $amount;
@@ -150,17 +172,19 @@ final class WC_Scanpay_Sync {
 	 * @param array $c Transaction payload from Scanpay.
 	 * @throws \RuntimeException On validation, database, or payment errors.
 	 */
-	public function transaction( array $c ) {
+	public function transaction( array $c ): void {
 		$oid = $this->ordernumber( $c['orderid'] ?? '' );
 		if ( $oid <= 0 ) {
 			return; // skip: invalid orderID
 		}
 		$trnid = $c['id'] ?? null;
 		if ( ! is_int( $trnid ) || $trnid <= 0 ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( "transaction: invalid transaction ID for order #$oid (id=$trnid)" );
 		}
 		$rev = $c['rev'] ?? null;
 		if ( ! is_int( $rev ) || $rev <= 0 ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( "transaction #$trnid: invalid revision number (rev=$rev)" );
 		}
 		$nacts  = count( $c['acts'] );
@@ -183,6 +207,7 @@ final class WC_Scanpay_Sync {
 		$n = $wpdb->query( $sql );
 		if ( false === $n ) {
 			$err = $wpdb->last_error;
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( "transaction #$trnid: could not save payment data to order #$oid: $err" );
 		} elseif ( 1 !== $n ) {
 			return; // Row updated. No further action needed.
@@ -235,21 +260,24 @@ final class WC_Scanpay_Sync {
 	 * @param array $c Charge payload from Scanpay.
 	 * @throws \RuntimeException On validation, database, or payment errors.
 	 */
-	public function charge( array $c ) {
+	public function charge( array $c ): void {
 		$oid = $this->ordernumber( $c['orderid'] ?? '' );
 		if ( $oid <= 0 ) {
 			return; // skip: invalid orderID
 		}
 		$trnid = $c['id'] ?? null;
 		if ( ! is_int( $trnid ) || $trnid <= 0 ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( "charge: invalid transaction ID for order #$oid (id=$trnid)" );
 		}
 		$rev = $c['rev'] ?? null;
 		if ( ! is_int( $rev ) || $rev <= 0 ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( "charge #$trnid: invalid revision number (rev=$rev)" );
 		}
 		$subid = $c['subscriber']['id'] ?? null;
 		if ( ! is_int( $subid ) || $subid <= 0 ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( "charge #$trnid: invalid subscriber id (id=$subid)" );
 		}
 		$nacts  = count( $c['acts'] );
@@ -272,6 +300,7 @@ final class WC_Scanpay_Sync {
 		$n = $wpdb->query( $sql );
 		if ( false === $n ) {
 			$err = $wpdb->last_error;
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( "charge #$trnid: could not save payment data to order #$oid: $err" );
 		} elseif ( 1 !== $n ) {
 			scanpay_log( 'debug', "charge #$trnid: no changes to order #$oid" );
@@ -321,16 +350,25 @@ final class WC_Scanpay_Sync {
 		// $wpdb->query( "UPDATE {$wpdb->prefix}scanpay_subs SET nxt = 0, idem = '', retries = 5 WHERE subid = $subid" );
 	}
 
-	public function subscriber( array $c ) {
+	/**
+	 * Syncs a Scanpay subscriber with WooCommerce. Upserts subscriber state and
+	 * updates the linked subscription and parent-order metadata.
+	 *
+	 * @param array $c Subscriber payload from Scanpay.
+	 * @throws \RuntimeException On validation errors.
+	 */
+	public function subscriber( array $c ): void {
 		if ( ! $this->wcs_enabled ) {
 			return;
 		}
 		$subid = $c['id'] ?? null;
 		if ( ! is_int( $subid ) || $subid <= 0 ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( "subscription: invalid scanpay subscription ID (id=$subid)" );
 		}
 		$rev = $c['rev'] ?? null;
 		if ( ! is_int( $rev ) || $rev <= 0 ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( "subscription #$subid: invalid revision number (rev=$rev)" );
 		}
 		$ref = $c['ref'] ?? null;
