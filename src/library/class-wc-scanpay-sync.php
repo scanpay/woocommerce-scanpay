@@ -122,6 +122,9 @@ final class WC_Scanpay_Sync {
 
 	/**
 	 * Extract numeric amount from a currency string like "199.99 DKK".
+	 * A missing total intentionally throws (TypeError via the string param):
+	 * a malformed payload is a backend error that must halt the sync loudly,
+	 * never be skipped or defaulted.
 	 *
 	 * @throws \RuntimeException if invalid format
 	 */
@@ -206,6 +209,8 @@ final class WC_Scanpay_Sync {
 			if ( is_int( $ts ) && $ts < 10_000_000_000 ) {
 				$wco->set_date_paid( $ts );
 			}
+			// Wallets (MobilePay, Apple Pay) are card payments behind the scenes, so we
+			// consolidate them into the card gateway. The wallet is kept in the title.
 			$wco->set_payment_method( 'scanpay' );
 			$wco->set_payment_method_title( $this->parse_payment_method( $c['method'] ?? null ) );
 			/*
@@ -294,6 +299,8 @@ final class WC_Scanpay_Sync {
 			if ( is_int( $ts ) && $ts < 10_000_000_000 ) {
 				$wco->set_date_paid( $ts );
 			}
+			// Wallets (MobilePay, Apple Pay) are card payments behind the scenes, so we
+			// consolidate them into the card gateway. The wallet is kept in the title.
 			$wco->set_payment_method( 'scanpay' );
 			$wco->set_payment_method_title( $this->parse_payment_method( $c['method'] ?? null ) );
 			/*
