@@ -12,6 +12,7 @@
 	"indexer.stub_paths": [
 		"%application_root%/vendor/jetbrains/phpstorm-stubs",
 		"%project_root%/.stubs/wordpress",
-		"%project_root%/.stubs/woocommerce"
+		"%project_root%/.stubs/woocommerce",
+		"%project_root%/.stubs/woocommerce-subscriptions"
 	]
 }
