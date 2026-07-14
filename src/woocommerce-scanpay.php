@@ -158,6 +158,26 @@ function wcs_scanpay_scheduled_charge( float $amount, WC_Order $wco ): void {
 }
 
 /**
+ * Enforce a >=24h floor on the renewal retry schedule (filter: wcs_default_retry_rules).
+ *
+ * Only the interval is raised; emails/statuses/attempt count stay the merchant's.
+ * The floor is required by our idempotency key (orderid_rev_day): a retry <24h after
+ * the previous attempt could reuse the same key inside Scanpay's 24h window and replay
+ * the cached decline. Adding 24h in UTC always advances the date, so the key differs.
+ *
+ * @param array $rules Retry rules (one per attempt).
+ * @return array
+ */
+function wcs_scanpay_retry_rules( array $rules ): array {
+	foreach ( $rules as $i => $rule ) {
+		if ( isset( $rule['retry_after_interval'] ) ) {
+			$rules[ $i ]['retry_after_interval'] = max( (int) $rule['retry_after_interval'], DAY_IN_SECONDS );
+		}
+	}
+	return $rules;
+}
+
+/**
  * Main plugin loader.
  * Action: plugins_loaded (runs before init)
  */
@@ -183,6 +203,7 @@ function wc_scanpay_plugins_loaded() {
 	if ( class_exists( 'WC_Subscriptions', false ) ) {
 		add_action( 'woocommerce_scheduled_subscription_payment_scanpay', 'wcs_scanpay_scheduled_charge', 3, 2 );
 		add_action( 'woocommerce_review_order_before_submit', 'wcs_scanpay_checkout_terms', 10 );
+		add_filter( 'wcs_default_retry_rules', 'wcs_scanpay_retry_rules' );
 	}
 }
 add_action( 'plugins_loaded', 'wc_scanpay_plugins_loaded', 10 );
