@@ -133,6 +133,9 @@ final class WC_Scanpay_Sync {
 		if ( $n < 5 || ' ' !== $s[ $n - 4 ] ) {
 			throw new \RuntimeException( "missing space before currency: $s" );
 		}
+		if ( ! ctype_upper( substr( $s, -3 ) ) ) {
+			throw new \RuntimeException( "invalid currency code: $s" );
+		}
 		$amount = substr( $s, 0, $n - 4 );
 		if ( ! is_numeric( $amount ) ) {
 			throw new \RuntimeException( "invalid currency amount: $s" );
