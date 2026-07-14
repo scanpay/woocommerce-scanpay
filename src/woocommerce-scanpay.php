@@ -158,12 +158,12 @@ function wcs_scanpay_scheduled_charge( float $amount, WC_Order $wco ): void {
 }
 
 /**
- * Enforce a >=24h floor on the renewal retry schedule (filter: wcs_default_retry_rules).
+ * Enforce a >=25h floor on the renewal retry schedule (filter: wcs_default_retry_rules).
  *
  * Only the interval is raised; emails/statuses/attempt count stay the merchant's.
- * The floor is required by our idempotency key (orderid_rev_day): a retry <24h after
- * the previous attempt could reuse the same key inside Scanpay's 24h window and replay
- * the cached decline. Adding 24h in UTC always advances the date, so the key differs.
+ * The idempotency key's day (whole days since the renewal order was created) only
+ * advances after >=24h, so an earlier retry would replay the cached decline. The
+ * 25th hour is clock-skew margin, not correctness.
  *
  * @param array $rules Retry rules (one per attempt).
  * @return array
@@ -171,7 +171,7 @@ function wcs_scanpay_scheduled_charge( float $amount, WC_Order $wco ): void {
 function wcs_scanpay_retry_rules( array $rules ): array {
 	foreach ( $rules as $i => $rule ) {
 		if ( isset( $rule['retry_after_interval'] ) ) {
-			$rules[ $i ]['retry_after_interval'] = max( (int) $rule['retry_after_interval'], DAY_IN_SECONDS );
+			$rules[ $i ]['retry_after_interval'] = max( (int) $rule['retry_after_interval'], DAY_IN_SECONDS + HOUR_IN_SECONDS );
 		}
 	}
 	return $rules;
