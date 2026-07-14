@@ -206,15 +206,14 @@ final class WC_Scanpay_Sync {
 			refunded = VALUES(refunded),
 			voided   = VALUES(voided)";
 
-		$n = $wpdb->query( $sql );
-		if ( false === $n ) {
+		if ( false === $wpdb->query( $sql ) ) {
 			$err = $wpdb->last_error;
 			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( "transaction #$trnid: could not save payment data to order #$oid: $err" );
-		} elseif ( 1 !== $n ) {
-			return; // Row updated. No further action needed.
 		}
 
+		// The INSERT above and payment_complete() below are not atomic, so we
+		// we need to check the $wco to verify if the order is marked as paid.
 		$wco = wc_get_order( $oid );
 		if ( ! $wco ) {
 			// Legitimate state, not a protocol violation: the order may have been deleted
@@ -302,16 +301,14 @@ final class WC_Scanpay_Sync {
 			refunded = VALUES(refunded),
 			voided   = VALUES(voided)";
 
-		$n = $wpdb->query( $sql );
-		if ( false === $n ) {
+		if ( false === $wpdb->query( $sql ) ) {
 			$err = $wpdb->last_error;
 			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( "charge #$trnid: could not save payment data to order #$oid: $err" );
-		} elseif ( 1 !== $n ) {
-			scanpay_log( 'debug', "charge #$trnid: no changes to order #$oid" );
-			return; // Row updated. No further action needed.
 		}
 
+		// The INSERT above and payment_complete() below are not atomic, so we
+		// we need to check the $wco to verify if the order is marked as paid.
 		$wco = wc_get_order( $oid );
 		if ( ! $wco ) {
 			// Legitimate state, not a protocol violation: the order may have been deleted
