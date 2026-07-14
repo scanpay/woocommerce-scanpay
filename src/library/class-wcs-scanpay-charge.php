@@ -31,7 +31,8 @@ final class WCS_Scanpay_Charge {
 		if ( ! $sub ) {
 			throw new Exception( "subscriber (subid=$subid) does not exist" );
 		}
-		if ( 0 === $sub['retries'] ) {
+		$sub['retries'] = (int) $sub['retries']; // wpdb returns all columns as strings
+		if ( $sub['retries'] <= 0 ) {
 			throw new Exception( "no retries left on subscriber (subid=$subid)" );
 		}
 		// Idempotency keys last for 24 hours
@@ -191,9 +192,11 @@ final class WCS_Scanpay_Charge {
 			 *  but as a safeguard we set a minimum requirement of 8 hours between automatic retries.
 			 */
 			$nxt = time() + 28800; // 8 hours
-			$sub = $wpdb->get_row( "SELECT retries, nxt, idem FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid", ARRAY_A );
-			$rt  = $sub['retries'] - 1;
-			$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_subs SET nxt = $nxt, idem = '', retries = $rt WHERE subid = $subid" );
+			$sub = $wpdb->get_row( "SELECT retries FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid", ARRAY_A );
+			if ( $sub ) {
+				$rt = max( (int) $sub['retries'] - 1, 0 );
+				$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_subs SET nxt = $nxt, idem = '', retries = $rt WHERE subid = $subid" );
+			}
 			$str = trim( $e->getMessage() );
 			scanpay_log( 'error', "charge failed on #$oid: $str" );
 			$wco->update_status( 'failed', "Charge failed: $str" );
