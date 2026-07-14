@@ -391,7 +391,7 @@ final class WC_Scanpay_Sync {
 		);
 
 		$pm_title = $this->parse_payment_method( $c['method'] ?? null );
-		$subs     = $this->find_subs_from_ref( $c['ref'] );
+		$subs     = $this->find_subs_from_ref( $ref );
 		foreach ( $subs as $i ) {
 			$wcs_sub = wcs_get_subscription( (int) $i );
 			if ( ! $wcs_sub ) {
