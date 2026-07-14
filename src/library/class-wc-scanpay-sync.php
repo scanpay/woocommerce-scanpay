@@ -338,15 +338,18 @@ final class WC_Scanpay_Sync {
 			return; // skip: missing subscriber reference
 		}
 
-		$pm_type = $c['method']['type'] ?? 'NULL';
-		$pm_exp  = $c['method']['card']['exp'] ?? 'NULL';
+		$pm_type = $c['method']['type'] ?? '';
+		if ( ! is_string( $pm_type ) || ! ctype_alnum( $pm_type ) ) {
+			$pm_type = '';
+		}
+		$pm_exp = (int) ( $c['method']['card']['exp'] ?? 0 );
 		global $wpdb;
 		$wpdb->query(
 			"INSERT INTO {$wpdb->prefix}scanpay_subs (subid, nxt, retries, idem, rev, method, method_exp)
-			VALUES ($subid, 0, 5, '', $rev, '$pm_type', '$pm_exp')
+			VALUES ($subid, 0, 5, '', $rev, '$pm_type', $pm_exp)
 			ON DUPLICATE KEY UPDATE
 			nxt = 0, retries = 5, idem = '', rev = $rev,
-			method = '$pm_type', method_exp = '$pm_exp'"
+			method = '$pm_type', method_exp = $pm_exp"
 		);
 
 		$pm_title = $this->parse_payment_method( $c['method'] ?? null );
