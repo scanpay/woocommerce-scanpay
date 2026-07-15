@@ -136,7 +136,7 @@ final class WCS_Scanpay_Charge {
 				$prod = $item->get_product();
 				if ( $prod ) {
 					$is_virtual = $prod->is_virtual() && (
-						'yes' === $this->settings['wc_complete_virtual'] ||
+						'yes' === ( $this->settings['wc_complete_virtual'] ?? 'no' ) ||
 						$prod->is_downloadable()
 					);
 				}
@@ -152,8 +152,9 @@ final class WCS_Scanpay_Charge {
 				];
 			}
 		}
-		$auto_completed      = $is_virtual || 'yes' === $this->settings['wcs_complete_renewal'];
-		$data['autocapture'] = 'on' === $this->settings['wc_autocapture'] || ( 'completed' === $this->settings['wc_autocapture'] && $auto_completed );
+		$auto_completed      = $is_virtual || 'yes' === ( $this->settings['wcs_complete_renewal'] ?? 'no' );
+		$autocapture         = $this->settings['wc_autocapture'] ?? 'completed';
+		$data['autocapture'] = 'on' === $autocapture || ( 'completed' === $autocapture && $auto_completed );
 		$wc_total            = (string) $wco->get_total( 'edit' );
 		if ( $sum !== $wc_total && wc_scanpay_cmpmoney( $sum, $wc_total ) !== 0 ) {
 			$data['items'] = [

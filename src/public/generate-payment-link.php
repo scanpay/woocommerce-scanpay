@@ -80,11 +80,12 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 
 	$otype               = 'wc';
 	$client              = new WC_Scanpay_Client( $settings['apikey'] );
-	$capture_on_complete = 'completed' === $settings['wc_autocapture'] && ! $wco->needs_processing();
+	$autocapture         = $settings['wc_autocapture'] ?? 'completed';
+	$capture_on_complete = 'completed' === $autocapture && ! $wco->needs_processing();
 
 	$data = [
 		'orderid'     => (string) $oid,
-		'autocapture' => $capture_on_complete || 'on' === $settings['wc_autocapture'],
+		'autocapture' => $capture_on_complete || 'on' === $autocapture,
 		'successurl'  => apply_filters( 'woocommerce_get_return_url', $wco->get_checkout_order_received_url(), $wco ),
 		'lifetime'    => '15m',
 		'billing'     => [
@@ -163,7 +164,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 			$data['subscriber'] = [ 'ref' => $subref ];
 			$otype              = ( $wc_totalf > 0 ) ? 'wcs' : 'wcs_free';
 			// Check if the initial subscription charge should be auto-captured
-			if ( 'yes' === $settings['wcs_complete_initial'] && 'completed' === $settings['wc_autocapture'] ) {
+			if ( 'yes' === ( $settings['wcs_complete_initial'] ?? 'no' ) && 'completed' === $autocapture ) {
 				$data['autocapture'] = true;
 			}
 		}
