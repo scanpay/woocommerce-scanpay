@@ -24,7 +24,7 @@ $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 $apikey   = $settings['apikey'] ?? '';
 $shopid   = (int) strstr( $apikey, ':', true );
 
-function respond( string $msg, int $code ): void {
+function wc_scanpay_respond( string $msg, int $code ): void {
 	http_response_code( $code );
 	header( 'Content-Type: text/plain; charset=utf-8' );
 	header( 'Cache-Control: no-store' );
@@ -34,13 +34,13 @@ function respond( string $msg, int $code ): void {
 	exit;
 }
 
-function scanpay_flush_order_runtime_cache(): void {
+function wc_scanpay_flush_order_runtime_cache(): void {
 	wp_cache_flush_group( 'order_objects' );
 	wp_cache_flush_group( 'orders_data' );
 	wp_cache_flush_group( 'orders_meta' );
 }
 
-function scanpay_memory_usage_debug(): void {
+function wc_scanpay_memory_usage_debug(): void {
 	$php_mem      = memory_get_usage( false );
 	$php_mem_real = memory_get_usage( true );
 	$php_peak     = memory_get_peak_usage( true );
@@ -74,12 +74,12 @@ function scanpay_memory_usage_debug(): void {
 
 // Protocol guard: only POST is valid.
 if ( 'POST' !== ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
-	respond( 'method not allowed', 405 );
+	wc_scanpay_respond( 'method not allowed', 405 );
 }
 
 // Config guard: must have valid apikey and shopid.
 if ( ! $shopid ) {
-	respond( 'apikey missing', 403 );
+	wc_scanpay_respond( 'apikey missing', 403 );
 }
 
 /**
@@ -89,14 +89,14 @@ if ( ! $shopid ) {
  */
 $cl = (int) ( $_SERVER['CONTENT_LENGTH'] ?? 0 );
 if ( $cl <= 0 ) {
-	respond( 'invalid content-length', 400 );
+	wc_scanpay_respond( 'invalid content-length', 400 );
 }
 if ( $cl > 512 ) {
-	respond( 'payload too large', 413 );
+	wc_scanpay_respond( 'payload too large', 413 );
 }
 $body = file_get_contents( 'php://input' );
 if ( false === $body || strlen( $body ) !== $cl ) {
-	respond( 'body read failed', 400 );
+	wc_scanpay_respond( 'body read failed', 400 );
 }
 
 /**
@@ -106,7 +106,7 @@ if ( false === $body || strlen( $body ) !== $cl ) {
  */
 $sig = $_SERVER['HTTP_X_SIGNATURE'] ?? '';
 if ( ! hash_equals( base64_encode( hash_hmac( 'sha256', $body, $apikey, true ) ), $sig ) ) {
-	respond( 'invalid signature', 403 );
+	wc_scanpay_respond( 'invalid signature', 403 );
 }
 
 /**
@@ -116,7 +116,7 @@ if ( ! hash_equals( base64_encode( hash_hmac( 'sha256', $body, $apikey, true ) )
 try {
 	$ping = json_decode( $body, true, 16, JSON_THROW_ON_ERROR );
 } catch ( JsonException $e ) {
-	respond( 'invalid json', 400 );
+	wc_scanpay_respond( 'invalid json', 400 );
 }
 
 // Validate ping structure
@@ -124,7 +124,7 @@ if (
 	! is_array( $ping ) || ! isset( $ping['seq'], $ping['shopid'] ) ||
 	! is_int( $ping['seq'] ) || $shopid !== $ping['shopid']
 ) {
-	respond( 'invalid ping', 400 );
+	wc_scanpay_respond( 'invalid ping', 400 );
 }
 
 global $wpdb;
@@ -133,10 +133,10 @@ $seq      = (int) $wpdb->get_var( "SELECT seq FROM {$wpdb->prefix}scanpay_seq WH
 
 if ( $ping_seq < $seq ) {
 	// Reject replayed or out-of-order pings.
-	respond( "invalid ping seq: ping ($ping_seq) < local ($seq)", 400 );
+	wc_scanpay_respond( "invalid ping seq: ping ($ping_seq) < local ($seq)", 400 );
 }
 if ( $ping_seq === $seq ) {
-	respond( 'ok', 200 );
+	wc_scanpay_respond( 'ok', 200 );
 }
 
 require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
@@ -158,7 +158,7 @@ if ( ! $flock->acquire() ) {
 		SET ping = $ping_seq
 		WHERE shopid = $shopid AND ping < $ping_seq"
 	);
-	respond( "busy: seq=$seq", 200 );
+	wc_scanpay_respond( "busy: seq=$seq", 200 );
 }
 
 try {
@@ -199,8 +199,8 @@ try {
 			 */
 			if ( ++$n > 5 ) {
 				set_time_limit( 60 );
-				scanpay_memory_usage_debug();
-				scanpay_flush_order_runtime_cache();
+				wc_scanpay_memory_usage_debug();
+				wc_scanpay_flush_order_runtime_cache();
 				$n = 0;
 			}
 		} else {
@@ -216,10 +216,10 @@ try {
 	}
 	scanpay_log( 'info', "Sync completed to seq $seq" );
 	$flock->release();
-	respond( 'ok', 200 );
+	wc_scanpay_respond( 'ok', 200 );
 } catch ( Throwable $e ) {
 	$flock->release();
 	$errmsg = 'error: ' . trim( $e->getMessage() );
 	scanpay_log( 'error', $errmsg );
-	respond( $errmsg, 500 );
+	wc_scanpay_respond( $errmsg, 500 );
 }
