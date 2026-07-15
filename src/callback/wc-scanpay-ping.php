@@ -199,68 +199,89 @@ try {
 	$start = microtime( true );
 
 	$n = 0;
-	while ( $ping_seq > $seq ) {
-		$res     = $client->seq( $seq );
-		$changes = $res['changes'];
+	do {
+		while ( $ping_seq > $seq ) {
+			$res     = $client->seq( $seq );
+			$changes = $res['changes'];
 
-		if ( [] === $changes ) {
-			// Prevent infinite loop on bad ping_seq
+			if ( [] === $changes ) {
+				// Prevent infinite loop on bad ping_seq
+				break;
+			}
+			foreach ( $changes as $c ) {
+				$ctype = $c['type'] ?? null;
+				if ( ! is_string( $ctype ) ) {
+					throw new Exception( 'invalid change type from seq' );
+				}
+				if ( 'transaction' === $ctype ) {
+					$sync->transaction( $c );
+				} elseif ( 'charge' === $ctype ) {
+					$sync->charge( $c );
+				} elseif ( 'subscriber' === $ctype ) {
+					$sync->subscriber( $c );
+				}
+			}
+
+			// Save new sequence number to the database
+			$seq     = (int) $res['seq'];
+			$res_seq = $wpdb->query(
+				"UPDATE {$wpdb->prefix}scanpay_seq SET seq = $seq WHERE shopid = $shopid AND seq < $seq"
+			);
+			/**
+			 * Fail loud: the flock makes us the only writer, so an advancing cursor
+			 * must touch exactly one row. If it did not persist, do not ack —
+			 * otherwise the next ping replays everything from the stale cursor.
+			 */
+			if ( false === $res_seq || $wpdb->rows_affected < 1 ) {
+				throw new Exception( "failed to persist sync cursor to seq $seq: {$wpdb->last_error}" );
+			}
+
+			if ( $ping_seq > $seq ) {
+				/**
+				 * Prevent timeout and memory exhaustion on long sync loops
+				 */
+				if ( ++$n > 5 ) {
+					set_time_limit( 60 );
+					wc_scanpay_memory_usage_debug();
+					wc_scanpay_flush_order_runtime_cache();
+					$n = 0;
+				}
+			} else {
+				// Check if we blocked a newer ping while syncing
+				$blocked_ping = (int) $wpdb->get_var( "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
+				if ( '' !== $wpdb->last_error ) {
+					throw new Exception( "ping lookup failed: {$wpdb->last_error}" );
+				}
+				if ( $blocked_ping > $ping_seq ) {
+					scanpay_log( 'debug', "Resuming sync to blocked ping seq $blocked_ping (current seq $seq)" );
+					$ping_seq = $blocked_ping;
+				}
+			}
+			$elapsed = microtime( true ) - $start;
+			scanpay_log( 'debug', "Sync loop: updated to seq $seq; elapsed time: $elapsed" );
+		}
+
+		/**
+		 * Close the busy-path race: a ping recorded between the final in-loop
+		 * read above and release() would otherwise be stranded — the busy pinger
+		 * already got a 200 and will not retry. After releasing, re-read the ping
+		 * column; if a ping newer than this run targeted arrived, re-acquire and
+		 * resume. If another worker took the lock meanwhile, it owns the drain
+		 * (it re-reads the same column), so we can stop. Compare against $ping_seq,
+		 * not $seq, so the empty-changes escape hatch above cannot re-trigger.
+		 */
+		$flock->release();
+		$blocked_ping = (int) $wpdb->get_var( "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
+		if ( '' !== $wpdb->last_error ) {
+			throw new Exception( "ping lookup failed: {$wpdb->last_error}" );
+		}
+		if ( $blocked_ping <= $ping_seq ) {
 			break;
 		}
-		foreach ( $changes as $c ) {
-			$ctype = $c['type'] ?? null;
-			if ( ! is_string( $ctype ) ) {
-				throw new Exception( 'invalid change type from seq' );
-			}
-			if ( 'transaction' === $ctype ) {
-				$sync->transaction( $c );
-			} elseif ( 'charge' === $ctype ) {
-				$sync->charge( $c );
-			} elseif ( 'subscriber' === $ctype ) {
-				$sync->subscriber( $c );
-			}
-		}
-
-		// Save new sequence number to the database
-		$seq     = (int) $res['seq'];
-		$res_seq = $wpdb->query(
-			"UPDATE {$wpdb->prefix}scanpay_seq SET seq = $seq WHERE shopid = $shopid AND seq < $seq"
-		);
-		/**
-		 * Fail loud: the flock makes us the only writer, so an advancing cursor
-		 * must touch exactly one row. If it did not persist, do not ack —
-		 * otherwise the next ping replays everything from the stale cursor.
-		 */
-		if ( false === $res_seq || $wpdb->rows_affected < 1 ) {
-			throw new Exception( "failed to persist sync cursor to seq $seq: {$wpdb->last_error}" );
-		}
-
-		if ( $ping_seq > $seq ) {
-			/**
-			 * Prevent timeout and memory exhaustion on long sync loops
-			 */
-			if ( ++$n > 5 ) {
-				set_time_limit( 60 );
-				wc_scanpay_memory_usage_debug();
-				wc_scanpay_flush_order_runtime_cache();
-				$n = 0;
-			}
-		} else {
-			// Check if we blocked a newer ping while syncing
-			$blocked_ping = (int) $wpdb->get_var( "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
-			if ( '' !== $wpdb->last_error ) {
-				throw new Exception( "ping lookup failed: {$wpdb->last_error}" );
-			}
-			if ( $blocked_ping > $ping_seq ) {
-				scanpay_log( 'debug', "Resuming sync to blocked ping seq $blocked_ping (current seq $seq)" );
-				$ping_seq = $blocked_ping;
-			}
-		}
-		$elapsed = microtime( true ) - $start;
-		scanpay_log( 'debug', "Sync loop: updated to seq $seq; elapsed time: $elapsed" );
-	}
+		$ping_seq = $blocked_ping;
+		scanpay_log( 'debug', "Re-acquiring lock for blocked ping seq $blocked_ping (current seq $seq)" );
+	} while ( $flock->acquire() );
 	scanpay_log( 'info', "Sync completed to seq $seq" );
-	$flock->release();
 	wc_scanpay_respond( 'ok', 200 );
 } catch ( Throwable $e ) {
 	$flock->release();
