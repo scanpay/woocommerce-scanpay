@@ -78,9 +78,14 @@ if ( isset( $_GET['scanpay_thankyou'], $_GET['scanpay_type'], $_GET['key'] ) && 
 
 /**
  * Lightweight admin AJAX endpoints (bypass WP/WC bootstrap).
+ *
+ * The shared secret authenticating these endpoints rides in the X-Scanpay
+ * request header (not the query string), so it never reaches access/proxy logs,
+ * browser history, or Referer headers. Each endpoint re-verifies it with
+ * hash_equals; this is only the dispatch gate.
  */
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-if ( isset( $_SERVER['HTTP_X_SCANPAY'], $_GET['x'], $_GET['s'] ) ) {
+if ( isset( $_SERVER['HTTP_X_SCANPAY'], $_GET['x'] ) ) {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	$file = match ( $_GET['x'] ) {
 		'meta' => '/admin/ajax/wp-scanpay-fetch-meta.php',

@@ -5,14 +5,15 @@ nocache_headers();
 
 /*
  * Shared-secret-authenticated polling endpoint (not a WP form): requests carry no
- * nonce, numeric IDs are cast to int, and the secret is compared with hash_equals.
+ * nonce, numeric IDs are cast to int, and the secret (passed in the X-Scanpay
+ * request header, never the query string) is compared with hash_equals.
  * WordPress's nonce and input-sanitization sniffs therefore do not apply here.
  */
 // phpcs:disable WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput
 
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 $secret   = (string) ( $settings['secret'] ?? '' );
-if ( '' === $secret || ! hash_equals( $secret, rtrim( (string) wp_unslash( $_GET['s'] ?? '' ) ) ) ) {
+if ( '' === $secret || ! hash_equals( $secret, trim( (string) ( $_SERVER['HTTP_X_SCANPAY'] ?? '' ) ) ) ) {
 	wp_send_json( [ 'error' => 'forbidden' ], 403 );
 	die();
 }

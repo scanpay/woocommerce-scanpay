@@ -19,7 +19,7 @@ export function getLastSync(secret: string, force = false): Promise<number> {
 			return Promise.resolve(parseInt(cached, 10));
 		}
 	}
-	return fetch('../wp-scanpay/fetch?x=ping&s=' + secret, { headers: { 'X-Scanpay': 'fetch' } })
+	return fetch('../wp-scanpay/fetch?x=ping', { headers: { 'X-Scanpay': secret } })
 		.then(async (res) => {
 			const body = await res.text();
 			if (res.status !== 200) throw new Error(body);
