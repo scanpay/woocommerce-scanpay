@@ -35,6 +35,13 @@ function wc_scanpay_respond( string $msg, int $code ): void {
 }
 
 function wc_scanpay_flush_order_runtime_cache(): void {
+	/**
+	 * NOTE: On a persistent object cache (Redis/Memcached) wp_cache_flush_group()
+	 * evicts these groups site-wide, not just this request's runtime cache.
+	 * Accepted trade-off: it runs at most once every few sync iterations and the
+	 * groups are cheap to repopulate; keeping the sync worker's memory bounded on
+	 * a long backfill is worth the eviction.
+	 */
 	wp_cache_flush_group( 'order_objects' );
 	wp_cache_flush_group( 'orders_data' );
 	wp_cache_flush_group( 'orders_meta' );
@@ -59,9 +66,14 @@ function wc_scanpay_memory_usage_debug(): void {
 	);
 
 	global $wp_object_cache;
+	// $wp_object_cache->cache is an internal of core's array cache; persistent
+	// drop-ins (Redis/Memcached) may not expose it, so bail if it is not there.
+	if ( ! is_array( $wp_object_cache->cache ?? null ) ) {
+		return;
+	}
 	$groups = [];
 	foreach ( $wp_object_cache->cache as $g => $items ) {
-		$groups[ $g ] = count( $items ); }
+		$groups[ $g ] = is_countable( $items ) ? count( $items ) : 0; }
 	arsort( $groups );
 	scanpay_log( 'debug', '--- Object cache groups ---' );
 	foreach ( array_slice( $groups, 0, 10, true ) as $g => $n ) {
