@@ -116,3 +116,14 @@ function wc_scanpay_money_equals( string $a, string $b ): bool {
 	$h = wc_scanpay_dighomogenize( $a, $b );
 	return $h['as'] === $h['bs'] && $h['a'] === $h['b'];
 }
+
+// zero test for a canonical amount: zero iff it contains no 1-9 digit ('0', '0.00', '-0').
+// The digit scan is only sound on validated input (' 0' or '+0' would pass it),
+// so the is_money() check must stay first.
+function wc_scanpay_is_zero( string $s ): bool {
+	if ( ! wc_scanpay_is_money( $s ) ) {
+		// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+		throw new \InvalidArgumentException( "invalid money amount: '$s'" );
+	}
+	return false === strpbrk( $s, '123456789' );
+}

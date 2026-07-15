@@ -50,7 +50,7 @@ finished (~90% done) — the authoritative list of remaining gaps is the root
   currently hardcoded Danish (e.g. settings nav "Generelt", subscription terms) —
   not all strings go through `__()` yet.
 - **Money is never a float.** Amounts are decimal strings handled by
-  `src/library/math.php` (`wc_scanpay_addmoney`/`submoney`/`cmpmoney`/`money_equals`).
+  `src/library/math.php` (`wc_scanpay_addmoney`/`submoney`/`cmpmoney`/`money_equals`/`is_zero`).
   Use these for any capture/charge/refund arithmetic.
 - Prod hosts: `api.scanpay.dk` (API), `dashboard.scanpay.dk`, `betal.scanpay.dk`
   (hosted payment window). `.dev` variants exist for the dev server only and are

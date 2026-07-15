@@ -417,7 +417,7 @@ final class WC_Scanpay_Sync {
 
 			// Handle free trial and coupons
 			$parent = $wcs_sub->get_parent();
-			if ( $parent && $parent->get_status() === 'pending' && wc_scanpay_money_equals( (string) $parent->get_total( 'edit' ), '0' ) ) {
+			if ( $parent && $parent->get_status() === 'pending' && wc_scanpay_is_zero( (string) $parent->get_total( 'edit' ) ) ) {
 				scanpay_log( 'debug', 'sub parent: #' . $parent->get_id() );
 				$parent->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
 				$parent->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
