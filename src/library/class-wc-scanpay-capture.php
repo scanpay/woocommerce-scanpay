@@ -59,7 +59,7 @@ final class WC_Scanpay_Capture {
 			throw new \RuntimeException( 'No payment details found on order' );
 		}
 		// Check if the payment has been voided
-		if ( '0' !== $meta['voided'] ) {
+		if ( ! wc_scanpay_money_equals( $meta['voided'], '0' ) ) {
 			throw new \RuntimeException( 'Transaction has been voided' );
 		}
 		// Calculate the raw amount left to capture, subtracting any refunds
