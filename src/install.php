@@ -8,7 +8,7 @@ $seq_tbl = $wpdb->prefix . 'scanpay_seq';
 if ( $wpdb->get_var( "SHOW TABLES LIKE '$seq_tbl'" ) !== $seq_tbl ) {
 	$res = $wpdb->query(
 		"CREATE TABLE $seq_tbl (
-            shopid INT unsigned NOT NULL UNIQUE,
+            shopid INT unsigned NOT NULL,
             seq INT unsigned NOT NULL,
             ping INT unsigned,
             mtime BIGINT unsigned NOT NULL,
@@ -26,7 +26,7 @@ $meta_tbl = $wpdb->prefix . 'scanpay_meta';
 if ( $wpdb->get_var( "SHOW TABLES LIKE '$meta_tbl'" ) !== $meta_tbl ) {
 	$res = $wpdb->query(
 		"CREATE TABLE $meta_tbl (
-			orderid BIGINT unsigned NOT NULL UNIQUE,
+			orderid BIGINT unsigned NOT NULL,
 			shopid INT unsigned NOT NULL,
 			subid INT unsigned,
 			id INT unsigned NOT NULL,
@@ -51,7 +51,7 @@ $subs_tbl = $wpdb->prefix . 'scanpay_subs';
 if ( $wpdb->get_var( "SHOW TABLES LIKE '$subs_tbl'" ) !== $subs_tbl ) {
 	$res = $wpdb->query(
 		"CREATE TABLE $subs_tbl (
-			subid INT unsigned UNIQUE,
+			subid INT unsigned,
 			rev INT unsigned,
 			method VARCHAR(64),
 			method_exp BIGINT unsigned,
