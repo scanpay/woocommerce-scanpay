@@ -44,11 +44,15 @@ how to close them. Work through it top to bottom.
 Steps 3 + 6 are the same area (order meta box) — do them together. Step 3
 establishes the JS meta-box pattern (`types/meta.ts` + `util/compat.ts`), which
 step 1 then reuses, so do **3 → 1**. Steps 5 and 7 are quick, independent
-cleanups you can slot in anywhere. Step 8 (secret-auth investigation) is
-independent — do it whenever, but before the reviews so its outcome is in their
-scope. Steps 9–12 (reviews + prioritization) come last, after the code is
-complete. Commit each task separately (on `dev`, never pushed) as you finish it
-(see Working rules).
+cleanups you can slot in anywhere. **Do step 8 (secret-auth) before steps 1–3:**
+those three build UI that authenticates to the polling endpoints via `data-secret`
++ `?s=`, so if step 8 changes the transport (header / HMAC token) their fetch code
+and `util/compat.ts` must follow — settle the auth first. (Step 8 can verify the
+settings + order flows right away; the subscription client is built in step 1
+against the chosen transport.) Steps 9–12 (reviews + prioritization) come after
+all code is complete, and **step 13 (doc refresh) comes dead last** so the docs
+describe the finished plugin. Commit each task separately (on `dev`, never pushed)
+as you finish it (see Working rules).
 
 ---
 
@@ -162,10 +166,18 @@ actions.
 - Replace the `console.warn` path with in-box `showWarning`/`showError` in
   `#wcsp-meta-head`.
 - Call `pluginVersionCheck()`.
-- Render the authorized/captured/refunded/voided figures via `buildTable`
-  (money is decimal-string — don't do float math; format against `wc_decimals`).
-- Populate `#wcsp-meta-foot` with capture/refund action controls that POST using
-  the injected `nonce` (the currently-unused `nonce` is the reason it's passed).
+- Render the authorized/captured/refunded/voided figures via `buildTable` (money
+  is a decimal string; there's no JS equivalent of `math.php`, so keep this
+  **display-only** — format the strings against `wc_decimals` and never do float
+  arithmetic client-side).
+- Populate `#wcsp-meta-foot` with capture/refund action controls. **The server
+  side is unspecified today:** there is no per-order meta-box AJAX endpoint —
+  capture only flows through order-status / bulk / mark-status hooks into
+  `WC_Scanpay_Capture`, and refund has no meta-box path at all. So decide and note
+  it: add a dedicated `wp_ajax_wc_scanpay_capture` / `…_refund` handler that
+  verifies the injected `nonce` (`check_ajax_referer('scanpay-order-'.$oid)`) and
+  calls `WC_Scanpay_Capture` / the client's refund method — or wire the buttons to
+  an existing flow. Whichever you pick, the injected `nonce` is what guards it.
 - Import from `types/meta.ts` and `util/compat.ts` rather than duplicating logic.
 
 **Done when:** the box shows the transaction figures, surfaces warnings inline
@@ -363,9 +375,9 @@ proves that's unnecessary. If the conclusion is "keep the secret as-is", state
 that explicitly with the data that justifies it.
 
 **Done when:** `secret-auth-review.md` records the perf measurement, the options
-weighed, and the decision; any chosen change is implemented, lints clean, and all
-three polling flows still authenticate end-to-end (settings sync, order meta,
-subscription meta). Commit the write-up and any implementation as this task's
+weighed, and the decision; any chosen change is implemented, lints clean, and the
+settings-sync and order-meta polling flows still authenticate end-to-end (the
+subscription client, `subs.ts`, is built in task 1 against this transport). Commit the write-up and any implementation as this task's
 commit (local only — never pushed).
 
 ---
@@ -405,4 +417,28 @@ Group by severity (blocker → major → minor → nit), and for each item give:
 one-line description, source file:line, which review it came from, and the fix.
 Call out anything that blocks shipping `v3.0.0` at the top.
 
-## 13) Update, improve and simplify/shorten `CLAUDE.md` and `AGENTS.md`.
+---
+
+## 13) Refresh `CLAUDE.md` and `AGENTS.md` to the finished state
+
+**Goal:** bring the two agent-facing docs back in line with the codebase *after*
+tasks 1–12 land, and tighten them. Do this **dead last** — the docs should
+describe the finished plugin, not the mid-rewrite state.
+
+**Where it stands:** `CLAUDE.md` and `AGENTS.md` are kept mirrored (each points at
+the other). Parts of both go stale once 1–12 are done:
+- The **"Known incomplete"** section (missing `subs.ts`, unwired settings UI,
+  partial `order.ts`) will be resolved — it should shrink or disappear.
+- The **admin-AJAX secret** description becomes wrong if task 8 changed the auth
+  mechanism (header / HMAC token instead of `?s=`).
+- Pointers to `PLAN.md` as the "remaining gaps" doc are moot once the plan is done.
+
+**Do:**
+- Update every fact that tasks 1–12 changed — especially the "Known incomplete"
+  section and, if task 8 shipped a change, the secret / concurrency notes.
+- Simplify and shorten: cut the redundancy between the two files and trim anything
+  no longer load-bearing, keeping them a faithful, skimmable map of the code.
+- Apply every change to **both** files so they stay mirrored.
+
+**Done when:** both docs match the shipped `v3.0.0` code with no stale
+"incomplete"/gap references, they remain in sync, and each is tighter than before.
