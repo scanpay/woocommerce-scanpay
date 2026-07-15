@@ -33,18 +33,6 @@ function wc_scanpay_subref( int $oid, object $wco ): ?string {
 	 *   Check if the order contains subs. Most PSPs use wcs_order_contains_subscription(), but it is
 	 *   incredibly inefficient. We can use wc_get_orders directly and optimize the search with status.
 	 */
-	$t0   = hrtime( true );
-	$subs = wcs_get_subscriptions_for_order(
-		$oid,
-		[
-			'order_type'             => 'parent',   // or 'any'
-			'order_role'             => 'any',
-			'subscriptions_per_page' => -1,         // all
-			'subscription_status'    => 'any',      // or ['wc-pending'] / ['pending']
-		]
-	);
-	// IDs:
-	$sub_ids      = array_keys( $subs );
 	$wcs_subs_arr = wc_get_orders(
 		[
 			'type'   => 'shop_subscription',
@@ -53,12 +41,6 @@ function wc_scanpay_subref( int $oid, object $wco ): ?string {
 			'return' => 'ids', // array of ids (an order can have multiple subs)
 		]
 	);
-	$t1           = hrtime( true );
-	$ms           = ( $t1 - $t0 ) / 1e6;
-	scanpay_log( 'debug', sprintf( 'wc_get_orders() for subscriptions took %.3f ms', $ms ) );
-	scanpay_log( 'debug', "Order #$oid: found subs via wcs_get_subscriptions_for_order(): " . implode( ',', $sub_ids ) );
-	scanpay_log( 'debug', "Order #$oid: found subs via wc_get_orders(): " . implode( ',', $wcs_subs_arr ) );
-
 	if ( $wcs_subs_arr ) {
 		return 'wcs[]' . implode( ',', $wcs_subs_arr );
 	}
