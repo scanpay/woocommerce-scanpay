@@ -147,8 +147,6 @@ final class WCS_Scanpay_Charge {
 				];
 			}
 		}
-		set_transient( 'wc_order_' . $oid . '_needs_processing', ! $is_virtual, 1800 );
-
 		$auto_completed      = $is_virtual || 'yes' === $this->settings['wcs_complete_renewal'];
 		$data['autocapture'] = 'on' === $this->settings['wc_autocapture'] || ( 'completed' === $this->settings['wc_autocapture'] && $auto_completed );
 		$wc_total            = (string) $wco->get_total( 'edit' );
