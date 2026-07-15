@@ -112,7 +112,7 @@ final class WC_Scanpay_Sync {
 			$brand  = $m['card']['brand'];
 			$brand  = self::CARD_BRANDS[ $brand ] ?? ucfirst( $brand );
 			$last4  = $m['card']['last4'] ?? '';
-			$card   = $brand . ( '' !== $last4 ? " $last4" : '' );
+			$card   = is_string( $last4 ) && '' !== $last4 ? "$brand $last4" : $brand;
 			$wallet = self::CARD_WALLETS[ $type ] ?? null;
 			return $wallet ? "$wallet ($card)" : $card;
 		}
@@ -387,7 +387,13 @@ final class WC_Scanpay_Sync {
 		if ( ! is_string( $pm_type ) || ! ctype_alnum( $pm_type ) ) {
 			$pm_type = '';
 		}
-		$pm_exp = (int) ( $card['exp'] ?? 0 );
+		$pm_exp = $card['exp'] ?? 0;
+		if ( is_string( $pm_exp ) && ctype_digit( $pm_exp ) ) {
+			$pm_exp = (int) $pm_exp;
+		}
+		if ( ! is_int( $pm_exp ) || $pm_exp < 0 ) {
+			$pm_exp = 0;
+		}
 		global $wpdb;
 		$res = $wpdb->query(
 			"INSERT INTO {$wpdb->prefix}scanpay_subs (subid, rev, method, method_exp)
