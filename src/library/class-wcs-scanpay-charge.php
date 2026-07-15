@@ -82,11 +82,15 @@ final class WCS_Scanpay_Charge {
 			$wco->payment_complete();
 			return;
 		}
-		// Sanity-check amount vs order total to catch scheduler mismatches.
+		// charge() builds the payload from the order total, so a scheduler amount that
+		// disagrees with it means we'd charge something other than what WCS asked for.
+		// Fail loud instead of silently charging the order total; WCS owns retry scheduling.
 		$amt_str = wc_format_decimal( $amount, wc_get_price_decimals() );
 		$tot_str = (string) $wco->get_total( 'edit' );
 		if ( wc_scanpay_cmpmoney( $amt_str, $tot_str ) !== 0 ) {
-			scanpay_log( 'warning', "scheduled charge: amount mismatch on #$oid: WCS=$amt_str, order_total=$tot_str (subid=$subid)" );
+			scanpay_log( 'error', "scheduled charge: amount mismatch on #$oid: WCS=$amt_str, order_total=$tot_str (subid=$subid)" );
+			$wco->update_status( 'failed', "WCS amount ($amt_str) does not match order total ($tot_str)" );
+			return;
 		}
 		$this->charge( $wco, $subid );
 	}
