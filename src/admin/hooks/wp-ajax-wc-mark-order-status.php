@@ -52,7 +52,7 @@ remove_action( 'woocommerce_order_status_completed', 'wc_scanpay_order_status_co
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 if ( ! is_array( $settings ) || 'completed' !== ( $settings['wc_autocapture'] ?? '' ) ) {
 	$wco->update_status( 'completed', '', true );
-	wp_safe_redirect( wp_get_referer() ?? admin_url( 'edit.php?post_type=shop_order' ) );
+	wp_safe_redirect( wp_get_referer() ?: admin_url( 'edit.php?post_type=shop_order' ) );
 	exit;
 }
 
