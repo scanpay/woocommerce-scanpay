@@ -40,6 +40,11 @@ final class WCS_Scanpay_Charge {
 	private function idempotency_key( int $oid, int $subid, int $created ): string {
 		global $wpdb;
 		$rev = $wpdb->get_var( "SELECT rev FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid" );
+		if ( $wpdb->last_error ) {
+			// A query error also returns null; keep it distinct from a missing row.
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			throw new Exception( "subscriber (subid=$subid) lookup failed: {$wpdb->last_error}" );
+		}
 		if ( null === $rev ) {
 			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new Exception( "subscriber (subid=$subid) does not exist" );
@@ -166,12 +171,19 @@ final class WCS_Scanpay_Charge {
 
 		// Authoritative double-charge guard:
 		global $wpdb;
-		$wpdb->query( "SELECT orderid FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
-		if ( 0 !== $wpdb->num_rows || $wco->get_transaction_id( 'edit' ) ) {
-			scanpay_log( 'warning', "charge skipped on #$oid: order is already paid (subid=$subid)" );
-			return;
-		}
 		try {
+			$found = $wpdb->query( "SELECT orderid FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
+			if ( false === $found ) {
+				// query() returns false only on a DB error (num_rows stays 0), so we can't tell
+				// "no payment row" from "read failed"; refuse to charge. The catch below marks
+				// the renewal failed so WCS reschedules, and the idempotency key dedupes the retry.
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+				throw new \RuntimeException( "scanpay_meta lookup failed: {$wpdb->last_error}" );
+			}
+			if ( $found > 0 || $wco->get_transaction_id( 'edit' ) ) {
+				scanpay_log( 'warning', "charge skipped on #$oid: order is already paid (subid=$subid)" );
+				return;
+			}
 			$idem = $this->idempotency_key( $oid, $subid, $wco->get_date_created( 'edit' )->getTimestamp() );
 			$this->client->charge( $subid, $data, $idem );
 		} catch ( \Exception $e ) {

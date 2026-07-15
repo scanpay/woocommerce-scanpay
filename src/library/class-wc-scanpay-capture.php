@@ -55,6 +55,11 @@ final class WC_Scanpay_Capture {
 			LIMIT 1",
 			ARRAY_A
 		);
+		if ( $wpdb->last_error ) {
+			// A query error also returns null; keep it distinct from a missing row.
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			throw new \RuntimeException( "Payment lookup failed for order #$oid: {$wpdb->last_error}" );
+		}
 		if ( null === $meta ) {
 			throw new \RuntimeException( 'No payment details found on order' );
 		}
