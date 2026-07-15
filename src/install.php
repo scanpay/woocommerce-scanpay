@@ -74,3 +74,15 @@ if ( 0 !== $shopid ) {
 		$wpdb->query( "INSERT INTO $seq_tbl (shopid, seq, ping, mtime) VALUES ($shopid, 0, 0, 0)" );
 	}
 }
+
+// Mint the admin-AJAX auth secret. process_admin_options() only persists form
+// fields, and there is no 'secret' field, so without this a fresh install would
+// never get one and the lightweight ?x=meta|ping|sub endpoints would 403 forever.
+// Runs on both fresh installs and API-key changes; an existing secret is kept.
+if ( empty( $settings['secret'] ) ) {
+	if ( ! is_array( $settings ) ) {
+		$settings = [];
+	}
+	$settings['secret'] = bin2hex( random_bytes( 32 ) );
+	update_option( WC_SCANPAY_URI_SETTINGS, $settings, true );
+}
