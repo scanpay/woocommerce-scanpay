@@ -26,14 +26,19 @@ final class Scanpay_Flock {
 	 * Keep the handle local until locked, so $this->handle is always a
 	 * locked stream or null. Repeat acquire() calls fail as busy.
 	 *
-	 * @return bool True if lock acquired, false if busy or failed.
+	 * Distinguishes contention from setup failure: a return of false means
+	 * another process holds the lock (retry later), whereas a thrown exception
+	 * means the lock file could not even be opened (no worker is running, so
+	 * the caller must surface it rather than treat it as "busy").
+	 *
+	 * @return bool True if lock acquired, false if another process holds it.
+	 * @throws RuntimeException If the lock file cannot be opened.
 	 */
 	public function acquire(): bool {
 		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 		$handle = @fopen( $this->path, 'c' );
 		if ( ! $handle ) {
-			scanpay_log( 'error', "could not open lock file: {$this->path}" );
-			return false;
+			throw new RuntimeException( "could not open lock file: {$this->path}" );
 		}
 		if ( ! flock( $handle, LOCK_EX | LOCK_NB ) ) {
 			// Busy: release handle to avoid FD leak

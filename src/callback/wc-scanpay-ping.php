@@ -150,9 +150,21 @@ $flock  = new Scanpay_Flock( $shopid );
 
 /**
  * Concurrency control: Allow only one sync process at a time.
- * If locked, record the latest ping and return 200 for retry.
+ * acquire() returns false on genuine contention (another worker holds the
+ * lock); it throws only when the lock file cannot be created (e.g. read-only
+ * temp dir). The latter is not contention — no worker is draining the queue —
+ * so surface it as a retryable 503 instead of a success-ish "busy".
  */
-if ( ! $flock->acquire() ) {
+try {
+	$locked = $flock->acquire();
+} catch ( Throwable $e ) {
+	scanpay_log( 'error', 'lock init failed: ' . trim( $e->getMessage() ) );
+	wc_scanpay_respond( 'lock unavailable', 503 );
+}
+
+if ( ! $locked ) {
+	// Contention: record the latest ping so the running worker drains it, then
+	// 200 so the backend stops retrying this delivery.
 	$wpdb->query(
 		"UPDATE {$wpdb->prefix}scanpay_seq
 		SET ping = $ping_seq
