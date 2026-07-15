@@ -34,13 +34,15 @@ if ( isset( $sub['rev'] ) && $rev >= $sub['rev'] ) {
 	usleep( 500000 ); // 0.5 secs. Note: usleep is only OS-safe below 1s
 	while ( 1 ) {
 		$sub = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid", ARRAY_A );
-		if ( $sub['rev'] > $rev || $sec > 8 ) {
-			break;
+		if ( null === $sub || $sub['rev'] > $rev || $sec > 8 ) {
+			break; // row vanished or updated; respond below
 		}
 		sleep( $sec );
 		$sec = $sec + $sec;
 		echo "\n"; // echo + flush to detect if the client has disc.
-		ob_flush();
+		if ( ob_get_level() ) {
+			ob_flush();
+		}
 		flush();
 	}
 }

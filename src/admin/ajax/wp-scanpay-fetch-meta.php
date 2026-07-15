@@ -29,11 +29,16 @@ $meta = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}scanpay_meta WHERE orderid
 if ( isset( $meta['rev'] ) && $rev >= $meta['rev'] ) {
 	$counter = 0;
 	do {
-		// Exponential backoff: 0.5s, 1.5s, 3.5s, 7.5s
+		// Exponential backoff: 0.5s, 1.5s, 3.5s (total 5.5s)
 		usleep( 500000 * pow( 2, ++$counter ) - 500000 );
 		$meta = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid", ARRAY_A );
+		if ( null === $meta ) {
+			break; // row vanished; respond "not found" below
+		}
 		echo "\n"; // echo + flush to detect if the client has disc.
-		ob_flush();
+		if ( ob_get_level() ) {
+			ob_flush();
+		}
 		flush();
 	} while ( $meta['rev'] <= $rev && $counter < 3 );
 }
