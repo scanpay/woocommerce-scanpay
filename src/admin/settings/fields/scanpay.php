@@ -58,7 +58,6 @@ return [
 			'maestro'            => 'Maestro',
 			'amex'               => 'American Express',
 			'diners'             => 'Diners',
-			'discover'           => 'Discover',
 			'unionpay'           => 'UnionPay',
 			'jcb'                => 'JCB',
 			'forbrugsforeningen' => 'Forbrugsforeningen',

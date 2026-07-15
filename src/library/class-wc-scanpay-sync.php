@@ -25,7 +25,6 @@ final class WC_Scanpay_Sync {
 		'amex'             => 'American Express',
 		'dankort'          => 'Dankort',
 		'diners'           => 'Diners Club',
-		'discover'         => 'Discover',
 		'forbrugsforening' => 'Forbrugsforeningen',
 		'jcb'              => 'JCB',
 		'maestro'          => 'Maestro',
