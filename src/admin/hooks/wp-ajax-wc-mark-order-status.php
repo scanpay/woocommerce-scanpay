@@ -32,7 +32,7 @@ if (
 }
 
 // Validate order ID (strictly digits)
-if ( ! ctype_digit( (string) $_GET['order_id'] ) ) {
+if ( ! ctype_digit( (string) wp_unslash( $_GET['order_id'] ) ) ) {
 	wp_send_json_error( 'invalid_order_id', 400 );
 }
 $oid = (int) $_GET['order_id'];

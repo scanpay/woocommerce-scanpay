@@ -6,14 +6,14 @@ nocache_headers();
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 $secret   = (string) ( $settings['secret'] ?? '' );
 // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated
-if ( '' === $secret || ! hash_equals( $secret, rtrim( (string) ( $_GET['s'] ?? '' ) ) ) ) {
+if ( '' === $secret || ! hash_equals( $secret, rtrim( (string) wp_unslash( $_GET['s'] ?? '' ) ) ) ) {
 	wp_send_json( [ 'error' => 'forbidden' ], 403 );
 	die();
 }
 
 $shopid = (int) strstr( $settings['apikey'] ?? '', ':', true );
-$rev    = (int) ( $_GET['rev'] ?? 0 );
-$subid  = (int) ( $_GET['subid'] ?? 0 );
+$rev    = (int) wp_unslash( $_GET['rev'] ?? 0 );
+$subid  = (int) wp_unslash( $_GET['subid'] ?? 0 );
 
 if ( 0 === $shopid ) {
 	wp_send_json( [ 'error' => 'invalid shopid' ] );

@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit();
  * so it has minimal impact on the user experience.
  */
 
-$order_type = $_GET['scanpay_type'] ?? '';
+$order_type = wp_unslash( $_GET['scanpay_type'] ?? '' );
 
 /**
  * Waits for payment data to become available in WC and WCS orders.
@@ -23,14 +23,14 @@ $order_type = $_GET['scanpay_type'] ?? '';
  */
 function wc_scanpay_init_thankyou(): void {
 	global $wpdb;
-	$oid = (int) ( $_GET['scanpay_thankyou'] ?? 0 );
+	$oid = (int) wp_unslash( $_GET['scanpay_thankyou'] ?? 0 );
 	$wco = $oid ? wc_get_order( $oid ) : false;
 	// Ownership gate: only busy-poll for a genuine thank-you request. The success URL
 	// carries WooCommerce's order key (get_checkout_order_received_url()); require it to
 	// match before spending any workers on an order that may not exist.
 	if (
 		! $wco instanceof WC_Order
-		|| ! hash_equals( $wco->get_order_key(), (string) ( $_GET['key'] ?? '' ) )
+		|| ! hash_equals( $wco->get_order_key(), (string) wp_unslash( $_GET['key'] ?? '' ) )
 		|| ! str_starts_with( (string) $wco->get_payment_method( 'edit' ), 'scanpay' )
 	) {
 		return;
@@ -63,19 +63,19 @@ if ( 'wcs' === $order_type || 'wc' === $order_type ) {
  */
 function wcs_scanpay_init_thankyou_free(): void {
 	global $wpdb;
-	$oid = (int) ( $_GET['scanpay_thankyou'] ?? 0 );
+	$oid = (int) wp_unslash( $_GET['scanpay_thankyou'] ?? 0 );
 	$wco = $oid ? wc_get_order( $oid ) : false;
 	// Ownership gate on the parent order, whose key is in the success URL. (No
 	// transaction-id bail here: a free-trial parent has a zero total and may never
 	// carry one — this branch polls subscription activation instead.)
 	if (
 		! $wco instanceof WC_Order
-		|| ! hash_equals( $wco->get_order_key(), (string) ( $_GET['key'] ?? '' ) )
+		|| ! hash_equals( $wco->get_order_key(), (string) wp_unslash( $_GET['key'] ?? '' ) )
 		|| ! str_starts_with( (string) $wco->get_payment_method( 'edit' ), 'scanpay' )
 	) {
 		return;
 	}
-	$ref = (string) ( $_GET['scanpay_ref'] ?? '' );
+	$ref = (string) wp_unslash( $_GET['scanpay_ref'] ?? '' );
 	if ( ! str_starts_with( $ref, 'wcs[]' ) ) {
 		return;
 	}
