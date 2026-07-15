@@ -196,6 +196,19 @@ function wc_scanpay_plugins_loaded() {
 	if ( ! class_exists( 'WC_Payment_Gateway', false ) ) {
 		return; // WooCommerce not active
 	}
+
+	// Run version-gated install/migrations. The option is autoloaded, so the check is
+	// free. Passing the guard above means WC core (order functions, data stores) is
+	// loaded, so upgrade.php may safely use wc_get_orders(). The transient serialises
+	// two requests racing the upgrade; upgrade.php's steps are individually idempotent.
+	if (
+		get_option( 'wc_scanpay_version' ) !== WC_SCANPAY_VERSION && ! get_transient( 'wc_scanpay_updating' )
+	) {
+		set_transient( 'wc_scanpay_updating', true, 5 * MINUTE_IN_SECONDS );
+		require WC_SCANPAY_DIR . '/upgrade.php';
+		delete_transient( 'wc_scanpay_updating' );
+	}
+
 	require WC_SCANPAY_DIR . '/gateways/abstract-wc-gateway-scanpay-base.php';
 	require WC_SCANPAY_DIR . '/gateways/class-wc-gateway-scanpay-card.php';
 	require WC_SCANPAY_DIR . '/gateways/class-wc-gateway-scanpay-mobilepay.php';

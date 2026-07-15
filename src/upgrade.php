@@ -27,7 +27,9 @@ if ( version_compare( $version, '2.0.0', '<' ) ) {
 		'wcs_complete_initial' => 'no',
 		'wcs_complete_renewal' => $old['autocomplete_renewalorders'] ?? 'no',
 		'stylesheet'           => 'yes',
-		'secret'               => bin2hex( random_bytes( 32 ) ),
+		// Preserve an existing secret so an interrupted re-run does not invalidate the
+		// in-flight admin-AJAX auth token; only mint one on the true first run.
+		'secret'               => $old['secret'] ?? bin2hex( random_bytes( 32 ) ),
 	];
 	update_option( WC_SCANPAY_URI_SETTINGS, $arr, true );
 } elseif ( version_compare( $version, '2.2.0', '<' ) ) {
@@ -86,8 +88,16 @@ if ( $wcs_exists && version_compare( $version, '2.1.3', '<' ) ) {
  *  - Setting 'capture_on_complete' (checkbox) changed to 'wc_autocapture' (dropdown)
  */
 if ( version_compare( $version, '2.5.0', '<' ) ) {
-	$settings                   = get_option( WC_SCANPAY_URI_SETTINGS );
-	$settings['wc_autocapture'] = ( isset( $settings['capture_on_complete'] ) && 'yes' === $settings['capture_on_complete'] ) ? 'completed' : 'off';
+	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
+	if ( ! is_array( $settings ) ) {
+		$settings = [];
+	}
+	// Idempotent: only derive wc_autocapture when it is not already set, so an
+	// interrupted re-run (capture_on_complete already unset) cannot silently flip it
+	// to 'off' and disable auto-capture.
+	if ( ! isset( $settings['wc_autocapture'] ) ) {
+		$settings['wc_autocapture'] = ( isset( $settings['capture_on_complete'] ) && 'yes' === $settings['capture_on_complete'] ) ? 'completed' : 'off';
+	}
 	unset( $settings['capture_on_complete'] );
 	update_option( WC_SCANPAY_URI_SETTINGS, $settings, true );
 }
