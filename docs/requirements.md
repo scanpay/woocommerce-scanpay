@@ -41,9 +41,11 @@ The plugin requires WooCommerce version 3.6.0 or higher, released in April 2019.
 | WC_Data:save_meta_data                 |   2.6.0   |
 | WC_Data:get_meta                       |   2.6.0   |
 | wc_get_orders                          |   2.6.0   |
+| wc_get_price_decimals                  |   2.3.0   |
 | wc_get_order                           |   2.2.0   |
 | WC_Order:add_order_note                |   2.2.0   |
 | WC_Payment_Gateway                     |   2.1.0   |
+| wc_format_decimal                      |   2.1.0   |
 | wc_price                               |   1.0.0   |
 | WC_Settings_API:generate_settings_html |   1.0.0   |
 | WC_Settings_API:get_form_fields        |   1.0.0   |
