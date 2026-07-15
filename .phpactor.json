@@ -3,12 +3,7 @@
 	"php_code_sniffer.enabled": true,
 	"indexer.follow_symlinks": true,
 	"indexer.supported_extensions": ["php"],
-	"indexer.exclude_patterns": [
-		"/build/**/*",
-		"/vendor/**/*",
-		"/.stubs/**/*",
-		"/node_modules/**/*"
-	],
+	"indexer.include_patterns": ["/src/**/*.php"],
 	"indexer.stub_paths": [
 		"%application_root%/vendor/jetbrains/phpstorm-stubs",
 		"%project_root%/.stubs/wordpress",
