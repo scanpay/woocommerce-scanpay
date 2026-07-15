@@ -168,6 +168,43 @@ final class WC_Scanpay_Sync {
 	}
 
 	/**
+	 * Guarded upsert of the scanpay_meta row for an order.
+	 *
+	 * The scanpay_meta table is keyed by orderid alone, so a second transaction on
+	 * the same order (e.g. two payment links, or a numeric merchant-reference
+	 * collision) would otherwise splice its rev/nacts/totals onto the first
+	 * transaction's id and authorized amount via ON DUPLICATE KEY UPDATE.
+	 *
+	 * @param string $label Log/exception prefix, e.g. "transaction #123".
+	 * @param int    $oid   WooCommerce order ID.
+	 * @param int    $trnid Scanpay transaction ID claiming the order.
+	 * @param string $sql   Prebuilt INSERT ... ON DUPLICATE KEY UPDATE statement.
+	 * @return bool True if the row is now owned by $trnid; false if another
+	 *              transaction already owns the order (caller must not proceed).
+	 * @throws \RuntimeException On a database read or write error.
+	 */
+	private function upsert_meta( string $label, int $oid, int $trnid, string $sql ): bool {
+		global $wpdb;
+		$owner = $wpdb->get_var( "SELECT id FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
+		if ( $wpdb->last_error ) {
+			// A query error also returns null; keep it distinct from a missing row.
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			throw new \RuntimeException( "$label: could not read payment data for order #$oid: {$wpdb->last_error}" );
+		}
+		if ( null !== $owner && (int) $owner !== $trnid ) {
+			// A different transaction already owns this order. Return (not throw):
+			// throwing would replay this change forever and wedge the sync loop.
+			scanpay_log( 'error', "$label: order #$oid already paid by transaction #" . (int) $owner . '; ignoring' );
+			return false;
+		}
+		if ( false === $wpdb->query( $sql ) ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			throw new \RuntimeException( "$label: could not save payment data to order #$oid: {$wpdb->last_error}" );
+		}
+		return true;
+	}
+
+	/**
 	 * Syncs a Scanpay transaction with its WC order. Inserts metadata, verifies
 	 * data/ownership, then registers payment completion if applicable.
 	 *
@@ -206,10 +243,8 @@ final class WC_Scanpay_Sync {
 			refunded = VALUES(refunded),
 			voided   = VALUES(voided)";
 
-		if ( false === $wpdb->query( $sql ) ) {
-			$err = $wpdb->last_error;
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
-			throw new \RuntimeException( "transaction #$trnid: could not save payment data to order #$oid: $err" );
+		if ( ! $this->upsert_meta( "transaction #$trnid", $oid, $trnid, $sql ) ) {
+			return; // A different transaction already owns this order.
 		}
 
 		// The INSERT above and payment_complete() below are not atomic, so we
@@ -301,10 +336,8 @@ final class WC_Scanpay_Sync {
 			refunded = VALUES(refunded),
 			voided   = VALUES(voided)";
 
-		if ( false === $wpdb->query( $sql ) ) {
-			$err = $wpdb->last_error;
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
-			throw new \RuntimeException( "charge #$trnid: could not save payment data to order #$oid: $err" );
+		if ( ! $this->upsert_meta( "charge #$trnid", $oid, $trnid, $sql ) ) {
+			return; // A different transaction already owns this order.
 		}
 
 		// The INSERT above and payment_complete() below are not atomic, so we
