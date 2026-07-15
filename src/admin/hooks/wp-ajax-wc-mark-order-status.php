@@ -65,5 +65,5 @@ if ( WC_Scanpay_Capture::capture_or_hold( $wco ) ) {
 	$wco->save();
 }
 
-wp_safe_redirect( wp_get_referer() ?? admin_url( 'edit.php?post_type=shop_order' ) );
+wp_safe_redirect( wp_get_referer() ?: admin_url( 'edit.php?post_type=shop_order' ) );
 exit;
