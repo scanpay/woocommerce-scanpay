@@ -2,6 +2,14 @@
 
 defined( 'ABSPATH' ) || exit();
 
+// Build the "Subscription terms" page picker: "Hide checkbox" plus every published page.
+// This file is required lazily by get_form_fields() (settings screen / unconfigured store),
+// so the get_pages() cost is not incurred on normal front-end or checkout requests.
+$wcs_terms_options = [ '0' => __( 'Hide checkbox', 'scanpay-for-woocommerce' ) ];
+foreach ( (array) get_pages() as $wcs_terms_page ) {
+	$wcs_terms_options[ (string) $wcs_terms_page->ID ] = $wcs_terms_page->post_title;
+}
+
 return [
 	'enabled'              => [
 		'title'   => __( 'Enable', 'scanpay-for-woocommerce' ),
@@ -105,9 +113,6 @@ return [
 		'description' => __( 'Add a checkbox for subscription terms and conditions at checkout.', 'scanpay-for-woocommerce' ),
 		'desc_tip'    => true,
 		'default'     => '0',
-		'options'     => [
-			'0' => __( 'Hide checkbox', 'scanpay-for-woocommerce' ),
-			// Additional pages/options can be injected dynamically.
-		],
+		'options'     => $wcs_terms_options,
 	],
 ];
