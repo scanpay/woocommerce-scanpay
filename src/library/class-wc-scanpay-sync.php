@@ -270,6 +270,17 @@ final class WC_Scanpay_Sync {
 				scanpay_log( 'error', "transaction #$trnid: currency mismatch (order=$oid)" );
 				return;
 			}
+			// Legitimate underpayment, not a protocol violation: payment links live 15 minutes,
+			// so an order total raised after the link was created is no longer covered by the
+			// older, smaller authorization. Deferred capture caps at the authorized amount and
+			// cannot repair this, so keep the synced meta row but do not mark the order paid.
+			// Log + note + return (never throw) — mirror the currency-mismatch handling above.
+			$total = (string) $wco->get_total( 'edit' );
+			if ( wc_scanpay_cmpmoney( $auth, $total ) < 0 ) {
+				scanpay_log( 'error', "transaction #$trnid: authorized $auth does not cover order total $total (order=$oid)" );
+				$wco->add_order_note( "Scanpay: authorized amount ($auth $cur) does not cover the order total ($total $cur); order not marked as paid." );
+				return;
+			}
 			$txn = (string) $trnid;
 			$wco->set_transaction_id( $txn );
 			$ts = $c['time']['authorized'] ?? null;
@@ -361,6 +372,14 @@ final class WC_Scanpay_Sync {
 			}
 			if ( $wco->get_currency( 'edit' ) !== $cur ) {
 				scanpay_log( 'error', "charge #$trnid: currency mismatch (order=$oid)" );
+				return;
+			}
+			// Underpayment. This should not happen with charges, but if it does, we don't
+			// want to mark the order as paid, so we log + note + return (never throw).
+			$total = (string) $wco->get_total( 'edit' );
+			if ( wc_scanpay_cmpmoney( $auth, $total ) < 0 ) {
+				scanpay_log( 'error', "charge #$trnid: authorized $auth does not cover order total $total (order=$oid)" );
+				$wco->add_order_note( "Scanpay: authorized amount ($auth $cur) does not cover the order total ($total $cur); order not marked as paid." );
 				return;
 			}
 			$txn = (string) $trnid;
