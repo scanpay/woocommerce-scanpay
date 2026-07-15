@@ -132,11 +132,12 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		}
 		$line_total = $wco->get_line_total( $item, true, true ); // w. taxes and rounded (how Woo does)
 		if ( $line_total >= 0 ) {
-			$sum             = wc_scanpay_addmoney( $sum, (string) $line_total );
+			$line_str        = wc_format_decimal( $line_total, wc_get_price_decimals() );
+			$sum             = wc_scanpay_addmoney( $sum, $line_str );
 			$data['items'][] = [
 				'name'     => $item->get_name( 'edit' ),
 				'quantity' => $item->get_quantity(),
-				'total'    => $line_total . ' ' . $currency,
+				'total'    => $line_str . ' ' . $currency,
 			];
 		}
 	}
