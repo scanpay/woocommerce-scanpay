@@ -4,8 +4,9 @@ defined( 'ABSPATH' ) || exit();
 nocache_headers();
 
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
+$secret   = (string) ( $settings['secret'] ?? '' );
 // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated
-if ( ! $settings || rtrim( $_GET['s'] ) !== $settings['secret'] ) {
+if ( '' === $secret || ! hash_equals( $secret, rtrim( (string) ( $_GET['s'] ?? '' ) ) ) ) {
 	wp_send_json( [ 'error' => 'forbidden' ], 403 );
 	die();
 }
