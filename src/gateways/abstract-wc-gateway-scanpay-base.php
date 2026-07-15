@@ -3,6 +3,15 @@
 defined( 'ABSPATH' ) || exit();
 
 abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
+	/**
+	 * Set to true by process-admin-options.php when a live API-key check fails
+	 * during save, so WC_Gateway_Scanpay_Card::process_admin_options() skips the
+	 * destructive table drop/recreate for a key that does not work.
+	 *
+	 * @var bool
+	 */
+	public bool $scanpay_apikey_invalid = false;
+
 	public function __construct() {
 		$this->supports   = [ 'products' ];
 		$this->has_fields = false;

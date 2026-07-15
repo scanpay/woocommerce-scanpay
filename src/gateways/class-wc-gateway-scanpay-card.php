@@ -70,7 +70,9 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 		$old = (int) explode( ':', (string) $this->get_option( 'apikey', '' ) )[0];
 		parent::process_admin_options();
 		$new = (int) explode( ':', (string) $this->get_option( 'apikey', '' ) )[0];
-		if ( $new !== $old ) {
+		// Only rebuild the tables for a new shop ID once the new key has been
+		// validated; process-admin-options.php flags a failed live key check.
+		if ( $new !== $old && ! $this->scanpay_apikey_invalid ) {
 			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_seq" );
 			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_meta" );
 			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_subs" );

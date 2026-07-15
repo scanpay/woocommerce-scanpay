@@ -18,19 +18,28 @@ add_filter( 'woocommerce_admin_shared_settings', 'wc_scanpay_admin_add_version',
 
 
 /**
+ * Whether the current request targets one of the plugin's own settings screens
+ * (WooCommerce > Settings > Payments > Scanpay / MobilePay / Apple Pay).
+ *
+ * @return bool
+ */
+function wc_scanpay_is_settings_screen(): bool {
+	// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only screen detection; no state change.
+	$page    = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
+	$tab     = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
+	$section = isset( $_GET['section'] ) ? sanitize_text_field( wp_unslash( $_GET['section'] ) ) : '';
+	// phpcs:enable WordPress.Security.NonceVerification.Recommended
+	return 'wc-settings' === $page && 'checkout' === $tab && str_starts_with( $section, 'scanpay' );
+}
+
+
+/**
  * Enqueue admin JS/CSS on WC > Settings > Payments pages.
  *
  * @param string $hook_suffix Admin page hook.
  */
 function wc_scanpay_admin_assets( string $hook_suffix ): void {
-	if ( 'woocommerce_page_wc-settings' !== $hook_suffix ) {
-		return;
-	}
-	if ( 'checkout' !== ( $_GET['tab'] ?? '' ) ) {
-		return;
-	}
-	$section = (string) ( $_GET['section'] ?? '' );
-	if ( '' === $section || ! str_starts_with( $section, 'scanpay' ) ) {
+	if ( 'woocommerce_page_wc-settings' !== $hook_suffix || ! wc_scanpay_is_settings_screen() ) {
 		return;
 	}
 	wp_enqueue_script( 'wc-scanpay-settings', WC_SCANPAY_URL . '/admin/assets/js/settings.js', [], WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
@@ -54,10 +63,17 @@ add_filter( 'plugin_action_links_scanpay-for-woocommerce/woocommerce-scanpay.php
 
 
 /**
- * Disable WooCommerce's promotional footer message.
- * The footer adds no functional value and needlessly runs on every admin page.
+ * Hide WooCommerce's promotional footer text, but only on the plugin's own
+ * settings screens. Blanking admin_footer_text globally is a site-wide UI
+ * change and is flagged by the WordPress.org plugin review.
  *
- * @return false
+ * Runs after WC's own admin_footer_text filter (priority 1) so it can clear
+ * the text WC injects on its screens.
+ *
+ * @param string $text Current footer text.
+ * @return string
  */
-add_filter( 'woocommerce_display_admin_footer_text', '__return_false' );
-add_filter( 'admin_footer_text', '__return_empty_string', 11 );
+function wc_scanpay_admin_footer_text( $text ) {
+	return wc_scanpay_is_settings_screen() ? '' : $text;
+}
+add_filter( 'admin_footer_text', 'wc_scanpay_admin_footer_text', 11 );
