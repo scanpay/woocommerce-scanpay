@@ -29,6 +29,7 @@
 		"url": "https://github.com/scanpay/woocommerce-scanpay/issues"
 	},
 	"dependencies": {
+		"@eslint/js": "latest",
 		"@wordpress/element": "latest",
 		"@wordpress/prettier-config": "latest",
 		"@wordpress/scripts": "latest",
@@ -41,7 +42,7 @@
 		"typescript-eslint": "latest"
 	},
 	"scripts": {
-		"lint:js": "wp-scripts lint-js src/public/assets/js/",
+		"lint:js": "wp-scripts lint-js src/",
 		"lint:style": "wp-scripts lint-style src/public/assets/css/",
 		"lint:pkg-json": "wp-scripts lint-pkg-json",
 		"lint:md:docs": "wp-scripts lint-md-docs",
