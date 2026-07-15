@@ -48,6 +48,10 @@ function wc_scanpay_flush_order_runtime_cache(): void {
 }
 
 function wc_scanpay_memory_usage_debug(): void {
+	// Opt-in: this dump is noisy and only useful when profiling large syncs.
+	if ( ! ( defined( 'WC_SCANPAY_DEBUG' ) && WC_SCANPAY_DEBUG ) ) {
+		return;
+	}
 	$php_mem      = memory_get_usage( false );
 	$php_mem_real = memory_get_usage( true );
 	$php_peak     = memory_get_peak_usage( true );
