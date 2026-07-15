@@ -357,7 +357,7 @@ final class WC_Scanpay_Sync {
 	 * updates the linked subscription and parent-order metadata.
 	 *
 	 * @param array $c Subscriber payload from Scanpay.
-	 * @throws \RuntimeException On validation errors.
+	 * @throws \RuntimeException On validation or database errors.
 	 */
 	public function subscriber( array $c ): void {
 		if ( ! $this->wcs_enabled ) {
@@ -389,12 +389,17 @@ final class WC_Scanpay_Sync {
 		}
 		$pm_exp = (int) ( $card['exp'] ?? 0 );
 		global $wpdb;
-		$wpdb->query(
+		$res = $wpdb->query(
 			"INSERT INTO {$wpdb->prefix}scanpay_subs (subid, rev, method, method_exp)
 			VALUES ($subid, $rev, '$pm_type', $pm_exp)
 			ON DUPLICATE KEY UPDATE
 			rev = $rev, method = '$pm_type', method_exp = $pm_exp"
 		);
+		if ( false === $res ) {
+			$err = $wpdb->last_error;
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			throw new \RuntimeException( "subscriber #$subid: could not save subscriber data: $err" );
+		}
 
 		$pm_title = $this->parse_payment_method( $c['method'] ?? null );
 		$subs     = $this->find_subs_from_ref( $ref );
