@@ -129,6 +129,7 @@ if (
 
 global $wpdb;
 $ping_seq = (int) $ping['seq'];
+$now      = time();
 
 /**
  * Read the shop's sync cursor. Fail loud: a DB error or a missing row must not
@@ -152,6 +153,10 @@ if ( $ping_seq < $seq ) {
 	wc_scanpay_respond( "invalid ping seq: ping ($ping_seq) < local ($seq)", 400 );
 }
 if ( $ping_seq === $seq ) {
+	// Heartbeat: nothing to sync, but record that Scanpay just reached us so the
+	// settings "last sync" indicator stays fresh. mtime is display-only, so we do
+	// not fail the ping if this update fails.
+	$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET mtime = $now WHERE shopid = $shopid" );
 	wc_scanpay_respond( 'ok', 200 );
 }
 
@@ -183,7 +188,7 @@ if ( ! $locked ) {
 	// 200 so the backend stops retrying this delivery.
 	$res_ping = $wpdb->query(
 		"UPDATE {$wpdb->prefix}scanpay_seq
-		SET ping = $ping_seq
+		SET ping = $ping_seq, mtime = $now
 		WHERE shopid = $shopid AND ping < $ping_seq"
 	);
 	if ( false === $res_ping ) {
@@ -225,7 +230,7 @@ try {
 			// Save new sequence number to the database
 			$seq     = (int) $res['seq'];
 			$res_seq = $wpdb->query(
-				"UPDATE {$wpdb->prefix}scanpay_seq SET seq = $seq WHERE shopid = $shopid AND seq < $seq"
+				"UPDATE {$wpdb->prefix}scanpay_seq SET seq = $seq, mtime = $now WHERE shopid = $shopid AND seq < $seq"
 			);
 			/**
 			 * Fail loud: the flock makes us the only writer, so an advancing cursor
