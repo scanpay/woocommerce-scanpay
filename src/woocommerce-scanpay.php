@@ -126,14 +126,16 @@ function wp_scanpay_allowed_redirect_hosts( array $hosts ): array {
  * Capture payments when orders are marked as completed.
  */
 function wc_scanpay_order_status_completed( int $oid, WC_Order $wco ): void {
+	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
+	if ( ! is_array( $settings ) || 'completed' !== ( $settings['wc_autocapture'] ?? '' ) ) {
+		// 'off' = manual capture; 'on' = already captured at Scanpay.
+		return;
+	}
 	scanpay_log( 'debug', "Order #$oid marked as completed, attempting capture." );
 	require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-capture.php';
-	try {
-		WC_Scanpay_Capture::capture( $wco );
-	} catch ( \Throwable $e ) {
-		scanpay_log( 'error', "Capture on order #$oid failed: " . $e->getMessage() );
-		$wco->update_status( 'failed', 'Scanpay capture failed: ' . $e->getMessage(), true );
-	}
+	// On failure this parks the order 'on-hold' (never 'failed'); the order is already
+	// 'completed', so a successful capture leaves it as-is.
+	WC_Scanpay_Capture::capture_or_hold( $wco );
 }
 
 /**

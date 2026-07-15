@@ -58,12 +58,10 @@ if ( ! is_array( $settings ) || 'completed' !== ( $settings['wc_autocapture'] ??
 
 require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-capture.php';
 
-try {
-	WC_Scanpay_Capture::capture( $wco );
+// On failure this parks the order 'on-hold' with a note (never 'failed'); only
+// complete the order when the capture actually succeeded.
+if ( WC_Scanpay_Capture::capture_or_hold( $wco ) ) {
 	$wco->set_status( 'completed', '', true );
-	$wco->save();
-} catch ( \Throwable $e ) {
-	$wco->set_status( 'failed', 'Scanpay capture failed: ' . $e->getMessage(), true );
 	$wco->save();
 }
 

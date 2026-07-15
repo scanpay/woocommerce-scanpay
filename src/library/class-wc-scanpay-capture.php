@@ -27,9 +27,14 @@ final class WC_Scanpay_Capture {
 	/**
 	 * Attempts to capture payment for the given WooCommerce order.
 	 *
+	 * Throws on any failure (fail-loud primitive). Callers should go through
+	 * capture_or_hold(), which translates failures into an 'on-hold' status rather
+	 * than letting them surface as an unhandled Throwable or a 'failed' order.
+	 *
 	 * @param WC_Order $wco WooCommerce order object.
+	 * @throws \RuntimeException On an unsynced payment row, misconfiguration, a lookup error, or a voided auth.
 	 */
-	public static function capture( WC_Order $wco ): void {
+	private static function capture( WC_Order $wco ): void {
 		if ( ! str_starts_with( (string) $wco->get_payment_method( 'edit' ), 'scanpay' ) ) {
 			return; // Not a Scanpay order
 		}
@@ -94,5 +99,31 @@ final class WC_Scanpay_Capture {
 			]
 		);
 		$wco->add_order_note( "Scanpay capture of $amount completed.", 0, true );
+	}
+
+	/**
+	 * Captures payment for an order, parking it 'on-hold' (not 'failed') on any error.
+	 *
+	 * Capture settles an already-authorized payment, so a failure is never a customer
+	 * decline; 'failed' would send a misleading failed-order email and trigger WCS
+	 * dunning. 'on-hold' is in PAYMENT_COMPLETE_STATUSES, so the next ping reconciles the
+	 * order automatically and the merchant can safely retry (the remaining-amount guard
+	 * prevents a double capture).
+	 *
+	 * @param WC_Order $wco WooCommerce order object.
+	 * @return bool True if capture succeeded (caller may complete the order).
+	 */
+	public static function capture_or_hold( WC_Order $wco ): bool {
+		try {
+			self::capture( $wco );
+			return true;
+		} catch ( \Throwable $e ) {
+			// Any failure — including the "payment not synced yet" race (a merchant
+			// completing an order before the first ping) — parks the order rather than
+			// failing it. The next ping reconciles it via payment_complete().
+			scanpay_log( 'error', 'Capture on order #' . $wco->get_id() . ' failed: ' . $e->getMessage() );
+			$wco->update_status( 'on-hold', 'Scanpay capture failed: ' . $e->getMessage(), true );
+			return false;
+		}
 	}
 }

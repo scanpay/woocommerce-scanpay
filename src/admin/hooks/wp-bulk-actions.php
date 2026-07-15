@@ -40,17 +40,12 @@ function wc_scanpay_handle_bulk_capture( string $redirect_to, array $ids, bool $
 		if ( ! $wco || 'completed' === $wco->get_status() ) {
 			continue;
 		}
-		try {
-			if ( $capture ) {
-				WC_Scanpay_Capture::capture( $wco );
-			}
-			$wco->set_status( 'completed', '', true );
-			$wco->save();
-			++$changed;
-		} catch ( \Throwable $e ) {
-			$wco->set_status( 'failed', 'Scanpay capture failed: ' . $e->getMessage(), true );
-			$wco->save();
+		if ( $capture && ! WC_Scanpay_Capture::capture_or_hold( $wco ) ) {
+			continue; // Parked 'on-hold' with a note; do not complete.
 		}
+		$wco->set_status( 'completed', '', true );
+		$wco->save();
+		++$changed;
 	}
 	return add_query_arg(
 		[
