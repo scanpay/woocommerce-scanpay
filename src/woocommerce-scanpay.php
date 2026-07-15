@@ -33,7 +33,7 @@ const WC_SCANPAY_URI_AUTOCPT  = '_scanpay_autocpt';
 const WC_SCANPAY_URI_STATUS   = '_scanpay_status';
 
 define( 'WC_SCANPAY_DIR', __DIR__ );
-define( 'WC_SCANPAY_URL', set_url_scheme( WP_PLUGIN_URL ) . '/scanpay-for-woocommerce' );
+define( 'WC_SCANPAY_URL', untrailingslashit( plugins_url( '', __FILE__ ) ) );
 
 /**
  * Write messages to the WooCommerce log.
