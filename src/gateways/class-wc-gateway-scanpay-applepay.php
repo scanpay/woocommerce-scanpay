@@ -29,7 +29,7 @@ final class WC_Gateway_Scanpay_ApplePay extends WC_Gateway_Scanpay_Base {
 	 */
 	public function process_payment( $order_id ): array {
 		require WC_SCANPAY_DIR . '/public/generate-payment-link.php';
-		$arr             = wc_scanpay_process_payment( $order_id, get_option( WC_SCANPAY_URI_SETTINGS ) );
+		$arr             = wc_scanpay_process_payment( $order_id, get_option( WC_SCANPAY_URI_SETTINGS, [] ) );
 		$arr['redirect'] = $arr['redirect'] . '?go=applepay';
 		return $arr;
 	}
