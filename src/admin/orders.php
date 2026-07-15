@@ -101,9 +101,25 @@ function wc_scanpay_admin_render_meta_box( $post ): void {
 }
 
 /**
- * Add the Scanpay meta box to the order edit screen.
+ * Add the Scanpay meta box to the order edit screen, but only for Scanpay orders.
+ *
+ * Registering the box unconditionally shows an empty "Scanpay" side box on
+ * PayPal/etc. orders, so gate on the payment method here (as the subscription
+ * meta box in admin/subscriptions.php already does).
+ *
+ * @param WP_Post|WC_Order $wc_order Current object (legacy: WP_Post, HPOS: WC_Order).
  */
-function wc_scanpay_add_meta_box(): void {
+function wc_scanpay_add_meta_box( $wc_order ): void {
+	if ( ! $wc_order instanceof WC_Order ) {
+		$wc_order = wc_get_order( $wc_order->ID ); // Legacy support
+		if ( ! $wc_order ) {
+			return;
+		}
+	}
+	$pm = (string) $wc_order->get_payment_method( 'edit' );
+	if ( 'scanpay' !== $pm && ! str_starts_with( $pm, 'scanpay' ) ) {
+		return;
+	}
 	add_meta_box(
 		'wcsp-meta-box',
 		__( 'Scanpay', 'scanpay-for-woocommerce' ),
@@ -113,5 +129,5 @@ function wc_scanpay_add_meta_box(): void {
 		'high',
 	);
 }
-add_action( 'add_meta_boxes_woocommerce_page_wc-orders', 'wc_scanpay_add_meta_box', 9, 0 ); // HPOS
-add_action( 'add_meta_boxes_shop_order', 'wc_scanpay_add_meta_box', 9, 0 ); // legacy
+add_action( 'add_meta_boxes_woocommerce_page_wc-orders', 'wc_scanpay_add_meta_box', 9, 1 ); // HPOS
+add_action( 'add_meta_boxes_shop_order', 'wc_scanpay_add_meta_box', 9, 1 ); // legacy
