@@ -2,6 +2,13 @@
 
 defined( 'ABSPATH' ) || exit();
 
+/*
+ * Payment-return page: the customer is redirected here from the external payment
+ * window, so requests carry no nonce — they are authenticated by the WooCommerce
+ * order key via hash_equals below, not by a nonce.
+ */
+// phpcs:disable WordPress.Security.NonceVerification
+
 /**
  * Ensures payment details are available before rendering the WooCommerce ThankYou page.
  * This introduces a short wait to make sure payment data is fully saved, reducing
@@ -15,7 +22,7 @@ defined( 'ABSPATH' ) || exit();
  * so it has minimal impact on the user experience.
  */
 
-$order_type = wp_unslash( $_GET['scanpay_type'] ?? '' );
+$order_type = sanitize_key( wp_unslash( $_GET['scanpay_type'] ?? '' ) );
 
 /**
  * Waits for payment data to become available in WC and WCS orders.
@@ -23,7 +30,7 @@ $order_type = wp_unslash( $_GET['scanpay_type'] ?? '' );
  */
 function wc_scanpay_init_thankyou(): void {
 	global $wpdb;
-	$oid = (int) wp_unslash( $_GET['scanpay_thankyou'] ?? 0 );
+	$oid = absint( wp_unslash( $_GET['scanpay_thankyou'] ?? '' ) );
 	$wco = $oid ? wc_get_order( $oid ) : false;
 	// Ownership gate: only busy-poll for a genuine thank-you request. The success URL
 	// carries WooCommerce's order key (get_checkout_order_received_url()); require it to
@@ -63,7 +70,7 @@ if ( 'wcs' === $order_type || 'wc' === $order_type ) {
  */
 function wcs_scanpay_init_thankyou_free(): void {
 	global $wpdb;
-	$oid = (int) wp_unslash( $_GET['scanpay_thankyou'] ?? 0 );
+	$oid = absint( wp_unslash( $_GET['scanpay_thankyou'] ?? '' ) );
 	$wco = $oid ? wc_get_order( $oid ) : false;
 	// Ownership gate on the parent order, whose key is in the success URL. (No
 	// transaction-id bail here: a free-trial parent has a zero total and may never
@@ -75,7 +82,7 @@ function wcs_scanpay_init_thankyou_free(): void {
 	) {
 		return;
 	}
-	$ref = (string) wp_unslash( $_GET['scanpay_ref'] ?? '' );
+	$ref = sanitize_text_field( wp_unslash( $_GET['scanpay_ref'] ?? '' ) );
 	if ( ! str_starts_with( $ref, 'wcs[]' ) ) {
 		return;
 	}

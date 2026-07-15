@@ -32,6 +32,7 @@ if (
 }
 
 // Validate order ID (strictly digits)
+// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- ctype_digit is the validation; value is cast to int below.
 if ( ! ctype_digit( (string) wp_unslash( $_GET['order_id'] ) ) ) {
 	wp_send_json_error( 'invalid_order_id', 400 );
 }

@@ -18,6 +18,7 @@ defined( 'ABSPATH' ) || exit();
  * @param string $type    The type of notice: 'info', 'warning', 'error', 'success'.
  */
 function scanpay_admin_notice( string $msg, string $type = 'info' ): void {
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $msg is trusted, pre-escaped HTML assembled by the callers below.
 	echo '<div class="notice notice-' . esc_attr( $type ) . ' wcsp-notice"><p>' . $msg . '</p></div>';
 }
 
@@ -34,15 +35,15 @@ $callback_url = WC_SCANPAY_DASHBOARD . $shopid . '/settings/api/setup?module=woo
 
 if ( ! $shopid ) {
 	// No API key yet: welcome the merchant and point to the installation guide.
-	$link = sprintf(
+	$guide_link = sprintf(
 		'<a target="_blank" href="%s">%s</a>',
 		esc_url( 'https://wordpress.org/plugins/scanpay-for-woocommerce/#installation' ),
 		esc_html__( 'installation guide', 'scanpay-for-woocommerce' )
 	);
-	/* translators: %s is a link to the installation guide. */
 	$setup_text = sprintf(
+		/* translators: %s is a link to the installation guide. */
 		__( 'To get started, please complete the setup using our %s.', 'scanpay-for-woocommerce' ),
-		$link
+		$guide_link
 	);
 	scanpay_admin_notice(
 		'<strong>' .
@@ -97,27 +98,27 @@ $logs_url = add_query_arg(
 <?php
 
 // Navigation tabs.
-$tabs = [
+$nav_tabs = [
 	'scanpay'           => 'Generelt',
 	'scanpay_mobilepay' => 'MobilePay',
 	'scanpay_applepay'  => 'Apple Pay',
 ];
 ?>
 
-<div class="wcsp-nav wcsp-nav-<?php echo $gateway->id; ?>" aria-label="Scanpay menu">
-	<?php foreach ( $tabs as $id => $label ) : ?>
+<div class="wcsp-nav wcsp-nav-<?php echo esc_attr( $gateway->id ); ?>" aria-label="Scanpay menu">
+	<?php foreach ( $nav_tabs as $section_id => $label ) : ?>
 		<?php
 		$url = add_query_arg(
 			[
 				'page'    => 'wc-settings',
 				'tab'     => 'checkout',
-				'section' => $id,
+				'section' => $section_id,
 			],
 			admin_url( 'admin.php' )
 		);
 
 		$classes = 'wcsp-nav-tab';
-		if ( $gateway->id === $id ) {
+		if ( $gateway->id === $section_id ) {
 			$classes .= ' wcsp-nav-tab-active';
 		}
 		?>

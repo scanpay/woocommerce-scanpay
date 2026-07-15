@@ -38,6 +38,7 @@ final class Scanpay_Flock {
 		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 		$handle = @fopen( $this->path, 'c' );
 		if ( ! $handle ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 			throw new RuntimeException( "could not open lock file: {$this->path}" );
 		}
 		if ( ! flock( $handle, LOCK_EX | LOCK_NB ) ) {

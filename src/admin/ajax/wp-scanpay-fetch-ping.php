@@ -3,9 +3,15 @@
 defined( 'ABSPATH' ) || exit();
 nocache_headers();
 
+/*
+ * Shared-secret-authenticated polling endpoint (not a WP form): the request carries
+ * no nonce and the secret is compared with hash_equals. WordPress's nonce and
+ * input-sanitization sniffs therefore do not apply here.
+ */
+// phpcs:disable WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput
+
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 $secret   = (string) ( $settings['secret'] ?? '' );
-// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated
 if ( '' === $secret || ! hash_equals( $secret, rtrim( (string) wp_unslash( $_GET['s'] ?? '' ) ) ) ) {
 	status_header( 403, 'Forbidden' );
 	header( 'Content-Type: text/plain' );
@@ -24,5 +30,5 @@ if ( 0 === $shopid ) {
 
 $mtime = (int) $wpdb->get_var( "SELECT mtime FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
 header( 'Content-Type: text/plain' );
-echo $mtime;
+echo (int) $mtime;
 exit;

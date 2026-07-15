@@ -13,7 +13,18 @@
     <!-- I18n: enforce your text-domain -->
     <rule ref="WordPress.WP.I18n">
         <properties>
-            <property name="text_domain" type="array" value="scanpay-for-woocommerce"/>
+            <property name="text_domain" type="array">
+                <element value="scanpay-for-woocommerce"/>
+            </property>
+        </properties>
+    </rule>
+
+    <!-- WooCommerce registers these capabilities; they are not core WP caps. -->
+    <rule ref="WordPress.WP.Capabilities">
+        <properties>
+            <property name="custom_capabilities" type="array">
+                <element value="edit_shop_orders"/>
+            </property>
         </properties>
     </rule>
 
@@ -28,6 +39,9 @@
 
 		<!-- Prepared SQL: not always needed -->
 		<exclude name="WordPress.DB.PreparedSQL"/>
+
+		<!-- Short ternaries (a ?: b) are allowed as a deliberate style choice -->
+		<exclude name="Universal.Operators.DisallowShortTernary"/>
     </rule>
 
     <!-- Documentation sniffs off (Extra) -->
@@ -35,9 +49,10 @@
         <exclude name="Squiz.Commenting"/>
     </rule>
 
-    <!-- Allow underscores in specific filenames -->
+    <!-- Gateway field files are named after the gateway id (e.g. scanpay_mobilepay),
+         which must contain underscores to match the lazy require in get_form_fields(). -->
     <rule ref="WordPress.Files.FileName.NotHyphenatedLowercase">
-        <exclude-pattern>src/gateways/fields/</exclude-pattern>
+        <exclude-pattern>src/admin/settings/fields/</exclude-pattern>
     </rule>
 
     <!-- Allow abstract class filenames -->

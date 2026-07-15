@@ -30,6 +30,7 @@ function wc_scanpay_respond( string $msg, int $code ): void {
 	header( 'Cache-Control: no-store' );
 	header( 'Connection: close' );
 	header( 'Content-Length: ' . strlen( $msg ) );
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Plain-text body; $msg is a controlled diagnostic and Content-Length is measured from it, so it must not be altered by escaping.
 	echo $msg;
 	exit;
 }
@@ -89,7 +90,7 @@ function wc_scanpay_memory_usage_debug(): void {
 
 
 // Protocol guard: only POST is valid.
-if ( 'POST' !== ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
+if ( 'POST' !== sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ?? '' ) ) ) {
 	wc_scanpay_respond( 'method not allowed', 405 );
 }
 
@@ -103,7 +104,7 @@ if ( ! $shopid ) {
  * Content-Length to be accurate. Hard cap at 512 bytes to avoid memory
  * abuse and keep signature checks cheap.
  */
-$cl = (int) ( $_SERVER['CONTENT_LENGTH'] ?? 0 );
+$cl = (int) sanitize_text_field( wp_unslash( $_SERVER['CONTENT_LENGTH'] ?? '' ) );
 if ( $cl <= 0 ) {
 	wc_scanpay_respond( 'invalid content-length', 400 );
 }
@@ -120,7 +121,8 @@ if ( false === $body || strlen( $body ) !== $cl ) {
  * Compute base64-encoded HMAC-SHA256 over the raw body with the API key.
  * We use hash_equals to avoid timing leaks on comparison.
  */
-$sig = $_SERVER['HTTP_X_SIGNATURE'] ?? '';
+$sig = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_SIGNATURE'] ?? '' ) );
+// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Standard base64 HMAC-SHA256 signature encoding, not obfuscation.
 if ( ! hash_equals( base64_encode( hash_hmac( 'sha256', $body, $apikey, true ) ), $sig ) ) {
 	wc_scanpay_respond( 'invalid signature', 403 );
 }
