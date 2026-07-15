@@ -201,12 +201,16 @@ function wcs_scanpay_scheduled_charge( float $amount, WC_Order $wco ): void {
  * advances after >=24h, so an earlier retry would replay the cached decline. The
  * 25th hour is clock-skew margin, not correctness.
  *
- * @param array|null $rule         Retry rule for this attempt.
- * @param int        $retry_number Position in the retry queue.
- * @param int        $order_id     Renewal order ID.
- * @return array|null
+ * @param mixed $rule         Retry rule for this attempt. WCS core passes an array, but an
+ *                            earlier-hooked plugin may return false, a rule object, or anything else.
+ * @param int   $retry_number Position in the retry queue.
+ * @param int   $order_id     Renewal order ID.
+ * @return mixed
  */
-function wcs_scanpay_retry_rule( ?array $rule, int $retry_number, int $order_id ): ?array {
+function wcs_scanpay_retry_rule( $rule, int $retry_number, int $order_id ) {
+	if ( ! is_array( $rule ) ) {
+		return $rule; // Not a rule array (third-party value); pass through untouched.
+	}
 	$wco = wc_get_order( $order_id );
 	if ( ! $wco instanceof WC_Order || 'scanpay' !== $wco->get_payment_method( 'edit' ) ) {
 		return $rule;
