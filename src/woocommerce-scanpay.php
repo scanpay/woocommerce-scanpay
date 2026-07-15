@@ -343,7 +343,6 @@ function wc_scanpay_admin_init() {
 	require WC_SCANPAY_DIR . '/admin/orders.php';
 	require WC_SCANPAY_DIR . '/admin/settings.php';
 
-	// TODO: share this check with wc_scanpay_plugins_loaded
 	if ( class_exists( 'WC_Subscriptions', false ) ) {
 		require WC_SCANPAY_DIR . '/admin/subscriptions.php';
 	}
