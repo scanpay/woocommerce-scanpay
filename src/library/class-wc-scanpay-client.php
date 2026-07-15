@@ -81,8 +81,11 @@ final class WC_Scanpay_Client {
 
 		$status_code = (int) curl_getinfo( $this->ch, CURLINFO_RESPONSE_CODE );
 		if ( 200 !== $status_code ) {
-			$body = (string) $result;
-			if ( substr_count( $body, "\n" ) !== 1 || strlen( $body ) > 512 ) {
+			// Echo the body only if it is a short one-line error (the backend
+			// format, trailing newline optional); mask multi-line or oversized
+			// bodies (proxy/WAF error pages) to keep logs and order notes clean.
+			$body = rtrim( (string) $result, "\r\n" );
+			if ( '' === $body || strlen( $body ) > 512 || false !== strpbrk( $body, "\r\n" ) ) {
 				$body = 'server error';
 			}
 			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
