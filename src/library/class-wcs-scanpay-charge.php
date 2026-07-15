@@ -120,13 +120,13 @@ final class WCS_Scanpay_Charge {
 		];
 
 		/*
-		 *  Calculate the sum of all items and check if the order needs processing. WC_Order->needs_payment() is not in
-		 *  the cache here, and WCS does not use it, so we make our own is_virtual check.
+		 *  Calculate the sum of all items and make our own is_virtual check;
+		 *  $is_virtual feeds the auto-complete/autocapture decision below.
 		 */
 		$sum        = '0';
 		$currency   = $wco->get_currency( 'edit' );
 		$is_virtual = 1;
-		foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
+		foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping' ] ) as $id => $item ) {
 			if ( $is_virtual && $item instanceof WC_Order_Item_Product ) {
 				$prod = $item->get_product();
 				if ( $prod ) {

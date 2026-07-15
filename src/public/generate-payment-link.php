@@ -123,7 +123,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	$subref   = false;
 	$currency = $wco->get_currency( 'edit' );
 	$sum      = '0';
-	foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping', 'coupon' ] ) as $id => $item ) {
+	foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping' ] ) as $id => $item ) {
 		if ( $wcs && ! $subref && $item instanceof WC_Order_Item_Product ) {
 			$product = $item->get_product();
 			if ( $product && WC_Subscriptions_Product::is_subscription( $product ) ) {
