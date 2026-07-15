@@ -68,7 +68,10 @@ if ( isset( $_SERVER['HTTP_X_SIGNATURE'] ) ) {
  * Handle the "thank you" page for completed payments.
  */
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-if ( isset( $_GET['scanpay_thankyou'], $_GET['scanpay_type'] ) ) {
+if ( isset( $_GET['scanpay_thankyou'], $_GET['scanpay_type'], $_GET['key'] ) && in_array( $_GET['scanpay_type'], [ 'wc', 'wcs', 'wcs_free' ], true ) ) {
+	// A genuine thank-you request carries all three params and a known type; anything
+	// else falls through to a normal plugin load rather than short-circuiting it. The
+	// order-key ownership check happens inside the handler before any polling.
 	require WC_SCANPAY_DIR . '/public/wp-scanpay-thankyou.php';
 	return; // short-circuit
 }

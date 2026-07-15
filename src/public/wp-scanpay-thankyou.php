@@ -24,7 +24,21 @@ $order_type = $_GET['scanpay_type'] ?? '';
 function wc_scanpay_init_thankyou(): void {
 	global $wpdb;
 	$oid = (int) ( $_GET['scanpay_thankyou'] ?? 0 );
-	$i   = 0;
+	$wco = $oid ? wc_get_order( $oid ) : false;
+	// Ownership gate: only busy-poll for a genuine thank-you request. The success URL
+	// carries WooCommerce's order key (get_checkout_order_received_url()); require it to
+	// match before spending any workers on an order that may not exist.
+	if (
+		! $wco instanceof WC_Order
+		|| ! hash_equals( $wco->get_order_key(), (string) ( $_GET['key'] ?? '' ) )
+		|| ! str_starts_with( (string) $wco->get_payment_method( 'edit' ), 'scanpay' )
+	) {
+		return;
+	}
+	if ( '' !== (string) $wco->get_transaction_id( 'edit' ) ) {
+		return; // Already synced: payment data is present, nothing to wait for.
+	}
+	$i = 0;
 	while ( $i++ < 17 ) {
 		$wpdb->query( "SELECT 1 FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid LIMIT 1" );
 		if ( $wpdb->num_rows ) {
@@ -49,13 +63,31 @@ if ( 'wcs' === $order_type || 'wc' === $order_type ) {
  */
 function wcs_scanpay_init_thankyou_free(): void {
 	global $wpdb;
+	$oid = (int) ( $_GET['scanpay_thankyou'] ?? 0 );
+	$wco = $oid ? wc_get_order( $oid ) : false;
+	// Ownership gate on the parent order, whose key is in the success URL. (No
+	// transaction-id bail here: a free-trial parent has a zero total and may never
+	// carry one — this branch polls subscription activation instead.)
+	if (
+		! $wco instanceof WC_Order
+		|| ! hash_equals( $wco->get_order_key(), (string) ( $_GET['key'] ?? '' ) )
+		|| ! str_starts_with( (string) $wco->get_payment_method( 'edit' ), 'scanpay' )
+	) {
+		return;
+	}
 	$ref = (string) ( $_GET['scanpay_ref'] ?? '' );
 	if ( ! str_starts_with( $ref, 'wcs[]' ) ) {
 		return;
 	}
 	$subs  = explode( ',', substr( $ref, 5 ) );
 	$wcsid = (int) end( $subs );
-	$hpos  = defined( 'WC_VERSION' ) && class_exists( '\Automattic\WooCommerce\Utilities\OrderUtil' )
+	// The subscription must belong to the (already key-verified) parent order, so a
+	// key-holder cannot point scanpay_ref at an arbitrary subscription id.
+	$wcsub = $wcsid ? wcs_get_subscription( $wcsid ) : false;
+	if ( ! $wcsub || (int) $wcsub->get_parent_id() !== $oid ) {
+		return;
+	}
+	$hpos = defined( 'WC_VERSION' ) && class_exists( '\Automattic\WooCommerce\Utilities\OrderUtil' )
 		&& \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
 
 	$i = 0;
