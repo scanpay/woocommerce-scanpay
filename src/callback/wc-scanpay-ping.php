@@ -129,7 +129,23 @@ if (
 
 global $wpdb;
 $ping_seq = (int) $ping['seq'];
-$seq      = (int) $wpdb->get_var( "SELECT seq FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
+
+/**
+ * Read the shop's sync cursor. Fail loud: a DB error or a missing row must not
+ * masquerade as seq=0 — that would silently replay the full change history and
+ * never persist a cursor.
+ */
+$seq_row = $wpdb->get_var( "SELECT seq FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
+if ( '' !== $wpdb->last_error ) {
+	scanpay_log( 'error', "seq lookup failed: {$wpdb->last_error}" );
+	wc_scanpay_respond( 'database error', 500 );
+}
+if ( null === $seq_row ) {
+	// No cursor row for this shop — install/seed never ran for this API key.
+	scanpay_log( 'error', "no scanpay_seq row for shopid $shopid" );
+	wc_scanpay_respond( 'shop not configured', 500 );
+}
+$seq = (int) $seq_row;
 
 if ( $ping_seq < $seq ) {
 	// Reject replayed or out-of-order pings.
@@ -165,11 +181,17 @@ try {
 if ( ! $locked ) {
 	// Contention: record the latest ping so the running worker drains it, then
 	// 200 so the backend stops retrying this delivery.
-	$wpdb->query(
+	$res_ping = $wpdb->query(
 		"UPDATE {$wpdb->prefix}scanpay_seq
 		SET ping = $ping_seq
 		WHERE shopid = $shopid AND ping < $ping_seq"
 	);
+	if ( false === $res_ping ) {
+		// If we cannot hand the ping off, the running worker will not see it —
+		// fail loud so the backend retries rather than stranding the ping.
+		scanpay_log( 'error', "failed to record pending ping: {$wpdb->last_error}" );
+		wc_scanpay_respond( 'database error', 500 );
+	}
 	wc_scanpay_respond( "busy: seq=$seq", 200 );
 }
 
@@ -200,10 +222,18 @@ try {
 		}
 
 		// Save new sequence number to the database
-		$seq = (int) $res['seq'];
-		$wpdb->query(
+		$seq     = (int) $res['seq'];
+		$res_seq = $wpdb->query(
 			"UPDATE {$wpdb->prefix}scanpay_seq SET seq = $seq WHERE shopid = $shopid AND seq < $seq"
 		);
+		/**
+		 * Fail loud: the flock makes us the only writer, so an advancing cursor
+		 * must touch exactly one row. If it did not persist, do not ack —
+		 * otherwise the next ping replays everything from the stale cursor.
+		 */
+		if ( false === $res_seq || $wpdb->rows_affected < 1 ) {
+			throw new Exception( "failed to persist sync cursor to seq $seq: {$wpdb->last_error}" );
+		}
 
 		if ( $ping_seq > $seq ) {
 			/**
@@ -218,6 +248,9 @@ try {
 		} else {
 			// Check if we blocked a newer ping while syncing
 			$blocked_ping = (int) $wpdb->get_var( "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
+			if ( '' !== $wpdb->last_error ) {
+				throw new Exception( "ping lookup failed: {$wpdb->last_error}" );
+			}
 			if ( $blocked_ping > $ping_seq ) {
 				scanpay_log( 'debug', "Resuming sync to blocked ping seq $blocked_ping (current seq $seq)" );
 				$ping_seq = $blocked_ping;
