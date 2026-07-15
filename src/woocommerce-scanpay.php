@@ -212,6 +212,16 @@ function wc_scanpay_plugins_loaded() {
 }
 add_action( 'plugins_loaded', 'wc_scanpay_plugins_loaded', 10 );
 
+/**
+ * Create the custom tables on activation. Only install.php runs here (it needs no
+ * WooCommerce runtime); version-gated migrations run later via wc_scanpay_plugins_loaded().
+ * Activation does not fire on auto-updates, so the loader gate remains the primary path.
+ */
+function wc_scanpay_activate(): void {
+	require WC_SCANPAY_DIR . '/install.php';
+}
+register_activation_hook( __FILE__, 'wc_scanpay_activate' );
+
 
 /**
  * Declare compatibility with WooCommerce High-Performance Order Storage (HPOS).
