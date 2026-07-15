@@ -38,8 +38,9 @@ finished (~90% done) — the authoritative list of remaining gaps is the root
 - Lint: `pnpm phpcs` (WordPress + WooCommerce-Core + PHPCompatibilityWP; short
   arrays enforced), `pnpm phpcbf` to autofix. JS/CSS: `pnpm lint:js` /
   `lint:style`. Prettier config in `.prettierrc.mjs` (TS `printWidth: 120`).
-  Note `lint:js` only globs `src/public/assets/js/`, so admin TS
-  (`order.ts`, `settings.ts`, and any future `subs.ts`) is not covered by it.
+  `lint:js` globs the whole `src/` tree, and the flat `eslint.config.mjs`
+  scopes rules to `src/**/*.ts`, so all admin + public TS (incl. any future
+  `subs.ts`) is covered. Requires the `@eslint/js` dev dep.
 - `webpack.config.js` and `tsconfig.json` `outDir` are stale/editor-only — the
   real build is esbuild in `build.sh`. `tsconfig.json` `include` is what governs
   type-checking.

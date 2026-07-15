@@ -404,3 +404,5 @@ Consolidate the three reviews into one ranked backlog in `issue-prioritization.m
 Group by severity (blocker → major → minor → nit), and for each item give:
 one-line description, source file:line, which review it came from, and the fix.
 Call out anything that blocks shipping `v3.0.0` at the top.
+
+## 13) Update, improve and simplify/shorten `CLAUDE.md` and `AGENTS.md`.
