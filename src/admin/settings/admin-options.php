@@ -25,12 +25,15 @@ function scanpay_admin_notice( string $msg, string $type = 'info' ): void {
 $settings = get_option( WC_SCANPAY_URI_SETTINGS, [] );
 $shopid   = (int) strtok( $settings['apikey'] ?? '', ':' );
 
-// Create the ping URL that we send to the dashboard.
-$callback_url = WC_SCANPAY_DASHBOARD . $shopid . '/settings/api/setup?module=woocommerce&url='
-	. rawurlencode( WC()->api_request_url( 'wc_scanpay' ) );
+// The synchronization (ping) URL the merchant must register in the Scanpay dashboard.
+$ping_url = WC()->api_request_url( 'wc_scanpay' );
 
-// Add welcome notice if shopid is not set.
+// One-click deep link to the dashboard that pre-fills the module and ping URL.
+$callback_url = WC_SCANPAY_DASHBOARD . $shopid . '/settings/api/setup?module=woocommerce&url='
+	. rawurlencode( $ping_url );
+
 if ( ! $shopid ) {
+	// No API key yet: welcome the merchant and point to the installation guide.
 	$link = sprintf(
 		'<a target="_blank" href="%s">%s</a>',
 		esc_url( 'https://wordpress.org/plugins/scanpay-for-woocommerce/#installation' ),
@@ -51,16 +54,25 @@ if ( ! $shopid ) {
 		) . '<br>' .
 		$setup_text
 	);
+} else {
+	// API key is set: surface the ping URL to register in the dashboard (core onboarding step).
+	scanpay_admin_notice(
+		'<strong>' .
+			esc_html__( 'Finish your Scanpay setup', 'scanpay-for-woocommerce' ) .
+		'</strong><br>' .
+		esc_html__(
+			'Add this synchronization URL in your Scanpay dashboard so we can keep your orders in sync:',
+			'scanpay-for-woocommerce'
+		) .
+		'<br><input type="text" class="wcsp-setup-url" style="width:100%;max-width:34em;margin:6px 0;"' .
+			' value="' . esc_url( $ping_url ) . '" readonly onclick="this.select();">' .
+		'<br><a class="button button-primary" target="_blank" rel="noopener" href="' . esc_url( $callback_url ) . '">' .
+			esc_html__( 'Add URL in the Scanpay dashboard', 'scanpay-for-woocommerce' ) .
+		'</a>'
+	);
 }
 
-// Check for unread scanpay logs
-$files        = WC_Log_Handler_File::get_log_files();
-$scanpay_logs = array_filter(
-	array_keys( $files ),
-	fn ( $file ) => str_starts_with( $file, 'wc-scanpay' )
-);
-
-// Construct the log file name.
+// Construct the Scanpay logs URL.
 $logs_url = add_query_arg(
 	[
 		'page'     => 'wc-status',
@@ -75,7 +87,7 @@ $logs_url = add_query_arg(
 
 <h2 class="wc-admin-header">
 	<small>
-		<a href="/wp-admin/admin.php?page=wc-settings&amp;tab=checkout">
+		<a href="<?php echo esc_url( admin_url( 'admin.php?page=wc-settings&tab=checkout' ) ); ?>">
 			<span class="dashicons dashicons-arrow-left-alt2" aria-hidden="true"></span>
 		</a>
 	</small>
