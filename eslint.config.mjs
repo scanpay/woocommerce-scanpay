@@ -9,9 +9,22 @@ import pluginJs from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
 export default [
+	{
+		ignores: ['build/**', 'node_modules/**', 'vendor/**'],
+	},
 	pluginJs.configs.recommended,
 	...tseslint.configs.recommended,
 	{
+		files: ['src/**/*.ts'],
+		languageOptions: {
+			globals: {
+				...globals.browser,
+			},
+			parserOptions: {
+				ecmaVersion: 2020,
+				sourceType: 'module',
+			},
+		},
 		rules: {
 			'one-var': 'off',
 			'sort-keys': 'off',
@@ -25,21 +38,6 @@ export default [
 			'no-plusplus': 'off',
 			'id-length': 'off',
 			'@typescript-eslint/no-explicit-any': 'off', // allow `any` tmp
-		},
-	},
-	{
-		files: ['src/assets/js/**/*.ts'],
-		ignorePatterns: ['!src/**'],
-		languageOptions: {
-			parser: 'typescript-eslint/parser',
-			globals: {
-				...globals.browser,
-			},
-			parserOptions: {
-				ecmaVersion: 2020,
-				sourceType: 'script',
-			},
-			plugins: ['typescript-eslint'],
 		},
 	},
 ];
