@@ -1,14 +1,39 @@
 <?php
 
-// canonical decimal: an optional '-' followed by digits, with an optional '.' + digits.
-// Anything else (whitespace, '+', exponents like '1e3' or '1.0E-7') would silently
-// corrupt the digit math below, so the homogenizer rejects it loudly.
-// The D modifier anchors $ at the true end: without it, "5\n" would pass.
+/**
+ * Exact arithmetic for decimal money amounts represented as strings.
+ *
+ * The public arithmetic helpers validate their inputs, align both operands to
+ * equal-length digit strings, and then use elementary addition or subtraction.
+ * This avoids floating-point rounding and does not require the BCMath extension.
+ */
+
+/**
+ * Check whether a string uses the supported decimal money syntax.
+ *
+ * A valid amount consists of an optional minus sign, one or more integer
+ * digits, and an optional fractional part. Whitespace, plus signs, and
+ * exponent notation are deliberately rejected because the digit helpers below
+ * cannot process them safely.
+ *
+ * The D modifier anchors `$` at the absolute end of the string; without it,
+ * an amount ending in a newline would be accepted.
+ */
 function wc_scanpay_is_money( string $s ): bool {
 	return 1 === preg_match( '/^-?[0-9]+(\.[0-9]+)?$/D', $s );
 }
 
-// turn '123.4' and '56.78' into '12340' and '05678'
+/**
+ * Align two money amounts for digit-by-digit arithmetic and comparison.
+ *
+ * For example, `123.4` and `56.78` become the equal-length digit strings
+ * `12340` and `05678`.
+ *
+ * @internal
+ *
+ * @return array{a: string, b: string, as: bool, bs: bool, il: int, fl: int}
+ * @throws \InvalidArgumentException If either amount is invalid.
+ */
 function wc_scanpay_dighomogenize( string $a, string $b ): array {
 	if ( ! wc_scanpay_is_money( $a ) || ! wc_scanpay_is_money( $b ) ) {
 		// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
@@ -33,7 +58,15 @@ function wc_scanpay_dighomogenize( string $a, string $b ): array {
 	return $h;
 }
 
-// turn '012340' into '123.40' or '12300' into '123'
+/**
+ * Restore an aligned digit string to a decimal money amount.
+ *
+ * Leading integer zeros are removed. Fractional trailing zeros are retained
+ * unless the entire fractional part is zero, and negative zero is normalized
+ * to `0`. For example, `012340` with a fraction length of 2 becomes `123.40`.
+ *
+ * @internal
+ */
 function wc_scanpay_digformat( bool $sign, string $s, int $fl ): string {
 	$il = strlen( $s ) - $fl;
 	$s  = ltrim( substr( $s, 0, $il ), '0' ) . '.' . substr( $s, $il );
@@ -45,6 +78,11 @@ function wc_scanpay_digformat( bool $sign, string $s, int $fl ): string {
 	return ( $sign && '0' !== $s ) ? '-' . $s : $s; // never '-0'
 }
 
+/**
+ * Add two equal-length, unsigned digit strings.
+ *
+ * @internal
+ */
 function wc_scanpay_digadd( string $a, string $b ): string {
 	for ( $s = '', $rem = 0, $i = strlen( $a ) - 1; $i >= 0; $i-- ) {
 		$r = intval( $a[ $i ] ) + intval( $b[ $i ] ) + $rem;
@@ -59,6 +97,13 @@ function wc_scanpay_digadd( string $a, string $b ): string {
 	return ( $rem > 0 ) ? (string) $rem . $s : $s;
 }
 
+/**
+ * Subtract one equal-length, unsigned digit string from another.
+ *
+ * The value represented by `$a` must be greater than or equal to `$b`.
+ *
+ * @internal
+ */
 function wc_scanpay_digsub( string $a, string $b ): string {
 	for ( $s = '', $rem = 0, $i = strlen( $a ) - 1; $i >= 0; $i-- ) {
 		if ( $a[ $i ] < $b[ $i ] + $rem ) {
@@ -72,6 +117,11 @@ function wc_scanpay_digsub( string $a, string $b ): string {
 	return $s;
 }
 
+/**
+ * Add two decimal money amounts without floating-point arithmetic.
+ *
+ * @throws \InvalidArgumentException If either amount is invalid.
+ */
 function wc_scanpay_addmoney( string $a, string $b ): string {
 	$h = wc_scanpay_dighomogenize( $a, $b );
 	// sign magic to avoid subtracting a larger number from a smaller one
@@ -88,6 +138,11 @@ function wc_scanpay_addmoney( string $a, string $b ): string {
 	return wc_scanpay_digformat( $h['as'], $s, $h['fl'] );
 }
 
+/**
+ * Subtract one decimal money amount from another.
+ *
+ * @throws \InvalidArgumentException If either amount is invalid.
+ */
 function wc_scanpay_submoney( string $a, string $b ): string {
 	// validate before negating: stripping the '-' would launder '--5' into a valid '-5'
 	if ( ! wc_scanpay_is_money( $b ) ) {
@@ -98,6 +153,13 @@ function wc_scanpay_submoney( string $a, string $b ): string {
 	return wc_scanpay_addmoney( $a, ( '-' === $b[0] ) ? substr( $b, 1 ) : ( '-' . $b ) );
 }
 
+/**
+ * Compare two decimal money amounts.
+ *
+ * @return int A value below zero if `$a < $b`, zero if equal, or a value above
+ *             zero if `$a > $b`.
+ * @throws \InvalidArgumentException If either amount is invalid.
+ */
 function wc_scanpay_cmpmoney( string $a, string $b ): int {
 	$h = wc_scanpay_dighomogenize( $a, $b );
 	if ( $h['as'] && $h['bs'] ) {
@@ -112,14 +174,27 @@ function wc_scanpay_cmpmoney( string $a, string $b ): int {
 	return strcmp( $h['a'], $h['b'] );
 }
 
+/**
+ * Check two decimal money amounts for numeric equality.
+ *
+ * Equivalent representations such as `1.2` and `1.20`, or `0` and `-0.00`,
+ * compare as equal.
+ *
+ * @throws \InvalidArgumentException If either amount is invalid.
+ */
 function wc_scanpay_money_equals( string $a, string $b ): bool {
 	$h = wc_scanpay_dighomogenize( $a, $b );
 	return $h['as'] === $h['bs'] && $h['a'] === $h['b'];
 }
 
-// zero test for a canonical amount: zero iff it contains no 1-9 digit ('0', '0.00', '-0').
-// The digit scan is only sound on validated input (' 0' or '+0' would pass it),
-// so the is_money() check must stay first.
+/**
+ * Check whether a valid decimal money amount represents zero.
+ *
+ * The digit scan is only reliable after validation: unsupported strings such
+ * as `+0` or ` 0` also contain no non-zero digits.
+ *
+ * @throws \InvalidArgumentException If the amount is invalid.
+ */
 function wc_scanpay_is_zero( string $s ): bool {
 	if ( ! wc_scanpay_is_money( $s ) ) {
 		// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
