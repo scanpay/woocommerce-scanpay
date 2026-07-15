@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once WC_SCANPAY_DIR . '/library/math.php';
+require_once WC_SCANPAY_DIR . '/library/functions.php';
 
 /**
  * Synchronizes Scanpay payments with WooCommerce orders and subscriptions.
@@ -57,7 +58,7 @@ final class WC_Scanpay_Sync {
 		$this->wcs_enabled = class_exists( 'WC_Subscriptions', false );
 
 		if ( 'yes' === ( $this->settings['wc_complete_virtual'] ?? 'no' ) ) {
-			add_filter( 'woocommerce_order_item_needs_processing', [ $this, 'item_needs_processing' ], 10, 2 );
+			add_filter( 'woocommerce_order_item_needs_processing', 'wc_scanpay_item_needs_processing', 10, 2 );
 		}
 	}
 
@@ -82,17 +83,6 @@ final class WC_Scanpay_Sync {
 			$order
 		);
 		return $order->has_status( $valid );
-	}
-
-	/*
-	 *  WC auto-completes downloadable orders, but not virtual orders. This filter
-	 *  will set virtual products to not need processing, so they are auto-completed.
-	 */
-	public function item_needs_processing( bool $needs_processing, \WC_Product $product ): bool {
-		if ( $needs_processing && true === $product->get_virtual( 'edit' ) && ! $product->get_downloadable( 'edit' ) ) {
-			return false; // Product is virtual, but not downloadable.
-		}
-		return $needs_processing;
 	}
 
 	/**
@@ -211,95 +201,7 @@ final class WC_Scanpay_Sync {
 	 * @throws \RuntimeException On validation, database, or payment errors.
 	 */
 	public function transaction( array $c ): void {
-		$oid = $this->ordernumber( $c['orderid'] ?? '' );
-		if ( $oid <= 0 ) {
-			return; // skip: invalid orderID
-		}
-		$trnid = $c['id'] ?? null;
-		if ( ! is_int( $trnid ) || $trnid <= 0 ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
-			throw new \RuntimeException( "transaction: invalid transaction ID for order #$oid (id=$trnid)" );
-		}
-		$rev = $c['rev'] ?? null;
-		if ( ! is_int( $rev ) || $rev <= 0 ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
-			throw new \RuntimeException( "transaction #$trnid: invalid revision number (rev=$rev)" );
-		}
-		$nacts  = count( $c['acts'] );
-		$auth   = $this->extract_amount( $c['totals']['authorized'] );
-		$capt   = $this->extract_amount( $c['totals']['captured'] );
-		$refund = $this->extract_amount( $c['totals']['refunded'] );
-		$void   = $this->extract_amount( $c['totals']['voided'] );
-		$cur    = substr( $c['totals']['authorized'], -3 ); // SQL-safe: validated by extract_amount()
-
-		global $wpdb;
-		$sql = "INSERT INTO {$wpdb->prefix}scanpay_meta (orderid, shopid, id, rev, nacts, currency, authorized, captured, refunded, voided)
-			VALUES ($oid, {$this->shopid}, $trnid, $rev, $nacts, '$cur', '$auth', '$capt', '$refund', '$void')
-			ON DUPLICATE KEY UPDATE
-			rev      = VALUES(rev),
-			nacts    = VALUES(nacts),
-			captured = VALUES(captured),
-			refunded = VALUES(refunded),
-			voided   = VALUES(voided)";
-
-		if ( ! $this->upsert_meta( "transaction #$trnid", $oid, $trnid, $sql ) ) {
-			return; // A different transaction already owns this order.
-		}
-
-		// The INSERT above and payment_complete() below are not atomic, so we
-		// we need to check the $wco to verify if the order is marked as paid.
-		$wco = wc_get_order( $oid );
-		if ( ! $wco ) {
-			// Legitimate state, not a protocol violation: the order may have been deleted
-			// or the store reset while Scanpay still holds the old transaction. Log and
-			// continue — throwing would retry the same seq forever and wedge the sync.
-			scanpay_log( 'warning', "transaction #$trnid: order not found (order=$oid)" );
-			return;
-		}
-		if ( empty( $wco->get_transaction_id( 'edit' ) ) ) {
-			if ( ! str_starts_with( (string) $wco->get_payment_method( 'edit' ), 'scanpay' ) ) {
-				scanpay_log( 'error', "transaction #$trnid: order is not a scanpay order (order=$oid)" );
-				return;
-			}
-			if ( (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' ) !== $this->shopid ) {
-				scanpay_log( 'error', "transaction #$trnid: shopid mismatch (order=$oid)" );
-				return;
-			}
-			if ( $wco->get_currency( 'edit' ) !== $cur ) {
-				scanpay_log( 'error', "transaction #$trnid: currency mismatch (order=$oid)" );
-				return;
-			}
-			// Legitimate underpayment, not a protocol violation: payment links live 15 minutes,
-			// so an order total raised after the link was created is no longer covered by the
-			// older, smaller authorization. Deferred capture caps at the authorized amount and
-			// cannot repair this, so keep the synced meta row but do not mark the order paid.
-			// Log + note + return (never throw) — mirror the currency-mismatch handling above.
-			$total = (string) $wco->get_total( 'edit' );
-			if ( wc_scanpay_cmpmoney( $auth, $total ) < 0 ) {
-				scanpay_log( 'error', "transaction #$trnid: authorized $auth does not cover order total $total (order=$oid)" );
-				$wco->add_order_note( "Scanpay: authorized amount ($auth $cur) does not cover the order total ($total $cur); order not marked as paid." );
-				return;
-			}
-			$txn = (string) $trnid;
-			$wco->set_transaction_id( $txn );
-			$ts = $c['time']['authorized'] ?? null;
-			if ( is_int( $ts ) && $ts < 10_000_000_000 ) {
-				$wco->set_date_paid( $ts );
-			}
-			// Wallets (MobilePay, Apple Pay) are card payments behind the scenes, so we
-			// consolidate them into the card gateway. The wallet is kept in the title.
-			$wco->set_payment_method( 'scanpay' );
-			$wco->set_payment_method_title( $this->parse_payment_method( $c['method'] ?? null ) );
-			/*
-			* Always invoke payment_complete() to trigger hooks. Save first if order status
-			* is ineligible, since payment_complete() only persists changes for eligible statuses.
-			*/
-			if ( ! $this->is_payment_complete_eligible( $wco ) ) {
-				scanpay_log( 'info', "transaction #$txn: Order is not eligible for payment_complete (order=$oid)" );
-				$wco->save();
-			}
-			$wco->payment_complete( $txn );
-		}
+		$this->sync( $c, 'transaction' );
 	}
 
 	/**
@@ -310,6 +212,20 @@ final class WC_Scanpay_Sync {
 	 * @throws \RuntimeException On validation, database, or payment errors.
 	 */
 	public function charge( array $c ): void {
+		$this->sync( $c, 'charge' );
+	}
+
+	/**
+	 * Shared worker for transaction() and charge(). Validates the payload, guard-upserts
+	 * the scanpay_meta row, then marks the order paid — but only once ownership, shop,
+	 * currency and the authorized amount all check out.
+	 *
+	 * @param array  $c    Transaction or charge payload from Scanpay.
+	 * @param string $type Either 'transaction' or 'charge'. Sets the log labels and, for
+	 *                     charges, requires and stores the subscriber id (subid column).
+	 * @throws \RuntimeException On validation, database, or payment errors.
+	 */
+	private function sync( array $c, string $type ): void {
 		$oid = $this->ordernumber( $c['orderid'] ?? '' );
 		if ( $oid <= 0 ) {
 			return; // skip: invalid orderID
@@ -317,17 +233,21 @@ final class WC_Scanpay_Sync {
 		$trnid = $c['id'] ?? null;
 		if ( ! is_int( $trnid ) || $trnid <= 0 ) {
 			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
-			throw new \RuntimeException( "charge: invalid transaction ID for order #$oid (id=$trnid)" );
+			throw new \RuntimeException( "$type: invalid transaction ID for order #$oid (id=$trnid)" );
 		}
-		$rev = $c['rev'] ?? null;
+		$label = "$type #$trnid";
+		$rev   = $c['rev'] ?? null;
 		if ( ! is_int( $rev ) || $rev <= 0 ) {
 			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
-			throw new \RuntimeException( "charge #$trnid: invalid revision number (rev=$rev)" );
+			throw new \RuntimeException( "$label: invalid revision number (rev=$rev)" );
 		}
-		$subid = $c['subscriber']['id'] ?? null;
-		if ( ! is_int( $subid ) || $subid <= 0 ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
-			throw new \RuntimeException( "charge #$trnid: invalid subscriber id (id=$subid)" );
+		$subid = null;
+		if ( 'charge' === $type ) {
+			$subid = $c['subscriber']['id'] ?? null;
+			if ( ! is_int( $subid ) || $subid <= 0 ) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+				throw new \RuntimeException( "$label: invalid subscriber id (id=$subid)" );
+			}
 		}
 		$nacts  = count( $c['acts'] );
 		$auth   = $this->extract_amount( $c['totals']['authorized'] );
@@ -336,9 +256,13 @@ final class WC_Scanpay_Sync {
 		$void   = $this->extract_amount( $c['totals']['voided'] );
 		$cur    = substr( $c['totals']['authorized'], -3 ); // SQL-safe: validated by extract_amount()
 
+		// Charges also record the subscriber id; both values are validated ints, so SQL-safe.
+		$subid_col = ( null !== $subid ) ? 'subid, ' : '';
+		$subid_val = ( null !== $subid ) ? "$subid, " : '';
+
 		global $wpdb;
-		$sql = "INSERT INTO {$wpdb->prefix}scanpay_meta (orderid, subid, shopid, id, rev, nacts, currency, authorized, captured, refunded, voided)
-			VALUES ($oid, $subid, {$this->shopid}, $trnid, $rev, $nacts, '$cur', '$auth', '$capt', '$refund', '$void')
+		$sql = "INSERT INTO {$wpdb->prefix}scanpay_meta (orderid, {$subid_col}shopid, id, rev, nacts, currency, authorized, captured, refunded, voided)
+			VALUES ($oid, {$subid_val}{$this->shopid}, $trnid, $rev, $nacts, '$cur', '$auth', '$capt', '$refund', '$void')
 			ON DUPLICATE KEY UPDATE
 			rev      = VALUES(rev),
 			nacts    = VALUES(nacts),
@@ -346,7 +270,7 @@ final class WC_Scanpay_Sync {
 			refunded = VALUES(refunded),
 			voided   = VALUES(voided)";
 
-		if ( ! $this->upsert_meta( "charge #$trnid", $oid, $trnid, $sql ) ) {
+		if ( ! $this->upsert_meta( $label, $oid, $trnid, $sql ) ) {
 			return; // A different transaction already owns this order.
 		}
 
@@ -355,29 +279,29 @@ final class WC_Scanpay_Sync {
 		$wco = wc_get_order( $oid );
 		if ( ! $wco ) {
 			// Legitimate state, not a protocol violation: the order may have been deleted
-			// or the store reset while Scanpay still holds the old charge. Log and
+			// or the store reset while Scanpay still holds the old transaction. Log and
 			// continue — throwing would retry the same seq forever and wedge the sync.
-			scanpay_log( 'warning', "charge #$trnid: order not found (order=$oid)" );
+			scanpay_log( 'warning', "$label: order not found (order=$oid)" );
 			return;
 		}
 		if ( empty( $wco->get_transaction_id( 'edit' ) ) ) {
 			if ( ! str_starts_with( (string) $wco->get_payment_method( 'edit' ), 'scanpay' ) ) {
-				scanpay_log( 'error', "charge #$trnid: order is not a scanpay order (order=$oid)" );
+				scanpay_log( 'error', "$label: order is not a scanpay order (order=$oid)" );
 				return;
 			}
 			if ( (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' ) !== $this->shopid ) {
-				scanpay_log( 'error', "charge #$trnid: shopid mismatch (order=$oid)" );
+				scanpay_log( 'error', "$label: shopid mismatch (order=$oid)" );
 				return;
 			}
 			if ( $wco->get_currency( 'edit' ) !== $cur ) {
-				scanpay_log( 'error', "charge #$trnid: currency mismatch (order=$oid)" );
+				scanpay_log( 'error', "$label: currency mismatch (order=$oid)" );
 				return;
 			}
 			// Underpayment. This should not happen with charges, but if it does, we don't
 			// want to mark the order as paid, so we log + note + return (never throw).
 			$total = (string) $wco->get_total( 'edit' );
 			if ( wc_scanpay_cmpmoney( $auth, $total ) < 0 ) {
-				scanpay_log( 'error', "charge #$trnid: authorized $auth does not cover order total $total (order=$oid)" );
+				scanpay_log( 'error', "$label: authorized $auth does not cover order total $total (order=$oid)" );
 				$wco->add_order_note( "Scanpay: authorized amount ($auth $cur) does not cover the order total ($total $cur); order not marked as paid." );
 				return;
 			}
@@ -396,7 +320,7 @@ final class WC_Scanpay_Sync {
 			* is ineligible, since payment_complete() only persists changes for eligible statuses.
 			*/
 			if ( ! $this->is_payment_complete_eligible( $wco ) ) {
-				scanpay_log( 'info', "charge #$txn: Order is not eligible for payment_complete (order=$oid)" );
+				scanpay_log( 'info', "$label: Order is not eligible for payment_complete (order=$oid)" );
 				$wco->save();
 			}
 			$wco->payment_complete( $txn );

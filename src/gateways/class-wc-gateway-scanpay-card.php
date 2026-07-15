@@ -2,6 +2,8 @@
 
 defined( 'ABSPATH' ) || exit();
 
+require_once WC_SCANPAY_DIR . '/library/functions.php';
+
 final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 	public function __construct() {
 		$this->id                 = 'scanpay';
@@ -26,7 +28,7 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 			add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_checkout_styles' ] );
 		}
 		if ( 'yes' === $this->get_option( 'wc_complete_virtual' ) ) {
-			add_filter( 'woocommerce_order_item_needs_processing', [ $this, 'item_needs_processing' ], 10, 2 );
+			add_filter( 'woocommerce_order_item_needs_processing', 'wc_scanpay_item_needs_processing', 10, 2 );
 		}
 	}
 
@@ -89,24 +91,5 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 		if ( is_checkout() ) {
 			wp_enqueue_style( 'wcsp-pay', WC_SCANPAY_URL . '/public/assets/css/checkout.css', [], WC_SCANPAY_VERSION );
 		}
-	}
-
-	/**
-	 * Filter whether an order item requires processing.
-	 *
-	 * Called from WC_Order::needs_processing() during checkout; the result is cached
-	 * per order. WooCommerce normally skips processing only if a product is both
-	 * virtual and downloadable. This override skips processing for all virtual
-	 * products, even when they are not downloadable.
-	 *
-	 * @param bool       $needs_processing Whether the item needs processing.
-	 * @param WC_Product $product          The product object.
-	 * @return bool
-	 */
-	public function item_needs_processing( bool $needs_processing, WC_Product $product ): bool {
-		if ( $needs_processing && $product->get_virtual( 'edit' ) ) {
-			return false;
-		}
-		return $needs_processing;
 	}
 }
