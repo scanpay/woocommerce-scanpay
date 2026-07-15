@@ -54,7 +54,6 @@ if ( $wpdb->get_var( "SHOW TABLES LIKE '$subs_tbl'" ) !== $subs_tbl ) {
 			subid INT unsigned UNIQUE,
 			rev INT unsigned,
 			method VARCHAR(64),
-			method_id VARCHAR(64),
 			method_exp BIGINT unsigned,
 			PRIMARY KEY (subid)
 		) CHARSET = latin1;"
