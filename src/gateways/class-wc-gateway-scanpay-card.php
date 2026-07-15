@@ -42,8 +42,9 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 		}
 		$html = '<span class="wcsp-methods wcsp-cards">';
 		foreach ( $cards as $card ) {
-			$html .= '<img src="' . WC_SCANPAY_URL . '/public/assets/images/' . $card .
-				'.svg" class="wcsp-' . $card . '" alt="' . $card . '" title="' . $card . '">';
+			$card  = (string) $card;
+			$html .= '<img src="' . esc_url( WC_SCANPAY_URL . '/public/assets/images/' . $card . '.svg' ) .
+				'" class="wcsp-' . esc_attr( $card ) . '" alt="' . esc_attr( $card ) . '" title="' . esc_attr( $card ) . '">';
 		}
 		return $html . '</span>';
 	}

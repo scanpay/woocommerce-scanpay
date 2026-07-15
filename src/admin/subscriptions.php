@@ -22,10 +22,10 @@ add_filter( 'woocommerce_subscription_payment_method_to_display', 'wcs_scanpay_p
 function wc_scanpay_create_meta_box_subs( $post, $args ) {
 	$wc_sub = $args['args'][0];
 	$secret = get_option( WC_SCANPAY_URI_SETTINGS )['secret'] ?? '';
-	echo '<div id="wcsp-meta" data-secret="' . $secret . '"
-		data-subid="' . $wc_sub->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ) . '"
-		data-payid="' . $wc_sub->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' ) . '"
-		data-ptime="' . $wc_sub->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' ) . '">
+	echo '<div id="wcsp-meta" data-secret="' . esc_attr( $secret ) . '"
+		data-subid="' . esc_attr( (string) $wc_sub->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ) ) . '"
+		data-payid="' . esc_attr( (string) $wc_sub->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' ) ) . '"
+		data-ptime="' . esc_attr( (string) $wc_sub->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' ) ) . '">
 		<div id="wcsp-meta-head"></div>
 		<ul id="wcsp-meta-ul" class="wcsp-meta-ul"></ul>
 	</div>';

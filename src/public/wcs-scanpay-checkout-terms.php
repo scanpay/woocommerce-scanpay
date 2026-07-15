@@ -5,8 +5,8 @@ defined( 'ABSPATH' ) || exit();
 if ( class_exists( 'WC_Subscriptions_Cart', false ) && WC_Subscriptions_Cart::cart_contains_subscription() ) {
 	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
 	if ( $settings && isset( $settings['wcs_terms'] ) && '0' !== $settings['wcs_terms'] ) {
-		$url = get_page_link( $settings['wcs_terms'] );
-		$txt = 'Jeg accepterer <a href="' . $url . ' ">abonnementsbetingelserne</a>.';
+		$url = esc_url( get_page_link( $settings['wcs_terms'] ) );
+		$txt = 'Jeg accepterer <a href="' . $url . '">abonnementsbetingelserne</a>.';
 
 		woocommerce_form_field(
 			'wcssp-terms-field',
