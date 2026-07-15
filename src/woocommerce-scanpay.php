@@ -178,6 +178,40 @@ function wcs_scanpay_validate_terms( array $data, WP_Error $errors ): void {
 }
 
 /**
+ * Server-side enforcement of the subscription terms checkbox (Blocks / Store API checkout).
+ * Action: woocommerce_store_api_checkout_update_order_from_request
+ *
+ * The woocommerce_after_checkout_validation action does not fire for the Store API checkout
+ * used by the Cart/Checkout blocks. The checkbox is rendered inside the Scanpay payment content
+ * (checkout.ts) and its state is sent as the 'wcssp-terms' payment_data entry; re-check it
+ * here so a crafted request cannot bypass acceptance. Throwing RouteException aborts the
+ * checkout with a 400 and surfaces the message to the customer.
+ *
+ * @param WC_Order        $order   Draft order built from the request (unused; hook signature).
+ * @param WP_REST_Request $request Store API checkout request.
+ */
+function wcs_scanpay_blocks_validate_terms( WC_Order $order, WP_REST_Request $request ): void {
+	if ( ! str_starts_with( (string) $request['payment_method'], 'scanpay' ) ) {
+		return; // Only the (card) scanpay gateway supports subscriptions.
+	}
+	if ( ! class_exists( 'WC_Subscriptions_Cart', false ) || ! WC_Subscriptions_Cart::cart_contains_subscription() ) {
+		return;
+	}
+	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
+	if ( ! is_array( $settings ) || '0' === ( $settings['wcs_terms'] ?? '0' ) ) {
+		return; // Terms checkbox is disabled.
+	}
+	$payment_data = array_column( (array) ( $request['payment_data'] ?? [] ), 'value', 'key' );
+	if ( empty( $payment_data['wcssp-terms'] ) ) {
+		throw new \Automattic\WooCommerce\StoreApi\Exceptions\RouteException(
+			'wcssp_terms_required',
+			'Du skal acceptere abonnementsbetingelserne for at gennemføre købet.',
+			400
+		);
+	}
+}
+
+/**
  * Handle scheduled subscription payments (charges).
  * Action: woocommerce_scheduled_subscription_payment_scanpay
  *
@@ -261,6 +295,7 @@ function wc_scanpay_plugins_loaded() {
 		add_action( 'woocommerce_scheduled_subscription_payment_scanpay', 'wcs_scanpay_scheduled_charge', 3, 2 );
 		add_action( 'woocommerce_review_order_before_submit', 'wcs_scanpay_checkout_terms', 10 );
 		add_action( 'woocommerce_after_checkout_validation', 'wcs_scanpay_validate_terms', 10, 2 );
+		add_action( 'woocommerce_store_api_checkout_update_order_from_request', 'wcs_scanpay_blocks_validate_terms', 10, 2 );
 		add_filter( 'wcs_get_retry_rule_raw', 'wcs_scanpay_retry_rule', 10, 3 );
 	}
 }

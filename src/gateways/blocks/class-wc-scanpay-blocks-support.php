@@ -59,6 +59,22 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 					'multiple_subscriptions',
 				],
 			];
+			// Subscription terms checkbox. woocommerce_after_checkout_validation (classic) does
+			// not fire for the Store API checkout, so the checkbox is rendered inside this
+			// method's content (checkout.ts) and enforced in wcs_scanpay_blocks_validate_terms().
+			if (
+				class_exists( 'WC_Subscriptions_Cart', false )
+				&& WC_Subscriptions_Cart::cart_contains_subscription()
+				&& '0' !== ( $settings['wcs_terms'] ?? '0' )
+			) {
+				$data['methods']['scanpay']['terms'] = [
+					'url'    => esc_url_raw( (string) get_page_link( (int) $settings['wcs_terms'] ) ),
+					'before' => 'Jeg accepterer ',
+					'link'   => 'abonnementsbetingelserne',
+					'after'  => '.',
+					'error'  => 'Du skal acceptere abonnementsbetingelserne for at gennemføre købet.',
+				];
+			}
 		}
 		$mobilepay = get_option( 'woocommerce_scanpay_mobilepay_settings' );
 		if ( is_array( $mobilepay ) && ( 'yes' === ( $mobilepay['enabled'] ?? 'no' ) ) ) {
