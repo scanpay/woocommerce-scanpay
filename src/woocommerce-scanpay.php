@@ -158,23 +158,27 @@ function wcs_scanpay_scheduled_charge( float $amount, WC_Order $wco ): void {
 }
 
 /**
- * Enforce a >=25h floor on the renewal retry schedule (filter: wcs_default_retry_rules).
+ * Enforce a >=25h floor on Scanpay renewal retries (filter: wcs_get_retry_rule_raw).
  *
  * Only the interval is raised; emails/statuses/attempt count stay the merchant's.
  * The idempotency key's day (whole days since the renewal order was created) only
  * advances after >=24h, so an earlier retry would replay the cached decline. The
  * 25th hour is clock-skew margin, not correctness.
  *
- * @param array $rules Retry rules (one per attempt).
- * @return array
+ * @param array|null $rule         Retry rule for this attempt.
+ * @param int        $retry_number Position in the retry queue.
+ * @param int        $order_id     Renewal order ID.
+ * @return array|null
  */
-function wcs_scanpay_retry_rules( array $rules ): array {
-	foreach ( $rules as $i => $rule ) {
-		if ( isset( $rule['retry_after_interval'] ) ) {
-			$rules[ $i ]['retry_after_interval'] = max( (int) $rule['retry_after_interval'], DAY_IN_SECONDS + HOUR_IN_SECONDS );
-		}
+function wcs_scanpay_retry_rule( ?array $rule, int $retry_number, int $order_id ): ?array {
+	$wco = wc_get_order( $order_id );
+	if ( ! $wco instanceof WC_Order || 'scanpay' !== $wco->get_payment_method( 'edit' ) ) {
+		return $rule;
 	}
-	return $rules;
+	if ( isset( $rule['retry_after_interval'] ) ) {
+		$rule['retry_after_interval'] = max( (int) $rule['retry_after_interval'], DAY_IN_SECONDS + HOUR_IN_SECONDS );
+	}
+	return $rule;
 }
 
 /**
@@ -203,7 +207,7 @@ function wc_scanpay_plugins_loaded() {
 	if ( class_exists( 'WC_Subscriptions', false ) ) {
 		add_action( 'woocommerce_scheduled_subscription_payment_scanpay', 'wcs_scanpay_scheduled_charge', 3, 2 );
 		add_action( 'woocommerce_review_order_before_submit', 'wcs_scanpay_checkout_terms', 10 );
-		add_filter( 'wcs_default_retry_rules', 'wcs_scanpay_retry_rules' );
+		add_filter( 'wcs_get_retry_rule_raw', 'wcs_scanpay_retry_rule', 10, 3 );
 	}
 }
 add_action( 'plugins_loaded', 'wc_scanpay_plugins_loaded', 10 );
