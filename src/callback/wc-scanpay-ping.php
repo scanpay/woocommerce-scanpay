@@ -28,7 +28,6 @@ function wc_scanpay_respond( string $msg, int $code ): void {
 	http_response_code( $code );
 	header( 'Content-Type: text/plain; charset=utf-8' );
 	header( 'Cache-Control: no-store' );
-	header( 'Connection: close' );
 	header( 'Content-Length: ' . strlen( $msg ) );
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Plain-text body; $msg is a controlled diagnostic and Content-Length is measured from it, so it must not be altered by escaping.
 	echo $msg;
