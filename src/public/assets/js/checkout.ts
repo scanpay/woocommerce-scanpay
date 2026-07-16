@@ -25,7 +25,7 @@ for (const name in data.methods) {
 	 *  onCheckoutValidation blocks "Place order" client-side, onPaymentSetup forwards the
 	 *  acceptance to the server, which re-validates it (wcs_scanpay_blocks_validate_terms).
 	 */
-	const Content = (props: { eventRegistration: any; emitResponse: any }) => {
+	function Content(props: { eventRegistration: any; emitResponse: any }) {
 		const { eventRegistration, emitResponse } = props;
 		const [accepted, setAccepted] = useState(false);
 
@@ -65,7 +65,7 @@ for (const name in data.methods) {
 					terms.after
 				)
 		);
-	};
+	}
 
 	const label = createElement(
 		'span',
