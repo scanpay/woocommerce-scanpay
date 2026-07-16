@@ -127,7 +127,18 @@ $nav_tabs = [
 		</a>
 	<?php endforeach; ?>
 	<a class="wcsp-nav-logs" href="<?php echo esc_url( $logs_url ); ?>">Logs</a>
+	<span id="wcsp-set-nav-mtime" class="wcsp-set-nav-mtime"></span>
 </div>
+
+<?php
+// Anchor for settings.ts: it reads the polling secret + shop id from these data
+// attributes, writes the "Synchronized N seconds ago" string into
+// #wcsp-set-nav-mtime, and appends sync / out-of-date warnings here. The secret and
+// shop id come from the primary (card) settings option on every gateway screen.
+?>
+<div id="wcsp-set-alert"
+	data-secret="<?php echo esc_attr( (string) ( $settings['secret'] ?? '' ) ); ?>"
+	data-shopid="<?php echo esc_attr( (string) $shopid ); ?>"></div>
 
 <table class="form-table wcsp-set-<?php echo esc_attr( $gateway->id ); ?>">
 	<?php

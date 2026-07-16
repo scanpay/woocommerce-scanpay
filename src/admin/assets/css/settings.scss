@@ -69,3 +69,25 @@
 	margin: 8px 0 0 18px;
 	color: rgb(75, 6, 6)
 }
+
+/* "Synchronized N seconds ago" — pushed to the right edge of the nav bar */
+.wcsp-set-nav-mtime {
+	margin: 8px 2px 0 auto;
+	color: #50575e;
+	font-size: 13px;
+}
+
+/* Sync / out-of-date warnings appended by settings.ts into #wcsp-set-alert */
+.wcsp-set-alert {
+	margin: 0 0 1.4em;
+	padding: 8px 12px;
+	border: 1px solid #c1b7ab;
+	border-left-width: 4px;
+	border-radius: 3px;
+	background: #fff9e6;
+	color: #22240a;
+
+	> h4 {
+		margin: 4px 0;
+	}
+}
