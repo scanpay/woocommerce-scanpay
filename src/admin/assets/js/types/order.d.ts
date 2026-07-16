@@ -15,7 +15,6 @@ declare global {
         subid: number;
         shopid: number;
         payid: string;
-        wc_total: number;    // minor units
         wc_decimals: number; // e.g. 2
         meta: {
             orderid: string;

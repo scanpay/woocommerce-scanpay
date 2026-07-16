@@ -105,7 +105,6 @@ function wc_scanpay_admin_render_meta_box( $post ): void {
 		'subid'       => (int) $wco->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ),
 		'shopid'      => $shopid,
 		'payid'       => $wco->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' ),
-		'wc_total'    => (int) wc_add_number_precision( $wco->get_total() - $wco->get_total_refunded() ),
 		'wc_decimals' => wc_get_price_decimals(),
 		'meta'        => $meta ?? null,
 		'currency'    => $wco->get_currency( 'edit' ),
