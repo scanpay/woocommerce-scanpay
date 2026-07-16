@@ -137,7 +137,12 @@ knowledge, as the docs specify neither retry count, backoff, nor non-2xx handlin
 - `ping_seq === seq` → heartbeat: update `mtime` only, 200. **The common case for
   a quiet shop** — it's what the 5-minute keepalive normally hits, and what keeps
   the settings "last sync" indicator fresh.
-- `ping_seq > seq` → drain: take the flock and loop `seq(N)` until caught up.
+- `ping_seq > seq` → drain: take the flock, re-read the cursor under it, and loop
+  `seq(N)` until caught up. The target is `max( ping_seq, ping )`, so a run can
+  drain past the ping that woke it — the handoff column counts. If `seq(N)` ever
+  returns no changes while the target is still above the cursor, that contradicts
+  the no-visibility-window guarantee, so the drain **throws** (500) rather than
+  ack a sync that did not happen.
 
 **`seq` is only valid when read under the flock** — an incumbent worker can advance
 the cursor at any time, so the drain path re-reads it immediately after every
