@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-16T00:27:14+00:00\n"
+"POT-Creation-Date: 2026-07-16T07:53:36+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: scanpay-for-woocommerce\n"
@@ -31,7 +31,7 @@ msgstr ""
 
 #. Author of the plugin
 #: woocommerce-scanpay.php:7
-#: admin/orders.php:146
+#: admin/orders.php:147
 msgid "Scanpay"
 msgstr ""
 
@@ -40,7 +40,11 @@ msgstr ""
 msgid "https://scanpay.dk"
 msgstr ""
 
-#: admin/orders.php:47
+#: admin/hooks/wp-bulk-actions.php:52
+msgid "Order status changed by bulk edit."
+msgstr ""
+
+#: admin/orders.php:45
 msgid "Capture and complete"
 msgstr ""
 

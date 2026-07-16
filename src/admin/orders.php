@@ -15,8 +15,6 @@ defined( 'ABSPATH' ) || exit();
 function wc_scanpay_handle_bulk_actions( string $redirect_to, string $action, array $ids ): string {
 	$capture = true;
 	if ( 'scanpay_mark_completed' === $action ) {
-		WC()->payment_gateways(); // Initialize other gateways
-
 		$settings = get_option( WC_SCANPAY_URI_SETTINGS );
 		if ( ! is_array( $settings ) || 'completed' !== ( $settings['wc_autocapture'] ?? '' ) ) {
 			$capture = false;
@@ -81,11 +79,12 @@ function wc_scanpay_admin_render_meta_box( $post ): void {
 	if ( ! $wco ) {
 		return;
 	}
-	$pm = (string) $wco->get_payment_method( 'edit' );
-	if ( 'scanpay' !== $pm && ! str_starts_with( $pm, 'scanpay' ) ) {
+	if ( ! wc_scanpay_is_scanpay_order( $wco ) ) {
 		return;
 	}
-	wp_enqueue_style( 'wcsp-meta', WC_SCANPAY_URL . '/admin/assets/css/meta.css', [], WC_SCANPAY_VERSION );
+	// The stylesheet is enqueued in wc_scanpay_add_meta_box() so it lands in the
+	// head. The script stays here, next to the inline payload it carries: both are
+	// printed in the footer, after this callback has run.
 	wp_enqueue_script( 'wcsp-meta', WC_SCANPAY_URL . '/admin/assets/js/order.js', [], WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
 
 	$oid      = $wco->get_id();
@@ -136,10 +135,13 @@ function wc_scanpay_add_meta_box( $wc_order ): void {
 			return;
 		}
 	}
-	$pm = (string) $wc_order->get_payment_method( 'edit' );
-	if ( 'scanpay' !== $pm && ! str_starts_with( $pm, 'scanpay' ) ) {
+	if ( ! wc_scanpay_is_scanpay_order( $wc_order ) ) {
 		return;
 	}
+	// Enqueued here, not in the render callback: this hook runs before admin_head,
+	// so the stylesheet is printed in the head rather than being deferred to the
+	// footer by print_late_styles() and flashing the box unstyled.
+	wp_enqueue_style( 'wcsp-meta', WC_SCANPAY_URL . '/admin/assets/css/meta.css', [], WC_SCANPAY_VERSION );
 	add_meta_box(
 		'wcsp-meta-box',
 		__( 'Scanpay', 'scanpay-for-woocommerce' ),

@@ -19,9 +19,16 @@ function wcs_scanpay_payment_method_to_display( string $title, WC_Subscription $
 add_filter( 'woocommerce_subscription_payment_method_to_display', 'wcs_scanpay_payment_method_to_display', 10, 2 );
 
 
-function wc_scanpay_create_meta_box_subs( $post, $args ) {
-	$wc_sub = $args['args'][0];
-	$secret = get_option( WC_SCANPAY_URI_SETTINGS )['secret'] ?? '';
+/**
+ * Render the Scanpay subscription meta box content.
+ *
+ * @param WP_Post|WC_Order $post Current object (unused; the subscription arrives via $args).
+ * @param array            $args Meta box args; $args['args'][0] is the WC_Subscription.
+ */
+function wc_scanpay_create_meta_box_subs( $post, array $args ): void {
+	$wc_sub   = $args['args'][0];
+	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
+	$secret   = (string) ( is_array( $settings ) ? ( $settings['secret'] ?? '' ) : '' );
 	echo '<div id="wcsp-meta" data-secret="' . esc_attr( $secret ) . '"
 		data-subid="' . esc_attr( (string) $wc_sub->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ) ) . '"
 		data-payid="' . esc_attr( (string) $wc_sub->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' ) ) . '"
@@ -31,20 +38,24 @@ function wc_scanpay_create_meta_box_subs( $post, $args ) {
 	</div>';
 }
 
-// Meta box Subscriptions
-function wc_scanpay_add_meta_box_subs( $wc_order ) {
+/**
+ * Add the Scanpay meta box to the subscription edit screen, but only for
+ * Scanpay subscriptions.
+ *
+ * @param WP_Post|WC_Order $wc_order Current object (legacy: WP_Post, HPOS: WC_Order).
+ */
+function wc_scanpay_add_meta_box_subs( $wc_order ): void {
 	if ( ! $wc_order instanceof WC_Order ) {
 		$wc_order = wc_get_order( $wc_order->ID ); // Legacy support
 		if ( ! $wc_order ) {
 			return;
 		}
 	}
-	$psp = $wc_order->get_payment_method( 'edit' );
-	if ( 'scanpay' !== $psp && ! str_starts_with( $psp, 'scanpay' ) ) {
+	if ( ! wc_scanpay_is_scanpay_order( $wc_order ) ) {
 		return;
 	}
-	wp_enqueue_style( 'wcsp-meta', WC_SCANPAY_URL . '/admin/assets/css/meta.css', null, WC_SCANPAY_VERSION );
-	wp_enqueue_script( 'wcsp-meta', WC_SCANPAY_URL . '/admin/assets/js/subs.js', false, WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
+	wp_enqueue_style( 'wcsp-meta', WC_SCANPAY_URL . '/admin/assets/css/meta.css', [], WC_SCANPAY_VERSION );
+	wp_enqueue_script( 'wcsp-meta', WC_SCANPAY_URL . '/admin/assets/js/subs.js', [], WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
 	add_meta_box( 'wcsp-meta-box', 'Scanpay', 'wc_scanpay_create_meta_box_subs', null, 'side', 'high', [ $wc_order ] );
 }
 add_action( 'add_meta_boxes_woocommerce_page_wc-orders--shop_subscription', 'wc_scanpay_add_meta_box_subs', 9, 1 ); // HPOS

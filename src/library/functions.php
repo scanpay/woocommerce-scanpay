@@ -14,3 +14,14 @@ function wc_scanpay_item_needs_processing( bool $needs_processing, \WC_Product $
 	}
 	return $needs_processing;
 }
+
+/**
+ * Whether an order is paid through one of our gateways ('scanpay',
+ * 'scanpay_mobilepay', 'scanpay_applepay').
+ *
+ * @param \WC_Order $wco WooCommerce order object.
+ * @return bool
+ */
+function wc_scanpay_is_scanpay_order( \WC_Order $wco ): bool {
+	return str_starts_with( (string) $wco->get_payment_method( 'edit' ), 'scanpay' );
+}

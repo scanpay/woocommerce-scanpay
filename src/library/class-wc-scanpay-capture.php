@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once WC_SCANPAY_DIR . '/library/math.php';
+require_once WC_SCANPAY_DIR . '/library/functions.php';
 require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
 
 final class WC_Scanpay_Capture {
@@ -35,7 +36,7 @@ final class WC_Scanpay_Capture {
 	 * @throws \RuntimeException On an unsynced payment row, misconfiguration, a lookup error, or a voided auth.
 	 */
 	private static function capture( WC_Order $wco ): void {
-		if ( ! str_starts_with( (string) $wco->get_payment_method( 'edit' ), 'scanpay' ) ) {
+		if ( ! wc_scanpay_is_scanpay_order( $wco ) ) {
 			return; // Not a Scanpay order
 		}
 		$oid = (int) $wco->get_id();

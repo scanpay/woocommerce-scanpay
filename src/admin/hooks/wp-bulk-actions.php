@@ -24,6 +24,12 @@ remove_action( 'woocommerce_order_status_completed', 'wc_scanpay_order_status_co
  * @return string Modified redirect URL.
  */
 function wc_scanpay_handle_bulk_capture( string $redirect_to, array $ids, bool $capture ): string {
+	// Initialize payment gateways in case an order has hooked status transition
+	// actions, as WC core does in do_bulk_action_mark_orders(). Our bulk actions
+	// replace "Mark as completed" for every order in the list, not just Scanpay
+	// ones, so other gateways must get the chance to register their hooks too.
+	WC()->payment_gateways();
+
 	$oids = [];
 	foreach ( $ids as $id ) {
 		if ( ( is_int( $id ) && $id > 0 ) || ( is_string( $id ) && ctype_digit( $id ) ) ) {
@@ -43,7 +49,7 @@ function wc_scanpay_handle_bulk_capture( string $redirect_to, array $ids, bool $
 		if ( $capture && ! WC_Scanpay_Capture::capture_or_hold( $wco ) ) {
 			continue; // Parked 'on-hold' with a note; do not complete.
 		}
-		$wco->set_status( 'completed', '', true );
+		$wco->set_status( 'completed', __( 'Order status changed by bulk edit.', 'scanpay-for-woocommerce' ), true );
 		$wco->save();
 		++$changed;
 	}
