@@ -281,8 +281,16 @@ function wc_scanpay_plugins_loaded() {
 		get_option( 'wc_scanpay_version' ) !== WC_SCANPAY_VERSION && ! get_transient( 'wc_scanpay_updating' )
 	) {
 		set_transient( 'wc_scanpay_updating', true, 5 * MINUTE_IN_SECONDS );
-		require WC_SCANPAY_DIR . '/upgrade.php';
-		delete_transient( 'wc_scanpay_updating' );
+		try {
+			require WC_SCANPAY_DIR . '/upgrade.php';
+			delete_transient( 'wc_scanpay_updating' );
+		} catch ( Throwable $e ) {
+			// Deliberately keep the transient on failure: it throttles a failing upgrade to
+			// one attempt per 5 minutes. Releasing it here would instead fatal plugins_loaded
+			// on every request, taking out wp-admin and leaving the merchant no way to react.
+			// upgrade.php stamps the version last, so a retry re-runs the whole migration.
+			scanpay_log( 'error', 'Upgrade failed: ' . $e->getMessage() );
+		}
 	}
 
 	require WC_SCANPAY_DIR . '/gateways/abstract-wc-gateway-scanpay-base.php';
