@@ -176,7 +176,6 @@ if (
 
 global $wpdb;
 $ping_seq = (int) $ping['seq'];
-$now      = time();
 
 // Unlocked read: only good enough to pick a branch. The drain path re-reads it
 // under the flock before touching anything.
@@ -190,6 +189,7 @@ if ( $ping_seq === $seq ) {
 	// Heartbeat: nothing to sync, but record that Scanpay just reached us so the
 	// settings "last sync" indicator stays fresh. mtime is display-only, so we do
 	// not fail the ping if this update fails.
+	$now = time();
 	$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET mtime = $now WHERE shopid = $shopid" );
 	wc_scanpay_respond( 'ok', 200 );
 }
@@ -220,6 +220,7 @@ try {
 if ( ! $locked ) {
 	// Contention: record the latest ping so the running worker drains it, then
 	// 200 so the backend stops retrying this delivery.
+	$now      = time();
 	$res_ping = $wpdb->query(
 		"UPDATE {$wpdb->prefix}scanpay_seq
 		SET ping = $ping_seq, mtime = $now
@@ -285,6 +286,7 @@ try {
 
 			// Save new sequence number to the database
 			$seq     = (int) $res['seq'];
+			$now     = time();
 			$res_seq = $wpdb->query(
 				"UPDATE {$wpdb->prefix}scanpay_seq SET seq = $seq, mtime = $now WHERE shopid = $shopid AND seq < $seq"
 			);
