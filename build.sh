@@ -92,7 +92,7 @@ if [ "$answer" != "${answer#[Yy]}" ]; then
         --no-o --no-g --no-p \
         --omit-dir-times \
         -e ssh "$TMP/" \
-        modules:/var/www/woocommerce.scanpay.dev/wp-content/plugins/scanpay-for-woocommerce/
+        modules:/var/www/woocommerce/wp-content/plugins/scanpay-for-woocommerce/
 
     rm -rf "${TMP:?}"
 fi
