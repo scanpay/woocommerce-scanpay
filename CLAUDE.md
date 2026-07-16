@@ -7,9 +7,10 @@ WordPress/WooCommerce payment gateway plugin for the [Scanpay](https://scanpay.d
 platform. Accepts card, MobilePay Online, and Apple Pay; full WooCommerce
 Subscriptions support; HPOS- and Blocks-checkout compatible.
 
-The `dev` branch is a large rewrite (`v3.0.0`, up from `2.9.x`) and is not yet
-finished (~90% done) — the authoritative list of remaining gaps is the root
-`PLAN.md` file (formerly a `TODO` file).
+The `dev` branch is the `v3.0.0` rewrite (up from `2.9.x`), now feature-complete.
+`PLAN.md` records the rewrite plan that produced it; the root `*-review.md` files
+and `issue-prioritization.md` capture the post-rewrite code review and its ranked
+backlog.
 
 ## Repository layout
 
@@ -39,11 +40,11 @@ finished (~90% done) — the authoritative list of remaining gaps is the root
   arrays enforced), `pnpm phpcbf` to autofix. JS/CSS: `pnpm lint:js` /
   `lint:style`. Prettier config in `.prettierrc.mjs` (TS `printWidth: 120`).
   `lint:js` globs the whole `src/` tree, and the flat `eslint.config.mjs`
-  scopes rules to `src/**/*.ts`, so all admin + public TS (incl. any future
-  `subs.ts`) is covered. Requires the `@eslint/js` dev dep.
-- `webpack.config.js` and `tsconfig.json` `outDir` are stale/editor-only — the
-  real build is esbuild in `build.sh`. `tsconfig.json` `include` is what governs
-  type-checking.
+  scopes rules to `src/**/*.ts`, so all admin + public TS (incl. `subs.ts`) is
+  covered. Requires the `@eslint/js` dev dep.
+- There is no webpack — the real build is esbuild in `build.sh`. `tsconfig.json`
+  is type-check-only (`noEmit`, `moduleResolution: bundler`); its `include` globs
+  govern what gets type-checked.
 
 ## Conventions
 
@@ -52,9 +53,11 @@ finished (~90% done) — the authoritative list of remaining gaps is the root
   before using a newer API.
 - WordPress function-based style (not OOP-heavy); files guard with
   `defined( 'ABSPATH' ) || exit();`. Function prefix `wc_scanpay_` / `wcs_scanpay_`.
-- Text domain: `scanpay-for-woocommerce`. Note: several user-facing strings are
-  currently hardcoded Danish (e.g. settings nav "Generelt", subscription terms) —
-  not all strings go through `__()` yet.
+- Text domain: `scanpay-for-woocommerce`. User-facing strings go through
+  `__()`/`esc_html__()` with **English as the source language**; translations live
+  in `src/languages/scanpay-for-woocommerce.pot` (regenerate with `pnpm i18n:po`).
+  Settings-field *defaults* (checkout title/description) are English source strings
+  a merchant localizes by editing the setting — `__()` cannot localize a stored value.
 - **Money is never a float.** Amounts are decimal strings handled by
   `src/library/math.php`. All public helpers carry the `wc_scanpay_` prefix:
   `wc_scanpay_addmoney`, `wc_scanpay_submoney`, `wc_scanpay_cmpmoney`,
@@ -75,7 +78,7 @@ finished (~90% done) — the authoritative list of remaining gaps is the root
 - `?scanpay_thankyou` + `?scanpay_type` (one of `wc|wcs|wcs_free`) + `?key` →
   `public/wp-scanpay-thankyou.php`, required immediately (before the plugin
   registers anything else).
-- `X-Scanpay` header + `?x=meta|ping|sub` + `?s=` →
+- `X-Scanpay` header (carrying the shared secret) + `?x=meta|ping|sub` →
   `admin/ajax/wp-scanpay-fetch-{meta,ping,sub}.php` (selected via `match`), also
   required immediately.
 
@@ -101,11 +104,15 @@ via `public/wcs-scanpay-checkout-terms.php`
 3. `WC_Scanpay_Sync` validates each change, upserts the meta table, and calls
    `$order->payment_complete()`.
 4. Capture: on `woocommerce_order_status_completed`, via the bulk actions in
-   `admin/orders.php` / `admin/hooks/wp-bulk-actions.php`, or via
+   `admin/orders.php` / `admin/hooks/wp-bulk-actions.php`, via
    `admin/hooks/wp-ajax-wc-mark-order-status.php` (intercepts the admin
    "mark completed" AJAX *before* WooCommerce's own handler so capture happens
-   before completion emails go out) → `WC_Scanpay_Capture::capture_or_hold`
-   (`POST /v1/transactions/N/capture`).
+   before completion emails go out), or via the order meta box's "Capture" button
+   (`wp_ajax_wc_scanpay_capture` → `admin/hooks/wp-ajax-wc-scanpay-capture.php`,
+   nonce-guarded) → `WC_Scanpay_Capture::capture_or_hold`
+   (`POST /v1/transactions/N/capture`). Refunds are **not** issued by the plugin
+   (`can_refund_order()` is false); the order box links to the Scanpay dashboard,
+   and refunded totals are reflected read-only via sync.
 5. Subscription renewals: WCS scheduler (`woocommerce_scheduled_subscription_payment_scanpay`)
    → `WCS_Scanpay_Charge` (`POST /v1/subscribers/N/charge`, idempotency-keyed).
 
@@ -119,7 +126,9 @@ talks to `api.scanpay.dk`.
   `id`, `rev`, `nacts`, `currency`, and the money totals
   `authorized`/`captured`/`refunded`/`voided`).
 - `scanpay_subs` — per-subscriber payment-method cache (`subid` PK, `rev`,
-  `method` = card label, `method_exp` = expiry). Written by `WC_Scanpay_Sync`.
+  `method` = payment-method *type* (e.g. `card`/`mobilepay`; not the pretty card
+  label, which lives on the WC subscription's method title), `method_exp` = card
+  expiry as unix seconds). Written by `WC_Scanpay_Sync`.
   **It does NOT store retries, an idempotency key, or an `nxt` lock** — the
   charge path only reads `rev` from it to build the idempotency key, and the subs
   meta box reads the row for display.
@@ -130,7 +139,8 @@ Settings live in options `woocommerce_scanpay_settings` (card = primary/shared;
 convention). The `WC_SCANPAY_URI_*` constants in `woocommerce-scanpay.php` are
 mostly order/subscription meta keys, plus the settings option name
 (`WC_SCANPAY_URI_SETTINGS`). The shop's admin-AJAX auth `secret` lives inside the
-settings option (minted in `install.php`), not a separate option.
+settings option (minted in `install.php`), not a separate option, and is sent to the
+polling endpoints in the `X-Scanpay` request header (see `secret-auth-review.md`).
 
 **Concurrency:** `Scanpay_Flock` (`src/library/class-scanpay-flock.php`, uses
 `flock( …, LOCK_EX | LOCK_NB )` on a per-shop `scanpay_{shopid}.lock` file in the
@@ -149,8 +159,9 @@ concurrent charges are prevented by three independent layers:
 **Frontend (TS → esbuild):** `public/assets/js/checkout.ts` (Blocks checkout
 registration via `window.wc.wcBlocksRegistry.registerPaymentMethod`),
 `admin/assets/js/settings.ts` (settings page sync/version checks),
-`admin/assets/js/order.ts` (order meta box). Shared helpers in
-`admin/assets/js/util/compat.ts` and `admin/assets/js/types/meta.ts` (the latter
+`admin/assets/js/order.ts` (order meta box: figures + nonce-guarded capture),
+`admin/assets/js/subs.ts` (subscription meta box: card method/expiry). Shared helpers
+in `admin/assets/js/util/compat.ts` and `admin/assets/js/types/meta.ts` (the latter
 exports runtime helpers `showError`/`showWarning`/`buildTable`/`pluginVersionCheck`,
 not just types).
 
@@ -170,15 +181,11 @@ not just types).
   when the shop ID changed *and* the key passed validation (see
   `WC_Gateway_Scanpay_Card::process_admin_options`).
 
-## Known incomplete (dev rewrite, ~90% done)
+## Post-rewrite status
 
-The root `PLAN.md` file is the single source of truth for remaining gaps — read it
-before assuming a feature is finished. Highlights:
-- The subscription meta-box JS source (`admin/assets/js/subs.ts`) is **missing**,
-  yet `admin/subscriptions.php` enqueues the compiled `subs.js` (404s).
-- The settings sync-status UI is **unwired**: `settings.ts` targets
-  `#wcsp-set-alert` / `#wcsp-set-nav-mtime` that `admin-options.php` never renders.
-- `order.ts` is a **partial implementation** (it parses & renders the
-  authorized/captured/refunded totals, but error handling is console-only, the
-  `#wcsp-meta-head`/`#wcsp-meta-foot` placeholders are empty, and there is no
-  version check or capture/refund action UI).
+The `v3.0.0` rewrite is feature-complete — the subscription meta box (`subs.ts`),
+the settings sync-status UI, and the order meta box (inline warnings, version check,
+capture/refund UI) are all wired up. The root `php-review.md`, `js-review.md`, and
+`scss-review.md` capture a full post-rewrite code review, consolidated and ranked in
+`issue-prioritization.md` (no ship-blockers; a backlog of convention/robustness/dead-
+code cleanups). `secret-auth-review.md` records the admin-AJAX auth decision.
