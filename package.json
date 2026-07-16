@@ -38,7 +38,6 @@
 		"globals": "latest",
 		"prettier": "latest",
 		"sass": "latest",
-		"ts-loader": "latest",
 		"typescript-eslint": "latest"
 	},
 	"scripts": {
