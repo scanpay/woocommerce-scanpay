@@ -29,7 +29,6 @@ declare global {
             captured: string;
             refunded: string;
             voided: string;
-            method: string;
         } | null;
         currency: string;    // e.g. "DKK"
         nonce: string;
