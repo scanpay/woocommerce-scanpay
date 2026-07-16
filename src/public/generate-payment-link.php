@@ -97,10 +97,15 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	if ( $wcs ) {
 		$subid = (int) $wco->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
 		if ( $subid ) {
-			return [
-				'result'   => 'success',
-				'redirect' => $client->renew( $subid, $data ),
-			];
+			try {
+				return [
+					'result'   => 'success',
+					'redirect' => $client->renew( $subid, $data ),
+				];
+			} catch ( Exception $e ) {
+				scanpay_log( 'error', 'Renewal link creation failed: ' . trim( $e->getMessage() ) );
+				throw new Exception( 'Error: We could not create a link to the payment window. Please wait a moment and try again.' );
+			}
 		}
 	}
 
