@@ -61,6 +61,47 @@ function checkMtime() {
 		});
 }
 
+/** POST the reset action (nonce-guarded); throws on a non-success response. */
+async function postReset(nonce: string): Promise<void> {
+	const res = await fetch(window.ajaxurl, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+		body: new URLSearchParams({ action: 'wc_scanpay_reset', nonce }),
+	});
+	const json = await res.json();
+	if (!res.ok || !json?.success) {
+		throw new Error(typeof json?.data === 'string' ? json.data : 'reset_failed');
+	}
+}
+
+/**
+ * Drive the "Delete data and change API key" button. On success the page is
+ * reloaded: the API key field re-renders as an empty input once the key is gone.
+ */
+function onReset(ev: Event): void {
+	const btn = ev.currentTarget as HTMLButtonElement;
+	const msg = btn.parentElement?.querySelector('.wcsp-set-reset-msg') as HTMLElement | null;
+	const ok = confirm(
+		'Delete all local Scanpay data and clear the API key?\n\n' +
+			'This deletes the local payment tables and disables the Scanpay gateways. ' +
+			'It does not affect anything at Scanpay: adding a key for the same shop ' +
+			're-syncs the data automatically.'
+	);
+	if (!ok) return;
+	btn.disabled = true;
+	btn.textContent = 'Deleting…';
+	postReset(btn.dataset.nonce ?? '')
+		.then(() => window.location.reload())
+		.catch((err) => {
+			btn.disabled = false;
+			btn.textContent = 'Delete data and change API key';
+			if (msg) msg.textContent = ' Could not delete the data: ' + err.message;
+		});
+}
+
+const resetBtn = document.querySelector('.wcsp-set-reset') as HTMLButtonElement | null;
+if (resetBtn) resetBtn.addEventListener('click', onReset);
+
 const alertBox = document.getElementById('wcsp-set-alert') as HTMLElement;
 if (alertBox.dataset.shopid === '0') {
 	const html = `<span class="wcsp-set-api-info">

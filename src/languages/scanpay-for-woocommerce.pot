@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-16T08:49:19+00:00\n"
+"POT-Creation-Date: 2026-07-16T09:45:33+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: scanpay-for-woocommerce\n"
@@ -48,7 +48,7 @@ msgstr ""
 msgid "Capture and complete"
 msgstr ""
 
-#: admin/settings.php:59
+#: admin/settings.php:72
 msgid "Settings"
 msgstr ""
 
@@ -104,11 +104,11 @@ msgstr ""
 msgid "Enable Scanpay at checkout."
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:22
+#: admin/settings/fields/scanpay.php:25
 msgid "API key"
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:24
+#: admin/settings/fields/scanpay.php:27
 msgid "Enter the Scanpay API key from your Scanpay dashboard."
 msgstr ""
 
@@ -206,8 +206,24 @@ msgstr ""
 msgid "Enable MobilePay at checkout."
 msgstr ""
 
-#: admin/settings/process-admin-options.php:53
+#: admin/settings/process-admin-options.php:51
 msgid "Error: Invalid Scanpay API key. Please check your key and try again."
+msgstr ""
+
+#: gateways/abstract-wc-gateway-scanpay-base.php:131
+msgid "Paste your Scanpay API key"
+msgstr ""
+
+#: gateways/abstract-wc-gateway-scanpay-base.php:136
+msgid "To use a different Scanpay account, delete the local Scanpay data first. Nothing is lost for good: it is re-synced from Scanpay once you add a key."
+msgstr ""
+
+#: gateways/abstract-wc-gateway-scanpay-base.php:140
+msgid "Delete data and change API key"
+msgstr ""
+
+#: gateways/abstract-wc-gateway-scanpay-base.php:181
+msgid "Error: The Scanpay API key cannot be replaced. Delete the local Scanpay data first."
 msgstr ""
 
 #: gateways/blocks/class-wc-scanpay-blocks-support.php:72

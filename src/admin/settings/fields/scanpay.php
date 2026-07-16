@@ -18,15 +18,15 @@ return [
 		'default' => 'no',
 	],
 
+	// Custom type: rendered by WC_Gateway_Scanpay_Base::generate_apikey_html() and
+	// gated by ::validate_apikey_field(). Never rendered back to the browser once
+	// stored, and only replaceable via the reset button.
 	'apikey'               => [
-		'title'             => __( 'API key', 'scanpay-for-woocommerce' ),
-		'type'              => 'password',
-		'description'       => __( 'Enter the Scanpay API key from your Scanpay dashboard.', 'scanpay-for-woocommerce' ),
-		'desc_tip'          => true,
-		'custom_attributes' => [
-			'autocomplete' => 'off',
-		],
-		'default'           => '',
+		'title'       => __( 'API key', 'scanpay-for-woocommerce' ),
+		'type'        => 'apikey',
+		'description' => __( 'Enter the Scanpay API key from your Scanpay dashboard.', 'scanpay-for-woocommerce' ),
+		'desc_tip'    => true,
+		'default'     => '',
 	],
 
 	'title'                => [
