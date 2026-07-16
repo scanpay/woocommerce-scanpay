@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * Exact arithmetic for decimal money amounts represented as strings.
  *
