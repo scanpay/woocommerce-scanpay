@@ -297,9 +297,16 @@ final class WC_Scanpay_Sync {
 				scanpay_log( 'error', "$label: currency mismatch (order=$oid)" );
 				return;
 			}
+			// A corrupt order total is a local anomaly, not a backend protocol violation:
+			// the money helpers below throw on non-money input, and that would replay this
+			// change forever and wedge the sync loop for every order in the shop.
+			$total = (string) $wco->get_total( 'edit' );
+			if ( ! wc_scanpay_is_money( $total ) ) {
+				scanpay_log( 'error', "$label: invalid order total '$total' (order=$oid)" );
+				return;
+			}
 			// Underpayment. This should not happen with charges, but if it does, we don't
 			// want to mark the order as paid, so we log + note + return (never throw).
-			$total = (string) $wco->get_total( 'edit' );
 			if ( wc_scanpay_cmpmoney( $auth, $total ) < 0 ) {
 				scanpay_log( 'error', "$label: authorized $auth does not cover order total $total (order=$oid)" );
 				$wco->add_order_note( "Scanpay: authorized amount ($auth $cur) does not cover the order total ($total $cur); order not marked as paid." );
@@ -398,7 +405,16 @@ final class WC_Scanpay_Sync {
 
 			// Handle free trial and coupons
 			$parent = $wcs_sub->get_parent();
-			if ( $parent && $parent->get_status() === 'pending' && wc_scanpay_is_zero( (string) $parent->get_total( 'edit' ) ) ) {
+			if ( ! $parent || 'pending' !== $parent->get_status() ) {
+				continue;
+			}
+			// See sync(): a corrupt local total must not throw and wedge the sync loop.
+			$ptotal = (string) $parent->get_total( 'edit' );
+			if ( ! wc_scanpay_is_money( $ptotal ) ) {
+				scanpay_log( 'error', "subscriber #$subid: invalid total '$ptotal' on parent order #" . $parent->get_id() );
+				continue;
+			}
+			if ( wc_scanpay_is_zero( $ptotal ) ) {
 				scanpay_log( 'debug', 'sub parent: #' . $parent->get_id() );
 				$parent->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
 				$parent->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
