@@ -35,6 +35,36 @@ function wc_scanpay_respond( string $msg, int $code ): void {
 	exit;
 }
 
+/**
+ * Read the shop's sync cursor. Fail loud: a DB error or a missing row must not
+ * masquerade as seq=0 — that would silently replay the full change history and
+ * never persist a cursor.
+ *
+ * NOTE: the returned seq is only trustworthy for as long as the caller holds the
+ * flock — see the re-read in the sync loop below.
+ *
+ * @param  int $shopid Shop to read the cursor for.
+ * @return array{seq: int, ping: int} Local cursor and the last recorded ping seq.
+ */
+function wc_scanpay_read_cursor( int $shopid ): array {
+	global $wpdb;
+	$row = $wpdb->get_row( "SELECT seq, ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid", ARRAY_A );
+	if ( '' !== $wpdb->last_error ) {
+		scanpay_log( 'error', "seq lookup failed: {$wpdb->last_error}" );
+		wc_scanpay_respond( 'database error', 500 );
+	}
+	if ( null === $row ) {
+		// No cursor row for this shop — install/seed never ran for this API key.
+		scanpay_log( 'error', "no scanpay_seq row for shopid $shopid" );
+		wc_scanpay_respond( 'shop not configured', 500 );
+	}
+	return [
+		'seq'  => (int) $row['seq'],
+		// ping is nullable: no handoff has ever been recorded for this shop.
+		'ping' => (int) $row['ping'],
+	];
+}
+
 function wc_scanpay_flush_order_runtime_cache(): void {
 	/**
 	 * NOTE: On a persistent object cache (Redis/Memcached) wp_cache_flush_group()
@@ -149,22 +179,9 @@ global $wpdb;
 $ping_seq = (int) $ping['seq'];
 $now      = time();
 
-/**
- * Read the shop's sync cursor. Fail loud: a DB error or a missing row must not
- * masquerade as seq=0 — that would silently replay the full change history and
- * never persist a cursor.
- */
-$seq_row = $wpdb->get_var( "SELECT seq FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
-if ( '' !== $wpdb->last_error ) {
-	scanpay_log( 'error', "seq lookup failed: {$wpdb->last_error}" );
-	wc_scanpay_respond( 'database error', 500 );
-}
-if ( null === $seq_row ) {
-	// No cursor row for this shop — install/seed never ran for this API key.
-	scanpay_log( 'error', "no scanpay_seq row for shopid $shopid" );
-	wc_scanpay_respond( 'shop not configured', 500 );
-}
-$seq = (int) $seq_row;
+// Unlocked read: only good enough to pick a branch. The drain path re-reads it
+// under the flock before touching anything.
+$seq = wc_scanpay_read_cursor( $shopid )['seq'];
 
 if ( $ping_seq < $seq ) {
 	// Reject replayed or out-of-order pings.
@@ -223,6 +240,22 @@ try {
 
 	$n = 0;
 	do {
+		/**
+		 * We hold the lock now. Re-read the cursor: the read that picked this
+		 * branch happened before acquire(), and an incumbent worker may have
+		 * drained and advanced it in between. Everything below — above all the
+		 * exactly-one-row invariant of the cursor UPDATE — only holds for a $seq
+		 * read under a continuously-held lock. This runs after every successful
+		 * acquire(): the initial one above and the re-acquire in the while below.
+		 */
+		$seq = wc_scanpay_read_cursor( $shopid )['seq'];
+		if ( $ping_seq <= $seq ) {
+			// Someone else already drained this ping while we were opening files.
+			// Post-lock that is "already done", not a replayed ping.
+			$flock->release();
+			wc_scanpay_respond( 'ok', 200 );
+		}
+
 		while ( $ping_seq > $seq ) {
 			$res     = $client->seq( $seq );
 			$changes = $res['changes'];

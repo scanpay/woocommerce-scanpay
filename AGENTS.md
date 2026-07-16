@@ -139,6 +139,10 @@ knowledge, as the docs specify neither retry count, backoff, nor non-2xx handlin
   the settings "last sync" indicator fresh.
 - `ping_seq > seq` → drain: take the flock and loop `seq(N)` until caught up.
 
+**`seq` is only valid when read under the flock** — an incumbent worker can advance
+the cursor at any time, so the drain path re-reads it immediately after every
+successful `acquire()`, and the pre-lock read only picks the branch above.
+
 On flock contention the request records the pinged seq in `scanpay_seq.ping` and
 answers 200 (that pinger will not retry), betting the incumbent worker drains it;
 the incumbent re-checks that column before and after releasing the lock. This is a
