@@ -59,7 +59,10 @@ function wc_scanpay_read_cursor( int $shopid ): array {
 	}
 	return [
 		'seq'  => (int) $row['seq'],
-		// ping is nullable: no handoff has ever been recorded for this shop.
+		// Nullable in the DDL, but install.php seeds ping = 0 and nothing else
+		// inserts, so NULL is unreachable. Keep it that way: the busy path's
+		// "ping < $ping_seq" can never match a NULL row, and it would report 0
+		// rows rather than an error — silently killing handoffs for that shop.
 		'ping' => (int) $row['ping'],
 	];
 }
@@ -252,17 +255,16 @@ try {
 		 * worker handed off in the ping column. It is the loop's single notion of
 		 * "caught up", so $ping_seq keeps meaning exactly "the seq this ping
 		 * announced" and is never reassigned.
+		 *
+		 * Nothing outstanding is not special-cased here: the loop below is simply
+		 * skipped and the release-and-recheck at the bottom acks. An early exit on
+		 * $target <= $seq would read the ping column exactly once, at a moment a
+		 * busy worker can still write to — which is the race the recheck exists to
+		 * close.
 		 */
 		$cursor = wc_scanpay_read_cursor( $shopid );
 		$seq    = $cursor['seq'];
 		$target = max( $ping_seq, $cursor['ping'] );
-		if ( $target <= $seq ) {
-			// Nothing outstanding: another worker drained this ping — and any
-			// handoff — while we were opening files. Post-lock that is "already
-			// done", not a replayed ping.
-			$flock->release();
-			wc_scanpay_respond( 'ok', 200 );
-		}
 
 		while ( $target > $seq ) {
 			$res     = $client->seq( $seq );
