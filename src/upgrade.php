@@ -8,7 +8,7 @@ set_time_limit( 60 );
 scanpay_log( 'info', "Upgrading Scanpay plugin from $version to " . WC_SCANPAY_VERSION );
 
 if ( version_compare( $version, '2.0.0', '<' ) ) {
-	// Delete all tables
+	// Drop the legacy 1.x/2.x tables before (re)installing the current 3.x schema.
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}woocommerce_scanpay_queuedcharges" );
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}woocommerce_scanpay_seq" );
 

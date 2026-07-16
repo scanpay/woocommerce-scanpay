@@ -79,7 +79,6 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_seq" );
 			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_meta" );
 			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_subs" );
-			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_queue" );
 			require WC_SCANPAY_DIR . '/install.php';
 		}
 	}

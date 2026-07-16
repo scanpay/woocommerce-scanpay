@@ -5,13 +5,13 @@ defined( 'WP_UNINSTALL_PLUGIN' ) || die();
 
 global $wpdb;
 
-// Delete Scanpay tables
+// The three real 3.x tables created by install.php.
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_seq" );
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_meta" );
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_subs" );
-$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_queue" );
 
-// Delete old Scanpay tables (should not exist, but just in case)
+// Legacy 2.x tables: created only by the pre-3.x plugin, never by 3.x. Kept as
+// harmless cleanup for sites that uninstall after upgrading from 2.x.
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}woocommerce_scanpay_queuedcharges" );
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}woocommerce_scanpay_seq" );
 
