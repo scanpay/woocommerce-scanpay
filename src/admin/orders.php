@@ -61,6 +61,16 @@ add_action( 'wp_ajax_woocommerce_mark_order_status', 'wc_scanpay_mark_order_stat
 
 
 /**
+ * Manual capture from the order meta box (the "Capture" button in order.ts).
+ * Guarded by the per-order nonce injected into window.ScanpayOrderData.
+ */
+function wc_scanpay_ajax_capture(): void {
+	require WC_SCANPAY_DIR . '/admin/hooks/wp-ajax-wc-scanpay-capture.php';
+}
+add_action( 'wp_ajax_wc_scanpay_capture', 'wc_scanpay_ajax_capture', 0, 0 );
+
+
+/**
  * Render the Scanpay order meta box content.
  *
  * @param WP_Post|WC_Order $post Current object (legacy: WP_Post, HPOS: WC_Order).
@@ -78,18 +88,29 @@ function wc_scanpay_admin_render_meta_box( $post ): void {
 	wp_enqueue_style( 'wcsp-meta', WC_SCANPAY_URL . '/admin/assets/css/meta.css', [], WC_SCANPAY_VERSION );
 	wp_enqueue_script( 'wcsp-meta', WC_SCANPAY_URL . '/admin/assets/js/order.js', [], WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
 
-	$oid   = $wco->get_id();
-	$meta  = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid LIMIT 1", ARRAY_A );
-	$props = [
+	$oid      = $wco->get_id();
+	$meta     = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid LIMIT 1", ARRAY_A );
+	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
+	$shopid   = (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' );
+	$tid      = (int) $wco->get_transaction_id( 'edit' );
+	// Refunds are performed in the Scanpay dashboard (the gateway declares
+	// can_refund_order() === false and the plugin only reflects refunds via sync),
+	// so the meta box links there rather than issuing a refund itself.
+	$dashboard = ( $shopid && $tid )
+		? WC_SCANPAY_DASHBOARD . rawurlencode( (string) $shopid ) . '/' . rawurlencode( (string) $tid )
+		: '';
+	$props     = [
 		'oid'         => $oid,
-		'tid'         => (int) $wco->get_transaction_id( 'edit' ),
+		'tid'         => $tid,
 		'subid'       => (int) $wco->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ),
-		'shopid'      => (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' ),
+		'shopid'      => $shopid,
 		'payid'       => $wco->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' ),
 		'wc_total'    => (int) wc_add_number_precision( $wco->get_total() - $wco->get_total_refunded() ),
 		'wc_decimals' => wc_get_price_decimals(),
 		'meta'        => $meta ?? null,
 		'currency'    => $wco->get_currency( 'edit' ),
+		'secret'      => (string) ( is_array( $settings ) ? ( $settings['secret'] ?? '' ) : '' ),
+		'dashboard'   => $dashboard,
 		'nonce'       => wp_create_nonce( 'scanpay-order-' . $oid ),
 	];
 	wp_add_inline_script(

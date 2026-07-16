@@ -31,11 +31,14 @@ declare global {
             voided: string;
         } | null;
         currency: string;    // e.g. "DKK"
-        nonce: string;
+        secret: string;      // admin-AJAX polling secret (sent in the X-Scanpay header)
+        dashboard: string;   // Scanpay dashboard transaction URL ('' if unsynced)
+        nonce: string;       // guards the wc_scanpay_capture AJAX action
     }
 
     interface Window {
         ScanpayOrderData: OrderData;
         wcSettings: unknown;
+        ajaxurl: string;
     }
 }
