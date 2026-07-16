@@ -34,7 +34,7 @@ backlog.
   plugin that is manually uploaded to customers / the WordPress.org plugin
   directory. build.sh does not publish it — that release step is manual.
 - After building, `build.sh` prompts to also `rsync`-deploy the same build to
-  the **test server** `woocommerce.scanpay.dev` (ssh alias `modules`), rewriting
+  the **test server** `woocommerce.scanpay-modules.dev` (ssh alias `modules`), rewriting
   prod hosts `*.scanpay.dk` → `*.scanpay.dev` for that copy only.
 - Lint: `pnpm phpcs` (WordPress + WooCommerce-Core + PHPCompatibilityWP; short
   arrays enforced), `pnpm phpcbf` to autofix. JS/CSS: `pnpm lint:js` /

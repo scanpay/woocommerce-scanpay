@@ -72,7 +72,7 @@ for file in $(find "$BUILD" -type f \( -name "*.php" -o -name "*.js" -o -name "*
     fi
 done
 
-read -r -p "Do you want to push to woocommerce.scanpay.dev? (y/N): " answer
+read -r -p "Do you want to push to woocommerce.scanpay-modules.dev? (y/N): " answer
 if [ "$answer" != "${answer#[Yy]}" ]; then
     # Copy build files to a tmp directory
     mkdir -p "$TMP"
@@ -87,7 +87,7 @@ if [ "$answer" != "${answer#[Yy]}" ]; then
         touch -d "$mtime" "$file"
     done
 
-    # Push the build to woocommerce.scanpay.dev
+    # Push the build to woocommerce.scanpay-modules.dev
     rsync -rltvz --delete \
         --no-o --no-g --no-p \
         --omit-dir-times \
