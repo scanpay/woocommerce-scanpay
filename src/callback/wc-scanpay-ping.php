@@ -247,16 +247,24 @@ try {
 		 * exactly-one-row invariant of the cursor UPDATE — only holds for a $seq
 		 * read under a continuously-held lock. This runs after every successful
 		 * acquire(): the initial one above and the re-acquire in the while below.
+		 *
+		 * $target is how far this run must get: this ping, or a newer one a busy
+		 * worker handed off in the ping column. It is the loop's single notion of
+		 * "caught up", so $ping_seq keeps meaning exactly "the seq this ping
+		 * announced" and is never reassigned.
 		 */
-		$seq = wc_scanpay_read_cursor( $shopid )['seq'];
-		if ( $ping_seq <= $seq ) {
-			// Someone else already drained this ping while we were opening files.
-			// Post-lock that is "already done", not a replayed ping.
+		$cursor = wc_scanpay_read_cursor( $shopid );
+		$seq    = $cursor['seq'];
+		$target = max( $ping_seq, $cursor['ping'] );
+		if ( $target <= $seq ) {
+			// Nothing outstanding: another worker drained this ping — and any
+			// handoff — while we were opening files. Post-lock that is "already
+			// done", not a replayed ping.
 			$flock->release();
 			wc_scanpay_respond( 'ok', 200 );
 		}
 
-		while ( $ping_seq > $seq ) {
+		while ( $target > $seq ) {
 			$res     = $client->seq( $seq );
 			$changes = $res['changes'];
 
@@ -268,7 +276,7 @@ try {
 				 * are consistent — there is no visibility window — so both cannot
 				 * be true. Fail loud instead of acking a drain that never happened.
 				 */
-				throw new Exception( "backend announced seq $ping_seq but /v1/seq/$seq served no changes" );
+				throw new Exception( "backend announced seq $target but /v1/seq/$seq served no changes" );
 			}
 			foreach ( $changes as $c ) {
 				$ctype = $c['type'] ?? null;
@@ -299,7 +307,7 @@ try {
 				throw new Exception( "failed to persist sync cursor to seq $seq: {$wpdb->last_error}" );
 			}
 
-			if ( $ping_seq > $seq ) {
+			if ( $target > $seq ) {
 				/**
 				 * Prevent timeout and memory exhaustion on long sync loops
 				 */
@@ -310,14 +318,11 @@ try {
 					$n = 0;
 				}
 			} else {
-				// Check if we blocked a newer ping while syncing
-				$blocked_ping = (int) $wpdb->get_var( "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
-				if ( '' !== $wpdb->last_error ) {
-					throw new Exception( "ping lookup failed: {$wpdb->last_error}" );
-				}
-				if ( $blocked_ping > $ping_seq ) {
+				// Caught up: check if we blocked a newer ping while syncing.
+				$blocked_ping = wc_scanpay_read_cursor( $shopid )['ping'];
+				if ( $blocked_ping > $seq ) {
 					scanpay_log( 'debug', "Resuming sync to blocked ping seq $blocked_ping (current seq $seq)" );
-					$ping_seq = $blocked_ping;
+					$target = $blocked_ping;
 				}
 			}
 			$elapsed = microtime( true ) - $start;
@@ -328,28 +333,26 @@ try {
 		 * Close the busy-path race: a ping recorded between the final in-loop
 		 * read above and release() would otherwise be stranded — the busy pinger
 		 * already got a 200 and will not retry. After releasing, re-read the ping
-		 * column; if a ping newer than this run targeted arrived, re-acquire and
-		 * resume. If another worker took the lock meanwhile, it owns the drain
-		 * (it re-reads the same column), so we can stop.
+		 * column; if it names a seq we have not reached, re-acquire and resume. If
+		 * another worker took the lock meanwhile, it owns the drain (it re-reads
+		 * the same column), so we can stop.
 		 */
 		$flock->release();
-		$blocked_ping = (int) $wpdb->get_var( "SELECT ping FROM {$wpdb->prefix}scanpay_seq WHERE shopid = $shopid" );
-		if ( '' !== $wpdb->last_error ) {
-			throw new Exception( "ping lookup failed: {$wpdb->last_error}" );
-		}
-		if ( $blocked_ping <= $ping_seq ) {
+		$target = max( $target, wc_scanpay_read_cursor( $shopid )['ping'] );
+		if ( $target <= $seq ) {
 			break;
 		}
-		$ping_seq = $blocked_ping;
-		scanpay_log( 'debug', "Re-acquiring lock for blocked ping seq $blocked_ping (current seq $seq)" );
+		scanpay_log( 'debug', "Re-acquiring lock for blocked ping seq $target (current seq $seq)" );
 	} while ( $flock->acquire() );
 	/**
-	 * The inner loop only exits once $seq reached its target, so "completed" is
-	 * true for every exit but one: the re-acquire above failing hands an
-	 * outstanding ping to the worker that took the lock, leaving us short.
+	 * The inner loop only exits once $seq reached $target, so "completed" is true
+	 * for every exit but one: the re-acquire above failing hands an outstanding
+	 * ping to the worker that took the lock, leaving us short. That ping is always
+	 * in the ping column — $target can only exceed $seq here by way of the re-read
+	 * above — so the new lock holder will see it.
 	 */
-	if ( $seq < $ping_seq ) {
-		scanpay_log( 'info', "Sync handed off at seq $seq: another worker holds the lock for ping seq $ping_seq" );
+	if ( $seq < $target ) {
+		scanpay_log( 'info', "Sync handed off at seq $seq: another worker holds the lock for ping seq $target" );
 	} else {
 		scanpay_log( 'info', "Sync completed to seq $seq" );
 	}
