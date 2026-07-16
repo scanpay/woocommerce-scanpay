@@ -93,41 +93,55 @@ function renderFoot(meta: MetaRow, decimals: number): void {
 	}
 }
 
-/** POST the capture action, guarded by the injected per-order nonce. */
+/** POST the capture action (nonce-guarded); throws on a non-success response. */
+async function postCapture(): Promise<void> {
+	const res = await fetch(window.ajaxurl, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+		body: new URLSearchParams({
+			action: 'wc_scanpay_capture',
+			oid: String(data.oid),
+			nonce: data.nonce,
+		}),
+	});
+	const json = await res.json();
+	if (!res.ok || !json?.success) {
+		throw new Error(typeof json?.data === 'string' ? json.data : 'capture_failed');
+	}
+}
+
+/** Drive the Capture button: post, then poll for the sync to reflect the capture. */
 async function onCapture(ev: Event): Promise<void> {
 	const btn = ev.currentTarget as HTMLButtonElement;
-	btn.disabled = true;
 	const label = btn.textContent;
-	btn.textContent = 'Capturing…';
-	try {
-		const res = await fetch(window.ajaxurl, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: new URLSearchParams({
-				action: 'wc_scanpay_capture',
-				oid: String(data.oid),
-				nonce: data.nonce,
-			}),
-		});
-		const json = await res.json();
-		if (!res.ok || !json?.success) {
-			throw new Error(typeof json?.data === 'string' ? json.data : 'capture_failed');
-		}
-		showWarning('Capture requested. Updating figures…', 'info');
-		await refresh();
-	} catch (err) {
-		showError('Capture failed: ' + (err instanceof Error ? err.message : String(err)));
+	function restore() {
 		btn.disabled = false;
 		btn.textContent = label;
+	}
+	btn.disabled = true;
+	btn.textContent = 'Capturing…';
+	try {
+		await postCapture();
+		if (await refresh()) {
+			// refresh() re-rendered the foot (fresh button or none); the old button is gone.
+			showWarning('Capture complete.', 'info');
+		} else {
+			// Sync has not landed yet; restore the button so it isn't stuck on "Capturing…".
+			showWarning('Capture requested — figures will refresh on the next sync.', 'info');
+			restore();
+		}
+	} catch (err) {
+		showError('Capture failed: ' + (err instanceof Error ? err.message : String(err)));
+		restore();
 	}
 }
 
 /**
  * Poll the (WC-free) meta endpoint for the revision bump the capture produces once
- * Scanpay pings back and the sync updates the row, then re-render. Bounded; falls
- * back to an advisory note if the sync has not landed yet.
+ * Scanpay pings back and the sync updates the row, then re-render. Bounded; returns
+ * true if the figures were refreshed, false if the sync has not landed yet.
  */
-async function refresh(): Promise<void> {
+async function refresh(): Promise<boolean> {
 	const startRev = data.meta ? parseInt(data.meta.rev, 10) : 0;
 	for (let i = 0; i < 3; i++) {
 		try {
@@ -139,14 +153,13 @@ async function refresh(): Promise<void> {
 				data.meta = row as MetaRow;
 				renderFigures(data.meta, data.currency, data.wc_decimals);
 				renderFoot(data.meta, data.wc_decimals);
-				showWarning('Capture complete.', 'info');
-				return;
+				return true;
 			}
 		} catch {
 			/* transient; keep polling */
 		}
 	}
-	showWarning('Capture requested — figures will refresh on the next sync.', 'info');
+	return false;
 }
 
 if (dom && data) {
