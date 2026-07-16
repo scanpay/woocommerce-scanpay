@@ -72,7 +72,7 @@ function wc_scanpay_dighomogenize( string $a, string $b ): array {
 function wc_scanpay_digformat( bool $sign, string $s, int $fl ): string {
 	$il = strlen( $s ) - $fl;
 	$s  = ltrim( substr( $s, 0, $il ), '0' ) . '.' . substr( $s, $il );
-	if ( '' === $s || '.' === $s[0] ) {
+	if ( '.' === $s[0] ) {
 		$s = '0' . $s;
 	}
 	for ($d = strlen( $s ) - 1; $d > 0 && '0' === $s[ $d ]; $d--);
