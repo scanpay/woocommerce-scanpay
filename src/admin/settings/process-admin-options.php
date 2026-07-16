@@ -27,11 +27,11 @@ $this->init_settings();
 $is_enabled  = ( 'yes' === $this->get_option( 'enabled', 'no' ) );
 $key_changed = ( (string) $this->get_option( 'apikey', '' ) !== $old_apikey );
 
-// Validate the API key when enabling the gateway (no -> yes) or when the key
-// changed while the gateway is enabled. The card gateway drops and recreates
-// the SQL tables whenever the shop ID changes (see
-// WC_Gateway_Scanpay_Card::process_admin_options()), so the new key must be
-// confirmed to work before that destructive step runs.
+// Validate the API key when enabling the gateway (no -> yes) or when a key is
+// first set while the gateway is enabled. This is a UX check only: it tells the
+// merchant the key does not work and force-disables the gateway. Nothing
+// destructive hangs off the result -- data is only ever deleted by the reset
+// button, so a skipped check here cannot cost anything.
 if ( ! $is_enabled || ( $was_enabled && ! $key_changed ) ) {
 	return true;
 }
@@ -44,10 +44,8 @@ try {
 	$client = new WC_Scanpay_Client( $primary['apikey'] ?? '' );
 	$client->seq( 0 );
 } catch ( Exception $e ) {
-	// Invalid key: force-disable the gateway (keeping the entered settings) and
-	// flag the failure so the card gateway skips the table drop/recreate.
-	$this->settings['enabled']    = 'no';
-	$this->scanpay_apikey_invalid = true;
+	// Invalid key: force-disable the gateway, keeping the entered settings.
+	$this->settings['enabled'] = 'no';
 	update_option( $this->get_option_key(), $this->settings );
 	WC_Admin_Settings::add_error(
 		__( 'Error: Invalid Scanpay API key. Please check your key and try again.', 'scanpay-for-woocommerce' )

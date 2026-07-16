@@ -64,21 +64,25 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 
 	/**
 	 * Process and save admin options.
-	 * If the API key has changed, re-install the SQL tables.
+	 * Seeds the SQL tables when an API key is first configured.
 	 *
 	 * @return void
 	 */
 	public function process_admin_options(): void {
-		global $wpdb;
 		$old = (int) explode( ':', (string) $this->get_option( 'apikey', '' ) )[0];
 		parent::process_admin_options();
 		$new = (int) explode( ':', (string) $this->get_option( 'apikey', '' ) )[0];
-		// Only rebuild the tables for a new shop ID once the new key has been
-		// validated; process-admin-options.php flags a failed live key check.
-		if ( $new !== $old && ! $this->scanpay_apikey_invalid ) {
-			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_seq" );
-			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_meta" );
-			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_subs" );
+		/*
+		 * A stored key can never be replaced here (validate_apikey_field() refuses),
+		 * so this only fires when a key is first set -- on a fresh install or after a
+		 * reset. install.php is idempotent: it creates the tables if missing and
+		 * seeds this shop's seq row at 0, which the ping handler requires before it
+		 * will sync (it responds "shop not configured" without one).
+		 *
+		 * Nothing is dropped here. Deleting data is the reset button's job alone
+		 * (admin/hooks/wp-ajax-wc-scanpay-reset.php), never a side effect of a save.
+		 */
+		if ( $new && $new !== $old ) {
 			require WC_SCANPAY_DIR . '/install.php';
 		}
 	}

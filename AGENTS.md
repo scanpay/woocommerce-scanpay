@@ -174,11 +174,24 @@ not just types).
 - `uninstall.php` drops all tables and options.
 - Saving settings runs the shared `admin/settings/process-admin-options.php`
   (from `WC_Gateway_Scanpay_Base::process_admin_options`): when a gateway is
-  being enabled (or its key changed while enabled), it validates the API key with
-  a live `seq(0)` call and force-disables the gateway if the key is bad.
-- Changing the API key in settings **drops and recreates the tables** — but only
-  when the shop ID changed *and* the key passed validation (see
-  `WC_Gateway_Scanpay_Card::process_admin_options`).
+  being enabled (or a key is first set while enabled), it validates the API key
+  with a live `seq(0)` call and force-disables the gateway if the key is bad.
+  This is a **UX check only** — nothing destructive hangs off its result.
+- **The API key is write-once.** It is never rendered back to the browser: the
+  `apikey` field is a custom type handled by
+  `WC_Gateway_Scanpay_Base::generate_apikey_html()` (masked display, no input
+  once set) and gated by `::validate_apikey_field()` (WC dispatches
+  `validate_{$key}_field` ahead of `validate_{$type}_field`). An empty POST means
+  *unchanged* — WC's `validate_password_field()` would otherwise save the blank
+  and wipe the key. Replacing a stored key is refused; use the reset button.
+- **Deleting data is the reset button's job alone**, never a side effect of a
+  save: `wp_ajax_wc_scanpay_reset` → `admin/hooks/wp-ajax-wc-scanpay-reset.php`
+  (nonce + `manage_woocommerce`) drops the three tables, clears the key, disables
+  every gateway, then re-runs `install.php` to recreate them empty. Safe because
+  the tables hold only what the sync API can replay: entering a key for the same
+  shop reseeds `seq=0` and the next ping rebuilds every row —
+  `WC_Scanpay_Sync::upsert_meta()` runs *outside* the already-paid guard, so a
+  replay restores the meta rows without re-firing `payment_complete()`.
 
 ## Post-rewrite status
 
