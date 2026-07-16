@@ -100,7 +100,8 @@ via `public/wcs-scanpay-checkout-terms.php`
    (`POST /v1/new`) → redirect customer to `betal.scanpay.dk`.
 2. Scanpay pings us → `wc-scanpay-ping.php` verifies HMAC-SHA256 of the body with
    the API key (`hash_equals` of the base64 HMAC vs the `X-Signature`), then pulls
-   changes via `WC_Scanpay_Client::seq` (`GET /v1/seq/N`).
+   changes via `WC_Scanpay_Client::seq` (`GET /v1/seq/N`) in a flock-guarded loop
+   until the local cursor reaches the pinged seq (see **Ping protocol** below).
 3. `WC_Scanpay_Sync` validates each change, upserts the meta table, and calls
    `$order->payment_complete()`.
 4. Capture: on `woocommerce_order_status_completed`, via the bulk actions in
@@ -116,12 +117,41 @@ via `public/wcs-scanpay-checkout-terms.php`
 5. Subscription renewals: WCS scheduler (`woocommerce_scheduled_subscription_payment_scanpay`)
    → `WCS_Scanpay_Charge` (`POST /v1/subscribers/N/charge`, idempotency-keyed).
 
+**Ping protocol** ([docs](https://docs.scanpay.dev/synchronization)) — `POST`,
+body `{ seq: int, shopid: int }` (the plugin caps it at 512 bytes), header
+`X-Signature: base64(hmac_sha256(body, apikey))`. `seq` is the shop's *current*
+sequence number at ping time.
+
+**Scanpay pings every 5 minutes**, not only when something changes. That keepalive
+is the recovery backstop for the entire sync design: a ping that is dropped,
+stranded, or rejected is re-covered within ~5 minutes by the next one, which
+carries a seq above the local cursor and drains normally. The plugin therefore
+keeps **no ping-level retry state of its own** — don't add recovery machinery
+justified by "otherwise the ping is lost forever"; it isn't. Pings are retried
+until we answer 200 and time out after ~7s — that last part is backend-team
+knowledge, as the docs specify neither retry count, backoff, nor non-2xx handling.
+
+`wc-scanpay-ping.php` branches on the pinged seq vs the local `scanpay_seq.seq`:
+
+- `ping_seq < seq` → replayed / out-of-order ping, 400.
+- `ping_seq === seq` → heartbeat: update `mtime` only, 200. **The common case for
+  a quiet shop** — it's what the 5-minute keepalive normally hits, and what keeps
+  the settings "last sync" indicator fresh.
+- `ping_seq > seq` → drain: take the flock and loop `seq(N)` until caught up.
+
+On flock contention the request records the pinged seq in `scanpay_seq.ping` and
+answers 200 (that pinger will not retry), betting the incumbent worker drains it;
+the incumbent re-checks that column before and after releasing the lock. This is a
+**latency optimization over the keepalive**, not a correctness requirement.
+
 **Client library** `WC_Scanpay_Client` (`src/library/class-wc-scanpay-client.php`,
 curl-based, self-versioned "client lib" in its file header) is the only thing that
 talks to `api.scanpay.dk`.
 
 **Custom DB tables** (created in `install.php`, latin1):
-- `scanpay_seq` — per-shop sync cursor (`shopid` PK, `seq`, `ping`, `mtime`).
+- `scanpay_seq` — per-shop sync cursor (`shopid` PK, `seq` = last synced sequence
+  number, `ping` = highest seq handed off to a busy worker, `mtime` = unix seconds
+  of the last ping, which drives the settings "last sync" indicator).
 - `scanpay_meta` — per-order transaction row (`orderid` PK, `shopid`, `subid`,
   `id`, `rev`, `nacts`, `currency`, and the money totals
   `authorized`/`captured`/`refunded`/`voided`).
@@ -167,10 +197,25 @@ not just types).
 ## Lifecycle
 
 - `install.php` creates the three tables, seeds the shop row, and mints the
-  admin-AJAX `secret` into the settings option when absent.
+  admin-AJAX `secret` into the settings option when absent. On a **fresh install**
+  it also stamps `wc_scanpay_version`, so the loader gate skips `upgrade.php`
+  instead of running the `< 2.0.0` branch over a new shop and overwriting the
+  gateway field defaults with the 1.x ones. "Fresh" is decided *before* the secret
+  creates the settings option, and **absent settings is the discriminator, not an
+  absent version**: 1.x never wrote `wc_scanpay_version` but did write the settings
+  option, so gating on the version alone would permanently skip the 1.x migration
+  (leaving `capture_on_complete` unconverted and auto-capture silently off).
+  `register_activation_hook` fires on *every* activation, not just installs — the
+  stamp is a no-op in install.php's other callers (`upgrade.php`, the reset
+  endpoint, the card gateway's first-key save), which all run on a shop that
+  already has settings, a version, or both.
 - `upgrade.php` runs version-gated migrations (settings-key renames, table
   rebuilds, dropping legacy `woocommerce_scanpay_*` tables); tracked in the
-  `wc_scanpay_version` option.
+  `wc_scanpay_version` option, stamped **last** so an interrupted run retries from
+  the start. The loader gate catches `Throwable`, logs, and **deliberately keeps**
+  the `wc_scanpay_updating` transient on failure: that throttles a failing upgrade
+  to one attempt per 5 minutes instead of fataling `plugins_loaded` on every
+  request, which would take out wp-admin and leave the merchant no way to react.
 - `uninstall.php` drops all tables and options.
 - Saving settings runs the shared `admin/settings/process-admin-options.php`
   (from `WC_Gateway_Scanpay_Base::process_admin_options`): when a gateway is
