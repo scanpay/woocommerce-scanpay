@@ -35,7 +35,7 @@ return [
 		/* translators: Payment method title displayed at checkout. */
 		'description' => __( 'The payment method title displayed at checkout.', 'scanpay-for-woocommerce' ),
 		'desc_tip'    => true,
-		'default'     => 'Betal med kort',
+		'default'     => 'Pay by card',
 	],
 
 	'description'          => [
@@ -44,7 +44,7 @@ return [
 		/* translators: Payment method description displayed at checkout. */
 		'description' => __( 'The payment method description displayed at checkout.', 'scanpay-for-woocommerce' ),
 		'desc_tip'    => true,
-		'default'     => 'Betal med betalingskort via Scanpay.',
+		'default'     => 'Pay with a payment card via Scanpay.',
 	],
 
 	'card_icons'           => [

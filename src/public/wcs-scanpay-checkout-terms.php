@@ -6,7 +6,11 @@ if ( class_exists( 'WC_Subscriptions_Cart', false ) && WC_Subscriptions_Cart::ca
 	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
 	if ( $settings && isset( $settings['wcs_terms'] ) && '0' !== $settings['wcs_terms'] ) {
 		$url = esc_url( get_page_link( $settings['wcs_terms'] ) );
-		$txt = 'Jeg accepterer <a href="' . $url . '">abonnementsbetingelserne</a>.';
+		$txt = sprintf(
+			/* translators: %s is a link to the subscription terms page. */
+			__( 'I accept the %s.', 'scanpay-for-woocommerce' ),
+			'<a href="' . $url . '">' . esc_html__( 'subscription terms', 'scanpay-for-woocommerce' ) . '</a>'
+		);
 
 		woocommerce_form_field(
 			'wcssp-terms-field',

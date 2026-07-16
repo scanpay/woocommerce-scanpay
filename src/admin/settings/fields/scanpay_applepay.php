@@ -25,6 +25,6 @@ return [
 		/* translators: Payment method description shown at checkout. */
 		'description' => __( 'The payment method description shown at checkout.', 'scanpay-for-woocommerce' ),
 		'desc_tip'    => true,
-		'default'     => 'Betal med Apple&nbsp;Pay.',
+		'default'     => 'Pay with Apple Pay.',
 	],
 ];

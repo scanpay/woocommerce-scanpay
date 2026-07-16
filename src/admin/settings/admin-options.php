@@ -99,7 +99,7 @@ $logs_url = add_query_arg(
 
 // Navigation tabs.
 $nav_tabs = [
-	'scanpay'           => 'Generelt',
+	'scanpay'           => __( 'General', 'scanpay-for-woocommerce' ),
 	'scanpay_mobilepay' => 'MobilePay',
 	'scanpay_applepay'  => 'Apple Pay',
 ];
@@ -126,7 +126,7 @@ $nav_tabs = [
 			<?php echo esc_html( $label ); ?>
 		</a>
 	<?php endforeach; ?>
-	<a class="wcsp-nav-logs" href="<?php echo esc_url( $logs_url ); ?>">Logs</a>
+	<a class="wcsp-nav-logs" href="<?php echo esc_url( $logs_url ); ?>"><?php esc_html_e( 'Logs', 'scanpay-for-woocommerce' ); ?></a>
 	<span id="wcsp-set-nav-mtime" class="wcsp-set-nav-mtime"></span>
 </div>
 

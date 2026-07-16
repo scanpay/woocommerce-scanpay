@@ -69,10 +69,10 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 			) {
 				$data['methods']['scanpay']['terms'] = [
 					'url'    => esc_url_raw( (string) get_page_link( (int) $settings['wcs_terms'] ) ),
-					'before' => 'Jeg accepterer ',
-					'link'   => 'abonnementsbetingelserne',
+					'before' => __( 'I accept the ', 'scanpay-for-woocommerce' ),
+					'link'   => __( 'subscription terms', 'scanpay-for-woocommerce' ),
 					'after'  => '.',
-					'error'  => 'Du skal acceptere abonnementsbetingelserne for at gennemføre købet.',
+					'error'  => __( 'You must accept the subscription terms to complete your purchase.', 'scanpay-for-woocommerce' ),
 				];
 			}
 		}
@@ -80,7 +80,7 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 		if ( is_array( $mobilepay ) && ( 'yes' === ( $mobilepay['enabled'] ?? 'no' ) ) ) {
 			$data['methods']['scanpay_mobilepay'] = [
 				'title'       => 'MobilePay',
-				'description' => __( 'Betal med MobilePay', 'scanpay-for-woocommerce' ),
+				'description' => __( 'Pay with MobilePay', 'scanpay-for-woocommerce' ),
 				'icons'       => [ 'mobilepay' ],
 				'supports'    => [
 					'products',
@@ -91,7 +91,7 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 		if ( is_array( $applepay ) && ( 'yes' === ( $applepay['enabled'] ?? 'no' ) ) ) {
 			$data['methods']['scanpay_applepay'] = [
 				'title'       => 'Apple Pay',
-				'description' => __( 'Betal med Apple Pay', 'scanpay-for-woocommerce' ),
+				'description' => __( 'Pay with Apple Pay', 'scanpay-for-woocommerce' ),
 				'icons'       => [ 'applepay' ],
 				'supports'    => [
 					'products',

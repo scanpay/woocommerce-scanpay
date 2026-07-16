@@ -178,7 +178,7 @@ function wcs_scanpay_validate_terms( array $data, WP_Error $errors ): void {
 	// The checkout nonce is verified by WC_Checkout::process_checkout() before this action.
 	// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotValidated
 	if ( empty( $_POST['wcssp-terms'] ) ) {
-		$errors->add( 'wcssp-terms', 'Du skal acceptere abonnementsbetingelserne for at gennemføre købet.' );
+		$errors->add( 'wcssp-terms', __( 'You must accept the subscription terms to complete your purchase.', 'scanpay-for-woocommerce' ) );
 	}
 }
 
@@ -210,7 +210,7 @@ function wcs_scanpay_blocks_validate_terms( WC_Order $order, WP_REST_Request $re
 	if ( empty( $payment_data['wcssp-terms'] ) ) {
 		throw new \Automattic\WooCommerce\StoreApi\Exceptions\RouteException(
 			'wcssp_terms_required',
-			'Du skal acceptere abonnementsbetingelserne for at gennemføre købet.',
+			esc_html__( 'You must accept the subscription terms to complete your purchase.', 'scanpay-for-woocommerce' ),
 			400
 		);
 	}
