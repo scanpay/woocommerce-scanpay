@@ -79,8 +79,8 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 		$mobilepay = get_option( 'woocommerce_scanpay_mobilepay_settings' );
 		if ( is_array( $mobilepay ) && ( 'yes' === ( $mobilepay['enabled'] ?? 'no' ) ) ) {
 			$data['methods']['scanpay_mobilepay'] = [
-				'title'       => 'MobilePay',
-				'description' => __( 'Pay with MobilePay', 'scanpay-for-woocommerce' ),
+				'title'       => (string) ( $mobilepay['title'] ?? 'MobilePay' ),
+				'description' => (string) ( $mobilepay['description'] ?? '' ),
 				'icons'       => [ 'mobilepay' ],
 				'supports'    => [
 					'products',
@@ -90,8 +90,8 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 		$applepay = get_option( 'woocommerce_scanpay_applepay_settings' );
 		if ( is_array( $applepay ) && ( 'yes' === ( $applepay['enabled'] ?? 'no' ) ) ) {
 			$data['methods']['scanpay_applepay'] = [
-				'title'       => 'Apple Pay',
-				'description' => __( 'Pay with Apple Pay', 'scanpay-for-woocommerce' ),
+				'title'       => (string) ( $applepay['title'] ?? 'Apple Pay' ),
+				'description' => (string) ( $applepay['description'] ?? '' ),
 				'icons'       => [ 'applepay' ],
 				'supports'    => [
 					'products',
