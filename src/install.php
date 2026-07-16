@@ -68,6 +68,13 @@ if ( $wpdb->get_var( "SHOW TABLES LIKE '$subs_tbl'" ) !== $subs_tbl ) {
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 $shopid   = (int) explode( ':', $settings['apikey'] ?? '' )[0];
 
+// Decide now, before the secret below creates the settings option, whether this is a
+// fresh install with nothing to migrate. Absent settings is the discriminator, not an
+// absent version: 1.x never wrote 'wc_scanpay_version' but did write the settings option,
+// so stamping a version on "no version" alone would skip upgrade.php's '< 2.0.0' branch
+// forever on a 1.x site, leaving capture_on_complete unconverted and auto-capture off.
+$fresh_install = false === $settings && false === get_option( 'wc_scanpay_version' );
+
 if ( 0 !== $shopid ) {
 	$seq = $wpdb->get_var( "SELECT seq FROM $seq_tbl WHERE shopid = $shopid" );
 	if ( null === $seq ) {
@@ -85,4 +92,13 @@ if ( empty( $settings['secret'] ) ) {
 	}
 	$settings['secret'] = bin2hex( random_bytes( 32 ) );
 	update_option( WC_SCANPAY_URI_SETTINGS, $settings, true );
+}
+
+// Nothing to migrate: stamp the version so the loader gate does not run upgrade.php's
+// 1.x settings migration over a new install and overwrite the gateway field defaults.
+// A no-op in install.php's other callers (upgrade.php, the reset endpoint, the card
+// gateway's first-key save), which all run on a shop that already has settings, a
+// version, or both.
+if ( $fresh_install ) {
+	add_option( 'wc_scanpay_version', WC_SCANPAY_VERSION, '', true );
 }
