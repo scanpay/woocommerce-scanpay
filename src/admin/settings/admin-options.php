@@ -17,14 +17,14 @@ defined( 'ABSPATH' ) || exit();
  * @param string $msg The message to display.
  * @param string $type    The type of notice: 'info', 'warning', 'error', 'success'.
  */
-function scanpay_admin_notice( string $msg, string $type = 'info' ): void {
+function wc_scanpay_admin_notice( string $msg, string $type = 'info' ): void {
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $msg is trusted, pre-escaped HTML assembled by the callers below.
 	echo '<div class="notice notice-' . esc_attr( $type ) . ' wcsp-notice"><p>' . $msg . '</p></div>';
 }
 
 // Get the shopID from the API key (first part before the colon).
 $settings = get_option( WC_SCANPAY_URI_SETTINGS, [] );
-$shopid   = (int) strtok( $settings['apikey'] ?? '', ':' );
+$shopid   = (int) strstr( $settings['apikey'] ?? '', ':', true );
 
 // The synchronization (ping) URL the merchant must register in the Scanpay dashboard.
 $ping_url = WC()->api_request_url( 'wc_scanpay' );
@@ -45,7 +45,7 @@ if ( ! $shopid ) {
 		__( 'To get started, please complete the setup using our %s.', 'scanpay-for-woocommerce' ),
 		$guide_link
 	);
-	scanpay_admin_notice(
+	wc_scanpay_admin_notice(
 		'<strong>' .
 			esc_html__( 'Thank you for choosing Scanpay!', 'scanpay-for-woocommerce' ) .
 		'</strong><br>' .
@@ -57,7 +57,7 @@ if ( ! $shopid ) {
 	);
 } else {
 	// API key is set: surface the ping URL to register in the dashboard (core onboarding step).
-	scanpay_admin_notice(
+	wc_scanpay_admin_notice(
 		'<strong>' .
 			esc_html__( 'Finish your Scanpay setup', 'scanpay-for-woocommerce' ) .
 		'</strong><br>' .

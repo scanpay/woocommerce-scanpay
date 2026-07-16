@@ -40,9 +40,9 @@ try {
 	// All gateways require a valid API key to function.
 	// Let's do a simple API call to verify the key.
 	$primary = get_option( WC_SCANPAY_URI_SETTINGS, [] );
-	require WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
+	require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
 	$client = new WC_Scanpay_Client( $primary['apikey'] ?? '' );
-	$res    = $client->seq( 0 );
+	$client->seq( 0 );
 } catch ( Exception $e ) {
 	// Invalid key: force-disable the gateway (keeping the entered settings) and
 	// flag the failure so the card gateway skips the table drop/recreate.
