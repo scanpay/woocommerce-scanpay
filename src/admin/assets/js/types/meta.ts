@@ -3,7 +3,7 @@
 	Prevent duplicate messages.
 */
 
-import { checkVersion, isVersionGreater, getLastSync } from '../util/compat';
+import { checkVersion, isVersionGreater } from '../util/compat';
 
 export function showError(msg: string) {
 	showWarning(msg, 'error');
@@ -36,5 +36,7 @@ export function pluginVersionCheck() {
 				'info'
 			);
 		}
+	}).catch(() => {
+		// update check is best-effort (GitHub rate-limit / CSP); no banner, no console noise
 	});
 }

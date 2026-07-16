@@ -90,4 +90,6 @@ checkVersion().then((version) => {
 			(<a href="//github.com/scanpay/woocommerce-scanpay/releases" target="_blank">changelog</a>).`
 		);
 	}
+}).catch(() => {
+	// update check is best-effort (GitHub rate-limit / CSP)
 });
