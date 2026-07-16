@@ -49,6 +49,19 @@ add_action( 'admin_enqueue_scripts', 'wc_scanpay_admin_assets' );
 
 
 /**
+ * Delete all Scanpay data and clear the API key (the settings page's
+ * "Delete data and change API key" button).
+ *
+ * Guarded by a nonce and manage_woocommerce -- a higher bar than the capture
+ * handler's edit_shop_orders, since this rewrites gateway configuration.
+ */
+function wc_scanpay_ajax_reset(): void {
+	require WC_SCANPAY_DIR . '/admin/hooks/wp-ajax-wc-scanpay-reset.php';
+}
+add_action( 'wp_ajax_wc_scanpay_reset', 'wc_scanpay_ajax_reset', 0, 0 );
+
+
+/**
  * Add a "Settings" link to the Scanpay plugin entry.
  *
  * @param array $links Plugin action links.
