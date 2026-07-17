@@ -67,9 +67,25 @@ export function checkVersion(): Promise<string> {
 		});
 }
 
+/**
+ * Split a dotted version into numbers.
+ *
+ * parseInt (not Number) so a pre-release suffix is stripped rather than poisoning
+ * the segment: Number('1-rc1') is NaN, parseInt('1-rc1', 10) is 1. Anything still
+ * unparseable -- an unsubstituted '{{ VERSION }}' in unbuilt src/ -- becomes 0.
+ * Every NaN comparison below returns false, so the update banner would silently
+ * never fire.
+ */
+function parseVersion(version: string): number[] {
+	return version.split('.').map((part) => {
+		const n = parseInt(part, 10);
+		return Number.isNaN(n) ? 0 : n;
+	});
+}
+
 export function isVersionGreater(version1: string, version2: string): boolean {
-	const v1Parts = version1.split('.').map(Number);
-	const v2Parts = version2.split('.').map(Number);
+	const v1Parts = parseVersion(version1);
+	const v2Parts = parseVersion(version2);
 	const length = Math.max(v1Parts.length, v2Parts.length);
 
 	for (let i = 0; i < length; i++) {

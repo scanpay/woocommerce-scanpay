@@ -14,11 +14,15 @@ import { getLastSync, checkVersion, isVersionGreater } from './util/compat';
  * notably the ping endpoint's response body, which arrives here as err.message --
  * goes in `detail`, which is appended as a text node and never parsed.
  */
-function showWarning(title: string, msg: string, id: string | false = false, detail: string = '') {
+function showWarning(title: string, msg: string, id: string | false = false, detail: string = ''): HTMLElement {
 	let div = id ? document.getElementById('wcsp-set-alert-' + id) : null;
 	if (!div) {
 		div = document.createElement('div');
-		div.id = 'wcsp-set-alert-' + id;
+		// Only when there is one: an id-less caller used to stringify false into
+		// id="wcsp-set-alert-false".
+		if (id) {
+			div.id = 'wcsp-set-alert-' + id;
+		}
 		div.className = 'wcsp-set-alert';
 		alertBox.appendChild(div);
 	}
@@ -32,6 +36,7 @@ function showWarning(title: string, msg: string, id: string | false = false, det
 	if (detail) {
 		div.appendChild(document.createTextNode(detail));
 	}
+	return div;
 }
 
 function checkMtime() {
@@ -137,14 +142,24 @@ document.addEventListener('visibilitychange', () => {
 	if (document.visibilityState === 'visible') checkMtime();
 });
 
-checkVersion().then((version) => {
-	if (isVersionGreater(version, '{{ VERSION }}')) {
-		showWarning(
+checkVersion()
+	.then((version) => {
+		if (!isVersionGreater(version, '{{ VERSION }}')) {
+			return;
+		}
+		// A real id, so a re-check replaces this banner instead of appending another.
+		const div = showWarning(
 			'There is a new version of the plugin available. ',
-			`Your Scanpay extension (<i>{{ VERSION }}</i>) needs to be updated to ${version}
-			(<a href="//github.com/scanpay/woocommerce-scanpay/releases" target="_blank">changelog</a>).`
+			`Your Scanpay extension (<i>{{ VERSION }}</i>) needs to be updated to <span class="wcsp-set-version"></span>
+			(<a href="//github.com/scanpay/woocommerce-scanpay/releases" target="_blank">changelog</a>).`,
+			'version'
 		);
-	}
-}).catch(() => {
-	// update check is best-effort (GitHub rate-limit / CSP)
-});
+		// The version comes from the GitHub API, so it goes in as text.
+		const span = div.querySelector('.wcsp-set-version');
+		if (span) {
+			span.textContent = version;
+		}
+	})
+	.catch(() => {
+		// update check is best-effort (GitHub rate-limit / CSP)
+	});
