@@ -6,10 +6,12 @@ final class WCS_Scanpay_Charge {
 	private WC_Scanpay_Client $client;
 
 	public function __construct() {
-		if ( ! class_exists( 'WC_Scanpay_Client', false ) ) {
-			require_once WC_SCANPAY_DIR . '/library/math.php';
-			require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
-		}
+		// math.php is an independent file, not part of the client: gating it on the
+		// client's class left wc_scanpay_cmpmoney() undefined for any request that had
+		// already loaded the client on its own (process-admin-options.php does).
+		// require_once is its own guard, so no class_exists() check is needed.
+		require_once WC_SCANPAY_DIR . '/library/math.php';
+		require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
 		$opts           = get_option( WC_SCANPAY_URI_SETTINGS );
 		$this->settings = is_array( $opts ) ? $opts : [];
 		$this->client   = new WC_Scanpay_Client( $this->settings['apikey'] ?? '' );
