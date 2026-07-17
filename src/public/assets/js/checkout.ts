@@ -90,8 +90,11 @@ for (const name in data.methods) {
 			},
 			method.icons.map((icon: string) =>
 				createElement('img', {
+					key: icon,
 					src: data.url + icon + '.svg',
 					className: 'wcsp-icon wcsp-icon-' + icon,
+					// Decorative: the label above already names the method.
+					alt: '',
 				})
 			)
 		)
