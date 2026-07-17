@@ -7,11 +7,16 @@ defined( 'ABSPATH' ) || exit();
 /**
  * Display the correct payment method title for Scanpay subscriptions.
  *
- * @param string         $title Current payment method title.
- * @param WC_Subscription $sub  Subscription object.
- * @return string Filtered payment method title.
+ * $title is deliberately untyped: this sits in a third-party filter chain, and with
+ * strict_types a callback hooked earlier returning null would make the type
+ * declaration an uncatchable TypeError on the subscription screens. Non-Scanpay
+ * values are passed straight through. wcs_scanpay_retry_rule() does the same.
+ *
+ * @param mixed           $title Current payment method title (a string from WCS core).
+ * @param WC_Subscription $sub   Subscription object.
+ * @return mixed Filtered payment method title.
  */
-function wcs_scanpay_payment_method_to_display( string $title, WC_Subscription $sub ): string {
+function wcs_scanpay_payment_method_to_display( $title, WC_Subscription $sub ) {
 	return $sub->get_payment_method() === 'scanpay'
 		? $sub->get_payment_method_title()
 		: $title;

@@ -20,3 +20,7 @@ delete_option( 'woocommerce_scanpay_settings' );
 delete_option( 'woocommerce_scanpay_mobilepay_settings' );
 delete_option( 'woocommerce_scanpay_applepay_settings' );
 delete_option( 'wc_scanpay_version' );
+
+// The upgrade throttle. Self-expires in 5 minutes, so this only matters when
+// uninstalling in the middle of a wedged upgrade -- but leave nothing behind.
+delete_transient( 'wc_scanpay_updating' );
