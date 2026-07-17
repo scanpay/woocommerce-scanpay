@@ -10,9 +10,16 @@
 
 defined( 'ABSPATH' ) || exit();
 
+// Only the card gateway has an 'apikey' field; the key it stores is shared by all
+// three. Reading it off MobilePay/Apple Pay would plant a phantom one: WC's
+// get_option() injects any missing key into $this->settings as a side effect, and
+// the error branch below writes that array back verbatim. $key_changed is also
+// structurally always false for those gateways.
+$is_card = ( 'scanpay' === $this->id );
+
 // Capture pre-save state so we can detect enable-transitions and key changes.
 $was_enabled = ( 'yes' === $this->get_option( 'enabled', 'no' ) );
-$old_apikey  = (string) $this->get_option( 'apikey', '' );
+$old_apikey  = $is_card ? (string) $this->get_option( 'apikey', '' ) : '';
 
 // Save changes.
 $saved = parent::process_admin_options();
@@ -25,7 +32,7 @@ if ( ! $saved ) {
 $this->init_settings();
 
 $is_enabled  = ( 'yes' === $this->get_option( 'enabled', 'no' ) );
-$key_changed = ( (string) $this->get_option( 'apikey', '' ) !== $old_apikey );
+$key_changed = $is_card && ( (string) $this->get_option( 'apikey', '' ) !== $old_apikey );
 
 // Validate the API key when enabling the gateway (no -> yes) or when a key is
 // first set while the gateway is enabled. This is a UX check only: it tells the
