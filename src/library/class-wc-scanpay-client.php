@@ -146,6 +146,25 @@ final class WC_Scanpay_Client {
 	}
 
 	/**
+	 * Builds the X-Cardholder-IP header for the current request.
+	 *
+	 * REMOTE_ADDR is normally the SAPI's own TCP peer address and safe to trust, but
+	 * sites behind a CDN or proxy very commonly run a plugin that overwrites it from
+	 * a client-controlled header (X-Forwarded-For, CF-Connecting-IP) without
+	 * validating. libcurl does not sanitize header values, so a CRLF in there would
+	 * append real headers to this authenticated request -- letting a customer force
+	 * e.g. an Idempotency-Key onto a call that never expects one. Validate the
+	 * address and simply omit the header when it is not an IP.
+	 *
+	 * @return array<string, string>
+	 */
+	private function cardholder_ip_header(): array {
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		$ip = filter_var( $_SERVER['REMOTE_ADDR'] ?? '', FILTER_VALIDATE_IP );
+		return is_string( $ip ) ? [ 'X-Cardholder-IP' => $ip ] : [];
+	}
+
+	/**
 	 * Creates a payment link.
 	 *
 	 * @param array<string, mixed> $data Payment data.
@@ -154,9 +173,7 @@ final class WC_Scanpay_Client {
 	 * @throws \RuntimeException On transport, API, or validation errors.
 	 */
 	public function new_url( array $data ): string {
-		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput
-		$hdr = [ 'X-Cardholder-IP' => $_SERVER['REMOTE_ADDR'] ?? '' ];
-		$res = $this->request( '/v1/new', $data, $hdr, 10 );
+		$res = $this->request( '/v1/new', $data, $this->cardholder_ip_header(), 10 );
 		if ( isset( $res['url'] ) && filter_var( $res['url'], FILTER_VALIDATE_URL ) ) {
 			return $res['url'];
 		}
@@ -227,9 +244,7 @@ final class WC_Scanpay_Client {
 	 * @throws \RuntimeException On transport, API, or validation errors.
 	 */
 	public function renew( int $subid, array $data ): string {
-		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput
-		$hdr = [ 'X-Cardholder-IP' => $_SERVER['REMOTE_ADDR'] ?? '' ];
-		$res = $this->request( "/v1/subscribers/$subid/renew", $data, $hdr, 10 );
+		$res = $this->request( "/v1/subscribers/$subid/renew", $data, $this->cardholder_ip_header(), 10 );
 		if ( isset( $res['url'] ) && filter_var( $res['url'], FILTER_VALIDATE_URL ) ) {
 			return $res['url'];
 		}
