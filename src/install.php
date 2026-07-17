@@ -4,8 +4,10 @@ defined( 'ABSPATH' ) || exit();
 global $wpdb;
 
 // Seq table
+// esc_like: '_' is a single-character LIKE wildcard and $wpdb->prefix normally
+// contains one ('wp_'), so an unescaped pattern can match a table we did not mean.
 $seq_tbl = $wpdb->prefix . 'scanpay_seq';
-if ( $wpdb->get_var( "SHOW TABLES LIKE '$seq_tbl'" ) !== $seq_tbl ) {
+if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $seq_tbl ) ) ) !== $seq_tbl ) {
 	$res = $wpdb->query(
 		"CREATE TABLE $seq_tbl (
             shopid INT unsigned NOT NULL,
@@ -23,7 +25,7 @@ if ( $wpdb->get_var( "SHOW TABLES LIKE '$seq_tbl'" ) !== $seq_tbl ) {
 
 // Meta table
 $meta_tbl = $wpdb->prefix . 'scanpay_meta';
-if ( $wpdb->get_var( "SHOW TABLES LIKE '$meta_tbl'" ) !== $meta_tbl ) {
+if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $meta_tbl ) ) ) !== $meta_tbl ) {
 	$res = $wpdb->query(
 		"CREATE TABLE $meta_tbl (
 			orderid BIGINT unsigned NOT NULL,
@@ -48,7 +50,7 @@ if ( $wpdb->get_var( "SHOW TABLES LIKE '$meta_tbl'" ) !== $meta_tbl ) {
 
 // Subscriptions table
 $subs_tbl = $wpdb->prefix . 'scanpay_subs';
-if ( $wpdb->get_var( "SHOW TABLES LIKE '$subs_tbl'" ) !== $subs_tbl ) {
+if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $subs_tbl ) ) ) !== $subs_tbl ) {
 	$res = $wpdb->query(
 		"CREATE TABLE $subs_tbl (
 			subid INT unsigned,
