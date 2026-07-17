@@ -111,12 +111,10 @@ function wc_scanpay_admin_render_meta_box( $post ): void {
 	$dashboard = ( $shopid && $tid )
 		? WC_SCANPAY_DASHBOARD . rawurlencode( (string) $shopid ) . '/' . rawurlencode( (string) $tid )
 		: '';
-	$props     = [
+	// Only what order.ts actually reads. $tid and $shopid stay as locals above --
+	// they build $dashboard -- but shipping them to the browser served no consumer.
+	$props = [
 		'oid'         => $oid,
-		'tid'         => $tid,
-		'subid'       => (int) $wco->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ),
-		'shopid'      => $shopid,
-		'payid'       => $wco->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' ),
 		'wc_decimals' => wc_get_price_decimals(),
 		'meta'        => $meta ?? null,
 		'currency'    => $wco->get_currency( 'edit' ),

@@ -11,10 +11,6 @@ declare global {
      */
     interface OrderData {
         oid: number;
-        tid: number;
-        subid: number;
-        shopid: number;
-        payid: string;
         wc_decimals: number; // e.g. 2
         meta: {
             orderid: string;
