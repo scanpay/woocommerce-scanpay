@@ -84,9 +84,13 @@ async function load(): Promise<void> {
 	}
 }
 
-if (box && subid) {
-	load();
-} else if (box) {
-	showWarning('This subscription has no Scanpay payment data yet.', 'info');
+// All inside the box guard: the version banner has nowhere to render without it.
+// order.ts nests it the same way.
+if (box) {
+	if (subid) {
+		load();
+	} else {
+		showWarning('This subscription has no Scanpay payment data yet.', 'info');
+	}
+	pluginVersionCheck();
 }
-pluginVersionCheck();
