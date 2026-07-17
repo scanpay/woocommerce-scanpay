@@ -8,6 +8,8 @@
  * @return bool
  */
 
+declare(strict_types=1);
+
 defined( 'ABSPATH' ) || exit();
 
 // Only the card gateway has an 'apikey' field; the key it stores is shared by all
@@ -48,7 +50,7 @@ try {
 	// Let's do a simple API call to verify the key.
 	$primary = get_option( WC_SCANPAY_URI_SETTINGS, [] );
 	require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
-	$client = new WC_Scanpay_Client( $primary['apikey'] ?? '' );
+	$client = new WC_Scanpay_Client( (string) ( $primary['apikey'] ?? '' ) );
 	$client->seq( 0 );
 } catch ( Exception $e ) {
 	// Invalid key: force-disable the gateway, keeping the entered settings.

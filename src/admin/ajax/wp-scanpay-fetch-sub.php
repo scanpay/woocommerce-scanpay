@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 defined( 'ABSPATH' ) || exit();
 nocache_headers();
 
@@ -18,7 +20,7 @@ if ( '' === $secret || ! hash_equals( $secret, trim( (string) ( $_SERVER['HTTP_X
 	die();
 }
 
-$shopid = (int) strstr( $settings['apikey'] ?? '', ':', true );
+$shopid = (int) strstr( (string) ( $settings['apikey'] ?? '' ), ':', true );
 $rev    = (int) wp_unslash( $_GET['rev'] ?? 0 );
 $subid  = (int) wp_unslash( $_GET['subid'] ?? 0 );
 

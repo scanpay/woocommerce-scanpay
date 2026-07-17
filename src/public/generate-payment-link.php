@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 defined( 'ABSPATH' ) || exit();
 
 require WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
@@ -65,7 +67,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	scanpay_log( 'info', "Creating payment link for Order #$oid." );
 
 	$otype               = 'wc';
-	$client              = new WC_Scanpay_Client( $settings['apikey'] );
+	$client              = new WC_Scanpay_Client( (string) $settings['apikey'] );
 	$autocapture         = $settings['wc_autocapture'] ?? 'completed';
 	$capture_on_complete = 'completed' === $autocapture && ! $wco->needs_processing();
 
@@ -173,7 +175,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 
 	try {
 		$link   = $client->new_url( $data );
-		$shopid = (int) strstr( $settings['apikey'] ?? '', ':', true );
+		$shopid = (int) strstr( (string) ( $settings['apikey'] ?? '' ), ':', true );
 		$wco->add_meta_data( WC_SCANPAY_URI_PAYID, basename( $link ), true );
 		$wco->add_meta_data( WC_SCANPAY_URI_PTIME, time(), true );
 		$wco->add_meta_data( WC_SCANPAY_URI_SHOPID, $shopid, true );

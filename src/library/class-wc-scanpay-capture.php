@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+defined( 'ABSPATH' ) || exit();
+
 require_once WC_SCANPAY_DIR . '/library/math.php';
 require_once WC_SCANPAY_DIR . '/library/functions.php';
 require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';

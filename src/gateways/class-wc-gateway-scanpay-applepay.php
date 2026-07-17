@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 defined( 'ABSPATH' ) || exit();
 
 final class WC_Gateway_Scanpay_ApplePay extends WC_Gateway_Scanpay_Base {
@@ -29,7 +31,7 @@ final class WC_Gateway_Scanpay_ApplePay extends WC_Gateway_Scanpay_Base {
 	 */
 	public function process_payment( $order_id ): array {
 		require_once WC_SCANPAY_DIR . '/public/generate-payment-link.php';
-		$arr             = wc_scanpay_process_payment( $order_id, get_option( WC_SCANPAY_URI_SETTINGS, [] ) );
+		$arr             = wc_scanpay_process_payment( (int) $order_id, get_option( WC_SCANPAY_URI_SETTINGS, [] ) );
 		$arr['redirect'] = add_query_arg( 'go', 'applepay', $arr['redirect'] );
 		return $arr;
 	}

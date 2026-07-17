@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+defined( 'ABSPATH' ) || exit();
+
 final class WCS_Scanpay_Charge {
 	private array $settings;
 	private WC_Scanpay_Client $client;

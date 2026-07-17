@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 defined( 'ABSPATH' ) || exit();
 
 require_once WC_SCANPAY_DIR . '/library/functions.php';
@@ -59,7 +61,7 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 	 */
 	public function process_payment( $order_id ): array {
 		require_once WC_SCANPAY_DIR . '/public/generate-payment-link.php';
-		return wc_scanpay_process_payment( $order_id, $this->settings );
+		return wc_scanpay_process_payment( (int) $order_id, $this->settings );
 	}
 
 	/**

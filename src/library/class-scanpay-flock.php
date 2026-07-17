@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+defined( 'ABSPATH' ) || exit();
+
 /**
  * Simple file-based lock using flock().
  * Works across PHP-FPM workers on the same host and filesystem.

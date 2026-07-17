@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 defined( 'ABSPATH' ) || exit();
 nocache_headers();
 
@@ -21,7 +23,7 @@ if ( '' === $secret || ! hash_equals( $secret, trim( (string) ( $_SERVER['HTTP_X
 }
 
 global $wpdb;
-$shopid = (int) strstr( $settings['apikey'] ?? '', ':', true );
+$shopid = (int) strstr( (string) ( $settings['apikey'] ?? '' ), ':', true );
 if ( 0 === $shopid ) {
 	status_header( 403, 'Forbidden' );
 	header( 'Content-Type: text/plain' );

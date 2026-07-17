@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 defined( 'ABSPATH' ) || exit();
 
 // Build the "Subscription terms" page picker: "Hide checkbox" plus every published page.

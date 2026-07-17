@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 defined( 'ABSPATH' ) || exit();
 
 abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
@@ -36,7 +38,10 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	 * @return string
 	 */
 	public function get_title(): string {
-		return is_admin() ? 'Scanpay' : $this->get_option( 'title', 'Scanpay' );
+		// Cast: get_option() returns whatever is stored, and strict_types turns a
+		// non-string (a hand-edited option, a filter) into a TypeError on a method WC
+		// calls while rendering checkout. Coercing is what this did before.
+		return is_admin() ? 'Scanpay' : (string) $this->get_option( 'title', 'Scanpay' );
 	}
 
 	/**
@@ -45,7 +50,7 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	 * @return string
 	 */
 	public function get_description(): string {
-		return $this->get_option( 'description', '' );
+		return (string) $this->get_option( 'description', '' ); // Cast: see get_title().
 	}
 
 	/**

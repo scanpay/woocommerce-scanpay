@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+defined( 'ABSPATH' ) || exit();
+
 /*
  *  WC auto-completes downloadable orders, but not virtual orders. This filter
  *  sets virtual (but not downloadable) products to not need processing, so they

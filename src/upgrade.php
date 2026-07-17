@@ -1,8 +1,10 @@
 <?php
+declare(strict_types=1);
+
 defined( 'ABSPATH' ) || exit();
 
 global $wpdb;
-$version    = get_option( 'wc_scanpay_version', '0.0.0' );
+$version    = (string) get_option( 'wc_scanpay_version', '0.0.0' );
 $wcs_exists = class_exists( 'WC_Subscriptions', false );
 set_time_limit( 60 );
 scanpay_log( 'info', "Upgrading Scanpay plugin from $version to " . WC_SCANPAY_VERSION );

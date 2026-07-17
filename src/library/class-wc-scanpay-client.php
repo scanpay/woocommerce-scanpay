@@ -7,6 +7,8 @@
 
 declare(strict_types=1);
 
+defined( 'ABSPATH' ) || exit();
+
 /**
  * Client for the Scanpay API.
  */

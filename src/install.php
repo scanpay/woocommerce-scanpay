@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 defined( 'ABSPATH' ) || exit();
 
 global $wpdb;
@@ -68,7 +70,7 @@ if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $su
 
 // Insert shopid into seq table
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
-$shopid   = (int) explode( ':', $settings['apikey'] ?? '' )[0];
+$shopid   = (int) explode( ':', (string) ( $settings['apikey'] ?? '' ) )[0];
 
 // Decide now, before the secret below creates the settings option, whether this is a
 // fresh install with nothing to migrate. Absent settings is the discriminator, not an

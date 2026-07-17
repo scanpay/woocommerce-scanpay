@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+defined( 'ABSPATH' ) || exit();
+
 use Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType;
 
 final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {

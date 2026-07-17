@@ -8,6 +8,8 @@
  * @var WC_Payment_Gateway $gateway Current gateway instance.
  */
 
+declare(strict_types=1);
+
 defined( 'ABSPATH' ) || exit();
 
 
@@ -24,7 +26,7 @@ function wc_scanpay_admin_notice( string $msg, string $type = 'info' ): void {
 
 // Get the shopID from the API key (first part before the colon).
 $settings = get_option( WC_SCANPAY_URI_SETTINGS, [] );
-$shopid   = (int) strstr( $settings['apikey'] ?? '', ':', true );
+$shopid   = (int) strstr( (string) ( $settings['apikey'] ?? '' ), ':', true );
 
 // The synchronization (ping) URL the merchant must register in the Scanpay dashboard.
 $ping_url = WC()->api_request_url( 'wc_scanpay' );

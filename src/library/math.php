@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+defined( 'ABSPATH' ) || exit();
+
 /**
  * Exact arithmetic for decimal money amounts represented as strings.
  *
