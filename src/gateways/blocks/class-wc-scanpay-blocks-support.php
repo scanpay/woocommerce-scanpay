@@ -45,7 +45,11 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 			$data['methods']['scanpay'] = [
 				'title'       => (string) ( $settings['title'] ?? 'Scanpay' ),
 				'description' => (string) ( $settings['description'] ?? '' ),
-				'icons'       => (array) ( $settings['card_icons'] ?? [] ),
+				// WC's validate_multiselect_field() stores '' (not []) when nothing is
+				// selected, and (array) '' is [ '' ] -- a non-empty array holding an
+				// empty string, which renders one broken <img> on the Blocks checkout.
+				// array_values() keeps this a JSON array rather than an object.
+				'icons'       => array_values( array_filter( (array) ( $settings['card_icons'] ?? [] ) ) ),
 				'supports'    => [
 					'products',
 					'subscriptions',
