@@ -46,6 +46,20 @@ try {
 } catch ( Exception $e ) {
 	// Invalid key: force-disable the gateway, keeping the entered settings.
 	$this->settings['enabled'] = 'no';
+	/*
+	 * Drop the key we just stored, so generate_apikey_html() renders the input again
+	 * and the merchant can do what the error below tells them to. Otherwise the field
+	 * switches to its masked, input-less form and a one-character typo can only be
+	 * undone through the reset button, whose copy is about deleting data.
+	 *
+	 * Only when the key changed in this save: an already-stored, working key must
+	 * survive a transient failure of the check above. The card gateway also reads the
+	 * key back after this to decide whether to seed the tables, so clearing it here
+	 * keeps install.php from seeding a shop row for a key that never validated.
+	 */
+	if ( $key_changed ) {
+		$this->settings['apikey'] = '';
+	}
 	update_option( $this->get_option_key(), $this->settings );
 	WC_Admin_Settings::add_error(
 		__( 'Error: Invalid Scanpay API key. Please check your key and try again.', 'scanpay-for-woocommerce' )

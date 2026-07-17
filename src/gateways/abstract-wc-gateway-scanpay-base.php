@@ -155,6 +155,32 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	}
 
 	/**
+	 * Whether a string has the shape of a Scanpay API key: "<shopid>:<base64 secret>".
+	 *
+	 * A shape check only -- it says nothing about whether the key works. Both the
+	 * standard and URL-safe base64 alphabets are accepted, so this stays permissive
+	 * about the secret while still rejecting the pasted-wrong-thing cases (no
+	 * separator, a non-numeric shop id, embedded whitespace, stray quotes).
+	 *
+	 * @param string $key Candidate key.
+	 * @return bool
+	 */
+	private function is_apikey( string $key ): bool {
+		$colon = strpos( $key, ':' );
+		if ( false === $colon || 0 === $colon ) {
+			return false; // No separator, or an empty shop id.
+		}
+		if ( ! ctype_digit( substr( $key, 0, $colon ) ) ) {
+			return false;
+		}
+		$secret = rtrim( substr( $key, $colon + 1 ), '=' );
+		return '' !== $secret && strlen( $secret ) === strspn(
+			$secret,
+			'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/-_'
+		);
+	}
+
+	/**
 	 * Validate the API key field.
 	 *
 	 * WC_Settings_API::get_field_value() dispatches validate_{$key}_field ahead of
@@ -187,6 +213,19 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 				__( 'Error: The Scanpay API key cannot be replaced. Delete the local Scanpay data first.', 'scanpay-for-woocommerce' )
 			);
 			return $stored;
+		}
+		/*
+		 * Reject a malformed key instead of storing it. Storing first is what makes a
+		 * typo expensive: the field then renders masked with no input, so "try again"
+		 * is impossible short of the reset button, whose copy warns about deleting
+		 * data. The liveness check when enabling the gateway would also catch this,
+		 * but a key saved without enabling the gateway never reaches it.
+		 */
+		if ( ! $this->is_apikey( $value ) ) {
+			WC_Admin_Settings::add_error(
+				__( 'Error: The Scanpay API key is malformed. It should look like "1234:xxxxxxxx".', 'scanpay-for-woocommerce' )
+			);
+			return $stored; // Empty: the input stays editable.
 		}
 		return $value;
 	}
