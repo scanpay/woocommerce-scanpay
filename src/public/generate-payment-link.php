@@ -177,7 +177,6 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		$wco->add_meta_data( WC_SCANPAY_URI_PAYID, basename( $link ), true );
 		$wco->add_meta_data( WC_SCANPAY_URI_PTIME, time(), true );
 		$wco->add_meta_data( WC_SCANPAY_URI_SHOPID, $shopid, true );
-		$wco->add_meta_data( WC_SCANPAY_URI_AUTOCPT, (string) $data['autocapture'], true );
 		$wco->save_meta_data();
 		return [
 			'result'   => 'success',

@@ -418,7 +418,6 @@ final class WC_Scanpay_Sync {
 				scanpay_log( 'debug', 'sub parent: #' . $parent->get_id() );
 				$parent->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
 				$parent->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
-				$parent->add_meta_data( WC_SCANPAY_URI_STATUS, 'free trial', true );
 				$parent->set_payment_method_title( $pm_title );
 				$parent->set_status( 'completed', 'Subscription initiated without payment.', true );
 				$parent->save();

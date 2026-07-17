@@ -29,8 +29,6 @@ const WC_SCANPAY_URI_SHOPID   = '_scanpay_shopid';
 const WC_SCANPAY_URI_PAYID    = '_scanpay_payid';
 const WC_SCANPAY_URI_PTIME    = '_scanpay_payid_time';
 const WC_SCANPAY_URI_SUBID    = '_scanpay_subid';
-const WC_SCANPAY_URI_AUTOCPT  = '_scanpay_autocpt';
-const WC_SCANPAY_URI_STATUS   = '_scanpay_status';
 
 define( 'WC_SCANPAY_DIR', __DIR__ );
 define( 'WC_SCANPAY_URL', untrailingslashit( plugins_url( '', __FILE__ ) ) );
