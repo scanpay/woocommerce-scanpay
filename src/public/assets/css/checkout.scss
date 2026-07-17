@@ -11,21 +11,26 @@
 	margin-right: 1em;
 }
 
+/*
+    Every gateway's icon row is a .wcsp-icons container (checkout.ts), so
+    size the images here rather than per gateway: the old
+    .wcsp-icons-scanpay / -applepay rules covered card and Apple Pay but
+    left MobilePay's SVG at its intrinsic size.
+*/
 .wcsp-icons {
 	display: flex;
 	gap: 0.3em;
 	align-items: center;
+
+	> img {
+		height: 22px !important;
+		max-height: 22px !important;
+	}
 }
 
-.wcsp-icons-scanpay > img {
-	height: 22px !important;
-	max-height: 22px !important;
-}
-
+/* Apple Pay's mark sits high in its viewBox; nudge it to the baseline. */
 .wcsp-icon-applepay {
 	margin-top: 3px;
-	height: 22px !important;
-	max-height: 22px !important;
 }
 
 /*
