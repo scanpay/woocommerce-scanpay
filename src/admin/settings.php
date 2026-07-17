@@ -29,7 +29,15 @@ function wc_scanpay_is_settings_screen(): bool {
 	$tab     = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
 	$section = isset( $_GET['section'] ) ? sanitize_text_field( wp_unslash( $_GET['section'] ) ) : '';
 	// phpcs:enable WordPress.Security.NonceVerification.Recommended
-	return 'wc-settings' === $page && 'checkout' === $tab && str_starts_with( $section, 'scanpay' );
+	if ( 'wc-settings' !== $page || 'checkout' !== $tab ) {
+		return false;
+	}
+	// WC renders a gateway's admin_options() for either section spelling: the gateway
+	// id, or sanitize_title( get_class( $gateway ) ) -- e.g. 'wc_gateway_scanpay_card'
+	// (sanitize_title keeps underscores). WC's own links use the id, but the class-name
+	// alias is live, and on it our assets would not enqueue: unstyled page, no "last
+	// sync" indicator, and an inert reset button.
+	return str_starts_with( $section, 'scanpay' ) || str_starts_with( $section, 'wc_gateway_scanpay' );
 }
 
 
