@@ -1,5 +1,6 @@
 /*
 	Show a warning message in the meta box.
+	Identical messages are shown once (see showWarning).
 */
 
 import { checkVersion, isVersionGreater } from '../util/compat';
@@ -26,6 +27,13 @@ export function showError(msg: string) {
  * the callers are many.
  */
 export function showWarning(msg: string, type: string = 'error') {
+	// Dedup by message. renderFigures() re-runs on every refresh() and onCapture()
+	// can fire repeatedly, while only renderShell() ever clears this container and
+	// it runs once -- so without this the same banner stacks up on each capture.
+	const head = document.getElementById('wcsp-meta-head') as HTMLElement;
+	if (Array.from(head.children).some((el) => el.textContent === msg)) {
+		return;
+	}
 	appendAlert(type).textContent = msg;
 }
 
