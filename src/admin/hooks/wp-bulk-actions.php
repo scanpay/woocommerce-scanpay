@@ -43,7 +43,10 @@ function wc_scanpay_handle_bulk_capture( string $redirect_to, array $ids, bool $
 	$changed = 0;
 	foreach ( $oids as $oid ) {
 		$wco = wc_get_order( $oid );
-		if ( ! $wco || 'completed' === $wco->get_status() ) {
+		// 'trash' is the last line of defence: the menu no longer offers our
+		// actions in the trash view, but the handler must not rely on that --
+		// capturing a trashed order would charge the customer and untrash it.
+		if ( ! $wco || in_array( $wco->get_status(), [ 'completed', 'trash' ], true ) ) {
 			continue;
 		}
 		if ( $capture && ! WC_Scanpay_Capture::capture_or_hold( $wco ) ) {

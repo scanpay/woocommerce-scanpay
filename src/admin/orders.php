@@ -37,6 +37,15 @@ add_filter( 'handle_bulk_actions-edit-shop_order', 'wc_scanpay_handle_bulk_actio
  * @return array Modified bulk actions.
  */
 function wc_scanpay_add_bulk_actions( array $actions ): array {
+	// Mirror WC's own trash-view restriction (Restore/Delete only). WP_List_Table
+	// applies this filter on top of get_bulk_actions(), so our entries would
+	// otherwise be re-added to the trash dropdown and capture a trashed order.
+	// HPOS reads 'status', the legacy list table 'post_status'.
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only check of which view is rendered; changes no state.
+	$view = sanitize_text_field( wp_unslash( $_REQUEST['status'] ?? $_REQUEST['post_status'] ?? '' ) );
+	if ( 'trash' === $view ) {
+		return $actions;
+	}
 	$arr = [];
 	foreach ( $actions as $k => $v ) {
 		$arr[ 'mark_completed' === $k ? 'scanpay_mark_completed' : $k ] = $v;
