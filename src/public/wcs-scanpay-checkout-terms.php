@@ -20,13 +20,6 @@ if ( class_exists( 'WC_Subscriptions_Cart', false ) && WC_Subscriptions_Cart::ca
 		);
 
 		woocommerce_form_field(
-			'wcssp-terms-field',
-			[
-				'type'  => 'hidden',
-				'value' => '1',
-			]
-		);
-		woocommerce_form_field(
 			'wcssp-terms',
 			[
 				'type'        => 'checkbox',
