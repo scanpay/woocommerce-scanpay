@@ -7,17 +7,31 @@
  */
 import { getLastSync, checkVersion, isVersionGreater } from './util/compat';
 
-function showWarning(title: string, msg: string, id: string | false = false) {
-	const html = '<h4>' + title + '</h4>' + msg;
-	if (id) {
-		const oldWarn = document.getElementById('wcsp-set-alert-' + id);
-		if (oldWarn) return (oldWarn.innerHTML = html);
+/**
+ * Render an alert into #wcsp-set-alert.
+ *
+ * `msg` is parsed as HTML and must stay plugin-authored markup. Anything dynamic --
+ * notably the ping endpoint's response body, which arrives here as err.message --
+ * goes in `detail`, which is appended as a text node and never parsed.
+ */
+function showWarning(title: string, msg: string, id: string | false = false, detail: string = '') {
+	let div = id ? document.getElementById('wcsp-set-alert-' + id) : null;
+	if (!div) {
+		div = document.createElement('div');
+		div.id = 'wcsp-set-alert-' + id;
+		div.className = 'wcsp-set-alert';
+		alertBox.appendChild(div);
 	}
-	const div = document.createElement('div');
-	div.id = 'wcsp-set-alert-' + id;
-	div.className = 'wcsp-set-alert';
-	div.innerHTML = html;
-	alertBox.appendChild(div);
+	// Rebuild in place: <h4>title</h4> followed by msg's nodes, so the alert keeps
+	// the flat shape '.wcsp-set-alert > h4' is styled against.
+	div.textContent = '';
+	const h4 = document.createElement('h4');
+	h4.textContent = title;
+	div.appendChild(h4);
+	div.insertAdjacentHTML('beforeend', msg);
+	if (detail) {
+		div.appendChild(document.createTextNode(detail));
+	}
 }
 
 function checkMtime() {
@@ -55,8 +69,9 @@ function checkMtime() {
 		.catch((err) => {
 			showWarning(
 				'Error: Something went wrong',
-				'Your system responded with the following error message: ' + err.message,
-				'sync'
+				'Your system responded with the following error message: ',
+				'sync',
+				err.message
 			);
 		});
 }
