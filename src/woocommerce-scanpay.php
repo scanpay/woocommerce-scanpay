@@ -196,8 +196,12 @@ function wcs_scanpay_validate_terms( array $data, WP_Error $errors ): void {
  * @param WP_REST_Request $request Store API checkout request.
  */
 function wcs_scanpay_blocks_validate_terms( WC_Order $order, WP_REST_Request $request ): void {
-	if ( ! str_starts_with( (string) $request['payment_method'], 'scanpay' ) ) {
-		return; // Only the (card) scanpay gateway supports subscriptions.
+	if ( 'scanpay' !== (string) $request['payment_method'] ) {
+		// Only the card gateway supports subscriptions, and only it is sent the
+		// terms payload (class-wc-scanpay-blocks-support.php). Matching every
+		// scanpay* method here would demand a checkbox that MobilePay and Apple
+		// Pay never render, dead-ending their checkout.
+		return;
 	}
 	if ( ! class_exists( 'WC_Subscriptions_Cart', false ) || ! WC_Subscriptions_Cart::cart_contains_subscription() ) {
 		return;
