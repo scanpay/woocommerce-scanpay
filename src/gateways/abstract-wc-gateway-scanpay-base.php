@@ -116,7 +116,8 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 
 		ob_start();
 		?>
-		<tr valign="top">
+		<?php // Row class so settings.scss can target this row without counting positions; it renders no input to key off once a key is stored. ?>
+		<tr valign="top" class="wcsp-set-row-apikey">
 			<th scope="row" class="titledesc">
 				<?php // Only label the input when there is one; a dangling for= resolves to nothing. ?>
 				<?php if ( '' === $stored ) : ?>
