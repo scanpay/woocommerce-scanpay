@@ -17,16 +17,20 @@ defined( 'ABSPATH' ) || exit();
  * This hook passes no arguments; the order id + nonce arrive in $_POST.
  */
 
+// Capability first, before anything is parsed: an unauthenticated caller should not
+// learn from the response whether an order id is well-formed.
+if ( ! current_user_can( 'edit_shop_orders' ) ) {
+	wp_send_json_error( 'forbidden', 403 );
+}
+
 // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- ctype_digit is the validation; value is cast to int below.
 if ( ! isset( $_POST['oid'] ) || ! ctype_digit( (string) wp_unslash( $_POST['oid'] ) ) ) {
 	wp_send_json_error( 'invalid_order_id', 400 );
 }
 $oid = (int) $_POST['oid'];
 
-if (
-	! current_user_can( 'edit_shop_orders' ) ||
-	! check_ajax_referer( 'scanpay-order-' . $oid, 'nonce', false )
-) {
+// The nonce is per-order, so it cannot be verified until $oid is known.
+if ( ! check_ajax_referer( 'scanpay-order-' . $oid, 'nonce', false ) ) {
 	wp_send_json_error( 'forbidden', 403 );
 }
 
