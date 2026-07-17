@@ -87,6 +87,15 @@ final class WCS_Scanpay_Charge {
 		// Fail loud instead of silently charging the order total; WCS owns retry scheduling.
 		$amt_str = wc_format_decimal( $amount, wc_get_price_decimals() );
 		$tot_str = (string) $wco->get_total( 'edit' );
+		// Pre-guard before cmpmoney(), which throws InvalidArgumentException on
+		// non-money input. This runs outside charge()'s try, so a corrupt local total
+		// would otherwise escape to Action Scheduler and leave the renewal neither
+		// charged nor marked failed. WC_Scanpay_Sync pre-guards for the same reason.
+		if ( ! wc_scanpay_is_money( $amt_str ) || ! wc_scanpay_is_money( $tot_str ) ) {
+			scanpay_log( 'error', "scheduled charge: invalid amount on #$oid: WCS=$amt_str, order_total=$tot_str (subid=$subid)" );
+			$wco->update_status( 'failed', "invalid amount ($amt_str) or order total ($tot_str)" );
+			return;
+		}
 		if ( wc_scanpay_cmpmoney( $amt_str, $tot_str ) !== 0 ) {
 			scanpay_log( 'error', "scheduled charge: amount mismatch on #$oid: WCS=$amt_str, order_total=$tot_str (subid=$subid)" );
 			$wco->update_status( 'failed', "WCS amount ($amt_str) does not match order total ($tot_str)" );
@@ -189,9 +198,19 @@ final class WCS_Scanpay_Charge {
 				scanpay_log( 'warning', "charge skipped on #$oid: order is already paid (subid=$subid)" );
 				return;
 			}
-			$idem = $this->idempotency_key( $oid, $subid, $wco->get_date_created( 'edit' )->getTimestamp() );
+			// get_date_created() is nullable; the idempotency key is anchored to it, so
+			// there is no safe fallback -- an arbitrary anchor would shift the day
+			// bucket and could let a retry through as a second real charge.
+			$created = $wco->get_date_created( 'edit' );
+			if ( ! $created instanceof WC_DateTime ) {
+				throw new \RuntimeException( "order #$oid has no creation date" );
+			}
+			$idem = $this->idempotency_key( $oid, $subid, $created->getTimestamp() );
 			$this->client->charge( $subid, $data, $idem );
-		} catch ( \Exception $e ) {
+		} catch ( \Throwable $e ) {
+			// \Throwable, not \Exception: an Error/TypeError here would otherwise escape
+			// to Action Scheduler and leave the renewal neither charged nor marked
+			// failed. WC_Scanpay_Capture::capture_or_hold() catches the same way.
 			// WCS owns retry scheduling; we keep no local retry/lock state.
 			$str = trim( $e->getMessage() );
 			scanpay_log( 'error', "charge failed on #$oid: $str" );
