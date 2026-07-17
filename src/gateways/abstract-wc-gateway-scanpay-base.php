@@ -193,7 +193,11 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	 */
 	public function validate_apikey_field( $key, $value ): string {
 		$stored = (string) $this->get_option( $key, '' );
-		$value  = trim( (string) $value );
+		// stripslashes to match the field contract this method hooks: $value comes from
+		// WC_Settings_API::get_post_data() -> raw $_POST, slash-escaped by
+		// wp_magic_quotes(). Every WC counterpart strips (validate_password_field() is
+		// trim( stripslashes( $value ) )). Inert for the current key alphabet.
+		$value = trim( stripslashes( (string) $value ) );
 
 		/*
 		 * Required, not defensive: once a key is stored the field renders no input,
