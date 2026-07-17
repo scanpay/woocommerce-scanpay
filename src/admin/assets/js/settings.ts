@@ -38,7 +38,6 @@ function checkMtime() {
 	if (!alertBox.dataset.secret) return;
 	getLastSync(alertBox.dataset.secret)
 		.then((unixtime) => {
-			console.log(unixtime);
 			if (unixtime === 0) {
 				return showWarning(
 					'Initiate synchronization',
