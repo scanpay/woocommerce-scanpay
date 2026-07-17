@@ -45,7 +45,11 @@ function wc_scanpay_add_bulk_actions( array $actions ): array {
 	return [ 'scanpay_capture_complete' => __( 'Capture and complete', 'scanpay-for-woocommerce' ) ] + $arr;
 }
 add_filter( 'bulk_actions-woocommerce_page_wc-orders', 'wc_scanpay_add_bulk_actions', 10, 1 ); // HPOS
-add_filter( 'bulk_actions-edit-shop_order', 'wc_scanpay_add_bulk_actions', 10, 1 ); // Legacy
+// Priority 20, not 10: WC registers its own filter from setup_screen() on
+// current_screen, which fires after admin_init, where we register. At an equal
+// priority ours would run first, on an array that does not yet hold
+// 'mark_completed', and the rename would match nothing.
+add_filter( 'bulk_actions-edit-shop_order', 'wc_scanpay_add_bulk_actions', 20, 1 ); // Legacy
 
 
 /**
