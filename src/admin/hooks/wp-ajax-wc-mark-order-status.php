@@ -50,9 +50,17 @@ if ( ! str_starts_with( $wco->get_payment_method( 'edit' ), 'scanpay' ) ) {
 // Optimization: Avoid capture on completed hook
 remove_action( 'woocommerce_order_status_completed', 'wc_scanpay_order_status_completed', 5 );
 
+// This handler exits, so WC_AJAX::mark_order_status() never runs. Replicate the two
+// things it does around the status change, or an integration hooking either one
+// silently misses every Scanpay order completed from the order-list row action.
+// The bulk path does the same (admin/hooks/wp-bulk-actions.php).
+WC()->payment_gateways();
+
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 if ( ! is_array( $settings ) || 'completed' !== ( $settings['wc_autocapture'] ?? '' ) ) {
 	$wco->update_status( 'completed', '', true );
+	// phpcs:ignore WooCommerce.Commenting.CommentHooks.MissingHookComment -- Re-fires WooCommerce core's hook from WC_AJAX::mark_order_status(); documented in WooCommerce, not owned here.
+	do_action( 'woocommerce_order_edit_status', $oid, 'completed' );
 	wp_safe_redirect( wp_get_referer() ?: admin_url( 'edit.php?post_type=shop_order' ) );
 	exit;
 }
@@ -64,6 +72,8 @@ require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-capture.php';
 if ( WC_Scanpay_Capture::capture_or_hold( $wco ) ) {
 	$wco->set_status( 'completed', '', true );
 	$wco->save();
+	// phpcs:ignore WooCommerce.Commenting.CommentHooks.MissingHookComment -- Re-fires WooCommerce core's hook from WC_AJAX::mark_order_status(); documented in WooCommerce, not owned here.
+	do_action( 'woocommerce_order_edit_status', $oid, 'completed' );
 }
 
 wp_safe_redirect( wp_get_referer() ?: admin_url( 'edit.php?post_type=shop_order' ) );
