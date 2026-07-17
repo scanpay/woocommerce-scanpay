@@ -32,11 +32,15 @@ function wc_scanpay_subref( int $oid, object $wco ): ?string {
 	/*
 	 *   Check if the order contains subs. Most PSPs use wcs_order_contains_subscription(), but it is
 	 *   incredibly inefficient. We can use wc_get_orders directly and optimize the search with status.
+	 *
+	 *   The fallback must be 'all', never null: null is not passed through to
+	 *   post_status at all, so WP_Query falls back to public statuses only, and
+	 *   every order status is non-public -- the query would match nothing.
 	 */
 	$wcs_subs_arr = wc_get_orders(
 		[
 			'type'   => 'shop_subscription',
-			'status' => ( $wco->get_status() === 'pending' ) ? 'wc-pending' : null,
+			'status' => ( $wco->get_status() === 'pending' ) ? 'wc-pending' : 'all',
 			'parent' => $oid,
 			'return' => 'ids', // array of ids (an order can have multiple subs)
 		]
