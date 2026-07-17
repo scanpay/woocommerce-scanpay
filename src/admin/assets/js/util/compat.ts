@@ -34,6 +34,12 @@ export function getLastSync(secret: string, force = false): Promise<number> {
 /*
 	Check if the plugin is up to date by fetching the tag_name of the latest release from GitHub
 */
+const VERSION_TTL = 3600 * 1000; // 1h, matching GitHub's rate-limit window.
+
+function cacheVersion(version: string): void {
+	localStorage.setItem('scanpay_version', JSON.stringify({ version, expires: Date.now() + VERSION_TTL }));
+}
+
 export function checkVersion(): Promise<string> {
 	// Try to get the version from localStorage
 	const o = safeJsonParse(localStorage.getItem('scanpay_version'), { version: '', expires: 0 });
@@ -47,8 +53,17 @@ export function checkVersion(): Promise<string> {
 		})
 		.then(({ tag_name }) => {
 			const version = tag_name.substring(1);
-			localStorage.setItem('scanpay_version', JSON.stringify({ version, expires: Date.now() + 3600 * 1000 }));
+			cacheVersion(version);
 			return version;
+		})
+		.catch((err) => {
+			// Cache the failure too. GitHub allows 60 unauthenticated requests per hour
+			// per IP; caching only on success meant a rate-limited admin re-hit the API
+			// on every single page load, and never got back under the limit. An empty
+			// version never satisfies isVersionGreater(), so no banner is shown for it.
+			// Rethrown so callers still handle (and swallow) the failure themselves.
+			cacheVersion('');
+			throw err;
 		});
 }
 
