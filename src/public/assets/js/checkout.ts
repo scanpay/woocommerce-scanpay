@@ -11,8 +11,18 @@ import { WooPaymentMethodData } from './types/checkout';
 const { createElement, Fragment, useState, useEffect } = window.wp.element;
 const data = window.wc.wcSettings.getSetting('scanpay_data') as WooPaymentMethodData;
 
-function canMakePayment(): boolean {
-	return true;
+/**
+ * Blocks calls this per method to decide whether to offer it. Apple Pay only works
+ * on Apple devices/browsers, so a bare `return true` advertised it everywhere and
+ * dead-ended the checkout for anyone who picked it. canMakePayments() is the
+ * availability probe (not canMakePaymentsWithActiveCard, which is async and would
+ * additionally require a provisioned card).
+ */
+function canMakePayment(name: string): () => boolean {
+	if (name !== 'scanpay_applepay') {
+		return () => true;
+	}
+	return () => window.ApplePaySession?.canMakePayments() === true;
 }
 
 for (const name in data.methods) {
@@ -93,7 +103,7 @@ for (const name in data.methods) {
 		label,
 		content: createElement(Content, null),
 		edit: createElement(Fragment, null, method.description),
-		canMakePayment,
+		canMakePayment: canMakePayment(name),
 		supports: {
 			features: method.supports,
 		},

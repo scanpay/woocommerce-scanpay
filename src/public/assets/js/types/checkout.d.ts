@@ -17,6 +17,10 @@ declare global {
 				getSetting: (key: string) => any;
 			};
 		};
+		// Safari / Apple devices only; undefined everywhere else.
+		ApplePaySession?: {
+			canMakePayments: () => boolean;
+		};
 	}
 }
 
