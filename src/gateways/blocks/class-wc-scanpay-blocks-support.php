@@ -62,10 +62,16 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 			// Subscription terms checkbox. woocommerce_after_checkout_validation (classic) does
 			// not fire for the Store API checkout, so the checkbox is rendered inside this
 			// method's content (checkout.ts) and enforced in wcs_scanpay_blocks_validate_terms().
+			// The page picker only offers published pages, but the stored id goes
+			// stale if that page is later trashed or deleted. get_page_link()
+			// dereferences the post unguarded, so a deleted page warns straight
+			// into this Store API JSON response, and a trashed one would link the
+			// customer to a 404. Anything but a published page: terms disabled.
 			if (
 				class_exists( 'WC_Subscriptions_Cart', false )
 				&& WC_Subscriptions_Cart::cart_contains_subscription()
 				&& '0' !== ( $settings['wcs_terms'] ?? '0' )
+				&& 'publish' === get_post_status( (int) $settings['wcs_terms'] )
 			) {
 				$data['methods']['scanpay']['terms'] = [
 					'url'    => esc_url_raw( (string) get_page_link( (int) $settings['wcs_terms'] ) ),

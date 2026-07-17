@@ -4,8 +4,15 @@ defined( 'ABSPATH' ) || exit();
 
 if ( class_exists( 'WC_Subscriptions_Cart', false ) && WC_Subscriptions_Cart::cart_contains_subscription() ) {
 	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
-	if ( $settings && isset( $settings['wcs_terms'] ) && '0' !== $settings['wcs_terms'] ) {
-		$url = esc_url( get_page_link( $settings['wcs_terms'] ) );
+	// 'publish' gate: the stored id goes stale if the page is trashed or deleted.
+	// get_page_link() dereferences the post unguarded (warning on a deleted page),
+	// and a trashed page would link the customer to a 404. See the same guard in
+	// gateways/blocks/class-wc-scanpay-blocks-support.php.
+	if (
+		$settings && isset( $settings['wcs_terms'] ) && '0' !== $settings['wcs_terms']
+		&& 'publish' === get_post_status( (int) $settings['wcs_terms'] )
+	) {
+		$url = esc_url( get_page_link( (int) $settings['wcs_terms'] ) );
 		$txt = sprintf(
 			/* translators: %s is a link to the subscription terms page. */
 			__( 'I accept the %s.', 'scanpay-for-woocommerce' ),
