@@ -36,6 +36,10 @@ global $wpdb;
 $sub = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid", ARRAY_A );
 
 if ( isset( $sub['rev'] ) && $rev >= $sub['rev'] ) {
+	// The long-poll below sleeps for up to 15.5s, comfortably past a default
+	// max_execution_time of 30 once DB round-trips are added. Raise it so the
+	// endpoint answers rather than being killed mid-poll.
+	set_time_limit( 60 );
 	// Backoff strategy: .5s, 1s, 2s, 4s, 8s: Total: 15.5s
 	$sec = 1;
 	usleep( 500000 ); // 0.5 secs. Note: usleep is only OS-safe below 1s
