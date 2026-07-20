@@ -69,13 +69,29 @@ function wc_scanpay_read_cursor( int $shopid ): array {
 
 function wc_scanpay_flush_order_runtime_cache(): void {
 	/**
+	 * Both order-cache modes must be listed. OrderCache::get_object_type() returns
+	 * 'order_objects' only when the HPOS datastore-caching option is 'yes', and
+	 * 'orders' otherwise -- and that option is off by default, so 'orders' is the
+	 * active group on a normal HPOS install. Flushing only the other three left
+	 * every order loaded during a long backfill resident for the whole request.
+	 *
 	 * NOTE: On a persistent object cache (Redis/Memcached) wp_cache_flush_group()
 	 * evicts these groups site-wide, not just this request's runtime cache.
 	 * Accepted trade-off: it runs at most once every few sync iterations and the
 	 * groups are cheap to repopulate; keeping the sync worker's memory bounded on
 	 * a long backfill is worth the eviction.
+	 *
+	 * Two caveats on 'orders' specifically:
+	 *   - It is the expensive one. 'order_objects' is registered non-persistent in
+	 *     the very mode where it is used, so flushing it costs nothing beyond the
+	 *     request; 'orders' is not, so on a persistent drop-in this evicts full
+	 *     WC_Order objects site-wide and persistently.
+	 *   - It may do nothing. wp_cache_flush_group() delegates straight to the
+	 *     drop-in, which advertises support via wp_cache_supports( 'flush_group' ).
+	 *     On a drop-in lacking it there is still no memory bound here.
 	 */
 	wp_cache_flush_group( 'order_objects' );
+	wp_cache_flush_group( 'orders' );
 	wp_cache_flush_group( 'orders_data' );
 	wp_cache_flush_group( 'orders_meta' );
 }
