@@ -98,7 +98,7 @@ function wc_scanpay_admin_render_meta_box( $post ): void {
 	// The stylesheet is enqueued in wc_scanpay_add_meta_box() so it lands in the
 	// head. The script stays here, next to the inline payload it carries: both are
 	// printed in the footer, after this callback has run.
-	wp_enqueue_script( 'wcsp-meta', WC_SCANPAY_URL . '/admin/assets/js/order.js', [], WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
+	wp_enqueue_script( 'wc-scanpay-order', WC_SCANPAY_URL . '/admin/assets/js/order.js', [], WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
 
 	$oid      = $wco->get_id();
 	$meta     = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid LIMIT 1", ARRAY_A );
@@ -123,7 +123,7 @@ function wc_scanpay_admin_render_meta_box( $post ): void {
 		'nonce'       => wp_create_nonce( 'scanpay-order-' . $oid ),
 	];
 	wp_add_inline_script(
-		'wcsp-meta',
+		'wc-scanpay-order',
 		'window.ScanpayOrderData = ' . wp_json_encode( $props, JSON_UNESCAPED_SLASHES ) . ';',
 		'before'
 	);
