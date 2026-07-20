@@ -228,8 +228,9 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 		 * Reject a malformed key instead of storing it. Storing first is what makes a
 		 * typo expensive: the field then renders masked with no input, so "try again"
 		 * is impossible short of the reset button, whose copy warns about deleting
-		 * data. The liveness check when enabling the gateway would also catch this,
-		 * but a key saved without enabling the gateway never reaches it.
+		 * data. The liveness check in process-admin-options.php now also runs for a
+		 * key stored while the gateway is disabled, but it is a live API call: this
+		 * shape check stays as the cheap, offline first pass.
 		 */
 		if ( ! $this->is_apikey( $value ) ) {
 			WC_Admin_Settings::add_error(

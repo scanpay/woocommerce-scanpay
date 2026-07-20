@@ -36,12 +36,22 @@ $this->init_settings();
 $is_enabled  = ( 'yes' === $this->get_option( 'enabled', 'no' ) );
 $key_changed = $is_card && ( (string) $this->get_option( 'apikey', '' ) !== $old_apikey );
 
-// Validate the API key when enabling the gateway (no -> yes) or when a key is
-// first set while the gateway is enabled. This is a UX check only: it tells the
-// merchant the key does not work and force-disables the gateway. Nothing
-// destructive hangs off the result -- data is only ever deleted by the reset
-// button, so a skipped check here cannot cost anything.
-if ( ! $is_enabled || ( $was_enabled && ! $key_changed ) ) {
+/*
+ * Validate whenever a key is newly stored -- enabled or not -- and when the
+ * gateway goes disabled -> enabled with the key it already had.
+ *
+ * The gateway's enabled state must not gate a newly entered key. Skipping the
+ * check while disabled let a well-shaped but invalid key store and mask itself;
+ * by the time the merchant enabled a gateway and the check finally ran,
+ * $key_changed was false, so the failure branch below kept the dead key and only
+ * disabled the gateway -- leaving the reset button as the only way out.
+ *
+ * This is a UX check only: it tells the merchant the key does not work and
+ * force-disables the gateway. Nothing destructive hangs off the result -- data is
+ * only ever deleted by the reset button.
+ */
+$should_validate = $key_changed || ( $is_enabled && ! $was_enabled );
+if ( ! $should_validate ) {
 	return true;
 }
 
@@ -65,6 +75,11 @@ try {
 	 * survive a transient failure of the check above. The card gateway also reads the
 	 * key back after this to decide whether to seed the tables, so clearing it here
 	 * keeps install.php from seeding a shop row for a key that never validated.
+	 *
+	 * That seeding guard is load-bearing, and only works because this branch runs.
+	 * It previously did not run at all for a key stored while the gateway was
+	 * disabled -- the condition above returned early -- so do not reintroduce an
+	 * enabled-state gate on validation without revisiting install.php:82-87.
 	 */
 	if ( $key_changed ) {
 		$this->settings['apikey'] = '';
