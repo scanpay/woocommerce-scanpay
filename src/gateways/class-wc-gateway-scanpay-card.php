@@ -30,7 +30,7 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 			add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_checkout_styles' ] );
 		}
 		if ( 'yes' === $this->get_option( 'wc_complete_virtual' ) ) {
-			add_filter( 'woocommerce_order_item_needs_processing', 'wc_scanpay_item_needs_processing', 10, 2 );
+			add_filter( 'woocommerce_order_item_needs_processing', 'wc_scanpay_item_needs_processing', 10, 3 );
 		}
 	}
 

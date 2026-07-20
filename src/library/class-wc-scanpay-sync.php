@@ -60,7 +60,7 @@ final class WC_Scanpay_Sync {
 		$this->wcs_enabled = class_exists( 'WC_Subscriptions', false );
 
 		if ( 'yes' === ( $this->settings['wc_complete_virtual'] ?? 'no' ) ) {
-			add_filter( 'woocommerce_order_item_needs_processing', 'wc_scanpay_item_needs_processing', 10, 2 );
+			add_filter( 'woocommerce_order_item_needs_processing', 'wc_scanpay_item_needs_processing', 10, 3 );
 		}
 	}
 
