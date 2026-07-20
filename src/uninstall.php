@@ -17,6 +17,14 @@ $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_subs" );
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}woocommerce_scanpay_queuedcharges" );
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}woocommerce_scanpay_seq" );
 
+// Early-2.x table, never part of the 3.x schema. c25fa50 removed this drop on the
+// premise that "scanpay_queue is never created anywhere" -- that premise is wrong:
+// v2.0.0..v2.1.4 created it (see git show v2.0.0:includes/install.php), and 11c81b4
+// removed the creation with no migration. Later 2.x only dropped it when an API-key
+// change rebuilt the schema, so merchants who upgraded without changing their key
+// still have it, holding order/subscription IDs and amounts. Do not remove again.
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}scanpay_queue" );
+
 // Delete plugin settings
 delete_option( 'woocommerce_scanpay_settings' );
 delete_option( 'woocommerce_scanpay_mobilepay_settings' );
