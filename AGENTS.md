@@ -46,6 +46,10 @@ Blocks-compatible. `dev` is the feature-complete `v3.0.0` rewrite (up from
   `_is_zero` / `_is_money`. Use these for all capture/charge/refund arithmetic.
 - Prod hosts: `api.scanpay.dk`, `dashboard.scanpay.dk`, `betal.scanpay.dk`
   (payment window). `.dev` variants exist only in the deployed test build.
+- **Commit subjects carry no `scanpay:` prefix.** Every commit in this repo is a
+  Scanpay change, so the prefix is noise. Write the summary directly — e.g.
+  `leave phone numbers unchanged with no calling code (task 5)`. Commits before
+  2026-07-20 still carry it; do not rewrite them, and do not copy the style.
 
 ## Architecture
 
@@ -158,7 +162,7 @@ helpers, not just types).
 
 The review cycle is closed: the review docs were deleted 2026-07-18 (git
 history) and all 35 backlog tasks landed as `scanpay: … (task N)` commits on
-`dev`. Verified sound: ping/sync, `math.php`, the flock, client TLS, capture
+`dev` — that prefix is historical, see Conventions. Verified sound: ping/sync, `math.php`, the flock, client TLS, capture
 money math, secret auth — don't re-flag these. Older findings were dropped as
 stale or invalid; check anything from git history against the current code
 before re-filing.
