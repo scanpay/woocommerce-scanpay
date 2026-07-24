@@ -160,9 +160,22 @@ helpers, not just types).
 
 ## Post-rewrite status
 
-The review cycle is closed: the review docs were deleted 2026-07-18 (git
-history) and all 35 backlog tasks landed as `scanpay: … (task N)` commits on
-`dev` — that prefix is historical, see Conventions. Verified sound: ping/sync, `math.php`, the flock, client TLS, capture
-money math, secret auth — don't re-flag these. Older findings were dropped as
-stale or invalid; check anything from git history against the current code
-before re-filing.
+**The first review cycle is closed.** Its docs were deleted 2026-07-18 (git
+history) and its backlog landed as `scanpay: … (task N)` commits on `dev` —
+that prefix is historical, see Conventions.
+
+**A second cycle is in progress**, tracked in `PLAN.md` (untracked working file,
+not committed). It carries task IDs 1–20; 13 was withdrawn and 6 is split into
+6b–6d, leaving 16 commits. Six landed 2026-07-20 (tasks 3, 5, 6a, 8, 16, 17) —
+only task 5 is runtime-verified; the other five are implemented against a tree
+with no WordPress install to exercise them.
+
+**Task numbers are not unique across cycles.** The old backlog used 1–34 and the
+new plan reuses 1–20, so `git log --grep 'task N'` is ambiguous — several numbers
+name two unrelated changes. Disambiguate by date: the second cycle starts
+2026-07-20.
+
+Verified sound: ping/sync, `math.php`, the flock, client TLS, capture money math,
+secret auth — don't re-flag these. Older findings were dropped as stale or
+invalid; check anything from git history against the current code before
+re-filing.
