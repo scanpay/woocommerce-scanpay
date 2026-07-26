@@ -5,7 +5,7 @@
 
 13 task IDs remain (1–20; **13 was withdrawn**, see Settled decisions). Task 6
 is split into 6b–6d, so there are **15 commits total**, each titled
-`<summary> (task N)`. No `scanpay:` prefix — see Conventions in `CLAUDE.md`.
+`<summary> (task N)`. No `scanpay:` prefix — see Conventions in `AGENTS.md`.
 Task numbers are stable identifiers; never renumber, and leave the gaps. They are
 unique *within this plan only* — the closed 35-task backlog already used 1–34, so
 `git log --grep 'task N'` is ambiguous. Disambiguate by date, not by grep.
@@ -147,7 +147,7 @@ repair a pre-guard comment that Task 10 relocates, and with 20 immediately after
 
 ## Settled decisions — do not re-flag
 
-`CLAUDE.md` already closes most of them — its "Verified sound" list covers
+`AGENTS.md` already closes most of them — its "Verified sound" list covers
 ping/sync, `math.php`, the flock, client TLS, capture money math, the secret
 auth, the admin `Scanpay` branding, the live `$this->icon` property, and the
 Blocks compatibility declaration; its Architecture section covers the lock-file
@@ -1237,7 +1237,7 @@ The custom getters also bypass public contracts:
   (`:295-313`).
 
 The `is_admin()` `Scanpay` title is **not** a defect — see "Verified sound" in
-`CLAUDE.md`.
+`AGENTS.md`.
 
 ### Fix
 
@@ -1364,7 +1364,7 @@ The `is_admin()` `Scanpay` title is **not** a defect — see "Verified sound" in
 
 7. Add a one-line comment at the `is_admin()` branch stating the branding is
    deliberate and why. The docs half is already done — it is in the "Verified
-   sound" list in both `CLAUDE.md` and `AGENTS.md`; do not add it twice.
+   sound" list in `AGENTS.md`; do not add it again.
 
 8. **Keep Blocks deliberately separate and record why.**
    `class-wc-scanpay-blocks-support.php:43`, `:73-74`, `:79` read `title`,

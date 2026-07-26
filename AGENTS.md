@@ -1,7 +1,8 @@
 # Scanpay for WooCommerce — agent guide
 
-> This is the Codex-facing project guide. It mirrors `CLAUDE.md`; keep the two in
-> sync — when you change project facts in one, mirror them in the other.
+> The single project guide for every coding agent. `CLAUDE.md` is a symlink to
+> this file — Claude Code only discovers that name — so edit this one; there is
+> no second copy to keep in sync.
 
 WordPress/WooCommerce payment gateway for [Scanpay](https://scanpay.dk): card,
 MobilePay Online, and Apple Pay; WooCommerce Subscriptions; HPOS- and
