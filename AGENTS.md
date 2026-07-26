@@ -73,7 +73,9 @@ Why, in this project specifically:
 Known costs, accepted deliberately: unit tests have no seam to hook into
 (verification happens against a real shop), and array field names are checked by
 no tool. The dense *why*-comments throughout `src/` are the compensation — keep
-writing them.
+writing them. Dense means *load-bearing*, not long: comment the non-obvious
+*why* — the constraint, the protocol quirk, the deliberate omission. Never
+restate what the next line does; the code already says that.
 
 ## Conventions
 
