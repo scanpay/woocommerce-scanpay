@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-16T09:45:33+00:00\n"
+"POT-Creation-Date: 2026-07-26T15:40:54+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: scanpay-for-woocommerce\n"
@@ -31,7 +31,7 @@ msgstr ""
 
 #. Author of the plugin
 #: woocommerce-scanpay.php:7
-#: admin/orders.php:147
+#: admin/orders.php:158
 msgid "Scanpay"
 msgstr ""
 
@@ -40,221 +40,222 @@ msgstr ""
 msgid "https://scanpay.dk"
 msgstr ""
 
-#: admin/hooks/wp-bulk-actions.php:52
+#: admin/hooks/wp-bulk-actions.php:55
 msgid "Order status changed by bulk edit."
 msgstr ""
 
-#: admin/orders.php:45
+#: admin/orders.php:54
 msgid "Capture and complete"
 msgstr ""
 
-#: admin/settings.php:72
+#: admin/settings.php:80
 msgid "Settings"
 msgstr ""
 
-#: admin/settings/admin-options.php:41
+#: admin/settings/admin-options.php:43
 msgid "installation guide"
 msgstr ""
 
 #. translators: %s is a link to the installation guide.
-#: admin/settings/admin-options.php:45
+#: admin/settings/admin-options.php:47
 #, php-format
 msgid "To get started, please complete the setup using our %s."
 msgstr ""
 
-#: admin/settings/admin-options.php:50
+#: admin/settings/admin-options.php:52
 msgid "Thank you for choosing Scanpay!"
 msgstr ""
 
-#: admin/settings/admin-options.php:52
+#: admin/settings/admin-options.php:54
 msgid "This plugin is built and maintained by Scanpay, and we aim to keep it efficient, stable, and simple to use. We hope it serves you well."
 msgstr ""
 
-#: admin/settings/admin-options.php:62
+#: admin/settings/admin-options.php:64
 msgid "Finish your Scanpay setup"
 msgstr ""
 
-#: admin/settings/admin-options.php:64
+#: admin/settings/admin-options.php:66
 msgid "Add this synchronization URL in your Scanpay dashboard so we can keep your orders in sync:"
 msgstr ""
 
-#: admin/settings/admin-options.php:71
+#: admin/settings/admin-options.php:73
 msgid "Add URL in the Scanpay dashboard"
 msgstr ""
 
-#: admin/settings/admin-options.php:102
+#: admin/settings/admin-options.php:104
 msgid "General"
 msgstr ""
 
-#: admin/settings/admin-options.php:129
+#: admin/settings/admin-options.php:131
 msgid "Logs"
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:8
+#: admin/settings/fields/scanpay.php:10
 msgid "Hide checkbox"
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:15
-#: admin/settings/fields/scanpay_applepay.php:7
-#: admin/settings/fields/scanpay_mobilepay.php:7
+#: admin/settings/fields/scanpay.php:17
+#: admin/settings/fields/scanpay_applepay.php:9
+#: admin/settings/fields/scanpay_mobilepay.php:9
 msgid "Enable"
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:17
+#: admin/settings/fields/scanpay.php:19
 msgid "Enable Scanpay at checkout."
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:25
+#: admin/settings/fields/scanpay.php:27
 msgid "API key"
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:27
+#: admin/settings/fields/scanpay.php:29
 msgid "Enter the Scanpay API key from your Scanpay dashboard."
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:33
-#: admin/settings/fields/scanpay_applepay.php:14
-#: admin/settings/fields/scanpay_mobilepay.php:14
+#: admin/settings/fields/scanpay.php:35
+#: admin/settings/fields/scanpay_applepay.php:16
+#: admin/settings/fields/scanpay_mobilepay.php:16
 msgid "Title"
 msgstr ""
 
 #. translators: Payment method title displayed at checkout.
-#: admin/settings/fields/scanpay.php:36
+#: admin/settings/fields/scanpay.php:38
 msgid "The payment method title displayed at checkout."
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:42
-#: admin/settings/fields/scanpay_applepay.php:23
-#: admin/settings/fields/scanpay_mobilepay.php:23
+#: admin/settings/fields/scanpay.php:44
+#: admin/settings/fields/scanpay_applepay.php:25
+#: admin/settings/fields/scanpay_mobilepay.php:25
 msgid "Description"
 msgstr ""
 
 #. translators: Payment method description displayed at checkout.
-#: admin/settings/fields/scanpay.php:45
+#: admin/settings/fields/scanpay.php:47
 msgid "The payment method description displayed at checkout."
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:51
+#: admin/settings/fields/scanpay.php:53
 msgid "Card icons"
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:53
+#: admin/settings/fields/scanpay.php:55
 msgid "Choose which card icons to display at checkout."
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:73
+#: admin/settings/fields/scanpay.php:75
 msgid "Use the default Scanpay checkout stylesheet (CSS)."
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:78
+#: admin/settings/fields/scanpay.php:80
 msgid "Auto-capture"
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:82
+#: admin/settings/fields/scanpay.php:84
 msgid "Disable"
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:83
+#: admin/settings/fields/scanpay.php:85
 msgid "On order completion (recommended)"
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:84
+#: admin/settings/fields/scanpay.php:86
 msgid "Immediately"
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:89
+#: admin/settings/fields/scanpay.php:91
 msgid "Auto-complete"
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:91
+#: admin/settings/fields/scanpay.php:93
 msgid "Automatically mark virtual orders as completed."
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:97
+#: admin/settings/fields/scanpay.php:99
 msgid "Auto-complete new subscription orders (Subscriptions only)."
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:104
+#: admin/settings/fields/scanpay.php:106
 msgid "Auto-complete renewal orders (Subscriptions only)."
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:110
+#: admin/settings/fields/scanpay.php:112
 msgid "Subscription terms"
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:112
+#: admin/settings/fields/scanpay.php:114
 msgid "Add a checkbox for subscription terms and conditions at checkout."
 msgstr ""
 
-#: admin/settings/fields/scanpay_applepay.php:9
+#: admin/settings/fields/scanpay_applepay.php:11
 msgid "Enable Apple&nbsp;Pay at checkout."
 msgstr ""
 
 #. translators: Payment method title shown at checkout.
-#: admin/settings/fields/scanpay_applepay.php:17
-#: admin/settings/fields/scanpay_mobilepay.php:17
+#: admin/settings/fields/scanpay_applepay.php:19
+#: admin/settings/fields/scanpay_mobilepay.php:19
 msgid "The payment method title shown at checkout."
 msgstr ""
 
 #. translators: Payment method description shown at checkout.
-#: admin/settings/fields/scanpay_applepay.php:26
-#: admin/settings/fields/scanpay_mobilepay.php:26
+#: admin/settings/fields/scanpay_applepay.php:28
+#: admin/settings/fields/scanpay_mobilepay.php:28
 msgid "The payment method description shown at checkout."
 msgstr ""
 
-#: admin/settings/fields/scanpay_mobilepay.php:9
+#: admin/settings/fields/scanpay_mobilepay.php:11
 msgid "Enable MobilePay at checkout."
 msgstr ""
 
-#: admin/settings/process-admin-options.php:51
+#: admin/settings/process-admin-options.php:89
 msgid "Error: Invalid Scanpay API key. Please check your key and try again."
 msgstr ""
 
-#: gateways/abstract-wc-gateway-scanpay-base.php:131
+#: gateways/abstract-wc-gateway-scanpay-base.php:143
 msgid "Paste your Scanpay API key"
 msgstr ""
 
-#: gateways/abstract-wc-gateway-scanpay-base.php:136
+#: gateways/abstract-wc-gateway-scanpay-base.php:148
 msgid "To use a different Scanpay account, delete the local Scanpay data first. Nothing is lost for good: it is re-synced from Scanpay once you add a key."
 msgstr ""
 
-#: gateways/abstract-wc-gateway-scanpay-base.php:140
+#: gateways/abstract-wc-gateway-scanpay-base.php:152
 msgid "Delete data and change API key"
 msgstr ""
 
-#: gateways/abstract-wc-gateway-scanpay-base.php:181
+#: gateways/abstract-wc-gateway-scanpay-base.php:223
 msgid "Error: The Scanpay API key cannot be replaced. Delete the local Scanpay data first."
 msgstr ""
 
-#: gateways/blocks/class-wc-scanpay-blocks-support.php:72
-msgid "I accept the "
-msgstr ""
-
-#: gateways/blocks/class-wc-scanpay-blocks-support.php:73
-#: public/wcs-scanpay-checkout-terms.php:12
-msgid "subscription terms"
-msgstr ""
-
-#: gateways/blocks/class-wc-scanpay-blocks-support.php:75
-#: woocommerce-scanpay.php:181
-#: woocommerce-scanpay.php:213
-msgid "You must accept the subscription terms to complete your purchase."
-msgstr ""
-
-#: gateways/class-wc-gateway-scanpay-applepay.php:9
-msgid "Apple Pay through Scanpay."
-msgstr ""
-
-#: gateways/class-wc-gateway-scanpay-card.php:11
-msgid "Accept payment cards through Scanpay."
-msgstr ""
-
-#: gateways/class-wc-gateway-scanpay-mobilepay.php:9
-msgid "MobilePay Online through Scanpay."
+#: gateways/abstract-wc-gateway-scanpay-base.php:237
+msgid "Error: The Scanpay API key is malformed. It should look like \"1234:xxxxxxxx\"."
 msgstr ""
 
 #. translators: %s is a link to the subscription terms page.
-#: public/wcs-scanpay-checkout-terms.php:11
+#: gateways/blocks/class-wc-scanpay-blocks-support.php:65
+#: public/wcs-scanpay-checkout-terms.php:15
 #, php-format
 msgid "I accept the %s."
+msgstr ""
+
+#: gateways/blocks/class-wc-scanpay-blocks-support.php:66
+#: public/wcs-scanpay-checkout-terms.php:16
+msgid "subscription terms"
+msgstr ""
+
+#: gateways/blocks/class-wc-scanpay-blocks-support.php:67
+#: woocommerce-scanpay.php:241
+#: woocommerce-scanpay.php:273
+msgid "You must accept the subscription terms to complete your purchase."
+msgstr ""
+
+#: gateways/class-wc-gateway-scanpay-applepay.php:11
+msgid "Apple Pay through Scanpay."
+msgstr ""
+
+#: gateways/class-wc-gateway-scanpay-card.php:13
+msgid "Accept payment cards through Scanpay."
+msgstr ""
+
+#: gateways/class-wc-gateway-scanpay-mobilepay.php:11
+msgid "MobilePay Online through Scanpay."
 msgstr ""
