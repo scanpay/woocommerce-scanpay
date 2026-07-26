@@ -7,23 +7,16 @@ defined( 'ABSPATH' ) || exit();
 require_once WC_SCANPAY_DIR . '/library/math.php';
 require_once WC_SCANPAY_DIR . '/library/functions.php';
 
-/**
- * Synchronizes Scanpay payments with WooCommerce orders and subscriptions.
- */
+/** Synchronizes Scanpay payments with WooCommerce orders and subscriptions. */
 final class WC_Scanpay_Sync {
 	public array $settings;
 	private int $shopid;
 	private bool $wcs_enabled;
 
-	/**
-	 * Order statuses considered incomplete by WooCommerce.
-	 * Used to decide when payment_complete() should update and finalize an order.
-	 */
+	/** WooCommerce core's default statuses for which payment_complete() persists changes. */
 	private const PAYMENT_COMPLETE_STATUSES = [ 'on-hold', 'pending', 'failed', 'cancelled' ];
 
-	/**
-	 * Map Scanpay brand and wallet codes to labels.
-	 */
+	/** Scanpay card brand codes to display labels. */
 	private const CARD_BRANDS = [
 		'amex'             => 'American Express',
 		'dankort'          => 'Dankort',
@@ -37,9 +30,7 @@ final class WC_Scanpay_Sync {
 		'visadankort'      => 'Visa/Dankort',
 	];
 
-	/**
-	 * Map Scanpay card wallet codes to human-readable names.
-	 */
+	/** Scanpay wallet codes (the method type) to display labels. */
 	private const CARD_WALLETS = [
 		'applepay'   => 'Apple Pay',
 		'googlepay'  => 'Google Pay',
@@ -49,7 +40,7 @@ final class WC_Scanpay_Sync {
 
 
 	/**
-	 * Sets up the sync service with the gateway settings and shop context.
+	 * Sets up the sync service.
 	 *
 	 * @param array<string, mixed> $settings Gateway settings (the woocommerce_scanpay_settings option).
 	 * @param int                  $shopid   Scanpay shop ID for this store.
@@ -64,21 +55,9 @@ final class WC_Scanpay_Sync {
 		}
 	}
 
-	/**
-	 * Returns true if the order status is eligible for WooCommerce payment_complete().
-	 */
 	private function is_payment_complete_eligible( \WC_Order $order ): bool {
-		/**
-		 * Filters the order statuses eligible for WooCommerce payment_complete().
-		 *
-		 * Re-applies WooCommerce core's own filter so our eligibility check stays
-		 * in sync with WC_Order::payment_complete().
-		 *
-		 * @since 3.0.0
-		 *
-		 * @param string[]  $statuses Order statuses eligible for payment completion.
-		 * @param \WC_Order $order    The order being evaluated.
-		 */
+		// Re-apply WooCommerce core's own filter (it is WC's hook, not ours) so this
+		// check cannot drift from what WC_Order::payment_complete() will accept.
 		$valid = apply_filters(
 			'woocommerce_valid_order_statuses_for_payment_complete',
 			self::PAYMENT_COMPLETE_STATUSES,
@@ -88,8 +67,8 @@ final class WC_Scanpay_Sync {
 	}
 
 	/**
-	 * Parse Scanpay payment method data into a human-readable string.
-	 * Accepts mixed and falls back to 'Scanpay' on missing/malformed data.
+	 * Scanpay method data to an order's payment_method_title, e.g. "Apple Pay (Visa 4321)".
+	 * Display-only, so malformed data degrades to 'Scanpay' rather than throwing.
 	 */
 	private function parse_payment_method( mixed $m ): string {
 		if ( ! is_array( $m ) ) {
@@ -121,10 +100,7 @@ final class WC_Scanpay_Sync {
 			: [];
 	}
 
-	/**
-	 * Validate and convert an order ID to integer.
-	 * Accepts only non-empty digit strings (0–9). Returns 0 if invalid.
-	 */
+	/** Scanpay's orderid to a WC order ID: digit strings only, 0 when it is anything else. */
 	private function ordernumber( mixed $s ): int {
 		if ( ! is_string( $s ) || '' === $s || ! ctype_digit( $s ) ) {
 			return 0;
@@ -138,7 +114,7 @@ final class WC_Scanpay_Sync {
 	 * a malformed payload is a backend error that must halt the sync loudly,
 	 * never be skipped or defaulted.
 	 *
-	 * @throws \RuntimeException if invalid format
+	 * @throws \RuntimeException On a malformed amount or currency.
 	 */
 	private function extract_amount( string $s ): string {
 		$n = strlen( $s );
@@ -195,31 +171,19 @@ final class WC_Scanpay_Sync {
 		return true;
 	}
 
-	/**
-	 * Syncs a Scanpay transaction with its WC order. Inserts metadata, verifies
-	 * data/ownership, then registers payment completion if applicable.
-	 *
-	 * @param array $c Transaction payload from Scanpay.
-	 * @throws \RuntimeException On validation, database, or payment errors.
-	 */
+	/** Syncs a Scanpay transaction with its WC order. */
 	public function transaction( array $c ): void {
 		$this->sync( $c, 'transaction' );
 	}
 
-	/**
-	 * Syncs a Scanpay charge with its WC order. Inserts metadata, verifies
-	 * data/ownership, then registers payment completion if applicable.
-	 *
-	 * @param array $c Charge payload from Scanpay.
-	 * @throws \RuntimeException On validation, database, or payment errors.
-	 */
+	/** Syncs a Scanpay charge with its WC order. */
 	public function charge( array $c ): void {
 		$this->sync( $c, 'charge' );
 	}
 
 	/**
 	 * Shared worker for transaction() and charge(). Validates the payload, guard-upserts
-	 * the scanpay_meta row, then marks the order paid — but only once ownership, shop,
+	 * the scanpay_meta row, then marks the order paid -- but only once ownership, shop,
 	 * currency and the authorized amount all check out.
 	 *
 	 * @param array  $c    Transaction or charge payload from Scanpay.
@@ -230,7 +194,7 @@ final class WC_Scanpay_Sync {
 	private function sync( array $c, string $type ): void {
 		$oid = $this->ordernumber( $c['orderid'] ?? '' );
 		if ( $oid <= 0 ) {
-			return; // skip: invalid orderID
+			return; // Not a WooCommerce order id; skip without failing the sync.
 		}
 		$trnid = $c['id'] ?? null;
 		if ( ! is_int( $trnid ) || $trnid <= 0 ) {
@@ -276,13 +240,13 @@ final class WC_Scanpay_Sync {
 			return; // A different transaction already owns this order.
 		}
 
-		// The INSERT above and payment_complete() below are not atomic, so we
-		// we need to check the $wco to verify if the order is marked as paid.
+		// The upsert above and payment_complete() below are not atomic, so the order
+		// itself is what says whether it is already paid (transaction_id, set below).
 		$wco = wc_get_order( $oid );
 		if ( ! $wco ) {
 			// Legitimate state, not a protocol violation: the order may have been deleted
 			// or the store reset while Scanpay still holds the old transaction. Log and
-			// continue — throwing would retry the same seq forever and wedge the sync.
+			// continue -- throwing would retry the same seq forever and wedge the sync.
 			scanpay_log( 'warning', "$label: order not found (order=$oid)" );
 			return;
 		}
@@ -307,8 +271,8 @@ final class WC_Scanpay_Sync {
 				scanpay_log( 'error', "$label: invalid order total '$total' (order=$oid)" );
 				return;
 			}
-			// Underpayment. This should not happen with charges, but if it does, we don't
-			// want to mark the order as paid, so we log + note + return (never throw).
+			// Underpayment: should not happen with charges, but never mark the order paid
+			// on one. Log + note + return, never throw -- see the total guard above.
 			if ( wc_scanpay_cmpmoney( $auth, $total ) < 0 ) {
 				scanpay_log( 'error', "$label: authorized $auth does not cover order total $total (order=$oid)" );
 				$wco->add_order_note( "Scanpay: authorized amount ($auth $cur) does not cover the order total ($total $cur); order not marked as paid." );
@@ -316,6 +280,8 @@ final class WC_Scanpay_Sync {
 			}
 			$txn = (string) $trnid;
 			$wco->set_transaction_id( $txn );
+			// Upper bound rejects a millisecond timestamp, which would date the order
+			// millennia out instead of failing visibly.
 			$ts = $c['time']['authorized'] ?? null;
 			if ( is_int( $ts ) && $ts < 10_000_000_000 ) {
 				$wco->set_date_paid( $ts );
@@ -324,10 +290,8 @@ final class WC_Scanpay_Sync {
 			// consolidate them into the card gateway. The wallet is kept in the title.
 			$wco->set_payment_method( 'scanpay' );
 			$wco->set_payment_method_title( $this->parse_payment_method( $c['method'] ?? null ) );
-			/*
-			* Always invoke payment_complete() to trigger hooks. Save first if order status
-			* is ineligible, since payment_complete() only persists changes for eligible statuses.
-			*/
+			// Always call payment_complete() so the hooks fire; it only persists changes
+			// for eligible statuses, so save first when the status is not one of them.
 			if ( ! $this->is_payment_complete_eligible( $wco ) ) {
 				scanpay_log( 'info', "$label: Order is not eligible for payment_complete (order=$oid)" );
 				$wco->save();
@@ -359,7 +323,7 @@ final class WC_Scanpay_Sync {
 		}
 		$ref = $c['ref'] ?? null;
 		if ( ! is_string( $ref ) || '' === $ref ) {
-			return; // skip: missing subscriber reference
+			return; // No reference: nothing to link this subscriber to.
 		}
 
 		// Mirror parse_payment_method()'s tolerance: a scalar method/card is malformed
@@ -399,13 +363,13 @@ final class WC_Scanpay_Sync {
 				continue;
 			}
 			scanpay_log( 'debug', 'sub order: #' . $wcs_sub->get_id() );
-			// Update subscription metadata
 			$wcs_sub->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
 			$wcs_sub->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
 			$wcs_sub->set_payment_method_title( $pm_title );
 			$wcs_sub->save();
 
-			// Handle free trial and coupons
+			// Free trial or a 100% coupon: the parent order carries no payment, so nothing
+			// else will ever complete it.
 			$parent = $wcs_sub->get_parent();
 			if ( ! $parent || 'pending' !== $parent->get_status() ) {
 				continue;

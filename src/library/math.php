@@ -13,15 +13,12 @@ defined( 'ABSPATH' ) || exit();
  */
 
 /**
- * Check whether a string uses the supported decimal money syntax.
+ * Check whether a string uses the supported decimal money syntax: an optional minus
+ * sign, one or more integer digits, and an optional fractional part.
  *
- * A valid amount consists of an optional minus sign, one or more integer
- * digits, and an optional fractional part. Whitespace, plus signs, and
- * exponent notation are deliberately rejected because the digit helpers below
- * cannot process them safely.
- *
- * The D modifier anchors `$` at the absolute end of the string; without it,
- * an amount ending in a newline would be accepted.
+ * Whitespace, plus signs and exponent notation are deliberately rejected because the
+ * digit helpers below cannot process them safely. The D modifier anchors `$` at the
+ * absolute end of the string, or an amount ending in a newline would be accepted.
  */
 function wc_scanpay_is_money( string $s ): bool {
 	return 1 === preg_match( '/^-?[0-9]+(\.[0-9]+)?$/D', $s );
@@ -46,13 +43,13 @@ function wc_scanpay_dighomogenize( string $a, string $b ): array {
 	$h       = [];
 	$h['as'] = ( substr( $a, 0, 1 ) === '-' );
 	$h['bs'] = ( substr( $b, 0, 1 ) === '-' );
-	$aa      = explode( '.', ( $h['as'] ? substr( $a, 1 ) : $a ) . '.' ); // guarantee 2 elems
+	$aa      = explode( '.', ( $h['as'] ? substr( $a, 1 ) : $a ) . '.' ); // Appended dot: never fewer than 2 parts.
 	$bb      = explode( '.', ( $h['bs'] ? substr( $b, 1 ) : $b ) . '.' );
 	$h['il'] = max( strlen( $aa[0] ), strlen( $bb[0] ) );
 	$h['fl'] = max( strlen( $aa[1] ), strlen( $bb[1] ) );
 	$h['a']  = str_pad( $aa[0], $h['il'], '0', STR_PAD_LEFT ) . str_pad( $aa[1], $h['fl'], '0' );
 	$h['b']  = str_pad( $bb[0], $h['il'], '0', STR_PAD_LEFT ) . str_pad( $bb[1], $h['fl'], '0' );
-	// '-0' and '-0.00' are zero: drop the sign so comparisons treat them as '0'
+	// '-0' and '-0.00' are zero: drop the sign so comparisons treat them as '0'.
 	if ( $h['as'] && '' === ltrim( $h['a'], '0' ) ) {
 		$h['as'] = false;
 	}
@@ -128,7 +125,8 @@ function wc_scanpay_digsub( string $a, string $b ): string {
  */
 function wc_scanpay_addmoney( string $a, string $b ): string {
 	$h = wc_scanpay_dighomogenize( $a, $b );
-	// sign magic to avoid subtracting a larger number from a smaller one
+	// Opposite signs make this a subtraction. digsub() requires a >= b, so subtract the
+	// smaller magnitude from the larger and take the sign of the larger.
 	if ( $h['as'] !== $h['bs'] ) {
 		if ( strcmp( $h['a'], $h['b'] ) < 0 ) {
 			$s       = wc_scanpay_digsub( $h['b'], $h['a'] );
@@ -148,12 +146,12 @@ function wc_scanpay_addmoney( string $a, string $b ): string {
  * @throws \InvalidArgumentException If either amount is invalid.
  */
 function wc_scanpay_submoney( string $a, string $b ): string {
-	// validate before negating: stripping the '-' would launder '--5' into a valid '-5'
+	// Validate before negating: stripping the '-' would launder '--5' into a valid '-5'.
 	if ( ! wc_scanpay_is_money( $b ) ) {
 		// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 		throw new \InvalidArgumentException( "invalid money amount: '$b'" );
 	}
-	// a - b ≡ a + (-b)
+	// a - b is a + (-b).
 	return wc_scanpay_addmoney( $a, ( '-' === $b[0] ) ? substr( $b, 1 ) : ( '-' . $b ) );
 }
 

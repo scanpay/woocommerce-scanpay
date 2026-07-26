@@ -13,21 +13,16 @@ final class WC_Gateway_Scanpay_ApplePay extends WC_Gateway_Scanpay_Base {
 		parent::__construct();
 	}
 
-	/**
-	 * Get the icon HTML for the payment method.
-	 *
-	 * @return string
-	 */
+	/** The checkout icon. $this->icon stays live for the admin Payments list. */
 	public function get_icon(): string {
 		return '<span class="wcsp-methods"><img width="45" height="20" class="wcsp-applepay" src="' .
 			WC_SCANPAY_URL . '/public/assets/images/applepay.svg" alt="Apple Pay" title="Apple Pay"></span>';
 	}
 
 	/**
-	 * Process the payment and return the result.
+	 * Process the payment. ?go= preselects the method in the payment window.
 	 *
-	 * @param int $order_id The order ID.
-	 * @return array<string, mixed>
+	 * @return array<string, mixed> WooCommerce result/redirect pair.
 	 */
 	public function process_payment( $order_id ): array {
 		require_once WC_SCANPAY_DIR . '/public/generate-payment-link.php';

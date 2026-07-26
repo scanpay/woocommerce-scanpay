@@ -8,13 +8,9 @@ defined( 'ABSPATH' ) || exit();
  * Display the correct payment method title for Scanpay subscriptions.
  *
  * $title is deliberately untyped: this sits in a third-party filter chain, and with
- * strict_types a callback hooked earlier returning null would make the type
- * declaration an uncatchable TypeError on the subscription screens. Non-Scanpay
- * values are passed straight through. wcs_scanpay_retry_rule() does the same.
- *
- * @param mixed           $title Current payment method title (a string from WCS core).
- * @param WC_Subscription $sub   Subscription object.
- * @return mixed Filtered payment method title.
+ * strict_types a callback hooked earlier returning null would make the type declaration
+ * an uncatchable TypeError on the subscription screens. WCS core passes a string;
+ * non-Scanpay values are handed straight back. wcs_scanpay_retry_rule() does the same.
  */
 function wcs_scanpay_payment_method_to_display( $title, WC_Subscription $sub ) {
 	return $sub->get_payment_method() === 'scanpay'
@@ -51,7 +47,7 @@ function wc_scanpay_create_meta_box_subs( $post, array $args ): void {
  */
 function wc_scanpay_add_meta_box_subs( $wc_order ): void {
 	if ( ! $wc_order instanceof WC_Order ) {
-		$wc_order = wc_get_order( $wc_order->ID ); // Legacy support
+		$wc_order = wc_get_order( $wc_order->ID ); // Legacy: a WP_Post arrives instead.
 		if ( ! $wc_order ) {
 			return;
 		}
@@ -64,4 +60,4 @@ function wc_scanpay_add_meta_box_subs( $wc_order ): void {
 	add_meta_box( 'wcsp-meta-box', 'Scanpay', 'wc_scanpay_create_meta_box_subs', null, 'side', 'high', [ $wc_order ] );
 }
 add_action( 'add_meta_boxes_woocommerce_page_wc-orders--shop_subscription', 'wc_scanpay_add_meta_box_subs', 9, 1 ); // HPOS
-add_action( 'add_meta_boxes_shop_subscription', 'wc_scanpay_add_meta_box_subs', 9, 1 ); // legacy
+add_action( 'add_meta_boxes_shop_subscription', 'wc_scanpay_add_meta_box_subs', 9, 1 ); // Legacy

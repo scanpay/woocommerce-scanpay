@@ -35,9 +35,10 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 	}
 
 	/**
-	 * Get the icon HTML for display on the checkout page.
+	 * The card icons rendered at checkout, per the 'card_icons' setting.
 	 *
-	 * @return string
+	 * This override does not make $this->icon dead: WooCommerce reads the raw
+	 * property for the admin Payments list.
 	 */
 	public function get_icon(): string {
 		$cards = (array) $this->get_option( 'card_icons', [] );
@@ -54,22 +55,16 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 	}
 
 	/**
-	 * Process the payment and return the result.
+	 * Process the payment.
 	 *
-	 * @param int $order_id The order ID.
-	 * @return array<string, mixed>
+	 * @return array<string, mixed> WooCommerce result/redirect pair.
 	 */
 	public function process_payment( $order_id ): array {
 		require_once WC_SCANPAY_DIR . '/public/generate-payment-link.php';
 		return wc_scanpay_process_payment( (int) $order_id, $this->settings );
 	}
 
-	/**
-	 * Process and save admin options.
-	 * Seeds the SQL tables when an API key is first configured.
-	 *
-	 * @return void
-	 */
+	/** Process and save admin options, seeding the SQL tables on a first API key. */
 	public function process_admin_options(): void {
 		$old = (int) explode( ':', (string) $this->get_option( 'apikey', '' ) )[0];
 		parent::process_admin_options();
@@ -89,9 +84,7 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 		}
 	}
 
-	/**
-	 * Enqueue checkout page styles if enabled in settings.
-	 */
+	/** Action: wp_enqueue_scripts (only hooked when the 'stylesheet' setting is on). */
 	public function enqueue_checkout_styles(): void {
 		if ( is_checkout() ) {
 			wp_enqueue_style( 'wcsp-pay', WC_SCANPAY_URL . '/public/assets/css/checkout.css', [], WC_SCANPAY_VERSION );

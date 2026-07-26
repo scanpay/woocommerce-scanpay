@@ -10,15 +10,12 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 	private bool $registered = false;
 
 	/**
-	 * Called whenever the payment method is registered by WooCommerce Blocks.
-	 * This runs on most admin and frontend pages, so leave it empty to avoid overhead.
+	 * Deliberately empty. WooCommerce Blocks registers the payment method on most admin
+	 * and frontend pages, so anything done here is paid for site-wide.
 	 */
 	public function initialize(): void {}
 
-	/*
-	 *  get_payment_method_script_handles() is called multiple times in the checkout
-	 *  to enqueue scripts needed for the payment method.
-	 */
+	/** Registered once: WooCommerce calls this repeatedly while building the checkout. */
 	public function get_payment_method_script_handles(): array {
 		if ( ! $this->registered ) {
 			wp_register_script(
@@ -35,10 +32,7 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 		return [ 'wcsp-blocks' ];
 	}
 
-	/*
-	 *  get_payment_method_data() is only called in the checkout
-	 *  The data returned here will be used to render the payment method in the frontend.
-	 */
+	/** The payload checkout.ts renders from. Checkout only, so per-request cost is fine. */
 	public function get_payment_method_data(): array {
 		$settings = get_option( WC_SCANPAY_URI_SETTINGS );
 		$data     = [

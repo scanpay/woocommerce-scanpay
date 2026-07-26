@@ -13,21 +13,16 @@ final class WC_Gateway_Scanpay_Mobilepay extends WC_Gateway_Scanpay_Base {
 		parent::__construct();
 	}
 
-	/**
-	 * Get the icon HTML for display on checkout page
-	 *
-	 * @return string
-	 */
+	/** The checkout icon. $this->icon stays live for the admin Payments list. */
 	public function get_icon(): string {
 		return '<span class="wcsp-methods"><img width="92" height="23" class="wcsp-mobilepay" src="' .
 			WC_SCANPAY_URL . '/public/assets/images/mobilepay.svg" alt="MobilePay" title="MobilePay"></span>';
 	}
 
 	/**
-	 * Process the payment and return the result.
+	 * Process the payment. ?go= preselects the method in the payment window.
 	 *
-	 * @param int $order_id The order ID.
-	 * @return array<string, mixed>
+	 * @return array<string, mixed> WooCommerce result/redirect pair.
 	 */
 	public function process_payment( $order_id ): array {
 		require_once WC_SCANPAY_DIR . '/public/generate-payment-link.php';

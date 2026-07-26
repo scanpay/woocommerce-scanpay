@@ -6,15 +6,13 @@ defined( 'ABSPATH' ) || exit();
 
 /**
  * Handle the AJAX "Capture" action from the order meta box (order.ts).
+ * Action: wp_ajax_wc_scanpay_capture (no arguments; order id and nonce arrive in $_POST)
  *
  * Captures the remaining authorized amount on a Scanpay order via the same
  * primitive the order-status / bulk / mark-status flows use
  * (WC_Scanpay_Capture::capture_or_hold, which parks the order 'on-hold' on
- * failure — never 'failed'). Guarded by the per-order nonce injected into
+ * failure -- never 'failed'). Guarded by the per-order nonce injected into
  * window.ScanpayOrderData and an order-editing capability.
- *
- * @hook wp_ajax_wc_scanpay_capture
- * This hook passes no arguments; the order id + nonce arrive in $_POST.
  */
 
 // Capability first, before anything is parsed: an unauthenticated caller should not

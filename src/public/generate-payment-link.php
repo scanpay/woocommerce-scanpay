@@ -12,9 +12,9 @@ function wc_scanpay_phone_prefixer( string $phone, string $country ): string {
 		$first_number = substr( $phone, 0, 1 );
 		if ( '+' !== $first_number && '0' !== $first_number ) {
 			// get_country_calling_code() returns '' -- never null -- for an absent or
-			// unknown country, so isset() was always true and produced " 12345678".
-			// The is_string() check stays: the upstream docblock declares
-			// @return string|array, and a filter could still hand us an array.
+			// unknown country, so an isset() check would pass and prefix " 12345678".
+			// is_string() stays because the upstream docblock declares string|array,
+			// and a filter can still hand us an array.
 			$code = WC()->countries->get_country_calling_code( $country );
 			if ( is_string( $code ) && '' !== $code ) {
 				return $code . ' ' . $phone;
@@ -30,18 +30,19 @@ function wc_scanpay_subref( int $oid, object $wco ): ?string {
 		&& WC_Subscriptions_Change_Payment_Gateway::$is_request_to_change_payment
 	) {
 		/*
-		 *   This only happens when the user changes PSP to us. This process DOES NOT
-		 *   create a new order; it only updates the payment method of the WCS Subscription.
+		 * Switching an existing subscription to us. No new order is created here, only
+		 * the subscription's payment method changes -- so $oid is the WCS subscription
+		 * id, not an order id.
 		 */
-		return 'wcs[]' . $oid; // $oid is the WCS subscription ID
+		return 'wcs[]' . $oid;
 	}
 	/*
-	 *   Check if the order contains subs. Most PSPs use wcs_order_contains_subscription(), but it is
-	 *   incredibly inefficient. We can use wc_get_orders directly and optimize the search with status.
+	 * wc_get_orders() rather than wcs_order_contains_subscription(): the same search,
+	 * but narrowed by status.
 	 *
-	 *   The fallback must be 'all', never null: null is not passed through to
-	 *   post_status at all, so WP_Query falls back to public statuses only, and
-	 *   every order status is non-public -- the query would match nothing.
+	 * The fallback must be 'all', never null: null is not passed through to post_status
+	 * at all, so WP_Query falls back to public statuses only, and every order status is
+	 * non-public -- the query would match nothing.
 	 */
 	$wcs_subs_arr = wc_get_orders(
 		[
@@ -128,7 +129,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 				$subref = true;
 			}
 		}
-		$line_total = $wco->get_line_total( $item, true, true ); // w. taxes and rounded (how Woo does)
+		$line_total = $wco->get_line_total( $item, true, true ); // Incl. tax and rounded, as WC totals it.
 		if ( $line_total >= 0 ) {
 			$line_str        = wc_format_decimal( $line_total, wc_get_price_decimals() );
 			$sum             = wc_scanpay_addmoney( $sum, $line_str );
@@ -160,13 +161,16 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		if ( $subref ) {
 			$data['subscriber'] = [ 'ref' => $subref ];
 			$otype              = ( $wc_totalf > 0 ) ? 'wcs' : 'wcs_free';
-			// Check if the initial subscription charge should be auto-captured
+			// On an initial subscription order the setting also means capture now,
+			// rather than waiting for the order to be completed. (The auto-completion
+			// its label promises is not implemented yet -- PLAN.md task 1.)
 			if ( 'yes' === ( $settings['wcs_complete_initial'] ?? 'no' ) && 'completed' === $autocapture ) {
 				$data['autocapture'] = true;
 			}
 		}
 	}
-	// Update the success URL (args are used on the thank you page)
+	// The router dispatches on scanpay_thankyou + scanpay_type (plus WooCommerce's own
+	// ?key, already in the URL); scanpay_ref is what the free-trial branch polls.
 	$data['successurl'] = add_query_arg(
 		[
 			'scanpay_thankyou' => $oid,

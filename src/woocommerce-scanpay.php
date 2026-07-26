@@ -33,9 +33,7 @@ const WC_SCANPAY_URI_SUBID    = '_scanpay_subid';
 define( 'WC_SCANPAY_DIR', __DIR__ );
 define( 'WC_SCANPAY_URL', untrailingslashit( plugins_url( '', __FILE__ ) ) );
 
-/**
- * Write messages to the WooCommerce log.
- */
+/** Write to the WooCommerce log; a silent no-op until wc_get_logger() exists. */
 function scanpay_log( string $level, string $msg ): void {
 	static $logger = null;
 	if ( null === $logger ) {
@@ -47,8 +45,10 @@ function scanpay_log( string $level, string $msg ): void {
 	$logger->log( $level, $msg, [ 'source' => 'wc-scanpay' ] );
 }
 
-/**
- * Handle ping (callback) requests sent to /wc-api/wc_scanpay/ or ?wc_scanpay/.
+/*
+ * Ping (callback) endpoint: /wc-api/wc_scanpay/ or ?wc-api=wc_scanpay. The rest of
+ * the bootstrap is skipped only when the URI really is that endpoint -- an
+ * X-Signature header on any other request must still get a normal plugin load.
  */
 if ( isset( $_SERVER['HTTP_X_SIGNATURE'] ) ) {
 	function wc_scanpay_handle_ping(): void {
@@ -58,23 +58,22 @@ if ( isset( $_SERVER['HTTP_X_SIGNATURE'] ) ) {
 	// phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 	$uri = $_SERVER['REQUEST_URI'] ?? '';
 	if ( str_ends_with( $uri, 'wc_scanpay/' ) || str_ends_with( $uri, 'wc_scanpay' ) ) {
-		return; // short-circuit
+		return;
 	}
 }
 
-/**
- * Handle the "thank you" page for completed payments.
+/*
+ * Payment-return ("thank you") page. A genuine return carries all three params and a
+ * known type; anything else falls through to a normal plugin load. The order-key
+ * ownership check happens inside the handler, before any polling.
  */
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 if ( isset( $_GET['scanpay_thankyou'], $_GET['scanpay_type'], $_GET['key'] ) && in_array( $_GET['scanpay_type'], [ 'wc', 'wcs', 'wcs_free' ], true ) ) {
-	// A genuine thank-you request carries all three params and a known type; anything
-	// else falls through to a normal plugin load rather than short-circuiting it. The
-	// order-key ownership check happens inside the handler before any polling.
 	require WC_SCANPAY_DIR . '/public/wp-scanpay-thankyou.php';
-	return; // short-circuit
+	return;
 }
 
-/**
+/*
  * Lightweight admin AJAX endpoints (bypass WP/WC bootstrap).
  *
  * The shared secret authenticating these endpoints rides in the X-Scanpay
@@ -93,13 +92,10 @@ if ( isset( $_SERVER['HTTP_X_SCANPAY'], $_GET['x'] ) ) {
 	};
 	if ( $file ) {
 		require WC_SCANPAY_DIR . $file;
-		return; // short-circuit
+		return;
 	}
 }
 
-/**
- * Register payment gateways with WooCommerce.
- */
 function wc_scanpay_register_gateways( array $methods ): array {
 	$methods[] = WC_Gateway_Scanpay_Card::class;
 	$methods[] = WC_Gateway_Scanpay_Mobilepay::class;
@@ -107,9 +103,6 @@ function wc_scanpay_register_gateways( array $methods ): array {
 	return $methods;
 }
 
-/**
- * Register WooCommerce Blocks payment method support.
- */
 function wc_scanpay_register_blocks( $registry ): void {
 	if ( ! class_exists( 'WC_Scanpay_Blocks_Support', false ) ) {
 		require WC_SCANPAY_DIR . '/gateways/blocks/class-wc-scanpay-blocks-support.php';
@@ -117,17 +110,13 @@ function wc_scanpay_register_blocks( $registry ): void {
 	$registry->register( new WC_Scanpay_Blocks_Support() );
 }
 
-/**
- * Allow redirects to betal.scanpay.dk.
- */
+/** Let wp_safe_redirect() send the customer on to the payment window. */
 function wp_scanpay_allowed_redirect_hosts( array $hosts ): array {
 	$hosts[] = 'betal.scanpay.dk';
 	return $hosts;
 }
 
-/**
- * Capture payments when orders are marked as completed.
- */
+/** Action: woocommerce_order_status_completed */
 function wc_scanpay_order_status_completed( int $oid, WC_Order $wco ): void {
 	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
 	if ( ! is_array( $settings ) || 'completed' !== ( $settings['wc_autocapture'] ?? '' ) ) {
@@ -144,22 +133,19 @@ function wc_scanpay_order_status_completed( int $oid, WC_Order $wco ): void {
 /**
  * The subscription-terms page URL, or '' when the checkbox must not be shown.
  *
- * The single predicate behind both renderers (classic and Blocks) and both validators
- * (classic and Store API), so the checkbox can never be enforced without having been
- * rendered, or rendered without being enforced.
+ * The single predicate behind both renderers (classic and Blocks) and both validators, so
+ * the checkbox can never be enforced without having been rendered, or the reverse.
  *
- * Deliberately independent of every gateway. The consent belongs to the subscription in
+ * Deliberately independent of every gateway: the consent belongs to the subscription in
  * the cart, not to a payment method, so it applies whichever gateway the customer picks
  * -- including third-party ones -- and stays active while our own gateways are disabled.
  *
- * Returns '' unless wcs_terms holds a positive page id whose page is still exactly
- * 'publish'. That folds the disabled states ('0' and a stored '') together with every
- * stale-page state: the picker only offers published pages, but the stored id goes stale
- * once the page is drafted, made private, trashed, or deleted. Returning the resolved URL
- * rather than the id is what keeps get_page_link()'s unguarded post dereference inside
- * the guard -- on a deleted page it warns, and a trashed page would 404 the customer.
- *
- * @return string Terms page URL, or '' when the checkbox is disabled.
+ * '' unless wcs_terms holds a positive page id whose page is still exactly 'publish'. That
+ * folds the disabled states ('0' and a stored '') in with every stale-page one: the picker
+ * only offers published pages, but the stored id goes stale once the page is drafted, made
+ * private, trashed, or deleted. Returning the URL rather than the id keeps get_page_link()'s
+ * unguarded post dereference inside the guard (it warns on a deleted page, and a trashed
+ * one would 404 the customer).
  */
 function wcs_scanpay_terms_url(): string {
 	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
@@ -174,13 +160,13 @@ function wcs_scanpay_terms_url(): string {
 }
 
 /**
- * Add subscription terms checkbox on the checkout page (for WCS).
+ * Render the subscription terms checkbox (classic checkout).
  * Action: woocommerce_checkout_after_terms_and_conditions
  *
- * This hook fires outside any gateway, next to WooCommerce's own terms checkbox
- * (templates/checkout/terms.php), so the checkbox renders once per checkout no matter
- * which payment method the customer selects. Same template fragment as before, so an
- * update_order_review refresh clears the tick exactly as it always did.
+ * Fires outside any gateway, next to WooCommerce's own terms checkbox
+ * (templates/checkout/terms.php), so it renders once per checkout no matter which
+ * payment method the customer selects -- and an update_order_review refresh clears
+ * the tick along with the rest of the fragment.
  */
 function wcs_scanpay_checkout_terms() {
 	require WC_SCANPAY_DIR . '/public/wcs-scanpay-checkout-terms.php';
@@ -188,7 +174,7 @@ function wcs_scanpay_checkout_terms() {
 
 /**
  * Declare the 'scanpay' extension namespace on the Store API checkout endpoint.
- * Action: wc_scanpay_plugins_loaded() (direct call)
+ * Called directly from wc_scanpay_plugins_loaded().
  *
  * The Blocks checkbox posts its state as extensions.scanpay.terms. The endpoint schema
  * drops data under an unregistered namespace, so this registration is what makes the
@@ -219,14 +205,11 @@ function wcs_scanpay_register_store_api_terms(): void {
  *
  * The woocommerce_form_field( 'required' => true ) only renders a CSS asterisk; WooCommerce
  * validates only fields registered in woocommerce_checkout_fields, so the checkbox is
- * otherwise skippable via a direct POST. Reject the order when the terms checkbox is shown
- * (WCS active, cart has a subscription, a published terms page is configured) but was not
- * accepted. Not conditioned on the payment method: wcs_scanpay_checkout_terms() renders the
- * checkbox once for the whole checkout, so enforcing it per gateway would leave it shown
- * but skippable for every gateway but one.
+ * otherwise skippable via a direct POST. Not conditioned on the payment method:
+ * wcs_scanpay_checkout_terms() renders the checkbox once for the whole checkout, so
+ * enforcing it per gateway would leave it shown but skippable for every gateway but one.
  *
- * @param array    $data   Posted checkout data. Unused; part of the hook signature.
- * @param WP_Error $errors Accumulated validation errors.
+ * $data is unused; it is part of the hook signature.
  */
 function wcs_scanpay_validate_terms( array $data, WP_Error $errors ): void {
 	if ( ! class_exists( 'WC_Subscriptions_Cart', false ) || ! WC_Subscriptions_Cart::cart_contains_subscription() ) {
@@ -256,8 +239,7 @@ function wcs_scanpay_validate_terms( array $data, WP_Error $errors ): void {
  * Not conditioned on the payment method: the block renders once below the payment method
  * list, so the consent covers every gateway the customer can pick.
  *
- * @param WC_Order        $order   Draft order built from the request (unused; hook signature).
- * @param WP_REST_Request $request Store API checkout request.
+ * $order (the draft order built from the request) is unused; it is part of the signature.
  */
 function wcs_scanpay_blocks_validate_terms( WC_Order $order, WP_REST_Request $request ): void {
 	if ( ! class_exists( 'WC_Subscriptions_Cart', false ) || ! WC_Subscriptions_Cart::cart_contains_subscription() ) {
@@ -277,11 +259,8 @@ function wcs_scanpay_blocks_validate_terms( WC_Order $order, WP_REST_Request $re
 }
 
 /**
- * Handle scheduled subscription payments (charges).
+ * Handle a scheduled subscription payment; $wco is the renewal order, not the subscription.
  * Action: woocommerce_scheduled_subscription_payment_scanpay
- *
- * @param float    $amount Amount to charge.
- * @param WC_Order $wco    Renewal order.
  */
 function wcs_scanpay_scheduled_charge( float $amount, WC_Order $wco ): void {
 	static $handler = null;
@@ -293,18 +272,16 @@ function wcs_scanpay_scheduled_charge( float $amount, WC_Order $wco ): void {
 }
 
 /**
- * Enforce a >=25h floor on Scanpay renewal retries (filter: wcs_get_retry_rule_raw).
+ * Enforce a >=25h floor on Scanpay renewal retries.
+ * Filter: wcs_get_retry_rule_raw
  *
  * Only the interval is raised; emails/statuses/attempt count stay the merchant's.
  * The idempotency key's day (whole days since the renewal order was created) only
  * advances after >=24h, so an earlier retry would replay the cached decline. The
  * 25th hour is clock-skew margin, not correctness.
  *
- * @param mixed $rule         Retry rule for this attempt. WCS core passes an array, but an
- *                            earlier-hooked plugin may return false, a rule object, or anything else.
- * @param int   $retry_number Position in the retry queue.
- * @param int   $order_id     Renewal order ID.
- * @return mixed
+ * $rule is mixed, not array: WCS core passes an array, but a plugin hooked earlier may
+ * return false, a rule object, or anything else.
  */
 function wcs_scanpay_retry_rule( $rule, int $retry_number, int $order_id ) {
 	if ( ! is_array( $rule ) ) {
@@ -326,16 +303,16 @@ function wcs_scanpay_retry_rule( $rule, int $retry_number, int $order_id ) {
  */
 function wc_scanpay_plugins_loaded() {
 	if ( defined( 'WC_SCANPAY_LOADED' ) ) {
-		return; // Already initialized
+		return; // Already initialized.
 	}
 	define( 'WC_SCANPAY_LOADED', true );
 	if ( ! class_exists( 'WC_Payment_Gateway', false ) ) {
-		return; // WooCommerce not active
+		return; // WooCommerce not active.
 	}
 
 	// Run version-gated install/migrations. The option is autoloaded, so the check is
 	// free. Passing the guard above means WC core (order functions, data stores) is
-	// loaded, so upgrade.php may safely use wc_get_orders(). The transient serialises
+	// loaded, so upgrade.php may safely use wc_get_orders(). The transient serializes
 	// two requests racing the upgrade; upgrade.php's steps are individually idempotent.
 	if (
 		get_option( 'wc_scanpay_version' ) !== WC_SCANPAY_VERSION && ! get_transient( 'wc_scanpay_updating' )
@@ -396,7 +373,7 @@ register_activation_hook( __FILE__, 'wc_scanpay_activate' );
  * Action: before_woocommerce_init
  */
 function wc_scanpay_before_woocommerce_init() {
-	// Note: Our plugin may load before WC, so class_exists is set to autoload to ensure the class is available.
+	// Autoload ($autoload = true): this may run before WooCommerce's classes are loaded.
 	if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class, true ) ) {
 		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
 	}
@@ -405,8 +382,8 @@ add_action( 'before_woocommerce_init', 'wc_scanpay_before_woocommerce_init' );
 
 
 /**
- * Initialize plugin (i18n needs to be initialized here).
- * Action: init (runs after plugins_loaded)
+ * Load the translations.
+ * Action: init (load_plugin_textdomain must not run any earlier)
  */
 function wc_scanpay_init() {
 	load_plugin_textdomain( 'scanpay-for-woocommerce', false, 'scanpay-for-woocommerce/languages' );
@@ -415,8 +392,8 @@ add_action( 'init', 'wc_scanpay_init', 0 );
 
 
 /**
- *  Initialize the admin interface.
- *  action: admin_init (runs after init)
+ * Initialize the admin interface.
+ * Action: admin_init (runs after init)
  */
 function wc_scanpay_admin_init() {
 	require WC_SCANPAY_DIR . '/admin/orders.php';
@@ -429,15 +406,13 @@ function wc_scanpay_admin_init() {
 add_action( 'admin_init', 'wc_scanpay_admin_init', 0 );
 
 /**
- * Remove the WooCommerce Payments "Payments" admin menu entry.
+ * Drop the duplicate top-level "Payments" admin menu entry.
  *
- * This menu item is injected by the WooCommerce Payments plugin and
- * serves as a promotional shortcut to its settings. It is not part of
- * WooCommerce core navigation. We remove it to make the admin UI
- * cleaner and to avoid confusion.
+ * Its slug is the very WooCommerce > Settings > Payments screen that already holds the
+ * gateway list (and our own settings), so keeping both only makes the setup path
+ * ambiguous for the merchant.
  */
 function scanpay_remove_wc_payments_menu() {
-	// Remove top-level "Payments" (localized as "Betalinger") menu entry.
 	remove_menu_page( 'admin.php?page=wc-settings&tab=checkout&from=PAYMENTS_MENU_ITEM' );
 }
 add_action( 'admin_menu', 'scanpay_remove_wc_payments_menu', 999 );

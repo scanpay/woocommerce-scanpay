@@ -5,15 +5,13 @@ declare(strict_types=1);
 defined( 'ABSPATH' ) || exit();
 
 /**
- * Handles AJAX requests to manually change an order’s status to completed.
- * Captures the payment before completing the order, ensuring emails
- * are not sent until the payment has been secured. If capture fails,
- * the order status is set to failed.
+ * Handles the order-list row action that marks an order completed.
+ * Action: wp_ajax_woocommerce_mark_order_status (no arguments; the request is in $_GET)
  *
- * This is running before WooCommerce's own handler.
- *
- * @hook wp_ajax_woocommerce_mark_order_status
- * This hook does not pass arguments; use the $_GET array.
+ * Registered at priority 0, ahead of WooCommerce's own handler, so the capture
+ * happens before completion -- and therefore before the completion emails go out. A
+ * failed capture parks the order 'on-hold' with a note (never 'failed') and the order
+ * is left uncompleted; see WC_Scanpay_Capture::capture_or_hold().
  */
 
 if (
@@ -23,7 +21,7 @@ if (
 	wp_send_json_error( 'forbidden', 403 );
 }
 
-// Check if the request is to mark an order as completed
+// Any other status transition is WooCommerce's business; fall through to its handler.
 if (
 	! isset( $_GET['status'], $_GET['order_id'] ) ||
 	'completed' !== $_GET['status']
@@ -31,7 +29,6 @@ if (
 	return;
 }
 
-// Validate order ID (strictly digits)
 // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- ctype_digit is the validation; value is cast to int below.
 if ( ! ctype_digit( (string) wp_unslash( $_GET['order_id'] ) ) ) {
 	wp_send_json_error( 'invalid_order_id', 400 );
@@ -43,11 +40,11 @@ if ( ! $wco ) {
 }
 
 if ( ! str_starts_with( $wco->get_payment_method( 'edit' ), 'scanpay' ) ) {
-	// Not a Scanpay order. Fallback to WooCommerce's handler.
-	return;
+	return; // Not a Scanpay order; fall through to WooCommerce's handler.
 }
 
-// Optimization: Avoid capture on completed hook
+// This request captures explicitly, so drop the status hook: the completion below
+// would otherwise re-enter capture for the same order.
 remove_action( 'woocommerce_order_status_completed', 'wc_scanpay_order_status_completed', 5 );
 
 // This handler exits, so WC_AJAX::mark_order_status() never runs. Replicate the two

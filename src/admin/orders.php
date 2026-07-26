@@ -4,14 +4,7 @@ declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 
-/**
- * Handle our custom bulk actions in the WC order list.
- *
- * @param string $redirect_to Redirect URL after processing.
- * @param string $action      Bulk action key.
- * @param array  $ids         Selected order IDs.
- * @return string Modified redirect URL.
- */
+/** Handle our custom bulk actions in the WC order list. */
 function wc_scanpay_handle_bulk_actions( string $redirect_to, string $action, array $ids ): string {
 	$capture = true;
 	if ( 'scanpay_mark_completed' === $action ) {
@@ -20,7 +13,7 @@ function wc_scanpay_handle_bulk_actions( string $redirect_to, string $action, ar
 			$capture = false;
 		}
 	} elseif ( 'scanpay_capture_complete' !== $action ) {
-		return $redirect_to; // Not our action; Let WC handle it
+		return $redirect_to; // Not ours; let WooCommerce handle it.
 	}
 	require_once WC_SCANPAY_DIR . '/admin/hooks/wp-bulk-actions.php';
 	return wc_scanpay_handle_bulk_capture( $redirect_to, $ids, $capture );
@@ -30,11 +23,8 @@ add_filter( 'handle_bulk_actions-edit-shop_order', 'wc_scanpay_handle_bulk_actio
 
 
 /**
- * Add our bulk actions to the WC order list. Hijack "Mark as completed"
- * so payments can be captured before order completion, not after.
- *
- * @param array $actions Existing bulk actions.
- * @return array Modified bulk actions.
+ * Add our bulk actions to the WC order list, hijacking "Mark as completed" so payments
+ * are captured before completion rather than after.
  */
 function wc_scanpay_add_bulk_actions( array $actions ): array {
 	// Mirror WC's own trash-view restriction (Restore/Delete only). WP_List_Table
@@ -50,7 +40,6 @@ function wc_scanpay_add_bulk_actions( array $actions ): array {
 	foreach ( $actions as $k => $v ) {
 		$arr[ 'mark_completed' === $k ? 'scanpay_mark_completed' : $k ] = $v;
 	}
-	// Prepend our custom action "Capture and complete"
 	return [ 'scanpay_capture_complete' => __( 'Capture and complete', 'scanpay-for-woocommerce' ) ] + $arr;
 }
 add_filter( 'bulk_actions-woocommerce_page_wc-orders', 'wc_scanpay_add_bulk_actions', 10, 1 ); // HPOS
@@ -62,8 +51,8 @@ add_filter( 'bulk_actions-edit-shop_order', 'wc_scanpay_add_bulk_actions', 20, 1
 
 
 /**
- * Intercept the AJAX request to mark an order as completed.
- * This is to capture the payment before the order is set to completed.
+ * Intercept the "mark as completed" row action. Priority 0: WooCommerce's own handler
+ * must not run first, or the order completes (and emails) before the capture.
  */
 function wc_scanpay_mark_order_status(): void {
 	require WC_SCANPAY_DIR . '/admin/hooks/wp-ajax-wc-mark-order-status.php';
@@ -111,8 +100,7 @@ function wc_scanpay_admin_render_meta_box( $post ): void {
 	$dashboard = ( $shopid && $tid )
 		? WC_SCANPAY_DASHBOARD . rawurlencode( (string) $shopid ) . '/' . rawurlencode( (string) $tid )
 		: '';
-	// Only what order.ts actually reads. $tid and $shopid stay as locals above --
-	// they build $dashboard -- but shipping them to the browser served no consumer.
+	// Only what order.ts reads: $tid and $shopid stay local, they exist to build $dashboard.
 	$props = [
 		'oid'         => $oid,
 		'wc_decimals' => wc_get_price_decimals(),
@@ -141,7 +129,7 @@ function wc_scanpay_admin_render_meta_box( $post ): void {
  */
 function wc_scanpay_add_meta_box( $wc_order ): void {
 	if ( ! $wc_order instanceof WC_Order ) {
-		$wc_order = wc_get_order( $wc_order->ID ); // Legacy support
+		$wc_order = wc_get_order( $wc_order->ID ); // Legacy: a WP_Post arrives instead.
 		if ( ! $wc_order ) {
 			return;
 		}
@@ -163,4 +151,4 @@ function wc_scanpay_add_meta_box( $wc_order ): void {
 	);
 }
 add_action( 'add_meta_boxes_woocommerce_page_wc-orders', 'wc_scanpay_add_meta_box', 9, 1 ); // HPOS
-add_action( 'add_meta_boxes_shop_order', 'wc_scanpay_add_meta_box', 9, 1 ); // legacy
+add_action( 'add_meta_boxes_shop_order', 'wc_scanpay_add_meta_box', 9, 1 ); // Legacy

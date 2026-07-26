@@ -5,9 +5,9 @@ defined( 'ABSPATH' ) || exit();
 
 global $wpdb;
 
-// Seq table
-// esc_like: '_' is a single-character LIKE wildcard and $wpdb->prefix normally
-// contains one ('wp_'), so an unescaped pattern can match a table we did not mean.
+// esc_like on all three lookups: '_' is a single-character LIKE wildcard and
+// $wpdb->prefix normally contains one ('wp_'), so an unescaped pattern can match a
+// table we did not mean.
 $seq_tbl = $wpdb->prefix . 'scanpay_seq';
 if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $seq_tbl ) ) ) !== $seq_tbl ) {
 	$res = $wpdb->query(
@@ -25,7 +25,6 @@ if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $se
 	}
 }
 
-// Meta table
 $meta_tbl = $wpdb->prefix . 'scanpay_meta';
 if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $meta_tbl ) ) ) !== $meta_tbl ) {
 	$res = $wpdb->query(
@@ -50,7 +49,6 @@ if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $me
 	}
 }
 
-// Subscriptions table
 $subs_tbl = $wpdb->prefix . 'scanpay_subs';
 if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $subs_tbl ) ) ) !== $subs_tbl ) {
 	$res = $wpdb->query(
@@ -68,7 +66,6 @@ if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $su
 	}
 }
 
-// Insert shopid into seq table
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 $shopid   = (int) explode( ':', (string) ( $settings['apikey'] ?? '' ) )[0];
 
@@ -79,6 +76,8 @@ $shopid   = (int) explode( ':', (string) ( $settings['apikey'] ?? '' ) )[0];
 // forever on a 1.x site, leaving capture_on_complete unconverted and auto-capture off.
 $fresh_install = false === $settings && false === get_option( 'wc_scanpay_version' );
 
+// Seed this shop's cursor at 0. The ping handler refuses to sync without the row
+// ("shop not configured"), and only a stored key tells us which shop to seed.
 if ( 0 !== $shopid ) {
 	$seq = $wpdb->get_var( "SELECT seq FROM $seq_tbl WHERE shopid = $shopid" );
 	if ( null === $seq ) {

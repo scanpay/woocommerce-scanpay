@@ -38,21 +38,21 @@ global $wpdb;
 $sub = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid", ARRAY_A );
 
 if ( isset( $sub['rev'] ) && $rev >= $sub['rev'] ) {
-	// The long-poll below sleeps for up to 15.5s, comfortably past a default
-	// max_execution_time of 30 once DB round-trips are added. Raise it so the
+	// The long-poll below sleeps for up to 15.5s, which comes uncomfortably close to a
+	// default max_execution_time of 30 once DB round-trips are added. Raise it so the
 	// endpoint answers rather than being killed mid-poll.
 	set_time_limit( 60 );
-	// Backoff strategy: .5s, 1s, 2s, 4s, 8s: Total: 15.5s
+	// Backoff: 0.5s, 1s, 2s, 4s, 8s -- 15.5s in total.
 	$sec = 1;
-	usleep( 500000 ); // 0.5 secs. Note: usleep is only OS-safe below 1s
+	usleep( 500000 ); // usleep() for the sub-second wait only; sleep() for the rest.
 	while ( 1 ) {
 		$sub = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid", ARRAY_A );
 		if ( null === $sub || $sub['rev'] > $rev || $sec > 8 ) {
-			break; // row vanished or updated; respond below
+			break; // Row vanished, was updated, or the backoff is spent; respond below.
 		}
 		sleep( $sec );
 		$sec = $sec + $sec;
-		echo "\n"; // echo + flush to detect if the client has disc.
+		echo "\n"; // Write something each round, so a disconnected client is detected.
 		if ( ob_get_level() ) {
 			ob_flush();
 		}

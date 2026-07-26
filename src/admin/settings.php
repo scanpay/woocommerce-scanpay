@@ -4,12 +4,7 @@ declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 
-/**
- * Expose the plugin version to WC admin JS.
- *
- * @param array $settings Shared WC admin settings.
- * @return array Updated settings.
- */
+/** Expose the plugin version to WC admin JS, under the 'scanpay' key. */
 function wc_scanpay_admin_add_version( array $settings ): array {
 	$settings['scanpay'] = WC_SCANPAY_VERSION;
 	return $settings;
@@ -20,8 +15,6 @@ add_filter( 'woocommerce_admin_shared_settings', 'wc_scanpay_admin_add_version',
 /**
  * Whether the current request targets one of the plugin's own settings screens
  * (WooCommerce > Settings > Payments > Scanpay / MobilePay / Apple Pay).
- *
- * @return bool
  */
 function wc_scanpay_is_settings_screen(): bool {
 	// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only screen detection; no state change.
@@ -41,11 +34,7 @@ function wc_scanpay_is_settings_screen(): bool {
 }
 
 
-/**
- * Enqueue admin JS/CSS on WC > Settings > Payments pages.
- *
- * @param string $hook_suffix Admin page hook.
- */
+/** Enqueue admin JS/CSS on the plugin's own WC > Settings > Payments screens. */
 function wc_scanpay_admin_assets( string $hook_suffix ): void {
 	if ( 'woocommerce_page_wc-settings' !== $hook_suffix || ! wc_scanpay_is_settings_screen() ) {
 		return;
@@ -69,12 +58,7 @@ function wc_scanpay_ajax_reset(): void {
 add_action( 'wp_ajax_wc_scanpay_reset', 'wc_scanpay_ajax_reset', 0, 0 );
 
 
-/**
- * Add a "Settings" link to the Scanpay plugin entry.
- *
- * @param array $links Plugin action links.
- * @return array Modified links.
- */
+/** Add a "Settings" link to the Scanpay entry on the Plugins screen. */
 function wc_scanpay_admin_settings_link( array $links ): array {
 	$url = admin_url( 'admin.php?page=wc-settings&tab=checkout&section=scanpay' );
 	array_unshift( $links, '<a href="' . $url . '">' . __( 'Settings', 'scanpay-for-woocommerce' ) . '</a>' );
@@ -90,9 +74,6 @@ add_filter( 'plugin_action_links_scanpay-for-woocommerce/woocommerce-scanpay.php
  *
  * Runs after WC's own admin_footer_text filter (priority 1) so it can clear
  * the text WC injects on its screens.
- *
- * @param string $text Current footer text.
- * @return string
  */
 function wc_scanpay_admin_footer_text( $text ) {
 	return wc_scanpay_is_settings_screen() ? '' : $text;

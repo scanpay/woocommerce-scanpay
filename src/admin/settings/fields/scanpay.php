@@ -34,7 +34,6 @@ return [
 	'title'                => [
 		'title'       => __( 'Title', 'scanpay-for-woocommerce' ),
 		'type'        => 'text',
-		/* translators: Payment method title displayed at checkout. */
 		'description' => __( 'The payment method title displayed at checkout.', 'scanpay-for-woocommerce' ),
 		'desc_tip'    => true,
 		'default'     => 'Pay by card',
@@ -43,7 +42,6 @@ return [
 	'description'          => [
 		'title'       => __( 'Description', 'scanpay-for-woocommerce' ),
 		'type'        => 'text',
-		/* translators: Payment method description displayed at checkout. */
 		'description' => __( 'The payment method description displayed at checkout.', 'scanpay-for-woocommerce' ),
 		'desc_tip'    => true,
 		'default'     => 'Pay with a payment card via Scanpay.',

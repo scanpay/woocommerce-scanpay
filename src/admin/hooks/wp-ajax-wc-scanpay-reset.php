@@ -6,6 +6,7 @@ defined( 'ABSPATH' ) || exit();
 
 /**
  * Handle the AJAX "delete data and change API key" action from the settings page.
+ * Action: wp_ajax_wc_scanpay_reset (no arguments; the nonce arrives in $_POST)
  *
  * Drops the three custom tables, clears the API key and disables every gateway.
  * install.php then recreates the tables empty; with no key stored it seeds no
@@ -20,9 +21,6 @@ defined( 'ABSPATH' ) || exit();
  * This is the only path that deletes Scanpay data. Saving the settings form
  * never does (see WC_Gateway_Scanpay_Base::validate_apikey_field(), which
  * refuses to replace a stored key).
- *
- * @hook wp_ajax_wc_scanpay_reset
- * This hook passes no arguments; the nonce arrives in $_POST.
  */
 
 if (

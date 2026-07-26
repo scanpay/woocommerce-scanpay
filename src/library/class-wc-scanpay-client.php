@@ -9,20 +9,14 @@ declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 
-/**
- * Client for the Scanpay API.
- */
+/** Client for the Scanpay API: the only code here that talks to api.scanpay.dk. */
 final class WC_Scanpay_Client {
 	private \CurlHandle $ch;
 	private array $headers;
 	private bool $idem         = false;
 	private string $idemstatus = '';
 
-	/**
-	 * Initializes the API client.
-	 *
-	 * @param string $apikey Scanpay API key.
-	 */
+	/** Initializes the API client. */
 	public function __construct( string $apikey ) {
 		$this->ch      = curl_init();
 		$this->headers = [
@@ -34,9 +28,7 @@ final class WC_Scanpay_Client {
 		];
 	}
 
-	/**
-	 * Closes the cURL handle.
-	 */
+	/** Closes the cURL handle. */
 	public function __destruct() {
 		if ( isset( $this->ch ) ) {
 			curl_close( $this->ch );
@@ -44,11 +36,9 @@ final class WC_Scanpay_Client {
 	}
 
 	/**
-	 * Records the idempotency status response header.
+	 * Records the Idempotency-Status response header.
 	 *
-	 * @param \CurlHandle $ch   cURL handle.
-	 * @param string      $line Header line.
-	 * @return int Number of bytes processed.
+	 * @return int Bytes consumed; libcurl aborts the transfer on any other value.
 	 */
 	private function header_callback( \CurlHandle $ch, string $line ): int {
 		if ( stripos( $line, 'Idempotency-Status:' ) === 0 ) {
@@ -59,11 +49,8 @@ final class WC_Scanpay_Client {
 	}
 
 	/**
-	 * Reduces a response body to a short, single-line error message;
-	 * masks multiline or oversized bodies (proxy/WAF error pages).
-	 *
-	 * @param string $body Raw response body.
-	 * @return string Single-line error message.
+	 * Reduces a response body to a short, single-line error message; masks multiline
+	 * or oversized bodies (proxy/WAF error pages).
 	 */
 	private function error_body( string $body ): string {
 		$body = rtrim( $body, "\r\n" );
@@ -74,13 +61,9 @@ final class WC_Scanpay_Client {
 	}
 
 	/**
-	 * Sends a request to the Scanpay API.
+	 * Sends a request to the Scanpay API. $timeout is the total budget in seconds, so it
+	 * also bounds the connect phase; a non-null $data makes the request a JSON POST.
 	 *
-	 * @param string                    $path    API path.
-	 * @param array<string, mixed>|null $data    JSON request data.
-	 * @param array<string, string>     $hdrs    Additional headers.
-	 * @param int                       $timeout Total timeout in seconds (also bounds the connect phase).
-	 * @return array<string, mixed> Decoded response.
 	 * @throws \JsonException On invalid JSON.
 	 * @throws \RuntimeException On transport or API errors.
 	 */
@@ -157,8 +140,6 @@ final class WC_Scanpay_Client {
 	 * append real headers to this authenticated request -- letting a customer force
 	 * e.g. an Idempotency-Key onto a call that never expects one. Validate the
 	 * address and simply omit the header when it is not an IP.
-	 *
-	 * @return array<string, string>
 	 */
 	private function cardholder_ip_header(): array {
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput
@@ -167,10 +148,8 @@ final class WC_Scanpay_Client {
 	}
 
 	/**
-	 * Creates a payment link.
+	 * Creates a payment link and returns its URL.
 	 *
-	 * @param array<string, mixed> $data Payment data.
-	 * @return string Payment URL.
 	 * @throws \JsonException On invalid JSON.
 	 * @throws \RuntimeException On transport, API, or validation errors.
 	 */
@@ -183,10 +162,9 @@ final class WC_Scanpay_Client {
 	}
 
 	/**
-	 * Gets changes after a sequence number.
+	 * Gets the changes after sequence number $n, enforcing monotonicity: the returned seq
+	 * must advance when there are changes, and equal $n when there are none.
 	 *
-	 * @param int $n Sequence number.
-	 * @return array<string, mixed> Sequence response.
 	 * @throws \JsonException On invalid JSON.
 	 * @throws \RuntimeException On transport, API, or validation errors.
 	 */
@@ -207,9 +185,6 @@ final class WC_Scanpay_Client {
 	/**
 	 * Captures a transaction.
 	 *
-	 * @param int                  $trnid Transaction ID.
-	 * @param array<string, mixed> $data  Capture data.
-	 * @return array<string, mixed> Capture response.
 	 * @throws \JsonException On invalid JSON.
 	 * @throws \RuntimeException On transport or API errors.
 	 */
@@ -218,14 +193,11 @@ final class WC_Scanpay_Client {
 	}
 
 	/**
-	 * Charges a subscriber idempotently.
+	 * Charges a subscriber under an idempotency key, which Scanpay binds for 24h.
 	 *
-	 * @param int                  $subid   Subscriber ID.
-	 * @param array<string, mixed> $data    Charge data.
-	 * @param string               $idemkey Idempotency key.
-	 * @return array<string, mixed> Charge response.
 	 * @throws \JsonException On invalid JSON.
-	 * @throws \RuntimeException On transport, API, or validation errors.
+	 * @throws \RuntimeException On transport, API, or validation errors, including a
+	 *                           response that does not confirm the key was honored.
 	 */
 	public function charge( int $subid, array $data, string $idemkey ): array {
 		$hdr = [ 'Idempotency-Key' => $idemkey ];
@@ -237,11 +209,8 @@ final class WC_Scanpay_Client {
 	}
 
 	/**
-	 * Creates a subscriber renewal link.
+	 * Creates a subscriber renewal link and returns its URL.
 	 *
-	 * @param int                  $subid Subscriber ID.
-	 * @param array<string, mixed> $data  Renewal data.
-	 * @return string Renewal URL.
 	 * @throws \JsonException On invalid JSON.
 	 * @throws \RuntimeException On transport, API, or validation errors.
 	 */

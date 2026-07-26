@@ -34,27 +34,28 @@ final class WC_Scanpay_Capture {
 	 * capture_or_hold(), which translates failures into an 'on-hold' status rather
 	 * than letting them surface as an unhandled Throwable or a 'failed' order.
 	 *
-	 * @param WC_Order $wco WooCommerce order object.
-	 * @throws \RuntimeException On an unsynced payment row, misconfiguration, a lookup error, or a voided auth.
+	 * @throws \RuntimeException On an unsynced payment row, misconfiguration, a lookup
+	 *                           error, or a voided auth.
 	 */
 	private static function capture( WC_Order $wco ): void {
 		if ( ! wc_scanpay_is_scanpay_order( $wco ) ) {
-			return; // Not a Scanpay order
+			return;
 		}
 		$oid = (int) $wco->get_id();
+		// One capture per order per request: more than one path can fire for the same
+		// completion (status hook, bulk action, mark-completed intercept, meta box).
 		if ( isset( self::$processed[ $oid ] ) ) {
 			scanpay_log( 'debug', "Skipping capture: already processed order #$oid" );
-			return; // Already processed
+			return;
 		}
 		self::init();
 		self::$processed[ $oid ] = true;
 
 		$order_shopid = (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' );
 		if ( $order_shopid !== self::$shopid ) {
-		    // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( "ShopID mismatch for order #$oid: order has $order_shopid, APIkey has " . self::$shopid );
 		}
-		// Retrieve payment metadata for this order
 		global $wpdb;
 		$meta = $wpdb->get_row(
 			"SELECT id, nacts, authorized, captured, refunded, voided
@@ -71,11 +72,11 @@ final class WC_Scanpay_Capture {
 		if ( null === $meta ) {
 			throw new \RuntimeException( 'No payment details found on order' );
 		}
-		// Check if the payment has been voided
 		if ( ! wc_scanpay_is_zero( $meta['voided'] ) ) {
 			throw new \RuntimeException( 'Transaction has been voided' );
 		}
-		// Calculate the raw amount left to capture, subtracting any refunds
+		// What the order still owes: its total less the WooCommerce-side refunds, less
+		// what Scanpay has already captured net of what it refunded back.
 		$amount = (string) $wco->get_total( 'edit' );
 		foreach ( $wco->get_refunds() as $refund ) {
 			$amount = wc_scanpay_submoney( $amount, (string) $refund->get_amount() );
@@ -84,7 +85,8 @@ final class WC_Scanpay_Capture {
 		$net_captured = wc_scanpay_submoney( $meta['captured'], $meta['refunded'] );
 		$to_capture   = wc_scanpay_submoney( $amount, $net_captured );
 
-		// Never exceed the remaining authorized amount
+		// Never exceed what is left of the authorization. A refund does not restore it,
+		// so this subtracts the gross captured amount, not the net one above.
 		$remaining_on_auth = wc_scanpay_submoney( $meta['authorized'], $meta['captured'] );
 		if ( wc_scanpay_cmpmoney( $to_capture, $remaining_on_auth ) > 0 ) {
 			$to_capture = $remaining_on_auth;
@@ -113,16 +115,15 @@ final class WC_Scanpay_Capture {
 	 * order automatically and the merchant can safely retry (the remaining-amount guard
 	 * prevents a double capture).
 	 *
-	 * @param WC_Order $wco WooCommerce order object.
-	 * @return bool True if capture succeeded (caller may complete the order).
+	 * @return bool True if the capture succeeded, so the caller may complete the order.
 	 */
 	public static function capture_or_hold( WC_Order $wco ): bool {
 		try {
 			self::capture( $wco );
 			return true;
 		} catch ( \Throwable $e ) {
-			// Any failure — including the "payment not synced yet" race (a merchant
-			// completing an order before the first ping) — parks the order rather than
+			// Any failure -- including the "payment not synced yet" race (a merchant
+			// completing an order before the first ping) -- parks the order rather than
 			// failing it. The next ping reconciles it via payment_complete().
 			scanpay_log( 'error', 'Capture on order #' . $wco->get_id() . ' failed: ' . $e->getMessage() );
 			$wco->update_status( 'on-hold', 'Scanpay capture failed: ' . $e->getMessage(), true );

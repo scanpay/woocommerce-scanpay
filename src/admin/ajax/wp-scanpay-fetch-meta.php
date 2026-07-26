@@ -36,19 +36,19 @@ global $wpdb;
 $meta = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid", ARRAY_A );
 
 if ( isset( $meta['rev'] ) && $rev >= $meta['rev'] ) {
-	// The long-poll below sleeps for up to 5.5s. That fits a default
-	// max_execution_time of 30, but not a host that has tightened it, so size the
-	// limit to the backoff rather than relying on the default.
+	// The long-poll below sleeps for up to 5.5s. That fits the usual
+	// max_execution_time of 30, but not a host that has tightened it, so ask for the
+	// headroom explicitly instead of relying on the default.
 	set_time_limit( 30 );
 	$counter = 0;
 	do {
-		// Exponential backoff: 0.5s, 1.5s, 3.5s (total 5.5s)
+		// Exponential backoff: 0.5s, 1.5s, 3.5s (5.5s in total).
 		usleep( 500000 * pow( 2, ++$counter ) - 500000 );
 		$meta = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid", ARRAY_A );
 		if ( null === $meta ) {
-			break; // row vanished; respond "not found" below
+			break; // Row vanished; respond "not found" below.
 		}
-		echo "\n"; // echo + flush to detect if the client has disc.
+		echo "\n"; // Write something each round, so a disconnected client is detected.
 		if ( ob_get_level() ) {
 			ob_flush();
 		}

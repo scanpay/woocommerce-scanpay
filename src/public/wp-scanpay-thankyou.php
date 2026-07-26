@@ -6,48 +6,40 @@ defined( 'ABSPATH' ) || exit();
 
 /*
  * Payment-return page: the customer is redirected here from the external payment
- * window, so requests carry no nonce — they are authenticated by the WooCommerce
- * order key via hash_equals below, not by a nonce.
- */
-// phpcs:disable WordPress.Security.NonceVerification
-
-/**
- * Ensures payment details are available before rendering the WooCommerce ThankYou page.
- * This introduces a short wait to make sure payment data is fully saved, reducing
- * race conditions and unnecessary resource usage.
+ * window, so requests carry no nonce -- they are authenticated by the WooCommerce order
+ * key via hash_equals below.
  *
- * Hooked on 'woocommerce_init' so the wait runs before anything loads the order:
- * later hooks like 'woocommerce_thankyou_order_id' are prone to race conditions,
- * and by then the order object has already been built and cached.
+ * Both handlers below hold the request until sync has written what the page renders --
+ * the transaction id for a paid order, an activated subscription for a free trial -- so
+ * it does not render half-finished. They hook 'woocommerce_init', ahead of anything that
+ * loads the order: later hooks such as 'woocommerce_thankyou_order_id' race the sync,
+ * and by then the order object is already built and cached.
  *
- * Everything below therefore reads the database directly and never touches a WC
- * order API. Two independent reasons, both load-bearing:
+ * Everything here therefore reads the database directly and never touches a WC order
+ * API. Two independent reasons, both load-bearing:
  *
  *  1. 'woocommerce_init' fires inside 'init' priority 0, but order types are not
  *     registered until 'init' priority 5. wc_get_order() bails out with
- *     wc_doing_it_wrong() and returns false before then, so a gate built on it
- *     would return on every request and the wait would never run at all.
- *  2. Loading the order here would poison the page: under HPOS it seeds the
- *     OrderCache, under legacy CPT the posts/post_meta caches, in both cases with
- *     the pre-sync order. WC_Shortcode_Checkout::order_received() re-reads the
- *     order afterwards and would render that stale copy despite the wait.
+ *     wc_doing_it_wrong() and returns false before then, so a gate built on it would
+ *     return on every request and the wait would never run at all.
+ *  2. Loading the order here would poison the page: under HPOS it seeds the OrderCache,
+ *     under legacy CPT the posts/post_meta caches, in both cases with the pre-sync
+ *     order. WC_Shortcode_Checkout::order_received() re-reads the order afterwards and
+ *     would render that stale copy despite the wait.
  *
  * $wpdb reads are uncached, so nothing is cached prematurely and WooCommerce still
- * builds the order object exactly once, after the wait.
- *
- * Note: The delay happens while the user is still on the Scanpay payment page,
- * so it has minimal impact on the user experience.
+ * builds the order object exactly once, after the wait. The wait itself overlaps the
+ * redirect from the payment window, so the customer rarely sees it.
  */
+// phpcs:disable WordPress.Security.NonceVerification
 
 $order_type = sanitize_key( wp_unslash( $_GET['scanpay_type'] ?? '' ) );
 
 /**
  * Whether orders live in the HPOS tables rather than the legacy posts tables.
  *
- * Safe at init:0 — it only reads an option through the container, which is built
+ * Safe at init:0 -- it only reads an option through the container, which is built
  * at 'plugins_loaded'.
- *
- * @return bool
  */
 function wc_scanpay_thankyou_hpos(): bool {
 	return defined( 'WC_VERSION' )
@@ -58,9 +50,7 @@ function wc_scanpay_thankyou_hpos(): bool {
 /**
  * Reads order_key, payment_method and transaction_id straight from the database.
  *
- * @param int  $oid  Order id.
- * @param bool $hpos Whether HPOS storage is in use.
- * @return array|null Row with order_key/payment_method/transaction_id, or null if absent.
+ * @return array|null The row, or null when there is no such order.
  */
 function wc_scanpay_thankyou_read( int $oid, bool $hpos ): ?array {
 	global $wpdb;
@@ -85,9 +75,7 @@ function wc_scanpay_thankyou_read( int $oid, bool $hpos ): ?array {
  * WooCommerce Subscriptions is deactivated, which would fatal a bookmarked
  * thank-you URL, and it cannot resolve an order at init:0 anyway.
  *
- * @param int  $wcsid Subscription id.
- * @param bool $hpos  Whether HPOS storage is in use.
- * @return array|null Row with status/parent_order_id, or null if absent.
+ * @return array|null The row, or null when there is no such subscription.
  */
 function wc_scanpay_thankyou_read_sub( int $wcsid, bool $hpos ): ?array {
 	global $wpdb;
@@ -98,8 +86,8 @@ function wc_scanpay_thankyou_read_sub( int $wcsid, bool $hpos ): ?array {
 }
 
 /**
- * Waits for payment data to become available in WC and WCS orders.
- * Hook: woocommerce_init
+ * Waits for sync to write the payment data on a WC or WCS order.
+ * Action: woocommerce_init
  */
 function wc_scanpay_init_thankyou(): void {
 	$oid = absint( wp_unslash( $_GET['scanpay_thankyou'] ?? '' ) );
@@ -114,8 +102,8 @@ function wc_scanpay_init_thankyou(): void {
 			return; // No such order.
 		}
 		// Ownership gate: only busy-poll for a genuine thank-you request. The success URL
-		// carries WooCommerce's order key (get_checkout_order_received_url()); require it to
-		// match before spending any workers on an order that may not exist.
+		// carries WooCommerce's order key (get_checkout_order_received_url()); require it
+		// to match before tying up a PHP worker on an order that may not be ours.
 		if ( 0 === $i && (
 			! hash_equals( (string) $row['order_key'], (string) wp_unslash( $_GET['key'] ?? '' ) )
 			|| ! str_starts_with( (string) $row['payment_method'], 'scanpay' )
@@ -124,13 +112,13 @@ function wc_scanpay_init_thankyou(): void {
 		}
 		// Wait on the order's own transaction_id, not on a scanpay_meta row: sync()
 		// inserts that row before it loads the order and sets transaction_id,
-		// payment_method_title and payment_complete() — a window of hundreds of ms that
+		// payment_method_title and payment_complete() -- a window of hundreds of ms that
 		// would routinely let the page render before the title is written.
 		if ( '' !== (string) $row['transaction_id'] ) {
-			return; // Synced: sync() writes transaction_id and payment_method_title together.
+			return;
 		}
 		if ( ++$i >= 17 ) {
-			return; // Give up; the page renders without payment data.
+			return; // Give up after ~3.5s of waiting; the page renders without payment data.
 		}
 		usleep( 1 === $i ? 400_000 : (int) ( 20_000 + 10_000 * pow( 1.3, $i ) ) );
 	}
@@ -142,8 +130,8 @@ if ( 'wcs' === $order_type || 'wc' === $order_type ) {
 }
 
 /**
- * Waits for payment data to become available in free WCS orders (e.g. free trial).
- * Hook: woocommerce_init
+ * Waits for a zero-total WCS order (free trial) to have its subscription activated.
+ * Action: woocommerce_init
  */
 function wcs_scanpay_init_thankyou_free(): void {
 	$oid = absint( wp_unslash( $_GET['scanpay_thankyou'] ?? '' ) );
@@ -154,7 +142,7 @@ function wcs_scanpay_init_thankyou_free(): void {
 	$row  = wc_scanpay_thankyou_read( $oid, $hpos );
 	// Ownership gate on the parent order, whose key is in the success URL. (No
 	// transaction-id bail here: a free-trial parent has a zero total and may never
-	// carry one — this branch polls subscription activation instead.)
+	// carry one -- this branch polls subscription activation instead.)
 	if (
 		! $row
 		|| ! hash_equals( (string) $row['order_key'], (string) wp_unslash( $_GET['key'] ?? '' ) )
@@ -186,7 +174,7 @@ function wcs_scanpay_init_thankyou_free(): void {
 			return;
 		}
 		if ( ++$i >= 8 ) {
-			return; // Give up; the page renders without payment data.
+			return; // Give up after ~0.8s of waiting; the page renders without payment data.
 		}
 		usleep( 1 === $i ? 450_000 : (int) ( 20_000 + 10_000 * pow( 1.3, $i ) ) );
 		$sub = wc_scanpay_thankyou_read_sub( $wcsid, $hpos );

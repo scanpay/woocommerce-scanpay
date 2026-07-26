@@ -13,17 +13,14 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	}
 
 	/**
-	 * WooCommerce recommends loading form fields on every request.
-	 * That’s needless overhead, so this method is left empty and fields
-	 * are loaded lazily in get_form_fields() only when needed (e.g. in settings).
+	 * Deliberately empty. WooCommerce builds the form fields on every request; that is
+	 * pure overhead off the settings screen, so get_form_fields() loads them lazily.
 	 */
 	public function init_form_fields(): void {}
 
 	/**
-	 * Get the gateway form fields (settings schema and default values).
-	 * Only used in the admin or when a setting is not yet saved in the database.
-	 *
-	 * @return array
+	 * The settings schema and its defaults, required from admin/settings/fields/<id>.php.
+	 * Only reached in the admin, or when a setting has no stored value yet.
 	 */
 	public function get_form_fields(): array {
 		if ( empty( $this->form_fields ) ) {
@@ -33,31 +30,28 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	}
 
 	/**
-	 * Return the display title, e.g. "Pay by Card".
+	 * The checkout display title, e.g. "Pay by card".
 	 *
-	 * @return string
+	 * 'Scanpay' under is_admin() is deliberate branding: sync collapses all three
+	 * gateways into the 'scanpay' payment method and owns the real
+	 * payment_method_title, so the admin should name the account, not the button.
 	 */
 	public function get_title(): string {
 		// Cast: get_option() returns whatever is stored, and strict_types turns a
 		// non-string (a hand-edited option, a filter) into a TypeError on a method WC
-		// calls while rendering checkout. Coercing is what this did before.
+		// calls while rendering checkout.
 		return is_admin() ? 'Scanpay' : (string) $this->get_option( 'title', 'Scanpay' );
 	}
 
-	/**
-	 * Get the description of the payment method, e.g. "Pay securely using your credit card."
-	 *
-	 * @return string
-	 */
+	/** The checkout description, e.g. "Pay with a payment card via Scanpay." */
 	public function get_description(): string {
 		return (string) $this->get_option( 'description', '' ); // Cast: see get_title().
 	}
 
 	/**
-	 * Get the URL to view transaction details in Scanpay dashboard
+	 * The Scanpay dashboard URL for this order's transaction.
 	 *
-	 * @param WC_Order $wco
-	 * @return string
+	 * @param WC_Order $wco Untyped in the signature to match WC_Payment_Gateway.
 	 */
 	public function get_transaction_url( $wco ): string {
 		$shop = (string) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true );
@@ -65,20 +59,16 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 		return esc_url( WC_SCANPAY_DASHBOARD . rawurlencode( $shop ) . '/' . rawurlencode( $tx ) );
 	}
 
-	/**
-	 * Output admin options.
-	 *
-	 * @return void
-	 */
+	/** Render the settings screen. $gateway is the required file's handle on $this. */
 	public function admin_options(): void {
 		$gateway = $this;
 		require WC_SCANPAY_DIR . '/admin/settings/admin-options.php';
 	}
 
 	/**
-	 * Process and save admin options.
+	 * Process and save admin options. The required file runs in this scope, with $this live.
 	 *
-	 * @return bool
+	 * @return bool Whether anything was saved.
 	 */
 	public function process_admin_options() {
 		return require WC_SCANPAY_DIR . '/admin/settings/process-admin-options.php';
@@ -99,8 +89,7 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	 * button, so the tables are never silently orphaned onto a different shop.
 	 *
 	 * @param string $key  Field key.
-	 * @param array  $data Field data.
-	 * @return string
+	 * @param array  $data Field definition from admin/settings/fields/scanpay.php.
 	 */
 	public function generate_apikey_html( $key, $data ): string {
 		$field_key = $this->get_field_key( $key );
@@ -121,7 +110,7 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 
 		ob_start();
 		?>
-		<?php // Row class so settings.scss can target this row without counting positions; it renders no input to key off once a key is stored. ?>
+		<?php // Row class so settings.scss can target this row: once a key is stored, there is no input to key off. ?>
 		<tr valign="top" class="wcsp-set-row-apikey">
 			<th scope="row" class="titledesc">
 				<?php // Only label the input when there is one; a dangling for= resolves to nothing. ?>
@@ -169,7 +158,6 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	 * separator, a non-numeric shop id, embedded whitespace, stray quotes).
 	 *
 	 * @param string $key Candidate key.
-	 * @return bool
 	 */
 	private function is_apikey( string $key ): bool {
 		$colon = strpos( $key, ':' );
@@ -195,7 +183,6 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	 *
 	 * @param string      $key   Field key.
 	 * @param string|null $value Posted value.
-	 * @return string
 	 */
 	public function validate_apikey_field( $key, $value ): string {
 		$stored = (string) $this->get_option( $key, '' );
@@ -228,9 +215,9 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 		 * Reject a malformed key instead of storing it. Storing first is what makes a
 		 * typo expensive: the field then renders masked with no input, so "try again"
 		 * is impossible short of the reset button, whose copy warns about deleting
-		 * data. The liveness check in process-admin-options.php now also runs for a
-		 * key stored while the gateway is disabled, but it is a live API call: this
-		 * shape check stays as the cheap, offline first pass.
+		 * data. process-admin-options.php also proves the key against the API, even
+		 * while the gateway is disabled, but that is a network call: this shape check
+		 * is the cheap, offline first pass.
 		 */
 		if ( ! $this->is_apikey( $value ) ) {
 			WC_Admin_Settings::add_error(
@@ -242,21 +229,14 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	}
 
 	/**
-	 * Indicate that refunds are not supported.
-	 *
-	 * @param WC_Order $order The order to check.
-	 * @return bool
+	 * Never offer a refund button: refunds are issued in the Scanpay dashboard and the
+	 * plugin only reflects them read-only, via sync.
 	 */
 	public function can_refund_order( $order ): bool {
 		return false;
 	}
 
-	/**
-	 * Determine whether the gateway needs setup before it can be enabled.
-	 * This is used by WC admin to show a setup notice.
-	 *
-	 * @return bool
-	 */
+	/** Whether WC admin should show the "setup required" notice on this gateway. */
 	public function needs_setup(): bool {
 		$settings = get_option( WC_SCANPAY_URI_SETTINGS, [] );
 		return '' === (string) ( $settings['apikey'] ?? '' );

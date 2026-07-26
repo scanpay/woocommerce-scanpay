@@ -8,10 +8,9 @@ final class WCS_Scanpay_Charge {
 	private WC_Scanpay_Client $client;
 
 	public function __construct() {
-		// math.php is an independent file, not part of the client: gating it on the
-		// client's class left wc_scanpay_cmpmoney() undefined for any request that had
-		// already loaded the client on its own (process-admin-options.php does).
-		// require_once is its own guard, so no class_exists() check is needed.
+		// math.php and the client are independent requires: gating math.php on the client's
+		// class would leave the money helpers undefined on any request that already loaded
+		// the client by itself (process-admin-options.php does). require_once is its own guard.
 		require_once WC_SCANPAY_DIR . '/library/math.php';
 		require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
 		$opts           = get_option( WC_SCANPAY_URI_SETTINGS );
@@ -24,22 +23,22 @@ final class WCS_Scanpay_Charge {
 	 * orderid = the renewal, rev = payment-method revision (bumps on card refresh),
 	 * day = whole days since the renewal order was created. Scanpay binds keys for
 	 * 24h on both success and error, so repeats within a day dedupe: by design at
-	 * most one real charge attempt per (order, rev) per 24h day-bucket — a card
+	 * most one real charge attempt per (order, rev) per 24h day-bucket -- a card
 	 * update (rev bump) is the only way to charge again sooner.
 	 *
-	 * The day is anchored to the order's creation time rather than the UTC calendar
-	 * so the bucket boundary — where two concurrent attempts could get different
-	 * keys and both charge — sits ~24h away from where attempts actually happen:
-	 * the first attempt fires seconds after WCS creates the renewal order, and
-	 * >=24h retries provably land in a strictly later bucket, just past its start.
-	 * intdiv truncation (not floor) merges small negative DB-vs-PHP clock skew
-	 * into day 0 instead of creating a day boundary at the creation time itself.
+	 * The day is anchored to the order's creation time rather than the UTC calendar so
+	 * the bucket boundary -- where two concurrent attempts could get different keys and
+	 * both charge -- sits ~24h away from where attempts actually happen: the first fires
+	 * seconds after WCS creates the renewal order, and >=24h retries provably land in a
+	 * strictly later bucket, just past its start. intdiv truncation (not floor) merges
+	 * small negative DB-vs-PHP clock skew into day 0 instead of creating a boundary at
+	 * the creation time itself.
 	 *
 	 * The rev is read from the local (sync-written) scanpay_subs row on purpose: it
 	 * only advances when a sync ran, which also writes the scanpay_meta already-paid
 	 * guard, so the key can never outrun that guard and double-charge.
 	 *
-	 * @throws Exception If the subscriber row is missing (rev unknown).
+	 * @throws Exception If the subscriber row is missing or unreadable (rev unknown).
 	 */
 	private function idempotency_key( int $oid, int $subid, int $created ): string {
 		global $wpdb;
@@ -58,14 +57,8 @@ final class WCS_Scanpay_Charge {
 
 
 	/**
-	 * Handle automatic subscription payments.
-	 *
-	 * Triggered by WooCommerce Subscriptions for:
-	 *  - Scheduled automatic renewals via Action Scheduler
-	 *  - Manual “Process renewal” actions in the admin
-	 *
-	 * @param float    $amount Amount to charge for this renewal cycle.
-	 * @param WC_Order $wco    The renewal order object.
+	 * Handle an automatic subscription payment: a renewal scheduled through Action
+	 * Scheduler, or a "Process renewal" action in the admin. $wco is the renewal order.
 	 */
 	public function scheduled_charge( float $amount, WC_Order $wco ): void {
 		$oid   = $wco->get_id();
@@ -79,8 +72,8 @@ final class WCS_Scanpay_Charge {
 			scanpay_log( 'debug', "scheduled charge: order #$oid already paid; skipping (subid=$subid)" );
 			return;
 		}
-		// Zero-amount renewals are normally auto-completed by WCS and won't reach this callback.
-		// This guard is only here for rare edge cases (e.g., 100% discount or proration credit).
+		// WCS normally auto-completes zero-amount renewals without reaching this callback;
+		// this covers the edge cases (a 100% discount, a proration credit).
 		if ( $amount <= 0.0 ) {
 			scanpay_log( 'debug', "scheduled charge: zero-amount renewal on #$oid; skipping charge (subid=$subid)" );
 			$wco->payment_complete();
@@ -108,13 +101,7 @@ final class WCS_Scanpay_Charge {
 		$this->charge( $wco, $subid );
 	}
 
-	/**
-	 * Charge a WooCommerce order using Scanpay.
-	 *
-	 * @param object $wco    WooCommerce order object.
-	 * @param int    $subid  Scanpay subscriber ID.
-	 * @return void
-	 */
+	/** Charge an order against the Scanpay subscriber's stored payment method. */
 	public function charge( object $wco, int $subid ): void {
 		$oid  = $wco->get_id();
 		$data = [
@@ -141,10 +128,8 @@ final class WCS_Scanpay_Charge {
 			],
 		];
 
-		/*
-		 *  Calculate the sum of all items and make our own is_virtual check;
-		 *  $is_virtual feeds the auto-complete/autocapture decision below.
-		 */
+		// $sum is checked against the order total below; $is_virtual feeds the
+		// auto-complete/autocapture decision. WC has no "all items are virtual" query.
 		$sum        = '0';
 		$currency   = $wco->get_currency( 'edit' );
 		$is_virtual = 1;
@@ -158,7 +143,7 @@ final class WCS_Scanpay_Charge {
 					);
 				}
 			}
-			$line_total = $wco->get_line_total( $item, true, true ); // w. taxes and rounded (how Woo does)
+			$line_total = $wco->get_line_total( $item, true, true ); // Incl. tax and rounded, as WC totals it.
 			if ( $line_total >= 0 ) {
 				$line_str        = wc_format_decimal( $line_total, wc_get_price_decimals() );
 				$sum             = wc_scanpay_addmoney( $sum, $line_str );
@@ -192,9 +177,9 @@ final class WCS_Scanpay_Charge {
 		try {
 			$found = $wpdb->query( "SELECT orderid FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
 			if ( false === $found ) {
-				// query() returns false only on a DB error (num_rows stays 0), so we can't tell
-				// "no payment row" from "read failed"; refuse to charge. The catch below marks
-				// the renewal failed so WCS reschedules, and the idempotency key dedupes the retry.
+				// A SELECT returns its row count, or false on error -- never read that as "no
+				// payment row". The catch below marks the renewal failed so WCS reschedules,
+				// and the idempotency key dedupes the retry.
 				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 				throw new \RuntimeException( "scanpay_meta lookup failed: {$wpdb->last_error}" );
 			}

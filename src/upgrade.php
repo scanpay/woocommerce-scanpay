@@ -16,7 +16,7 @@ if ( version_compare( $version, '2.0.0', '<' ) ) {
 
 	require WC_SCANPAY_DIR . '/install.php';
 
-	// Migrate old settings to new settings
+	// Rebuild the settings option on the 3.x field names, keeping the 1.x/2.x values.
 	$old = get_option( WC_SCANPAY_URI_SETTINGS );
 	$arr = [
 		'enabled'              => $old['enabled'] ?? 'no',
@@ -35,7 +35,7 @@ if ( version_compare( $version, '2.0.0', '<' ) ) {
 	];
 	update_option( WC_SCANPAY_URI_SETTINGS, $arr, true );
 } elseif ( version_compare( $version, '2.2.0', '<' ) ) {
-	// make sure that new options exists
+	// Backfill the settings added in 2.2.0; array_merge lets stored values win.
 	$old      = get_option( WC_SCANPAY_URI_SETTINGS );
 	$settings = array_merge(
 		[
@@ -50,7 +50,9 @@ if ( version_compare( $version, '2.0.0', '<' ) ) {
 
 /*
  *  Version: 2.1.3
- *  Temporary fix for bug in old plugin (1.x.x)
+ *  1.x tracked the subscriber id in its own '_scanpay_subscriber_id' meta. Adopt that id
+ *  when it is the higher of the two, unless the subscription's current subid already
+ *  carries the newer transaction -- in which case 1.x's copy is the stale one.
  */
 if ( $wcs_exists && version_compare( $version, '2.1.3', '<' ) ) {
 	$args    = [
@@ -104,5 +106,7 @@ if ( version_compare( $version, '2.5.0', '<' ) ) {
 	update_option( WC_SCANPAY_URI_SETTINGS, $settings, true );
 }
 
-update_option( 'wc_scanpay_version', WC_SCANPAY_VERSION, true ); // with autoload
+// Stamped last: an interrupted upgrade must re-run from the start on the next request.
+// Autoloaded, because the loader gate reads it on every request.
+update_option( 'wc_scanpay_version', WC_SCANPAY_VERSION, true );
 scanpay_log( 'info', 'Scanpay plugin upgrade complete' );

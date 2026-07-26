@@ -5,7 +5,7 @@
  *
  * Overrides the default WC_Payment_Gateway::admin_options() layout.
  *
- * @var WC_Payment_Gateway $gateway Current gateway instance.
+ * @var WC_Gateway_Scanpay_Base $gateway The gateway whose screen is being rendered.
  */
 
 declare(strict_types=1);
@@ -16,15 +16,14 @@ defined( 'ABSPATH' ) || exit();
 /**
  * Display an admin notice.
  *
- * @param string $msg The message to display.
- * @param string $type    The type of notice: 'info', 'warning', 'error', 'success'.
+ * @param string $msg  Pre-escaped HTML message.
+ * @param string $type Notice type: 'info', 'warning', 'error' or 'success'.
  */
 function wc_scanpay_admin_notice( string $msg, string $type = 'info' ): void {
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $msg is trusted, pre-escaped HTML assembled by the callers below.
 	echo '<div class="notice notice-' . esc_attr( $type ) . ' wcsp-notice"><p>' . $msg . '</p></div>';
 }
 
-// Get the shopID from the API key (first part before the colon).
 $settings = get_option( WC_SCANPAY_URI_SETTINGS, [] );
 $shopid   = (int) strstr( (string) ( $settings['apikey'] ?? '' ), ':', true );
 
@@ -36,7 +35,6 @@ $callback_url = WC_SCANPAY_DASHBOARD . $shopid . '/settings/api/setup?module=woo
 	. rawurlencode( $ping_url );
 
 if ( ! $shopid ) {
-	// No API key yet: welcome the merchant and point to the installation guide.
 	$guide_link = sprintf(
 		'<a target="_blank" href="%s">%s</a>',
 		esc_url( 'https://wordpress.org/plugins/scanpay-for-woocommerce/#installation' ),
@@ -58,7 +56,7 @@ if ( ! $shopid ) {
 		$setup_text
 	);
 } else {
-	// API key is set: surface the ping URL to register in the dashboard (core onboarding step).
+	// Nothing syncs until the merchant registers this URL, so keep prompting for it.
 	wc_scanpay_admin_notice(
 		'<strong>' .
 			esc_html__( 'Finish your Scanpay setup', 'scanpay-for-woocommerce' ) .
@@ -75,7 +73,6 @@ if ( ! $shopid ) {
 	);
 }
 
-// Construct the Scanpay logs URL.
 $logs_url = add_query_arg(
 	[
 		'page'     => 'wc-status',
@@ -99,7 +96,7 @@ $logs_url = add_query_arg(
 
 <?php
 
-// Navigation tabs.
+// One tab per gateway; the ids double as the WC settings section.
 $nav_tabs = [
 	'scanpay'           => __( 'General', 'scanpay-for-woocommerce' ),
 	'scanpay_mobilepay' => 'MobilePay',
