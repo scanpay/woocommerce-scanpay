@@ -1,13 +1,20 @@
 {
 	"php.version": "8.0",
-	"php_code_sniffer.enabled": true,
-	"indexer.follow_symlinks": true,
-	"indexer.supported_extensions": ["php"],
+	"indexer.project_root": "%project_root%/src",
 	"indexer.include_patterns": ["/src/**/*.php"],
+	"indexer.exclude_patterns": ["/build", "/.stubs", "vendor", "node_modules"],
+	"indexer.supported_extensions": ["php"],
+	"indexer.follow_symlinks": true,
+	"indexer.max_filesize_to_index": 20000000,
 	"indexer.stub_paths": [
-		"%application_root%/vendor/jetbrains/phpstorm-stubs",
-		"%project_root%/.stubs/wordpress",
-		"%project_root%/.stubs/woocommerce",
-		"%project_root%/.stubs/woocommerce-subscriptions"
-	]
+		"%project_root%/vendor/php-stubs/wordpress-stubs",
+		"%project_root%/vendor/php-stubs/woocommerce-stubs",
+		"%project_root%/vendor/php-stubs/woocommerce-subscriptions-stubs"
+	],
+	"indexer.poll_time": 15000,
+	"indexer.buffer_time": 1000,
+	"language_server_indexer.reindex_timeout": 3600,
+	"php_code_sniffer.enabled": true,
+	"php_code_sniffer.bin": "%project_root%/vendor/bin/phpcs",
+	"php_code_sniffer.cwd": "%project_root%"
 }
