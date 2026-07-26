@@ -28,7 +28,7 @@ Blocks-compatible. `dev` is the feature-complete `v3.0.0` rewrite (up from
   server `woocommerce.scanpay-modules.dev` (ssh alias `modules`), rewriting
   `*.scanpay.dk` → `*.scanpay.dev` in that copy only.
 - Lint before considering a change done: `pnpm phpcs` (autofix `pnpm phpcbf`;
-  WordPress + WooCommerce-Core + PHPCompatibilityWP, short arrays) and
+  WordPress + WordPress-Extra + PHPCompatibilityWP, short arrays) and
   `pnpm lint:js` / `pnpm lint:style`. `lint:js` covers all `src/` TS but does
   not type-check — run `tsc` (tsconfig is `noEmit`; its `include` globs govern
   coverage).

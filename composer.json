@@ -3,9 +3,12 @@
 	"require-dev": {
 		"squizlabs/php_codesniffer": "*",
 		"wp-coding-standards/wpcs": "*",
+		"phpcompatibility/phpcompatibility-wp": "*",
 		"wp-cli/wp-cli-bundle": "*",
-		"woocommerce/woocommerce-sniffs": "*",
-		"wp-cli/wp-cli": "*"
+		"wp-cli/wp-cli": "*",
+		"php-stubs/wordpress-stubs": "*",
+		"php-stubs/woocommerce-stubs": "*",
+		"php-stubs/woocommerce-subscriptions-stubs": "*"
 	},
 	"config": {
 		"allow-plugins": {
