@@ -3,14 +3,14 @@
 <!-- markdownlint-disable MD024 MD036 -->
 <!-- Repeated task templates and compact verification labels are intentional. -->
 
-14 task IDs remain (1–20; **13 was withdrawn**, see Settled decisions). Task 6
-is split into 6b–6d, so there are **16 commits total**, each titled
+13 task IDs remain (1–20; **13 was withdrawn**, see Settled decisions). Task 6
+is split into 6b–6d, so there are **15 commits total**, each titled
 `<summary> (task N)`. No `scanpay:` prefix — see Conventions in `CLAUDE.md`.
 Task numbers are stable identifiers; never renumber, and leave the gaps. They are
 unique *within this plan only* — the closed 35-task backlog already used 1–34, so
 `git log --grep 'task N'` is ambiguous. Disambiguate by date, not by grep.
 
-**Landed 2026-07-20** — sections removed, numbers retired, do not reuse:
+**Landed** — sections removed, numbers retired, do not reuse:
 
 | Task | Commit | Note |
 | --- | --- | --- |
@@ -20,14 +20,30 @@ unique *within this plan only* — the closed 35-task backlog already used 1–3
 | 3 | `62610f5` | Validation no longer gated on the enabled state. |
 | 8 | `7dbc26b` | `wc_scanpay_item_needs_processing()` now takes `$order_id`. |
 | 17 | `2049556` | `orders` added to the flush list. |
+| 2 | `d274f3b` | **Landed with the opposite scope** — see below. |
 
-Only 5 is *verified*. The other five are **implemented, not verified** — their
-runtime lists were never exercised, and no WordPress install exists here to do
-it. Treat them as unproven on a real site until someone runs those lists.
+Only 5 is *verified*. The rest are **implemented, not verified** — their runtime
+lists were never exercised, and no WordPress install exists here to do it. Treat
+them as unproven on a real site until someone runs those lists.
 
-Every premise below was verified against the current `src/` on 2026-07-20. Where
-a task says "verified", it means the cited file:line was read and confirmed, not
-inferred.
+**Task 2 reversed its own item 4 on the way in, and later tasks must read the
+result, not the plan.** The plan said to make classic enforcement exactly
+card-only and not broaden subscription support to the wallets; the commit does
+the opposite, on the ground that the checkbox is a *cart-level consent*: it now
+covers whichever gateway the customer picks, third-party ones included, and stays
+active while our own gateways are disabled. Three consequences:
+
+- The shared predicate is `wcs_scanpay_terms_url()` in
+  `woocommerce-scanpay.php:164` and returns `''` or a URL — not the page-ID-or-`0`
+  helper in `src/library/functions.php` that the plan specified.
+- The Blocks payload carries `$data['terms']` **outside** `$data['methods']` and
+  outside the `enabled` gate (`class-wc-scanpay-blocks-support.php:48-70`).
+- The fragmented Blocks terms sentence is already gone: both renderers now share
+  one `I accept the %s.` msgid. Task 6c no longer owns that fix.
+
+Premises below were verified against `src/` on 2026-07-20 and the anchors
+re-checked on 2026-07-26. Where a task says "verified", it means the cited
+file:line was read and confirmed, not inferred.
 
 ## Working rules
 
@@ -35,22 +51,28 @@ inferred.
 - One task per commit. After committing, clear context; in the fresh context
   reread `AGENTS.md` and this plan, then confirm the working tree and the
   previous commit before starting.
-- Line numbers below are verified anchors for the 2026-07-20 tree, not durable
-  identifiers. Earlier tasks will move them. Locate the cited symbol or text
-  again before editing; never patch a later task by stale line number alone.
+- Line numbers below are verified anchors, not durable identifiers. Earlier tasks
+  will move them. Locate the cited symbol or text again before editing; never
+  patch a later task by stale line number alone. `d274f3b` (Task 2) already
+  rewrote large parts of `woocommerce-scanpay.php` and
+  `public/assets/js/checkout.ts`; anchors into those two files were re-checked on
+  2026-07-26, anchors elsewhere date from 2026-07-20.
 - Do not weaken: money-string arithmetic (`src/library/math.php`), the ping
   protocol, the sync flock, the API-key write-once policy, or the lock-free
   subscription charge design.
 
 ## What you can and cannot verify
 
-**Stub paths in this plan are plugin-relative, not checkout-relative.** The
-WooCommerce stub symlinks a monorepo, so a citation like
-`includes/class-wc-order.php` lives at
-`.stubs/woocommerce/plugins/woocommerce/includes/class-wc-order.php`, and WCS
-citations live under
-`.stubs/woocommerce-subscriptions/vendor/woocommerce/subscriptions-core/`.
-Following them literally from the stub root returns "no such file".
+**Stub paths differ per stub — check the symlink before concluding a file is
+missing.** `.stubs/woocommerce` was re-pointed on 2026-07-26 to the plugin root
+(`…/woocommerce/plugins/woocommerce`), so a WooCommerce citation like
+`includes/class-wc-order.php` now resolves **directly** at
+`.stubs/woocommerce/includes/class-wc-order.php` — the older `plugins/woocommerce/`
+infix in earlier notes is wrong and returns "no such file". WCS is still a
+monorepo symlink: those citations live under
+`.stubs/woocommerce-subscriptions/vendor/woocommerce/subscriptions-core/`. The
+WooCommerce stub currently reports version `11.1.0-dev`, so it settles "what does
+current WooCommerce do", never "what does the 3.6 minimum do".
 
 **There is no WordPress installation here.** No live site, no database, no
 browser, no multisite network, no Redis. You cannot observe an order status
@@ -100,57 +122,43 @@ Plus `pnpm lint:js` and `node_modules/.bin/tsc` for any task touching `.ts`.
 Most tasks are independent. These are not; implement in the order given. A
 safe linearization of every remaining commit is:
 
-`14 → 4 → 15 → 2 → 9 → 10 → 19 → 1 → 7 → 20 → 11 → 6b → 12 → 18 → 6c → 6d`
+`14 → 4 → 15 → 9 → 10 → 19 → 20 → 1 → 7 → 18 → 11 → 6b → 12 → 6c → 6d`
 
 This is not a priority ranking. It is one conflict-minimizing order that
 satisfies all dependencies and deliberately leaves the translation sweep and
 catalog regeneration until no remaining task can add user-facing copy.
 
+**It also groups by file, which the dependency edges alone do not force.** Tasks
+10, 19 and 20 all rewrite `library/class-wcs-scanpay-charge.php`, and 1, 7 and 18
+all rewrite the `payment_complete()` / payment-link region — so each trio lands
+contiguously rather than interleaved. The concrete payoff: Task 20 item 5 has to
+repair a pre-guard comment that Task 10 relocates, and with 20 immediately after
+10 that repair is a one-liner instead of an archaeology exercise.
+
 | Group | Order | Why |
 | --- | --- | --- |
-| i18n | 6b → tasks adding UI copy → 6c → 6d | 6c's **TypeScript** half needs 6b's pipeline (its PHP half does not). Run 6c after Tasks 2, 7, 10, 12, 19, and 20 so its sweep includes their copy; 6d is the final remaining commit. (6a landed; the handle collision it removed is gone.) |
-| Sync completion | 1 → 7 | Both rewrite the same `payment_complete()` call site in `WC_Scanpay_Sync::sync()`. 1 installs a filter around it; 7 handles its `false` return. |
-| Renewal charge | {10, 19} → 20; 1 independent | Only two edges are load-bearing, and both point at 20: its reporter must absorb the free-payment failure Task 10 item 4 introduces and the ownership failure Task 19 introduces. 10, 19 and 1 may land in any order relative to each other — 1 touches the meta write around `charge()`, not the pre-guards. |
+| i18n | 6b → tasks adding UI copy → 6c → 6d | 6c's **TypeScript** half needs 6b's pipeline (its PHP half does not). Run 6c after Tasks 7, 10, 12, 19, and 20 so its sweep includes their copy; 6d is the final remaining commit. (6a and 2 landed; the handle collision and the fragmented terms sentence are gone.) |
+| Sync completion | 1 → 7 | Both rewrite the same `payment_complete()` call site in `WC_Scanpay_Sync::sync()`. **Task 1 lands the whole `try`/`finally` skeleton** (install the filter, remove it in `finally`); Task 7 fills in the `catch` and the reporting. Do not have 1 write a bare filter pair that 7 then restructures. |
+| Renewal charge | {10, 19} → 20; 1 independent | Only two edges are load-bearing, and both point at 20: its reporter must absorb the free-payment failure Task 10 item 4 introduces and the ownership failure Task 19 introduces. 10, 19 and 1 may land in any order relative to each other — 1 touches the meta write around `charge()`, not the pre-guards — but land 20 straight after 10 and 19 anyway, per the file-grouping note above. |
 | Customer-paid renewal | 1 → 18 | **Shared discriminator, not a true dependency.** Both need `$is_request_to_change_payment` in the same branch and their edits are otherwise disjoint. Task 1 introduces it; Task 18 reuses it rather than re-specifying it. Landing 1 first avoids introducing it twice. |
-| Gateway metadata | 11 → 12 | 11 rewrites the gateway getters; 12 builds on that surface. Weak, but avoids a second rewrite. |
+| Gateway metadata | 11 → 12 | 11 rewrites the gateway getters; 12 builds on that surface. Weak, but avoids a second rewrite. Note the visible consequence once 11 lands: disabling all three Scanpay gateways removes them from classic checkout while the subscription terms checkbox still renders, because Task 2 made that consent cart-level. Intended — do not file it as a regression. |
 | Classic Apple Pay i18n | 6b → 12 | Task 12's unsupported-browser notice is authored in TypeScript and needs the JS translation pipeline. |
 | 2.x schema | 14 | 14's migration is version-gated, so a site already stamped `3.0.0` never runs it. Uninstall is the only unconditional cleanup — that half landed as 16. |
 
-Task 8 landed first, so Task 1 inherits its result rather than the reverse:
-`wc_scanpay_item_needs_processing()` now takes `( bool, WC_Product, int )` and
-returns `false` **only for Scanpay orders**, which is what
-`$wco->needs_processing()` reads at `src/public/generate-payment-link.php:76`.
-The filter is registered in **two** places — the card gateway constructor
-(`class-wc-gateway-scanpay-card.php:32-33`) and the sync constructor
-(`class-wc-scanpay-sync.php:62-63`). `WC_Scanpay_Sync` is not loaded on a
-checkout request, so the gateway registration is what covers the checkout path;
-do not conclude that path is unfiltered.
-Task 1's status matrix still assumes a physical order; that assumption is
-unchanged, but the masking it warns about no longer extends to other gateways.
-
 ## Settled decisions — do not re-flag
 
-These have been raised and closed by prior review cycles. Re-filing them wastes a
-cycle.
+`CLAUDE.md` already closes most of them — its "Verified sound" list covers
+ping/sync, `math.php`, the flock, client TLS, capture money math, the secret
+auth, the admin `Scanpay` branding, the live `$this->icon` property, and the
+Blocks compatibility declaration; its Architecture section covers the lock-file
+location, the lock-free charge design and the idempotency key as a rate limiter,
+and the five-minute keepalive. Two more are specific to this plan:
 
-- **Admin gateway title.** `get_title()` returning `'Scanpay'` under `is_admin()`
-  is deliberate branding: sync collapses all three gateways into the `scanpay`
-  payment method (`class-wc-scanpay-sync.php:325-326`) and owns the real
-  `payment_method_title`. Task 11 documents it in code.
-- **`$this->icon` is live.** WooCommerce reads the raw property for the admin
-  Payments list, despite the `get_icon()` overrides. Not dead code.
 - **Empty `card_icons` is not a bug** (the withdrawn Task 13). A stored `''` is
   coerced to `[]` by `WC_Settings_API::get_option()`'s `$empty_value` argument
   (`abstract-wc-settings-api.php:310-312`) before the `(array)` cast, so the
   broken `images/.svg` element is unreachable. Task 11 item 4 adds an
   `array_filter` for consistency only — do not call it a fix.
-- **Lock files belong in the system temp dir.** `WP_TEMP_DIR` is the escape hatch.
-- **The idempotency key is a rate limiter** (≤1 charge per order+rev per 24h).
-  No per-attempt key rotation, no local locks.
-- **Scanpay pings every 5 minutes regardless of changes.** A dropped ping
-  self-heals. Never justify recovery machinery with "otherwise it's lost forever".
-- **Blocks compatibility declaration is a no-op.** The feature defaults to
-  compatible.
 - **Fail-loud governs malformed *Scanpay* payloads, not WooCommerce-side
   completion failures.** Task 7 deliberately catches and continues on the
   `payment_complete()` path; that does not contradict the fail-loud rule, which
@@ -182,6 +190,18 @@ Task 18 later adds thank-you routing to the same branch.
 
 `wc_autocapture` values are `off` / `completed` / `on`, default `completed`
 (`fields/scanpay.php:79-88`).
+
+**Task 8 landed first, so this task inherits its result rather than the reverse.**
+`wc_scanpay_item_needs_processing()` now takes `( bool, WC_Product, int )` and
+returns `false` **only for Scanpay orders**, which is what
+`$wco->needs_processing()` reads at `src/public/generate-payment-link.php:76`.
+The filter is registered in **two** places — the card gateway constructor
+(`class-wc-gateway-scanpay-card.php:32-33`) and the sync constructor
+(`class-wc-scanpay-sync.php:62-63`). `WC_Scanpay_Sync` is not loaded on a
+checkout request, so the gateway registration is what covers the checkout path;
+do not conclude that path is unfiltered. The status matrix below still assumes a
+physical order — that assumption is unchanged — but the masking described above
+no longer extends to other gateways.
 
 ### Fix
 
@@ -224,9 +244,10 @@ Task 18 later adds thank-you routing to the same branch.
    remain false for `off`). **The raise applies only when the discriminator says
    paid renewal** — the same block is also the pure method-change path, which
    leaves `$data['autocapture']` at its `generate-payment-link.php:80` value.
-   Persist that final payload boolean. Do not confuse
-   "request Scanpay capture" with "force WooCommerce completed"; the helper owns
-   only the latter policy.
+   Do not confuse "request Scanpay capture" with "force WooCommerce completed";
+   the helper owns only the latter policy — but the *decision* it returns is
+   conditioned on the former, which is what item 2 collapses into a single stored
+   flag.
 
 2. Couple completion to the capture mode of the actual attempt:
 
@@ -234,15 +255,21 @@ Task 18 later adds thank-you routing to the same branch.
    - `wc_autocapture = off`: never — do not complete a deliberately uncaptured
      physical order.
 
-   Persist the decision (completion intent **and the final boolean
-   `autocapture` value sent in the payload**) in one private prefixed meta key,
-   via the WC order API so it works under HPOS and legacy storage. Sync consumes
-   the persisted value, never live settings — otherwise a merchant toggling
+   **Persist exactly one boolean, not two.** Write a single private prefixed meta
+   key meaning "this attempt asked WooCommerce to force `completed`", and write it
+   as true only when the completion intent from item 1 **and** the final payload
+   `autocapture` boolean are both true at request time. Nothing downstream reads
+   the two apart: the filter is installed only when both hold, so storing them
+   separately buys no information and costs a consistency invariant plus a
+   malformed-state surface (one field hand-edited, the other not) on the sync
+   path. Any value other than an explicit true — absent, empty, `'0'`, a string,
+   an array — is no force-complete request.
+
+   Use the WC order API so it works under HPOS and legacy storage. Sync consumes
+   the persisted flag, never live settings — otherwise a merchant toggling
    `wc_autocapture` mid-payment-window retroactively changes an accepted request.
-   The intent belongs to the first successful/in-flight attempt; a retry must not
-   overwrite it. Treat absent, malformed, or partially hand-edited metadata as
-   no force-complete request; require an explicit true intent and true requested
-   autocapture before installing the filter.
+   The flag belongs to the first successful/in-flight attempt; a retry must not
+   overwrite it.
 
    **When to write differs by path:**
 
@@ -250,24 +277,24 @@ Task 18 later adds thank-you routing to the same branch.
      the existing `PAYID`/`PTIME`/`SHOPID` writes at
      `generate-payment-link.php:183-186` and in that same `save_meta_data()`
      call — no extra order write. Not before: no payment can exist without a
-     returned link, so a pre-write only strands an intent record on a failed
+     returned link, so a pre-write only strands the flag on a failed
      attempt, which the do-not-overwrite rule then pins to the order, locking a
      later retry to the dead attempt's settings.
    - Customer-paid renewal link: retain the returned value from
-     `$client->renew()` instead of returning inline, then persist the intent
+     `$client->renew()` instead of returning inline, then persist the flag
      *after* `renew()` succeeds and before returning the redirect. This branch
      has no existing metadata save, so one `save_meta_data()` is expected. A
      pure method change writes nothing.
    - Renewal charge: write it **between the authoritative already-paid guard
      (which `return`s at `class-wcs-scanpay-charge.php:201-204`) and the
      `$this->client->charge()` call (`:213`), inside the existing `try` opened
-     at `:192`**. That call is a real charge, so the intent must already be
+     at `:192`**. That call is a real charge, so the flag must already be
      durable if the process dies mid-request. Not before the `try`: that would
-     persist intent on an order the guard then declines to charge. Note a
+     persist it on an order the guard then declines to charge. Note a
      `Throwable` from the write is swallowed by the `catch` at `:214` and marks
      the renewal failed — that is the correct outcome, but be deliberate about it.
 
-   **The intent key must not propagate through the WCS data copier.**
+   **The flag must not propagate through the WCS data copier.**
    `WC_Subscriptions_Data_Copier` copies any non-excluded custom meta from a
    subscription onto every renewal order. Combined with the do-not-overwrite
    rule, a key that ever reaches the subscription would pin the first attempt's
@@ -303,16 +330,20 @@ Task 18 later adds thank-you routing to the same branch.
      Scoped, not registered standing, and the reason is not tidiness: this filter
      is not only consulted when *setting* a status. WooCommerce also applies it
      read-only to ask "is this order already in its payment-complete status",
-     gating a `set_date_paid()` backfill. One such site is **unconditional** —
-     `maybe_set_date_paid()` (`class-wc-order.php:366-368`) — and three more fire
-     only for pre-WC-3.0 orders, each gated on
+     gating a `set_date_paid()` backfill. The broadest such site is
+     `maybe_set_date_paid()` (`class-wc-order.php:355`, filter at `:366`), reached
+     from `set_status()` on every save. It is **not** unconditional — the whole
+     body sits behind `if ( ! $this->get_date_paid( 'edit' ) )` (`:357`) — but
+     "every order saved before it has a paid date" is still a large set that has
+     nothing to do with this task. Three further sites fire only for pre-WC-3.0
+     orders, each gated on
      `version_compare( $this->get_version( 'edit' ), '3.0', '<' )`:
-     `class-wc-order.php:961-963`, `class-wc-order-data-store-cpt.php:203`,
-     `OrdersTableDataStore.php:3035-3036`. The unconditional one alone justifies
-     the narrow window: a standing filter returning `completed` would flip that
-     `has_status()` comparison for every Scanpay order, including ones this task
-     never intended to touch. Keep the window as narrow as the single
-     `payment_complete()` call.
+     `class-wc-order.php:970`, `class-wc-order-data-store-cpt.php:203`,
+     `OrdersTableDataStore.php:3035-3036`. The `date_paid` one alone justifies the
+     narrow window: a standing filter returning `completed` would flip that
+     `has_status()` comparison for every unpaid Scanpay order being saved,
+     including ones this task never intended to touch. Keep the window as narrow
+     as the single `payment_complete()` call.
    - **The filter is legitimately re-consulted inside its own window.**
      `payment_complete()` → `set_status()` → `maybe_set_date_paid()` applies it
      again for the same order ID. This is benign — the status is already
@@ -334,8 +365,12 @@ Task 18 later adds thank-you routing to the same branch.
 **Static**
 
 - The filter is installed inside the `:289` block, matches on order ID, and is
-  removed in a `finally` on every path including a `false` return or throw.
-- The persisted meta is read by sync, and written at the point item 2 specifies
+  removed in a `finally` on every path including a `false` return or throw. The
+  `try`/`finally` skeleton is written here in a shape Task 7 can add a `catch`
+  to without restructuring it.
+- Exactly **one** meta key is written, and sync's decision is a single explicit
+  true check against it — grep confirms no second companion key.
+- The persisted flag is read by sync, and written at the point item 2 specifies
   for each path (after `new_url()`, after a customer-paid `renew()`, before
   `charge()`, and never for a method change). Grep confirms the policy helper
   has no sync-side caller and no live read of `wcs_complete_initial`,
@@ -397,108 +432,6 @@ uncaptured physical order; sync never reinterprets the *completion intent* from
 later settings. (`wc_complete_virtual` remains a live read in
 `WC_Scanpay_Sync::__construct()` at `class-wc-scanpay-sync.php:62-63`, by design
 — this task does not change that.)
-
----
-
-## Task 2: One published-page predicate for rendering and validating subscription terms
-
-### Problem
-
-Renderers check page status; validators do not.
-
-- Classic renderer `public/wcs-scanpay-checkout-terms.php:13-16` and Blocks
-  builder `gateways/blocks/class-wc-scanpay-blocks-support.php:76-81` both
-  require `'publish' === get_post_status( … )`.
-- Both validators (`woocommerce-scanpay.php:173` classic, `:208` Blocks) only
-  check `'0' !== ( $settings['wcs_terms'] ?? '0' )`, then reject on a missing
-  `wcssp-terms`.
-
-The classic validator has a separate scope bug at
-`woocommerce-scanpay.php:166`: `str_starts_with( ..., 'scanpay' )` admits the
-MobilePay and Apple Pay IDs despite the adjacent card-only comment. The Blocks
-validator correctly requires the exact `scanpay` ID. Normal WCS availability
-filtering usually hides the wallets, but a crafted classic POST should not turn
-that mismatch into terms enforcement for a gateway that cannot render or
-support subscriptions.
-
-Drafted, private, trashed, or deleted page → no checkbox rendered, no payment
-data sent, validator still rejects. Every applicable subscription checkout
-dead-ends until the merchant changes the setting.
-
-A stored `''` is a second, distinct dead-end: `'' !== '0'` so validation
-proceeds, while `get_post_status( 0 )` is `false` so the checkbox hides.
-
-### Fix
-
-1. Add a shared helper returning the configured page ID, or `0` unless: settings
-   are an array, `wcs_terms` is a positive page ID, and `get_post_status()` is
-   exactly `publish`.
-
-   It takes **no arguments** and reads `WC_SCANPAY_URI_SETTINGS` itself (the
-   option is autoloaded, so the extra read is cache-free), so all four sites call
-   it identically — three of them already hold `$settings` in scope and would
-   otherwise diverge on whether to pass it.
-
-   Put it in `src/library/functions.php` with the existing prefix. No new
-   `require` is needed — that file is already loaded on every request reaching
-   all four sites (via `gateways/class-wc-gateway-scanpay-card.php:7`, required
-   unconditionally at `woocommerce-scanpay.php:299`), and all four fire at or
-   after `init`.
-
-2. Use it in all four places: classic renderer, Blocks builder, classic
-   validator, Blocks/Store API validator. If it returns `0`, the checkbox is
-   disabled and the request must not be rejected for omitting it.
-
-3. Resolve the page URL only after the helper confirms publication.
-
-4. Make card-only enforcement exact in the **classic** validator
-   (`woocommerce-scanpay.php:166`, `'scanpay' === ...`), preserving the existing
-   WCS/cart checks. The Blocks validator (`:197`) is **already exact** — leave it
-   and its comment alone. Do not broaden subscription support to the wallets.
-
-   Note the classic renderer is hooked on `woocommerce_review_order_before_submit`
-   (`woocommerce-scanpay.php:311`), which is gateway-agnostic: the checkbox
-   renders once for the order review regardless of the selected method. After
-   this tightening it is therefore visible-but-unenforced while a wallet is
-   selected. **That is intended — do not add a gateway condition to the
-   renderer**, which would reintroduce a render/validate split in the opposite
-   direction.
-
-   Standardize the settings guard while here: the classic renderer uses a truthy
-   `$settings &&` (`wcs-scanpay-checkout-terms.php:14`) where the validators use
-   `is_array()`.
-
-### Verify
-
-**Static**
-
-- Grep confirms exactly four call sites and no surviving inline `wcs_terms`
-  status check.
-- Trace each of the five stored-value states through the helper and state the
-  rendered/validated outcome. This is a pure-logic table — derive it, don't test it.
-
-| Stored value | Page state | Checkbox | Missing acceptance |
-| --- | --- | --- | --- |
-| `0` | N/A | Hidden | Allowed |
-| `''` | N/A | Hidden | Allowed |
-| Valid ID | Published | Shown | Rejected |
-| Valid ID | Draft/private/trashed | Hidden | Allowed |
-| Deleted ID | Missing | Hidden | Allowed |
-
-- Confirm the Blocks validator still rejects a crafted request that omits
-  acceptance while the page is published.
-- Confirm both validators reject only for the exact `scanpay` payment method;
-  crafted `scanpay_mobilepay` and `scanpay_applepay` requests do not enter terms
-  validation.
-
-**Runtime (hand off)**
-
-Classic and Blocks checkout with a subscription in the cart, per row above.
-
-### Done when
-
-The renderer cannot hide the checkbox while the validator requires it, and
-published terms stay enforced server-side in both checkouts.
 
 ---
 
@@ -638,8 +571,7 @@ Three changes with different risk profiles, in order (6a landed 2026-07-20). Two
 scope decisions apply throughout:
 
 - Rewriting awkward English source copy is **out of scope** — it is not
-  internationalization, it invalidates existing translations, and it overlaps
-  Task 2's files.
+  internationalization, and it invalidates existing translations.
 - Operational diagnostics stay untranslated. See 6c for the rule.
 
 ## Task 6b: Add JavaScript translation plumbing to the build
@@ -652,11 +584,13 @@ No admin script can be translated. All three enqueues pass `[]` deps
 and `i18n make-php` (`:52`) — no `make-json`, so no Jed catalog exists.
 
 **The blocking constraint is extraction.** `wp i18n make-pot` does not parse
-TypeScript. All 67 `#:` references in
-`src/languages/scanpay-for-woocommerce.pot` point at `.php` files, none at `.ts`
-or `.js` — though note that is corroboration, not proof: `src/` contains no
-`.js` at all (only eight `.ts`), so the extractor was never offered a JS file.
-The conclusion stands on make-pot having no TypeScript parser.
+TypeScript. Every `#:` reference in `src/languages/scanpay-for-woocommerce.pot`
+points at a `.php` file, none at `.ts` or `.js` — though note that is
+corroboration, not proof: `src/` contains no `.js` at all (only eight `.ts`), so
+the extractor was never offered a JS file. The conclusion stands on make-pot
+having no TypeScript parser. (Re-confirmed after `c56a45e` regenerated the POT on
+2026-07-26; that regeneration changed only line references and fixed nothing this
+task or 6d owns.)
 
 `pnpm i18n:po` (`package.json:48`) runs `make-pot` and scans `src`; `pnpm
 i18n:pot` (`:49`) runs `update-po`. **The two script names are inverted relative
@@ -696,13 +630,23 @@ JavaScript.
 
    Two consequences to state rather than discover:
 
-   - **`{{ VERSION }}` never reaches the JSON catalog.** `build.sh:54`
-     substitutes only in `*.php`, `*.js`, `*.txt` under `$BUILD`. Task 6c will
-     wrap `settings.ts:147,153`, whose strings *contain* `{{ VERSION }}` — so the
-     generated `build/languages/*.php` catalog gets substituted while the `*.json`
-     Jed catalog does not, and the Danish admin string renders a literal
-     `{{ VERSION }}` while English is correct. Either add `*.json` to that loop
-     or keep `{{ VERSION }}` out of translatable strings.
+   - **A `{{ VERSION }}` token inside a translatable string silently defeats the
+     catalog.** `build.sh:54` substitutes in `*.php`, `*.js`, `*.txt` under
+     `$BUILD` — but **not** `*.json`. Task 6c will wrap the outdated-plugin banner
+     at `settings.ts:152-154`, whose string *contains* `{{ VERSION }}`. The
+     shipped `.js` therefore gets substituted while the Jed `.json` keeps the raw
+     token, so at runtime `__()` is called with `…<i>3.0.0</i>…` while the catalog
+     is keyed on `…<i>{{ VERSION }}</i>…`: the lookup misses and the string renders
+     **untranslated**. Note the failure mode — it is not "Danish shows a literal
+     `{{ VERSION }}`", it is "Danish silently stays English", which is far easier
+     to ship without noticing.
+
+     Adding `*.json` to that loop does fix the mismatch, but the better fix is to
+     keep build tokens out of translatable strings entirely: make the msgid
+     `…<i>%s</i>…` and fill it at runtime with `wp.i18n.sprintf`, taking the
+     version from data the script already receives. That keeps the msgid stable
+     across releases (a build-token msgid changes every version bump, orphaning
+     the translation) and removes a token translators can silently corrupt.
    - **This makes `./build.sh` mutate tracked files.** Step 4 writes
      `src/languages/*.po`, which today's build never touches. A dirty tree after
      a build is expected from here on; say so, or the next person reverts it.
@@ -726,7 +670,7 @@ JavaScript.
 4. Declare `wp-i18n` as a dependency at all three enqueue sites and call
    `wp_set_script_translations()` with the plugin's languages directory — which
    must agree with `load_plugin_textdomain`'s hardcoded
-   `'scanpay-for-woocommerce/languages'` (`woocommerce-scanpay.php:348`).
+   `'scanpay-for-woocommerce/languages'` (`woocommerce-scanpay.php:412`).
 
    The three handles are `wc-scanpay-settings` (`settings.php:53`),
    `wc-scanpay-order` (`orders.php:101`), and `wc-scanpay-subs`
@@ -736,10 +680,12 @@ JavaScript.
    and takes no translations.
 
 5. Consume `wp.i18n` as a window global. Be precise about the pattern this
-   mirrors: `checkout.ts:11` does plain `window.wp.element` property access,
-   typed by an `interface Window` (`types/checkout.d.ts:7-11`), with the global
+   mirrors: `checkout.ts:11-12` does plain `window.wp.element` / `window.wp.data`
+   property access, typed by an `interface Window` (`types/checkout.d.ts:7-17`),
+   with the global
    guaranteed by the `wp-element` script dependency declared in PHP
-   (`class-wc-scanpay-blocks-support.php:27`). It is not an esbuild
+   (`class-wc-scanpay-blocks-support.php:29`, the dependency array). It is not an
+   esbuild
    `--external`/`--global-name` mapping — `build.sh` passes only
    `--bundle --minify`. Items 4 and 5 are two halves of one mechanism. Do not
    bundle a second translation runtime.
@@ -790,12 +736,13 @@ banner in **two** places — `types/meta.ts:80` and `settings.ts:152-154`, which
 are separate copies of one message and must end up as one translatable string,
 not two. Drive the sweep from the classification rule, not the list.
 
-One sentence is fragmented across independently translated pieces:
-`class-wc-scanpay-blocks-support.php:84-86` builds the terms line from
-`'before' => __( 'I accept the ' )` (trailing space), a separate `'link'`, and a
-literal `'after' => '.'`. A translator cannot reorder it. The **classic** renderer
-is already correct — `wcs-scanpay-checkout-terms.php:18-22` uses a single
-`__( 'I accept the %s.' )` with `sprintf()` and a translator comment.
+**The fragmented Blocks terms sentence is no longer part of this task.** Task 2
+(`d274f3b`) replaced the `'before'`/`'link'`/`'after'` construction with a single
+`I accept the %s.` msgid shared verbatim by the classic renderer
+(`wcs-scanpay-checkout-terms.php:21-25`) and the Blocks payload
+(`class-wc-scanpay-blocks-support.php:62-67`), split on `%s` in `checkout.ts`.
+Leave it alone; the remaining sweep is the admin TypeScript and the PHP strings
+below.
 
 ### Fix
 
@@ -845,8 +792,6 @@ is already correct — `wcs-scanpay-checkout-terms.php:18-22` uses a single
   fully doable statically.
 - Confirm no `scanpay_log()` call, internal exception, or AJAX error code was
   wrapped.
-- Confirm the Blocks terms line is a single translatable sentence with a
-  placeholder, and that the payload cannot carry unescaped markup.
 
 **Runtime (hand off)** — Danish across all three settings pages, both meta boxes,
 classic and Blocks checkout, order notes; confirm plurals and placeholder
@@ -863,8 +808,9 @@ untranslated.
 ### Problem
 
 `src/languages/scanpay-for-woocommerce-da_DK.po` predates the rewrite — **39 of
-its 45 source references are stale** (six resolve, all to
-`woocommerce-scanpay.php`: five plugin-header entries plus one at `:167`): `includes/form-fields.php`,
+its 45 source references are stale** (six name a file that still exists, all
+`woocommerce-scanpay.php`: five plugin-header entries plus one recorded at
+`:250`, a line that no longer holds that string): `includes/form-fields.php`,
 `gateways/class-wc-scanpay-gateway-applepay.php`,
 `gateways/class-wc-scanpay-gateway-mobilepay.php`, `includes/admin-options.php`,
 `hooks/class-wc-scanpay-blocks-support.php`, `gateways/class-wc-scanpay-gateway.php`.
@@ -874,16 +820,23 @@ being generated against `src` rather than the plugin root:
 `Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/src`
 (`scanpay-for-woocommerce.pot:6`).
 
+`c56a45e` regenerated the POT on 2026-07-26. It fixed **none** of the above: the
+`plugin/src` header and the timestamped `POT-Creation-Date` both survive, and the
+Danish PO was not touched at all. Do not read that commit as partial credit for
+this task.
+
 ### Fix
 
-1. Run **last across the whole plan**, not merely last within Task 6. Tasks 2,
-   7, 10, 12, 19, and 20 can add or change merchant/customer-facing copy; 6c
+1. Run **last across the whole plan**, not merely last within Task 6. Tasks 7,
+   10, 12, 19, and 20 can add or change merchant/customer-facing copy; 6c
    sweeps after them, and 6d regenerates only when no remaining task can stale
    the catalogs again.
-2. Regenerate the POT through 6b's pipeline so it covers PHP and built JS, and
-   fix `Report-Msgid-Bugs-To`. Keep 6b's deliberately blank
-   `POT-Creation-Date`; reproducibility is more useful than a timestamp that
-   changes on every extraction.
+2. Regenerate the POT through 6b's pipeline so it covers PHP and built JS, then
+   **verify** the headers rather than setting them again: 6b item 2 already
+   requires passing `Report-Msgid-Bugs-To` and a blank `POT-Creation-Date` to
+   `make-pot`. If either is still wrong here, the bug is in 6b's pipeline — fix it
+   there. Do not introduce a second place that stamps POT headers; reproducibility
+   is more useful than a timestamp that changes on every extraction.
 3. Update the Danish PO: merge against the new POT, remove obsolete pre-rewrite
    entries and the duplicate header, translate all maintained user-facing
    strings. Preserve product names and technical terms where translating would
@@ -998,6 +951,11 @@ Two consequences are **correct behavior** and must not be "repaired":
 6. Keep Task 1's scoped override compatible: any filter installed around
    `payment_complete()` must still be removed in a `finally` when it returns
    `false` or throws (Task 1 item 3 is the canonical statement of that rule).
+
+   **Task 1 already built the `try`/`finally` here — extend it, do not rewrite
+   it.** If Task 1 landed as specified, this task adds a `catch` and the
+   reporting to an existing structure. If you find yourself restructuring Task 1's
+   block, re-read its item 3 first; one of the two implementations is wrong.
 
    **Ordering matters, and the two tasks collide if you ignore it.** `catch` runs
    *before* `finally`, so a note added from the catch body would execute with
@@ -1278,7 +1236,8 @@ The custom getters also bypass public contracts:
 - `get_transaction_url()` (`base:62-66`) omits `woocommerce_get_transaction_url`
   (`:295-313`).
 
-The `is_admin()` `Scanpay` title is **not** a defect — see Settled decisions.
+The `is_admin()` `Scanpay` title is **not** a defect — see "Verified sound" in
+`CLAUDE.md`.
 
 ### Fix
 
@@ -1299,9 +1258,25 @@ The `is_admin()` `Scanpay` title is **not** a defect — see Settled decisions.
 
    Do not read these through `get_option()` with a default:
    `WC_Settings_API::get_option()` force-loads the form fields when the key is
-   missing (`abstract-wc-settings-api.php:305-308`), and the card fields file runs
+   missing (`abstract-wc-settings-api.php:304-307`), and the card fields file runs
    `get_pages()` (`admin/settings/fields/scanpay.php:11`). Read
    `$this->settings['title'] ?? $default` directly.
+
+   **State the scope honestly — avoiding it here does not remove the hazard.**
+   The card gateway's *constructor* already calls `get_option( 'stylesheet' )`
+   (`class-wc-gateway-scanpay-card.php:29`) and
+   `get_option( 'wc_complete_virtual' )` (`:32`) on every request that builds the
+   gateways, front end included, and `get_icon()` adds `card_icons` (`:43`). So
+   the plugin has five such call sites, not three, and two of them run before
+   checkout renders anything. Two facts keep this proportionate rather than
+   alarming: the miss only happens for a key genuinely absent from the saved
+   option (`init_settings()` merges field defaults when the option is not an
+   array, and `upgrade.php` backfills `stylesheet` and `wc_complete_virtual` on
+   every 2.x path), and both `$this->settings[$key]` and `$this->form_fields`
+   memoize, so the worst case is **one** fields load — and one `get_pages()` —
+   per request, not five. Reading the properties directly is still right; just do
+   not claim it eliminates a per-request `get_pages()` that `:29` can still
+   trigger on its own.
 
    Preserve these two consequences explicitly:
 
@@ -1326,8 +1301,9 @@ The `is_admin()` `Scanpay` title is **not** a defect — see Settled decisions.
 
    Do not extend this to `card_icons` — `class-wc-gateway-scanpay-card.php:43`
    keeps `get_option( 'card_icons', [] )` because item 4 relies on that call's
-   `$empty_value` coercion. It carries the same cost on the same request, so if
-   that cost is unacceptable, fix all three together.
+   `$empty_value` coercion. Per the scope note above, it shares one memoized
+   fields load with the constructor's two calls; if that cost is ever judged
+   unacceptable, fix all five together rather than picking off one.
 
 2. Delete the `get_description()` override. Once the property is initialized the
    parent supplies the filter and version-appropriate sanitization.
@@ -1359,7 +1335,7 @@ The `is_admin()` `Scanpay` title is **not** a defect — see Settled decisions.
    While rewriting `WC_Gateway_Scanpay_Card::get_icon()`, filter out empty entries
    so classic and Blocks share one normalization rule
    (`array_values( array_filter( … ) )`, matching
-   `class-wc-scanpay-blocks-support.php:54`). This is **defensive consistency,
+   `class-wc-scanpay-blocks-support.php:79`). This is **defensive consistency,
    not a bug fix** — see Settled decisions. Do not describe it as fixing a broken
    checkout image.
 
@@ -1387,11 +1363,11 @@ The `is_admin()` `Scanpay` title is **not** a defect — see Settled decisions.
 6. Do not replace the lazy form-field loading or the shared primary settings.
 
 7. Add a one-line comment at the `is_admin()` branch stating the branding is
-   deliberate and why, and add it to the "verified sound" list in `CLAUDE.md`,
-   mirrored to `AGENTS.md`.
+   deliberate and why. The docs half is already done — it is in the "Verified
+   sound" list in both `CLAUDE.md` and `AGENTS.md`; do not add it twice.
 
 8. **Keep Blocks deliberately separate and record why.**
-   `class-wc-scanpay-blocks-support.php:41`, `:48-49`, `:54` read `title`,
+   `class-wc-scanpay-blocks-support.php:43`, `:73-74`, `:79` read `title`,
    `description`, and `card_icons` straight from settings and never call the
    getters — bypassing both the `$empty_value` coercion and every filter this task
    restores. Do not route Blocks through these classic getters: their filters may
@@ -1456,7 +1432,7 @@ Blocks remains a plain-text payload by an explicit, documented decision.
 
 Blocks gives `scanpay_applepay` a method-specific `canMakePayment` requiring
 `ApplePaySession.canMakePayments() === true`
-(`public/assets/js/checkout.ts:21-26`, wired at `:109`). Classic checkout has no
+(`public/assets/js/checkout.ts:22-26`, wired at `:65`). Classic checkout has no
 equivalent — there is **no `is_available()` override anywhere in `src/`**, so
 `WC_Gateway_Scanpay_ApplePay` inherits WooCommerce's default
 (`abstract-wc-payment-gateway.php:346-357`: enabled plus a max-amount check) and
@@ -1497,10 +1473,10 @@ Selecting it redirects to the hosted window with `go=applepay`
    the method with no page argument.
 
    The comparable existing pattern is
-   `class-wc-gateway-scanpay-card.php:29-31,95-99` (hook
-   `wp_enqueue_scripts` from the constructor); all three gateways are always
-   registered (`woocommerce-scanpay.php:104-106`, `:298-304`), so that hook
-   point is available — it just needs the stronger guard.
+   `class-wc-gateway-scanpay-card.php:30` and its `enqueue_checkout_styles()`
+   callback (hook `wp_enqueue_scripts` from the constructor); all three gateways
+   are always registered (`woocommerce-scanpay.php:104-106`, `:356-362`), so that
+   hook point is available — it just needs the stronger guard.
 
    Use the handle `wc-scanpay-applepay`, matching 6a's `wc-scanpay-*` scheme.
    Declare `jquery` and `wp-i18n` as dependencies: classic checkout's fragment
@@ -1553,7 +1529,7 @@ Selecting it redirects to the hosted window with `go=applepay`
   `./build.sh` emits its `.js` into the release tree without shipping the `.ts`.
 - Confirm the enqueue guard excludes Blocks by an actual block check, not
   `is_checkout()` alone.
-- Confirm the probe expression matches `checkout.ts:25` exactly.
+- Confirm the probe expression matches `checkout.ts:26` exactly.
 - Confirm the new handle depends on `jquery` and `wp-i18n`, has script
   translations attached, and the unsupported sole-gateway branch cannot submit
   a hidden Apple Pay input.
@@ -1885,9 +1861,9 @@ adds no retry or recovery state.
 `WC_Scanpay_Capture` derives the shop ID from the API key, refuses to run with a
 malformed key (`class-wc-scanpay-capture.php:22-25`), and throws on mismatch
 (`:52-56`). The renewal charge path has no equivalent:
-`WCS_Scanpay_Charge::__construct()` (`class-wcs-scanpay-charge.php:17-19`) accepts
-the key without deriving a shop ID, and `scheduled_charge()` reads only
-`_scanpay_subid` (`:72`).
+`WCS_Scanpay_Charge::__construct()` (`class-wcs-scanpay-charge.php:10-20`, the key
+reaching the client at `:19`) accepts the key without deriving a shop ID, and
+`scheduled_charge()` reads only `_scanpay_subid` (`:72`).
 
 After a merchant switches shops, subscriptions still carry the old shop's
 subscriber IDs. Reset drops `scanpay_subs`, so `idempotency_key()` initially
@@ -1911,7 +1887,7 @@ mistake with a cheap local check.
    **Report the failure from `scheduled_charge()`, not the constructor.**
    `__construct()` has no order context — `$wco` first appears in
    `scheduled_charge( float, WC_Order )` — and the hook memoizes the handler in
-   `static $handler` (`woocommerce-scanpay.php:229-232`), so a constructor throw
+   `static $handler` (`woocommerce-scanpay.php:286-293`), so a constructor throw
    is per-request, not per-renewal. Derivation may live in the constructor;
    reporting may not.
 
@@ -1950,6 +1926,17 @@ mistake with a cheap local check.
    subscription via `wcs_get_subscriptions_for_order()` instead of the copied
    renewal-order meta. That removes the dependency on WCS's copier and on copy
    timing, but costs a lookup per renewal — a follow-up, not part of this task.
+
+   **A `shopid` column on `scanpay_subs` looks cheaper and does not work — do not
+   re-propose it.** `idempotency_key()` already runs
+   `SELECT rev FROM scanpay_subs WHERE subid = …`, so carrying a shop ID there
+   would appear free and would sidestep the missing-meta asymmetry entirely. But
+   it defends against nothing: after a shop switch the *new* shop's sync upserts
+   that same `subid` row with its own shop ID, so a numerically colliding
+   subscriber would present the current shop's ID and pass. The guard has to
+   compare against what the **subscription** was created under, which only the
+   order/subscription meta records. That is why this task reads meta despite the
+   1.x gap, and why the check cannot be moved into the table.
 
 4. Keep the guard read-only. No locks, retry state, key rotation, or coordination
    in `scanpay_subs`.
@@ -2019,10 +2006,10 @@ never pre-validated. `wc_format_decimal()` returns `''` for null/empty input
 
 Widening `charge()`'s `try` does not achieve the goal, because **the escape
 surface is the hook, not the method**. `wcs_scanpay_scheduled_charge()`
-(`woocommerce-scanpay.php:228-234`) wraps nothing, so these still reach Action
+(`woocommerce-scanpay.php:286-293`) wraps nothing, so these still reach Action
 Scheduler:
 
-- The lazy `require` (`:231`) and `new WCS_Scanpay_Charge()` (`:232`).
+- The lazy `require` (`:289`) and `new WCS_Scanpay_Charge()` (`:290`).
 - Everything in `scheduled_charge()` outside `charge()` — `wc_format_decimal()`,
   `get_total()`, the pre-guards, and the free-renewal `payment_complete()`.
 - The three `update_status( 'failed', … )` calls in `scheduled_charge()`
@@ -2060,7 +2047,7 @@ Scheduler:
    fatal compile error, not a `Throwable`, which no `catch` can contain. That is
    out of scope — do not add machinery for it.
 
-   **Change `require` to `require_once` at `:231`.** Today a constructor throw
+   **Change `require` to `require_once` at `:289`.** Today a constructor throw
    kills the request. Once the outer catch swallows it, the next Action Scheduler
    action *in the same request* re-enters the hook with `$handler` still null and
    re-requires the file — a fatal class redeclaration. Action Scheduler batches
