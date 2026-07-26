@@ -78,7 +78,6 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	$data = [
 		'orderid'     => (string) $oid,
 		'autocapture' => $capture_on_complete || 'on' === $autocapture,
-		// phpcs:ignore WooCommerce.Commenting.CommentHooks.MissingHookComment -- Re-applies WooCommerce core's 'woocommerce_get_return_url' filter; documented in WooCommerce, not owned here.
 		'successurl'  => apply_filters( 'woocommerce_get_return_url', $wco->get_checkout_order_received_url(), $wco ),
 		'lifetime'    => '15m',
 		'billing'     => [
