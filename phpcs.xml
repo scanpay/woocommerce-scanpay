@@ -8,7 +8,6 @@
 
     <!-- Base standards -->
     <rule ref="WordPress"/>
-    <rule ref="WooCommerce-Core"/>
     <rule ref="PHPCompatibilityWP"/>
 
     <!-- I18n: enforce your text-domain -->
@@ -41,6 +40,13 @@
 
 		<!-- Prepared SQL: not always needed -->
 		<exclude name="WordPress.DB.PreparedSQL"/>
+
+		<!-- The plugin owns scanpay_seq/_meta/_subs outright, so $wpdb is the only way
+		     to reach them: no WP API wraps custom tables, there is nothing to cache
+		     behind (sync is the cache), and install.php must issue DDL. -->
+		<exclude name="WordPress.DB.DirectDatabaseQuery.DirectQuery"/>
+		<exclude name="WordPress.DB.DirectDatabaseQuery.NoCaching"/>
+		<exclude name="WordPress.DB.DirectDatabaseQuery.SchemaChange"/>
 
 		<!-- Short ternaries (a ?: b) are allowed as a deliberate style choice -->
 		<exclude name="Universal.Operators.DisallowShortTernary"/>
