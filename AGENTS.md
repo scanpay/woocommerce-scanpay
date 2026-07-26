@@ -14,14 +14,20 @@ Blocks-compatible.
   WordPress.org.
 - `docs/requirements.md` holds the rationale for every WP/WC/PHP minimum. Read it
   before reaching for a newer API: anything above the floor needs a runtime guard,
-  not a version bump.
+  not a version bump. `pnpm phpcs` enforces the PHP floor (PHPCompatibilityWP);
+  the WP and WC floors are yours to check — `vendor/php-stubs/` carries the
+  `@since` tags, so read the stub instead of trusting memory.
 - **pnpm, not npm** (`package-lock.json` is gitignored).
 - `./build.sh` is the whole build, no webpack: rsync `src` → `build`, sass, esbuild
   for TS, wp-cli i18n, `{{ VERSION }}`-style substitution from `package.json`, and
   an optional rsync-deploy to the test server (ssh alias `modules`). A `.ts` file
   only ships once esbuild emits its `.js`.
-- Before calling a change done: `pnpm phpcs` (autofix `pnpm phpcbf`),
-  `pnpm lint:js`, `pnpm lint:style`, and `tsc` — `lint:js` does not type-check.
+- **The linters are the validation.** No test suite runs here, so `pnpm phpcs`
+  (autofix `pnpm phpcbf`), `pnpm lint:js`, `pnpm lint:style` and `pnpm exec tsc`
+  — there is no `tsc` script, hence `exec` — are what a change is checked
+  against; all four clean before calling it done. They see syntax, style and
+  types only. Anything that needs a running shop stays **unverified**: say so
+  rather than imply it was tested.
 
 ## Code style: procedural and modular, not OOP
 
@@ -47,8 +53,10 @@ procedural, hook-based host.
 - **Fail loud.** Primitives throw; one place per flow catches. A typed parameter is
   the preferred guard — a `TypeError` beats a defensive `if`.
 
-The accepted cost is that nothing here is unit-testable (verification happens on a
-real shop) and no tool checks array field names. Comments are the compensation.
+The accepted cost is that nothing here is unit-testable (behaviour is verified on
+a real shop) and no tool checks array field names. Comments are the compensation,
+and what verification runs on: a change is checked against the invariants they
+state, so a comment that has drifted is a broken test.
 
 ## Comments
 
