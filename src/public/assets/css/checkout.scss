@@ -34,6 +34,16 @@
 }
 
 /*
+    Subscription terms checkbox (checkout.ts). It renders as a forced
+    checkout block at the end of the payment block, so it needs its own
+    separation from the payment method list above it -- nothing in
+    WooCommerce spaces it for us.
+*/
+.wcsp-blocks-terms {
+	margin-top: 1.5em;
+}
+
+/*
     CSS for the old Checkout
 */
 

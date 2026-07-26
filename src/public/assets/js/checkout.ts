@@ -9,6 +9,7 @@
 import { WooPaymentMethodData } from './types/checkout';
 
 const { createElement, Fragment, useState, useEffect } = window.wp.element;
+const { dispatch, useSelect } = window.wp.data;
 const data = window.wc.wcSettings.getSetting('scanpay_data') as WooPaymentMethodData;
 
 /**
@@ -27,55 +28,6 @@ function canMakePayment(name: string): () => boolean {
 
 for (const name in data.methods) {
 	const method = data.methods[name];
-	const terms = method.terms;
-
-	/*
-	 *  Content shown when the method is the selected gateway. Besides the description it
-	 *  renders the subscription-terms checkbox (card gateway only) and enforces it:
-	 *  onCheckoutValidation blocks "Place order" client-side, onPaymentSetup forwards the
-	 *  acceptance to the server, which re-validates it (wcs_scanpay_blocks_validate_terms).
-	 */
-	function Content(props: { eventRegistration: any; emitResponse: any }) {
-		const { eventRegistration, emitResponse } = props;
-		const [accepted, setAccepted] = useState(false);
-
-		useEffect(() => {
-			if (!terms) {
-				return;
-			}
-			return eventRegistration.onCheckoutValidation(() => (accepted ? true : { errorMessage: terms.error }));
-		}, [accepted, eventRegistration]);
-
-		useEffect(() => {
-			if (!terms) {
-				return;
-			}
-			return eventRegistration.onPaymentSetup(() => ({
-				type: emitResponse.responseTypes.SUCCESS,
-				meta: { paymentMethodData: { 'wcssp-terms': accepted ? '1' : '' } },
-			}));
-		}, [accepted, eventRegistration, emitResponse]);
-
-		return createElement(
-			Fragment,
-			null,
-			method.description,
-			terms &&
-				createElement(
-					'label',
-					{ className: 'wcsp-blocks-terms', style: { display: 'block', marginTop: '0.75em' } },
-					createElement('input', {
-						type: 'checkbox',
-						checked: accepted,
-						onChange: (e: { target: { checked: boolean } }) => setAccepted(e.target.checked),
-					}),
-					' ',
-					terms.before,
-					createElement('a', { href: terms.url, target: '_blank', rel: 'noopener noreferrer' }, terms.link),
-					terms.after
-				)
-		);
-	}
 
 	const label = createElement(
 		'span',
@@ -100,15 +52,109 @@ for (const name in data.methods) {
 		)
 	);
 
+	// Shown when the method is the selected gateway. Just the description: the subscription
+	// terms checkbox used to live here, but it is a checkout-wide consent (see below).
+	const content = createElement(Fragment, null, method.description);
+
 	window.wc.wcBlocksRegistry.registerPaymentMethod({
 		name,
 		ariaLabel: name,
 		label,
-		content: createElement(Content, null),
-		edit: createElement(Fragment, null, method.description),
+		content,
+		edit: content,
 		canMakePayment: canMakePayment(name),
 		supports: {
 			features: method.supports,
 		},
+	});
+}
+
+/*
+ *  Subscription terms checkbox (WooCommerce Subscriptions). This is a cart-level consent, so
+ *  it has to apply to whichever gateway the customer picks -- including third-party ones --
+ *  which is why it is not rendered inside our payment method's content.
+ *
+ *  registerCheckoutBlock({ force: true }) renders it even though no merchant inserted the
+ *  block, so the feature needs no setup. The only other auto-rendering extension points are
+ *  the ExperimentalOrder* slots, and those sit inside the order summary, which is collapsed
+ *  by default on mobile -- no place for a required checkbox.
+ *
+ *  Parent is the payment block, not the fields block that holds it: forced blocks are
+ *  appended after their parent's existing children, and the fields block's last child is
+ *  the actions block, so anchoring there would render the checkbox *below* "Place order".
+ *  The payment block is locked against both remove and move (its block.json), so it is
+ *  always present and always ahead of the terms and actions blocks. The checkbox lands
+ *  under the payment method list -- after it, not inside any single method.
+ *
+ *  Enforced the way WooCommerce enforces its own terms block: a validation error registered
+ *  as hidden blocks "Place order" without showing a message until a submit is attempted,
+ *  which un-hides it. The state is also pushed to the checkout store so the Store API
+ *  request carries it for wcs_scanpay_blocks_validate_terms() to re-check server-side.
+ */
+const terms = data.terms;
+if (terms) {
+	const errorId = 'wcssp-terms';
+	// Unpacked here rather than read through `terms` inside Terms(): a hoisted function
+	// declaration loses the narrowing that the `if` above establishes.
+	const { url, link, error: errorText } = terms;
+	// One translated sentence shared with the classic renderer, split on its %s placeholder.
+	// A translation that drops %s degrades to plain text with no link, never to a broken one.
+	const [before, after] = terms.label.split('%s');
+
+	function Terms() {
+		const [accepted, setAccepted] = useState(false);
+		const error = useSelect(
+			(select) => select('wc/store/validation').getValidationError(errorId),
+			[]
+		);
+
+		useEffect(() => {
+			const validation = dispatch('wc/store/validation');
+			if (accepted) {
+				validation.clearValidationError(errorId);
+			} else {
+				validation.setValidationErrors({
+					[errorId]: { message: errorText, hidden: true },
+				});
+			}
+			dispatch('wc/store/checkout').setExtensionData('scanpay', { terms: accepted });
+			return () => validation.clearValidationError(errorId);
+		}, [accepted]);
+
+		return createElement(
+			'div',
+			{ className: 'wcsp-blocks-terms' },
+			createElement(
+				'label',
+				null,
+				createElement('input', {
+					type: 'checkbox',
+					checked: accepted,
+					onChange: (e: { target: { checked: boolean } }) => setAccepted(e.target.checked),
+				}),
+				' ',
+				before,
+				createElement('a', { href: url, target: '_blank', rel: 'noopener noreferrer' }, link),
+				after
+			),
+			// Same markup as WooCommerce's ValidationInputError so the message picks up core
+			// styling, without binding to a component that may move between versions.
+			error?.message &&
+				!error.hidden &&
+				createElement(
+					'div',
+					{ className: 'wc-block-components-validation-error', role: 'alert' },
+					createElement('p', null, error.message)
+				)
+		);
+	}
+
+	window.wc.blocksCheckout.registerCheckoutBlock({
+		metadata: {
+			name: 'scanpay/wcs-terms',
+			parent: ['woocommerce/checkout-payment-block'],
+		},
+		component: Terms,
+		force: true,
 	});
 }

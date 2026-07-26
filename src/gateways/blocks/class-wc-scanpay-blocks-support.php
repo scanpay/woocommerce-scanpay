@@ -24,7 +24,9 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 			wp_register_script(
 				'wcsp-blocks',
 				WC_SCANPAY_URL . '/public/assets/js/checkout.js',
-				[ 'wc-blocks-registry', 'wc-settings', 'wp-element' ],
+				// wc-blocks-checkout provides registerCheckoutBlock() and wp-data the
+				// validation/checkout stores, both used by the subscription terms block.
+				[ 'wc-blocks-registry', 'wc-blocks-checkout', 'wc-settings', 'wp-data', 'wp-element' ],
 				WC_SCANPAY_VERSION,
 				true
 			);
@@ -43,6 +45,29 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 			'url'     => WC_SCANPAY_URL . '/public/assets/images/',
 			'methods' => [],
 		];
+		// Subscription terms checkbox. woocommerce_after_checkout_validation (classic) does not
+		// fire for the Store API checkout, so checkout.ts renders the checkbox as a forced
+		// checkout block and wcs_scanpay_blocks_validate_terms() enforces it.
+		//
+		// Kept outside $data['methods'] and outside the 'enabled' gate on purpose: the consent
+		// belongs to the subscription in the cart, so it must cover every gateway the customer
+		// can pick and stay active while our own gateways are disabled. This runs regardless of
+		// gateway status because AbstractPaymentMethodType::is_active() defaults to true and the
+		// registry collects script data for all registered types.
+		if ( class_exists( 'WC_Subscriptions_Cart', false ) && WC_Subscriptions_Cart::cart_contains_subscription() ) {
+			$terms_url = wcs_scanpay_terms_url();
+			if ( '' !== $terms_url ) {
+				$data['terms'] = [
+					'url'   => esc_url_raw( $terms_url ),
+					// Split on %s in checkout.ts to build the link. Shared verbatim with the
+					// classic renderer so translators localize one sentence, punctuation included.
+					/* translators: %s is a link to the subscription terms page. */
+					'label' => __( 'I accept the %s.', 'scanpay-for-woocommerce' ),
+					'link'  => __( 'subscription terms', 'scanpay-for-woocommerce' ),
+					'error' => __( 'You must accept the subscription terms to complete your purchase.', 'scanpay-for-woocommerce' ),
+				];
+			}
+		}
 		if ( is_array( $settings ) && ( 'yes' === ( $settings['enabled'] ?? 'no' ) ) ) {
 			$data['methods']['scanpay'] = [
 				'title'       => (string) ( $settings['title'] ?? 'Scanpay' ),
@@ -65,28 +90,6 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 					'multiple_subscriptions',
 				],
 			];
-			// Subscription terms checkbox. woocommerce_after_checkout_validation (classic) does
-			// not fire for the Store API checkout, so the checkbox is rendered inside this
-			// method's content (checkout.ts) and enforced in wcs_scanpay_blocks_validate_terms().
-			// The page picker only offers published pages, but the stored id goes
-			// stale if that page is later trashed or deleted. get_page_link()
-			// dereferences the post unguarded, so a deleted page warns straight
-			// into this Store API JSON response, and a trashed one would link the
-			// customer to a 404. Anything but a published page: terms disabled.
-			if (
-				class_exists( 'WC_Subscriptions_Cart', false )
-				&& WC_Subscriptions_Cart::cart_contains_subscription()
-				&& '0' !== ( $settings['wcs_terms'] ?? '0' )
-				&& 'publish' === get_post_status( (int) $settings['wcs_terms'] )
-			) {
-				$data['methods']['scanpay']['terms'] = [
-					'url'    => esc_url_raw( (string) get_page_link( (int) $settings['wcs_terms'] ) ),
-					'before' => __( 'I accept the ', 'scanpay-for-woocommerce' ),
-					'link'   => __( 'subscription terms', 'scanpay-for-woocommerce' ),
-					'after'  => '.',
-					'error'  => __( 'You must accept the subscription terms to complete your purchase.', 'scanpay-for-woocommerce' ),
-				];
-			}
 		}
 		$mobilepay = get_option( 'woocommerce_scanpay_mobilepay_settings' );
 		if ( is_array( $mobilepay ) && ( 'yes' === ( $mobilepay['enabled'] ?? 'no' ) ) ) {

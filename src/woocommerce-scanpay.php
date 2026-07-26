@@ -142,11 +142,75 @@ function wc_scanpay_order_status_completed( int $oid, WC_Order $wco ): void {
 }
 
 /**
+ * The subscription-terms page URL, or '' when the checkbox must not be shown.
+ *
+ * The single predicate behind both renderers (classic and Blocks) and both validators
+ * (classic and Store API), so the checkbox can never be enforced without having been
+ * rendered, or rendered without being enforced.
+ *
+ * Deliberately independent of every gateway. The consent belongs to the subscription in
+ * the cart, not to a payment method, so it applies whichever gateway the customer picks
+ * -- including third-party ones -- and stays active while our own gateways are disabled.
+ *
+ * Returns '' unless wcs_terms holds a positive page id whose page is still exactly
+ * 'publish'. That folds the disabled states ('0' and a stored '') together with every
+ * stale-page state: the picker only offers published pages, but the stored id goes stale
+ * once the page is drafted, made private, trashed, or deleted. Returning the resolved URL
+ * rather than the id is what keeps get_page_link()'s unguarded post dereference inside
+ * the guard -- on a deleted page it warns, and a trashed page would 404 the customer.
+ *
+ * @return string Terms page URL, or '' when the checkbox is disabled.
+ */
+function wcs_scanpay_terms_url(): string {
+	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
+	if ( ! is_array( $settings ) ) {
+		return '';
+	}
+	$page_id = (int) ( $settings['wcs_terms'] ?? 0 );
+	if ( $page_id <= 0 || 'publish' !== get_post_status( $page_id ) ) {
+		return '';
+	}
+	return (string) get_page_link( $page_id );
+}
+
+/**
  * Add subscription terms checkbox on the checkout page (for WCS).
- * Action: woocommerce_review_order_before_submit
+ * Action: woocommerce_checkout_after_terms_and_conditions
+ *
+ * This hook fires outside any gateway, next to WooCommerce's own terms checkbox
+ * (templates/checkout/terms.php), so the checkbox renders once per checkout no matter
+ * which payment method the customer selects. Same template fragment as before, so an
+ * update_order_review refresh clears the tick exactly as it always did.
  */
 function wcs_scanpay_checkout_terms() {
 	require WC_SCANPAY_DIR . '/public/wcs-scanpay-checkout-terms.php';
+}
+
+/**
+ * Declare the 'scanpay' extension namespace on the Store API checkout endpoint.
+ * Action: wc_scanpay_plugins_loaded() (direct call)
+ *
+ * The Blocks checkbox posts its state as extensions.scanpay.terms. The endpoint schema
+ * drops data under an unregistered namespace, so this registration is what makes the
+ * value readable at all in wcs_scanpay_blocks_validate_terms(). Write-only: no
+ * data_callback, so nothing is added to Store API responses.
+ */
+function wcs_scanpay_register_store_api_terms(): void {
+	woocommerce_store_api_register_endpoint_data(
+		[
+			'endpoint'        => 'checkout', // CheckoutSchema::IDENTIFIER.
+			'namespace'       => 'scanpay',
+			'schema_callback' => function (): array {
+				return [
+					'terms' => [
+						'description' => 'Whether the customer accepted the subscription terms.',
+						'type'        => 'boolean',
+						'context'     => [],
+					],
+				];
+			},
+		]
+	);
 }
 
 /**
@@ -156,22 +220,20 @@ function wcs_scanpay_checkout_terms() {
  * The woocommerce_form_field( 'required' => true ) only renders a CSS asterisk; WooCommerce
  * validates only fields registered in woocommerce_checkout_fields, so the checkbox is
  * otherwise skippable via a direct POST. Reject the order when the terms checkbox is shown
- * (WCS active, cart has a subscription, a terms page is configured, gateway is scanpay*)
- * but was not accepted.
+ * (WCS active, cart has a subscription, a published terms page is configured) but was not
+ * accepted. Not conditioned on the payment method: wcs_scanpay_checkout_terms() renders the
+ * checkbox once for the whole checkout, so enforcing it per gateway would leave it shown
+ * but skippable for every gateway but one.
  *
- * @param array    $data   Posted checkout data.
+ * @param array    $data   Posted checkout data. Unused; part of the hook signature.
  * @param WP_Error $errors Accumulated validation errors.
  */
 function wcs_scanpay_validate_terms( array $data, WP_Error $errors ): void {
-	if ( ! str_starts_with( (string) ( $data['payment_method'] ?? '' ), 'scanpay' ) ) {
-		return; // Only the (card) scanpay gateway supports subscriptions.
-	}
 	if ( ! class_exists( 'WC_Subscriptions_Cart', false ) || ! WC_Subscriptions_Cart::cart_contains_subscription() ) {
 		return;
 	}
-	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
-	if ( ! is_array( $settings ) || '0' === ( $settings['wcs_terms'] ?? '0' ) ) {
-		return; // Terms checkbox is disabled.
+	if ( '' === wcs_scanpay_terms_url() ) {
+		return; // Terms checkbox is disabled or its configured page is not published.
 	}
 	// The checkout nonce is verified by WC_Checkout::process_checkout() before this action.
 	// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotValidated
@@ -185,31 +247,27 @@ function wcs_scanpay_validate_terms( array $data, WP_Error $errors ): void {
  * Action: woocommerce_store_api_checkout_update_order_from_request
  *
  * The woocommerce_after_checkout_validation action does not fire for the Store API checkout
- * used by the Cart/Checkout blocks. The checkbox is rendered inside the Scanpay payment content
- * (checkout.ts) and its state is sent as the 'wcssp-terms' payment_data entry; re-check it
- * here so a crafted request cannot bypass acceptance. Throwing RouteException aborts the
- * checkout with a 400 and surfaces the message to the customer.
+ * used by the Cart/Checkout blocks. The checkbox is rendered by checkout.ts as a forced
+ * checkout block and its state posted as extensions.scanpay.terms (registered by
+ * wcs_scanpay_register_store_api_terms()); re-check it here so a crafted request cannot
+ * bypass acceptance. Throwing RouteException aborts the checkout with a 400 and surfaces
+ * the message to the customer.
+ *
+ * Not conditioned on the payment method: the block renders once below the payment method
+ * list, so the consent covers every gateway the customer can pick.
  *
  * @param WC_Order        $order   Draft order built from the request (unused; hook signature).
  * @param WP_REST_Request $request Store API checkout request.
  */
 function wcs_scanpay_blocks_validate_terms( WC_Order $order, WP_REST_Request $request ): void {
-	if ( 'scanpay' !== (string) $request['payment_method'] ) {
-		// Only the card gateway supports subscriptions, and only it is sent the
-		// terms payload (class-wc-scanpay-blocks-support.php). Matching every
-		// scanpay* method here would demand a checkbox that MobilePay and Apple
-		// Pay never render, dead-ending their checkout.
-		return;
-	}
 	if ( ! class_exists( 'WC_Subscriptions_Cart', false ) || ! WC_Subscriptions_Cart::cart_contains_subscription() ) {
 		return;
 	}
-	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
-	if ( ! is_array( $settings ) || '0' === ( $settings['wcs_terms'] ?? '0' ) ) {
-		return; // Terms checkbox is disabled.
+	if ( '' === wcs_scanpay_terms_url() ) {
+		return; // Terms checkbox is disabled or its configured page is not published.
 	}
-	$payment_data = array_column( (array) ( $request['payment_data'] ?? [] ), 'value', 'key' );
-	if ( empty( $payment_data['wcssp-terms'] ) ) {
+	$extensions = (array) ( $request['extensions'] ?? [] );
+	if ( empty( $extensions['scanpay']['terms'] ) ) {
 		throw new \Automattic\WooCommerce\StoreApi\Exceptions\RouteException(
 			'wcssp_terms_required',
 			esc_html__( 'You must accept the subscription terms to complete your purchase.', 'scanpay-for-woocommerce' ),
@@ -308,10 +366,16 @@ function wc_scanpay_plugins_loaded() {
 	// WooCommerce Subscriptions hooks
 	if ( class_exists( 'WC_Subscriptions', false ) ) {
 		add_action( 'woocommerce_scheduled_subscription_payment_scanpay', 'wcs_scanpay_scheduled_charge', 3, 2 );
-		add_action( 'woocommerce_review_order_before_submit', 'wcs_scanpay_checkout_terms', 10 );
+		add_action( 'woocommerce_checkout_after_terms_and_conditions', 'wcs_scanpay_checkout_terms', 10 );
 		add_action( 'woocommerce_after_checkout_validation', 'wcs_scanpay_validate_terms', 10, 2 );
 		add_action( 'woocommerce_store_api_checkout_update_order_from_request', 'wcs_scanpay_blocks_validate_terms', 10, 2 );
 		add_filter( 'wcs_get_retry_rule_raw', 'wcs_scanpay_retry_rule', 10, 3 );
+		// Called directly, not on woocommerce_blocks_loaded: WooCommerce fires that from
+		// plugins_loaded priority -1, long before this loader runs at 10. Registering here
+		// is still well before rest_api_init, where the endpoint schema is assembled.
+		if ( function_exists( 'woocommerce_store_api_register_endpoint_data' ) ) {
+			wcs_scanpay_register_store_api_terms();
+		}
 	}
 }
 add_action( 'plugins_loaded', 'wc_scanpay_plugins_loaded', 10 );

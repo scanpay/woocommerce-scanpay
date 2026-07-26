@@ -4,21 +4,24 @@ declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 
-if ( class_exists( 'WC_Subscriptions_Cart', false ) && WC_Subscriptions_Cart::cart_contains_subscription() ) {
-	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
-	// 'publish' gate: the stored id goes stale if the page is trashed or deleted.
-	// get_page_link() dereferences the post unguarded (warning on a deleted page),
-	// and a trashed page would link the customer to a 404. See the same guard in
-	// gateways/blocks/class-wc-scanpay-blocks-support.php.
-	if (
-		$settings && isset( $settings['wcs_terms'] ) && '0' !== $settings['wcs_terms']
-		&& 'publish' === get_post_status( (int) $settings['wcs_terms'] )
-	) {
-		$url = esc_url( get_page_link( (int) $settings['wcs_terms'] ) );
+// Not on the order-pay endpoint. Both templates/checkout/payment.php and
+// templates/checkout/form-pay.php include checkout/terms.php, so this hook also fires while
+// paying for an existing order -- where woocommerce_after_checkout_validation never runs, and
+// where the cart has nothing to do with what is being paid for. Rendering there would show a
+// checkbox nothing enforces.
+if (
+	! is_checkout_pay_page()
+	&& class_exists( 'WC_Subscriptions_Cart', false )
+	&& WC_Subscriptions_Cart::cart_contains_subscription()
+) {
+	// wcs_scanpay_terms_url() is the shared render/validate predicate: '' unless a positive
+	// wcs_terms id points at a still-published page. See its docblock in woocommerce-scanpay.php.
+	$url = wcs_scanpay_terms_url();
+	if ( '' !== $url ) {
 		$txt = sprintf(
 			/* translators: %s is a link to the subscription terms page. */
 			__( 'I accept the %s.', 'scanpay-for-woocommerce' ),
-			'<a href="' . $url . '">' . esc_html__( 'subscription terms', 'scanpay-for-woocommerce' ) . '</a>'
+			'<a href="' . esc_url( $url ) . '">' . esc_html__( 'subscription terms', 'scanpay-for-woocommerce' ) . '</a>'
 		);
 
 		woocommerce_form_field(
