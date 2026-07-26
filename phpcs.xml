@@ -4,6 +4,7 @@
     <arg name="colors"/>
     <config name="minimum_supported_wp_version" value="6.3"/>
     <config name="testVersion" value="8.0-"/>
+    <arg name="parallel" value="16"/>
 
     <!-- Base standards -->
     <rule ref="WordPress"/>
