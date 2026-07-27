@@ -79,7 +79,9 @@ final class WC_Scanpay_Capture {
 		// what Scanpay has already captured net of what it refunded back.
 		$amount = (string) $wco->get_total( 'edit' );
 		foreach ( $wco->get_refunds() as $refund ) {
-			$amount = wc_scanpay_submoney( $amount, (string) $refund->get_amount() );
+			// 'edit' because this sets a capture amount: in 'view' a
+			// woocommerce_order_refund_get_amount callback decides what the customer is charged.
+			$amount = wc_scanpay_submoney( $amount, (string) $refund->get_amount( 'edit' ) );
 		}
 
 		$net_captured = wc_scanpay_submoney( $meta['captured'], $meta['refunded'] );

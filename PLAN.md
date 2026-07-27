@@ -176,7 +176,6 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 2 | The last money read in the view context sets a capture amount | `library/class-wc-scanpay-capture.php` |
 | 3 | A cleared API key reads as a broken one | `library/class-wc-scanpay-capture.php` |
 | 4 | A collected renewal can be marked failed | `library/class-wcs-scanpay-charge.php` |
 | 5 | The drain's time limit is renewed by round count, not time | `callback/wc-scanpay-ping.php` |
@@ -200,42 +199,6 @@ Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 2 — The last money read in the view context sets a capture amount
-
-**File:** `src/library/class-wc-scanpay-capture.php` (after task 1)
-**Anchor:** `foreach ( $wco->get_refunds() as $refund )` in `capture()` (~`:81-83`)
-
-```php
-$amount = (string) $wco->get_total( 'edit' );
-foreach ( $wco->get_refunds() as $refund ) {
-    $amount = wc_scanpay_submoney( $amount, (string) $refund->get_amount() );
-}
-```
-
-`$refund->get_amount()` is the only money read in the tree still in the `view`
-context, so a `woocommerce_order_refund_get_amount` callback decides how much this
-capture subtracts — i.e. how much the customer is charged. Every other read here
-is explicit, including the total on the line above.
-
-**Fix.** `(string) $refund->get_amount( 'edit' )`, with a short trailing comment:
-`'edit'` because this sets a capture amount and the view filter would let a third
-party move it. Do not restate what `get_prop()` does.
-
-**Verify**
-
-- `grep -rn "get_amount()\|get_total()\|get_line_total(" src/`; judge each
-  remaining view-context money read in one line. `get_line_total()` stays: it runs
-  `woocommerce_order_amount_line_total` by design and both call sites already wrap
-  it in a `try` that names it.
-- Confirm the sign is unchanged: `get_amount()` returns positive and
-  `wc_scanpay_submoney()` removes it.
-
-**Handoff**
-
-- An order with one partial refund still captures `total − refund − net_captured`.
 
 ---
 
