@@ -222,7 +222,6 @@ msgid "To use a different Scanpay account, delete the local Scanpay data first. 
 msgstr ""
 
 #: gateways/abstract-wc-gateway-scanpay-base.php:266
-#: admin/assets/js/settings.js:178
 msgid "Delete data and change API key"
 msgstr ""
 
@@ -235,20 +234,20 @@ msgid "Error: The Scanpay API key is malformed. It should look like \"1234:xxxxx
 msgstr ""
 
 #. translators: %s is a link to the subscription terms page.
-#: gateways/blocks/class-wc-scanpay-blocks-support.php:75
+#: gateways/blocks/class-wc-scanpay-blocks-support.php:81
 #: public/wcs-scanpay-checkout-terms.php:23
 #, php-format
 msgid "I accept the %s."
 msgstr ""
 
-#: gateways/blocks/class-wc-scanpay-blocks-support.php:76
+#: gateways/blocks/class-wc-scanpay-blocks-support.php:82
 #: public/wcs-scanpay-checkout-terms.php:24
 msgid "subscription terms"
 msgstr ""
 
-#: gateways/blocks/class-wc-scanpay-blocks-support.php:77
-#: woocommerce-scanpay.php:246
-#: woocommerce-scanpay.php:277
+#: gateways/blocks/class-wc-scanpay-blocks-support.php:83
+#: woocommerce-scanpay.php:262
+#: woocommerce-scanpay.php:293
 msgid "You must accept the subscription terms to complete your purchase."
 msgstr ""
 
@@ -345,7 +344,7 @@ msgstr ""
 msgid "Your payment details were updated. This renewal has not been charged yet; it will be collected automatically with the new details."
 msgstr ""
 
-#: woocommerce-scanpay.php:388
+#: woocommerce-scanpay.php:404
 msgid "The Scanpay renewal could not be processed. See the WooCommerce logs for details."
 msgstr ""
 
@@ -354,129 +353,129 @@ msgstr ""
 msgid "Your scanpay plugin is <b class=\"scanpay-outdated\">outdated</b>. Please update to <span class=\"wcsp-meta-version\"></span> (<a href=\"//github.com/scanpay/woocommerce-scanpay/releases\" target=\"_blank\">changelog</a>)"
 msgstr ""
 
-#: admin/assets/js/order.js:123
+#: admin/assets/js/order.js:122
 msgid "Authorized"
 msgstr ""
 
-#: admin/assets/js/order.js:124
+#: admin/assets/js/order.js:123
 msgid "Captured"
 msgstr ""
 
-#: admin/assets/js/order.js:125
+#: admin/assets/js/order.js:124
 msgid "Refunded"
 msgstr ""
 
-#: admin/assets/js/order.js:126
+#: admin/assets/js/order.js:125
 msgid "Voided"
 msgstr ""
 
 #. translators: %1$s is a database column name, %2$s the raw value it holds. Neither is translated.
-#: admin/assets/js/order.js:155
+#: admin/assets/js/order.js:154
 #, js-format
 msgid "Invalid %1$s amount: %2$s"
 msgstr ""
 
-#: admin/assets/js/order.js:173
+#: admin/assets/js/order.js:175
 msgid "Capture"
 msgstr ""
 
-#: admin/assets/js/order.js:177
+#: admin/assets/js/order.js:179
 msgid "Refund…"
 msgstr ""
 
-#: admin/assets/js/order.js:208
+#: admin/assets/js/order.js:210
 msgid "Capturing…"
 msgstr ""
 
-#: admin/assets/js/order.js:212
+#: admin/assets/js/order.js:214
 msgid "Capture complete."
 msgstr ""
 
-#: admin/assets/js/order.js:214
+#: admin/assets/js/order.js:216
 msgid "Capture requested — figures will refresh on the next sync."
 msgstr ""
 
 #. translators: %s is the raw error code the server returned, which is not translated.
-#: admin/assets/js/order.js:221
+#: admin/assets/js/order.js:223
 #, js-format
 msgid "Capture failed: %s"
 msgstr ""
 
-#: admin/assets/js/order.js:254
+#: admin/assets/js/order.js:257
 msgid "Waiting for payment confirmation from Scanpay…"
 msgstr ""
 
-#: admin/assets/js/settings.js:100
+#: admin/assets/js/settings.js:98
 msgid "Initiate synchronization"
 msgstr ""
 
-#: admin/assets/js/settings.js:101
+#: admin/assets/js/settings.js:99
 msgid "Please click <i>'send ping'</i> to initiate the synchronization with the scanpay backend."
 msgstr ""
 
 #. translators: %d is a number of seconds.
-#: admin/assets/js/settings.js:114
+#: admin/assets/js/settings.js:112
 #, js-format
 msgid "<b>Synchronized:</b> %d second ago."
 msgid_plural "<b>Synchronized:</b> %d seconds ago."
 msgstr[0] ""
 msgstr[1] ""
 
-#: admin/assets/js/settings.js:120
+#: admin/assets/js/settings.js:118
 msgid "Warning: Your system may be out of sync"
 msgstr ""
 
 #. translators: %d is a number of minutes.
-#: admin/assets/js/settings.js:123
+#: admin/assets/js/settings.js:121
 #, js-format
 msgid "More than %d minute has passed since the last received ping. Please check your <i>API key</i> and click <i>'send ping'</i>."
 msgid_plural "More than %d minutes have passed since the last received ping. Please check your <i>API key</i> and click <i>'send ping'</i>."
 msgstr[0] ""
 msgstr[1] ""
 
-#: admin/assets/js/settings.js:135
+#: admin/assets/js/settings.js:133
 msgid "Warning: Your system is out of sync"
 msgstr ""
 
-#: admin/assets/js/settings.js:136
+#: admin/assets/js/settings.js:134
 msgid "A long time has passed since the last received ping. Please check your <i>API key</i> and click <i>'send ping'</i>."
 msgstr ""
 
-#: admin/assets/js/settings.js:145
+#: admin/assets/js/settings.js:143
 msgid "Error: Something went wrong"
 msgstr ""
 
-#: admin/assets/js/settings.js:146
+#: admin/assets/js/settings.js:144
 msgid "Your system responded with the following error message: "
 msgstr ""
 
-#: admin/assets/js/settings.js:168
+#: admin/assets/js/settings.js:166
 msgid ""
 "Delete all local Scanpay data and clear the API key?\n"
 "\n"
 "This deletes the local payment tables and disables the Scanpay gateways. It does not affect anything at Scanpay: adding a key for the same shop re-syncs the data automatically."
 msgstr ""
 
-#: admin/assets/js/settings.js:175
+#: admin/assets/js/settings.js:174
 msgid "Deleting…"
 msgstr ""
 
 #. translators: %s is the raw error code the server returned, which is not translated.
-#: admin/assets/js/settings.js:182
+#: admin/assets/js/settings.js:184
 #, js-format
 msgid " Could not delete the data: %s"
 msgstr ""
 
-#: admin/assets/js/settings.js:192
+#: admin/assets/js/settings.js:194
 msgid "You can find your Scanpay API key <a target=\"_blank\" href=\"https://dashboard.scanpay.dk/settings/api\">here</a>."
 msgstr ""
 
-#: admin/assets/js/settings.js:213
+#: admin/assets/js/settings.js:215
 msgid "There is a new version of the plugin available. "
 msgstr ""
 
 #. translators: %1$s is the installed plugin version. The <span> is filled in with the latest version.
-#: admin/assets/js/settings.js:216
+#: admin/assets/js/settings.js:218
 #, js-format
 msgid "Your Scanpay extension (<i>%1$s</i>) needs to be updated to <span class=\"wcsp-set-version\"></span> (<a href=\"//github.com/scanpay/woocommerce-scanpay/releases\" target=\"_blank\">changelog</a>)."
 msgstr ""
