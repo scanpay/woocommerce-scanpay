@@ -22,11 +22,17 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	/**
 	 * Copy the saved settings into WooCommerce's own gateway properties.
 	 *
-	 * WC_Payment_Gateway defaults $enabled to 'yes' and leaves $title and $description
-	 * undeclared, and it is the properties -- not our getters -- that inherited
+	 * WC_Payment_Gateway declares all three -- $enabled = 'yes' at
+	 * abstract-wc-payment-gateway.php:61, $title at :68 and $description at :75, the last
+	 * two uninitialized -- and it is the properties, not our getters, that inherited
 	 * is_available(), the REST controllers, the CLI and the tracker read.
-	 * get_available_payment_gateways() filters on is_available() alone, with no separate
-	 * enabled check, so an uninitialized $enabled offers a gateway the merchant disabled.
+	 *
+	 * $title and $description are what earn this method: nothing upstream fills them.
+	 * $enabled is defence in depth -- WC_Payment_Gateway::init_settings() (:247-250)
+	 * already normalizes it to 'yes'/'no', and our constructor calls that immediately
+	 * above this -- but get_available_payment_gateways() filters on is_available() alone,
+	 * with no separate enabled check, so the day that normalization moves an
+	 * uninitialized $enabled would offer a gateway the merchant disabled.
 	 *
 	 * Called again after anything that re-reads or edits $this->settings, or the
 	 * properties go stale for the rest of the request -- which is exactly the save

@@ -18,8 +18,9 @@ final class WCS_Scanpay_Charge {
 		$this->settings = is_array( $opts ) ? $opts : [];
 		$apikey         = (string) ( $this->settings['apikey'] ?? '' );
 		// Derived here, reported in scheduled_charge(): this constructor has no order to
-		// mark failed, and the hook memoizes the handler for the whole request, so a throw
-		// here would be per-request rather than per-renewal.
+		// mark failed. A throw here is per-renewal, not per-request -- the hook's memo is
+		// assigned after the constructor returns (woocommerce-scanpay.php:379), so a throw
+		// leaves $handler null and the next action in the batch constructs again.
 		$this->shopid = (int) strstr( $apikey, ':', true );
 		$this->client = new WC_Scanpay_Client( $apikey );
 	}
@@ -104,13 +105,15 @@ final class WCS_Scanpay_Charge {
 		 * what it was created under.
 		 *
 		 * Absent or zero proceeds, deliberately, unlike WC_Scanpay_Capture, which throws
-		 * on it: a 1.x-migrated store can legitimately have no stamp. sync's subscriber()
-		 * writes WC_SCANPAY_URI_SHOPID only for subscriptions resolved from a 'wcs[]' ref
-		 * (class-wc-scanpay-sync.php:359-367), which 1.x never wrote -- it used a bare
-		 * order id -- while the scanpay_subs upsert above it (:346-351) is independent of
-		 * that parsing, so the idempotency key resolves with the stamp missing. The 2.1.3
-		 * migration (upgrade.php:57-88) backfills only the subid. Failing those renewals
-		 * would stop them with no merchant-visible cause.
+		 * on it: a 1.x-migrated store can legitimately have no stamp. Symbols, not line
+		 * numbers, because these drift: WC_Scanpay_Sync::subscriber() writes
+		 * WC_SCANPAY_URI_SHOPID only inside the foreach over find_subs_from_ref(), i.e.
+		 * only for subscriptions resolved from a 'wcs[]' ref, which 1.x never wrote -- it
+		 * used a bare order id -- while the scanpay_subs INSERT ... ON DUPLICATE KEY
+		 * UPDATE earlier in the same method is independent of that parsing, so the
+		 * idempotency key resolves with the stamp missing. The 2.1.3 branch of
+		 * upgrade.php backfills only the subid. Failing those renewals would stop them
+		 * with no merchant-visible cause.
 		 */
 		if ( $order_shopid <= 0 ) {
 			scanpay_log( 'warning', "scheduled charge: no shop id on #$oid; charging under shop {$this->shopid} (subid=$subid)" );

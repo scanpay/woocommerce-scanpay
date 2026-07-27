@@ -18,8 +18,10 @@ function wc_scanpay_phone_prefixer( string $phone, string $country ): string {
 		if ( '+' !== $first_number && '0' !== $first_number ) {
 			// get_country_calling_code() returns '' -- never null -- for an absent or
 			// unknown country, so an isset() check would pass and prefix " 12345678".
-			// is_string() stays because the upstream docblock declares string|array,
-			// and a filter can still hand us an array.
+			// is_string() stays for the docblock, not for a filter: the method applies
+			// none and unwraps an array itself (includes/class-wc-countries.php:165-182),
+			// but it still declares @return string|array, and the WC 3.6 floor is a long
+			// way below the version that was read to establish that.
 			$code = WC()->countries->get_country_calling_code( $country );
 			if ( is_string( $code ) && '' !== $code ) {
 				return $code . ' ' . $phone;

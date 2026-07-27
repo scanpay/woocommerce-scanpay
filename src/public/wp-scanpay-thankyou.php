@@ -50,7 +50,14 @@ function wc_scanpay_thankyou_hpos(): bool {
 /**
  * Reads order_key, payment_method and transaction_id straight from the database.
  *
- * @return array|null The row, or null when there is no such order.
+ * The two branches do not answer alike for a missing order, and the caller must not be
+ * written as if they did. HPOS is a plain row select, so it returns null. The legacy CPT
+ * query is a bare aggregate over postmeta, which MySQL answers with one all-NULL row for
+ * an order that does not exist -- a non-empty array, which `?: null` does not convert. So
+ * only the HPOS branch can return null; on the legacy one the empty order_key is what
+ * says "no such order", and the caller's own ownership gate is where that is caught.
+ *
+ * @return array|null The row; null only on the HPOS branch, when there is no such order.
  */
 function wc_scanpay_thankyou_read( int $oid, bool $hpos ): ?array {
 	global $wpdb;
@@ -99,7 +106,9 @@ function wc_scanpay_init_thankyou(): void {
 	while ( true ) {
 		$row = wc_scanpay_thankyou_read( $oid, $hpos );
 		if ( ! $row ) {
-			return; // No such order.
+			return; // No such order -- reachable on the HPOS branch only; see the read's
+			// docblock. The legacy CPT branch hands back an all-NULL row instead, which
+			// the empty-order_key clause of the ownership gate below rejects.
 		}
 		// Ownership gate: only busy-poll for a genuine thank-you request. The success URL
 		// carries WooCommerce's order key (get_checkout_order_received_url()); require it

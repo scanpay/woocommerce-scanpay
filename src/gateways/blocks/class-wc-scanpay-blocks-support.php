@@ -33,7 +33,13 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 	}
 
 	/**
-	 * The payload checkout.ts renders from. Checkout only, so per-request cost is fine.
+	 * The payload checkout.ts renders from. Built on three render paths, not one:
+	 * Api::init() hooks add_payment_method_script_data() to both
+	 * woocommerce_blocks_checkout_enqueue_data and woocommerce_blocks_cart_enqueue_data
+	 * (src/Blocks/Payments/Api.php:48-49), and the latter is fired by the Cart block
+	 * (BlockTypes/Cart.php:303) and the Mini Cart block (MiniCart.php:236) -- so a block
+	 * theme with a header mini-cart builds this on every page of the store. Do not gate it
+	 * on is_checkout(): the Cart block enqueues the same bundle and needs it.
 	 *
 	 * Settings are read straight from the option, deliberately, not through the classic
 	 * gateways' get_title()/get_description()/get_icon(). Those apply
