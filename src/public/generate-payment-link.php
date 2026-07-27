@@ -163,42 +163,61 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		}
 	}
 
-	$subref   = false;
-	$currency = $wco->get_currency( 'edit' );
-	$sum      = '0';
-	foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping' ] ) as $id => $item ) {
-		if ( $wcs && ! $subref && $item instanceof WC_Order_Item_Product ) {
-			$product = $item->get_product();
-			if ( $product && WC_Subscriptions_Product::is_subscription( $product ) ) {
-				$subref = true;
+	/*
+	 * The whole item build is contained, not just the two money calls. Every value read
+	 * here passes through a filter a third party owns -- get_line_total() runs
+	 * woocommerce_order_amount_line_total, and a callback returning null survives the
+	 * ">= 0" guard (PHP 8 compares null >= 0 as booleans), becomes '' in
+	 * wc_format_decimal(), and makes wc_scanpay_addmoney() throw. WC_Checkout catches
+	 * Exception and puts the message straight in front of the shopper
+	 * (class-wc-checkout.php:1419-1422), so uncontained that reads
+	 * "invalid money amount: '0' or ''" at checkout.
+	 */
+	try {
+		$subref   = false;
+		$currency = $wco->get_currency( 'edit' );
+		$sum      = '0';
+		foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping' ] ) as $id => $item ) {
+			if ( $wcs && ! $subref && $item instanceof WC_Order_Item_Product ) {
+				$product = $item->get_product();
+				if ( $product && WC_Subscriptions_Product::is_subscription( $product ) ) {
+					$subref = true;
+				}
+			}
+			$line_total = $wco->get_line_total( $item, true, true ); // Incl. tax and rounded, as WC totals it.
+			if ( $line_total >= 0 ) {
+				$line_str        = wc_format_decimal( $line_total, wc_get_price_decimals() );
+				$sum             = wc_scanpay_addmoney( $sum, $line_str );
+				$data['items'][] = [
+					'name'     => $item->get_name( 'edit' ),
+					'quantity' => $item->get_quantity(),
+					'total'    => $line_str . ' ' . $currency,
+				];
 			}
 		}
-		$line_total = $wco->get_line_total( $item, true, true ); // Incl. tax and rounded, as WC totals it.
-		if ( $line_total >= 0 ) {
-			$line_str        = wc_format_decimal( $line_total, wc_get_price_decimals() );
-			$sum             = wc_scanpay_addmoney( $sum, $line_str );
-			$data['items'][] = [
-				'name'     => $item->get_name( 'edit' ),
-				'quantity' => $item->get_quantity(),
-				'total'    => $line_str . ' ' . $currency,
-			];
-		}
-	}
 
-	$wc_totalf = $wco->get_total( 'edit' );
-	$wc_total  = (string) $wc_totalf;
-	if ( $sum !== $wc_total && wc_scanpay_cmpmoney( $sum, $wc_total ) !== 0 ) {
-		$data['items'] = [
-			[
-				'name'  => 'Total',
-				'total' => $wc_total . ' ' . $currency,
-			],
-		];
-		scanpay_log(
-			'warning',
-			"Order #$oid: The sum of all items ($sum) does not match the order total ($wc_total)." .
-			'The item list will not be available in the scanpay dashboard.'
-		);
+		$wc_totalf = $wco->get_total( 'edit' );
+		$wc_total  = (string) $wc_totalf;
+		if ( $sum !== $wc_total && wc_scanpay_cmpmoney( $sum, $wc_total ) !== 0 ) {
+			$data['items'] = [
+				[
+					'name'  => 'Total',
+					'total' => $wc_total . ' ' . $currency,
+				],
+			];
+			scanpay_log(
+				'warning',
+				"Order #$oid: The sum of all items ($sum) does not match the order total ($wc_total)." .
+				'The item list will not be available in the scanpay dashboard.'
+			);
+		}
+	} catch ( \Throwable $e ) {
+		// \Throwable for the reason WCS_Scanpay_Charge::charge() gives: an Error out of a
+		// filter callback is as fatal to the checkout as an exception, and here it would be
+		// an uncaught fatal rather than a notice. Rethrown, never degraded -- $subref, $sum
+		// and $data['items'] must not be read half-built by the code below.
+		scanpay_log( 'error', "Order #$oid: could not build the item list: " . trim( $e->getMessage() ) );
+		throw new Exception( esc_html__( 'Error: We could not create a link to the payment window. Please wait a moment and try again.', 'scanpay-for-woocommerce' ) );
 	}
 	$complete = false;
 	if ( $subref ) {
