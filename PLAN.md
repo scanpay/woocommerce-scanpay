@@ -257,9 +257,9 @@ Standing decisions, so no task reopens them:
 | O | The subscription meta box reads two keys nothing writes | `admin/subscriptions.php` | J |
 | P | One settings-field title never translates | `admin/settings/fields/scanpay.php` | I |
 | Q | A filter nothing consumes | `admin/settings.php` | — |
-| R | Comments that no longer describe the code | six files | C |
-| S | Three hygiene gaps the guide already rules on | `gateways/class-wc-gateway-scanpay-{mobilepay,applepay}.php`, `admin/settings/admin-options.php`, `public/generate-payment-link.php` | A, F |
-| T | The renewal "Pay now" link tells the customer it charged them | `public/generate-payment-link.php` | A, C, F, S |
+| R | Comments that no longer describe the code | five files | A, C |
+| S | Three hygiene gaps the guide already rules on | `gateways/class-wc-gateway-scanpay-{mobilepay,applepay}.php`, `admin/settings/admin-options.php`, `public/generate-payment-link.php`, `library/class-wcs-scanpay-charge.php` | A, C, F, R |
+| T | The renewal "Pay now" link tells the customer it charged them | `public/generate-payment-link.php` | A, C, F, R, S |
 
 **A through G are live defects**: A and C move money the wrong way, B and F stop
 a customer buying, D can take a shop's whole sync down, E hides two wrong states,
@@ -269,16 +269,24 @@ silently drop. N through S change no behaviour a correctly configured store
 would notice.
 
 **T is a live defect too, and it lands last on purpose.** It is not ordered by
-severity but by its file: it is the fifth task to edit
-`public/generate-payment-link.php`, and it must read that file as A, C, F and S
-left it. Do not promote it, and do not fold it into any of the four.
+severity but by its file: it is the **sixth** task to edit
+`public/generate-payment-link.php` — after A, C, F, R (item 5) and S — and it
+must read that file as all five left it. Do not promote it, and do not fold it
+into any of them.
 
 Seven orderings are not free, all of them "do not edit one file from two
-directions": **C, F, S and T re-read the file A rewrote**; **K and L touch files
-H edits**; **P edits the field file I rewrites**; **N and O edit files J
+directions": **C, F, R, S and T re-read the file A rewrote**; **K and L touch
+files H edits**; **P edits the field file I rewrites**; **N and O edit files J
 touches**; **R rewrites comments C and A move**; **E edits
 `woocommerce-scanpay.php` after B has added a line to it**; **T rewrites the
 block C stamps**. Everything else is disjoint.
+
+`public/generate-payment-link.php` is the one file six tasks queue on, in this
+order: **A** (new method-change branch), **C** (the `$paid_renewal` meta write),
+**F** (`wc_scanpay_subref()`'s limit), **R** item 5 (the `is_string()` comment at
+the head of the file), **S** item 3 (a log string), **T** (the `$subid` branch).
+Every one of those anchors sits below the previous task's edit or above it, never
+inside it — but the line numbers move, so locate the symbol.
 
 ## Task A — A payment-method change must not build a priced payload
 
@@ -345,6 +353,13 @@ handles it:
    no transaction, so the `orderid` riding along is discarded by the backend.
    That last sentence is the only durable record of a backend fact no stub
    states; without it the next reviewer re-opens the question.
+4. Update `wc_scanpay_subref()`'s own comment at `:34-38`. After this task its
+   method-change branch is reachable **only** from the new branch: the second
+   call site, inside the item build at `:229`, runs after the fall-through and
+   can never see a method change. Keeping the call is deliberate — one source for
+   the `wcs[]` ref format, and the branch is already written for exactly this —
+   but say so there, or the next reader takes branch one for dead code and
+   deletes it. This is the one comment task A owns; the rest belong to R.
 
 **Settled with Scanpay, do not re-open.** `/v1/new` with a `subscriber.ref` and
 no `items` creates a subscriber and **nothing else**: no transaction, and the
@@ -511,7 +526,10 @@ for" (`:305-313`). Which shop it asked under is the other half of that record.
    money writes none. `$res = $this->client->charge( … );` then an `info` line
    naming the charge id, the order and the subid. On a shop whose pings are
    blocked, that line is the only store-side record that the customer was
-   charged.
+   charged. **No defensive `isset` around `$res['id']`**: `WC_Scanpay_Client::charge()`
+   already throws unless the response carries `type === 'charge'` and an int `id`
+   (`class-wc-scanpay-client.php:205-208`), so a return here means both are
+   there, and the throw lands in the same catch every other failure does.
 
 **Do not** widen `scheduled_charge()`'s "absent proceeds" allowance or turn it
 into a failure — the comment at `:106-113` explains why 1.x-migrated stores need
@@ -594,6 +612,26 @@ every later revision of the same transaction, because the branch returns before
 it is the same open gate the Open question above is about. Record it, do not fix
 it here.
 
+**Do not** extend this task to the bare `$wco->save()` at `:305`. The grep below
+will find it, and it is a real third instance of the same shape, not a false
+positive: it runs the third-party `woocommerce_before_order_object_save` /
+`_after_` surface, nothing catches it, and a throw reaches
+`wc-scanpay-ping.php:354` — the same 500-and-replay outage. Worse, the replay is
+deterministic: `upsert_meta()` re-owns the row, `transaction_id` is still empty,
+so the same `save()` runs and throws again on every ping, forever. That is
+precisely the outcome `report_incomplete()`'s docblock argues against ("one stuck
+order turned into an outage"), while ten lines below the *same object's* save,
+inside `payment_complete()`, is caught.
+
+It is left out because closing it is a design decision, not a guard: log-and-
+return leaves the order unmarked with only the still-open `:253` gate to retry
+it, and letting the flow fall through to `payment_complete()` reaches
+`report_incomplete()` but changes what a not-eligible order does. Choosing
+between those is the same class of call the Open question above defers, and this
+run does not take it. Record the finding, the two candidate remedies and the
+replay analysis in `HANDOFF.md` under the run's open items, and change no code
+for it.
+
 ### Verify
 
 - Read `includes/class-wc-order-refund.php:17` and `includes/class-wc-order.php:898`
@@ -604,7 +642,11 @@ it here.
   state that `sync()` exits normally in both.
 - Grep the rest of `sync()` and `subscriber()` for any other call that can throw
   out of a path the comments describe as non-throwing, and report the result
-  either way.
+  either way. `:305`'s `save()` is a known hit and is out of scope — see the
+  second "Do not" above; report it there, do not touch it. Report anything else
+  the grep turns up, `subscriber()`'s `$wcs_sub->save()` and `$parent->save()`
+  included, and for each say what a throw out of it does to the cursor: replay
+  the seq page, or not.
 
 ### Handoff
 
@@ -652,20 +694,36 @@ What each one then gets wrong:
 zero-amount branch of `WCS_Scanpay_Charge::scheduled_charge():183` already treats
 `payment_complete()`:
 
-1. `wcs_scanpay_fail_renewal()`: `if ( ! $wco->update_status( 'failed', $reason ) ) { $diagnostic .= ' -- and the failed status could not be saved'; }`.
-2. `capture_or_hold()`: `if ( ! $wco->update_status( 'on-hold', … ) ) { scanpay_log( 'error', "Order #$oid was not parked on hold; see WooCommerce's own log entry" ); }`.
-   Deliberately not the `catch`'s wording ten lines below — that one ends in
-   `': ' . $status_error->getMessage()` and means an `Error` escaped, this one
-   means WooCommerce swallowed an `Exception` and logged it itself. Two causes,
-   two messages, or the log cannot tell the merchant which happened.
+1. `wcs_scanpay_fail_renewal()`: `if ( ! $wco->update_status( 'failed', $reason ) ) { $diagnostic .= ' -- and WooCommerce refused the failed status write'; }`.
+   **Not** the `catch`'s own `' -- and the failed status could not be saved: '`
+   wording. The two are mutually exclusive — a return of `false` never throws and
+   a throw never returns — so the log line is the only thing that says which
+   happened, and two sentences that differ by a trailing colon do not say it.
+   "Refused" is the returned-false half, "could not be saved" the escaping-
+   `Throwable` half; keep them that far apart.
+2. `capture_or_hold()`: `if ( ! $wco->update_status( 'on-hold', … ) ) { scanpay_log( 'error', "Order #$oid was not parked on hold: update_status() returned false" ); }`,
+   for the same reason — the `catch` ten lines below ends in
+   `': ' . $status_error->getMessage()` and means an `Error` escaped.
+   **Do not write "see WooCommerce's own log entry" into the message.** `false`
+   has two sources, and only one of them leaves a trail:
+   `WC_Order::update_status()` returns early at `class-wc-order.php:403` when
+   `! $this->get_id()`, silently, before the `try` — no logger call, no order
+   note. Naming a log entry that may not exist sends the merchant looking for it.
+   Put that distinction in a comment above the branch instead, where it can be
+   two sentences long.
 3. Correct both docblocks to say what is now true: an ordinary failure to write
-   the status returns `false` rather than throwing, is reported here, and has
-   already produced WooCommerce's own log line and order note.
+   the status returns `false` rather than throwing and is reported here, and that
+   on the `Exception` path — but not on the unsaved-order path at `:403` —
+   WooCommerce has already logged it and left its own "Update status event
+   failed." note on the order.
 
 ### Verify
 
 - Quote `class-wc-order.php:402-426` in `HANDOFF.md` and state exactly which
-  failures return `false` and which escape as a `Throwable`.
+  failures return `false` and which escape as a `Throwable`. There are **two**
+  `false` paths, not one — the `catch` (logger + "Update status event failed."
+  note) and the unsaved-order guard at `:403` (nothing at all) — and the messages
+  in the fix must be true of both.
 - Confirm the WCS chain from a `failed` renewal order to a scheduled retry:
   `class-wc-subscriptions-renewal-order.php` →
   `WC_Subscription::payment_failed()` → `WCS_Retry_Manager`. Name the file and
@@ -675,10 +733,13 @@ zero-amount branch of `WCS_Scanpay_Charge::scheduled_charge():183` already treat
 ### Handoff
 
 - On a shop: hook `woocommerce_order_status_failed` to throw an `Exception`, run
-  a renewal that declines, and confirm the log now says the status could not be
-  saved rather than reporting a clean failure.
-- Same for capture: force a capture failure with a status hook that throws, and
-  confirm the order is reported as not parked.
+  a renewal that declines, and confirm the log now reports the write instead of a
+  clean failure. Expect the **returned-false** wording ("refused"), not the
+  `catch`'s: WooCommerce swallows an `Exception` itself. Then repeat with an
+  `Error` (`throw new Error( … )`) and confirm the `catch`'s wording appears
+  instead. Two hooks, two log lines, and the pair is the whole point of the fix.
+- Same for capture, both ways, and confirm the order is reported as not parked
+  and is still `completed` — not `on-hold` — in both.
 
 ## Task F — An order with more than ten subscriptions loses the rest
 
@@ -797,7 +858,16 @@ Upstream avoids the shape entirely with `absint( wp_unslash( … ) )`
    order the actor may already edit, so nothing is disclosed that the Orders
    screen does not already show. Then, in order: the `'completed' !== $_GET['status']`
    test, the `order_id` validation, `wc_get_order()`, the `str_starts_with( …,
-   'scanpay' )` test — each returning as it does today — and only then
+   'scanpay' )` test — each keeping the exact exit it has today, which is not the
+   same exit for all four. Three `return` and fall through to WooCommerce; the
+   `order_id` validation **dies**, on `wp_send_json_error( 'invalid_order_id', 400 )`,
+   and it keeps dying after the reorder. That leaves exactly one JSON answer
+   above the nonce check, and it is deliberate: it is unreachable from a rendered
+   row action (WooCommerce builds that URL from `$order->get_id()`), it is not a
+   CSRF hole because nothing above the nonce writes, and turning it into a
+   `return` would hand a malformed request to `WC_AJAX::mark_order_status()`,
+   which answers it with `absint()` — silently completing order 0, or whatever
+   `'12abc'` truncates to. Say so in the comment. Only then —
 
    ```php
    if ( ! check_ajax_referer( 'woocommerce-mark-order-status', false, false ) ) {
@@ -818,8 +888,26 @@ Upstream avoids the shape entirely with `absint( wp_unslash( … ) )`
    hands it to `WC_AJAX::mark_order_status()`, which still completes it. What the
    guard buys is that no *capture* runs on a trashed order — the customer is not
    charged. It does not, and cannot from here, stop WooCommerce untrashing it.
-3. Guard both casts with `is_string( … )` before `ctype_digit`, in this file and
-   in `wp-ajax-wc-scanpay-capture.php`.
+3. **Drop the `(string)` cast; do not merely guard it.** The cast is the whole
+   bug: `ctype_digit( [] )` is a plain `false` on PHP 8 with no diagnostic
+   (`php -r 'var_dump( ctype_digit( [] ) );'`), and `(string) []` is what emits
+   `Array to string conversion`. So bind the unslashed value to a local and test
+   it, the same shape in both files:
+
+   ```php
+   $raw = wp_unslash( $_GET['order_id'] );
+   if ( ! is_string( $raw ) || ! ctype_digit( $raw ) ) {
+   ```
+
+   In `wp-ajax-wc-scanpay-capture.php:25` the superglobal is `$_POST['oid']` and
+   the line already opens with its own `! isset( … )`, so the binding goes below
+   that check and the rest is identical.
+
+   `is_string()` rather than leaning on `ctype_digit`'s own `false`, because the
+   next reader must not have to know that rule; and not upstream's
+   `absint( wp_unslash( … ) )`, which accepts `'12abc'` as 12 and is exactly the
+   leniency the die in step 1 exists to refuse. The `phpcs:ignore` moves onto the
+   assignment, where the superglobal is now read; its reason is unchanged.
 
 The nonce check lands between the `str_starts_with` return at `:42-44` and the
 `remove_action( 'woocommerce_order_status_completed', … )` at `:46-48`. That
@@ -845,7 +933,12 @@ reads, everything below it changes the request's behaviour or the order.
   check, confirming each one only reads. A single side effect above it — the
   `remove_action`, a status write, a capture — is a CSRF hole, and this is the
   step that catches it.
-- `php -r 'var_dump( (string) [] );'` for the warning, pasted verbatim.
+- `php -r 'var_dump( (string) [] );'` and `php -r 'var_dump( ctype_digit( [] ) );'`,
+  both pasted verbatim, so `HANDOFF.md` records that the cast is the sole source
+  of the warning.
+- Name the one path that still answers JSON above the nonce check
+  (`invalid_order_id`), state that it is unchanged from today, and confirm from
+  `ListTable.php:1340` / `:1348` that a rendered row action cannot produce it.
 
 ### Handoff
 
@@ -901,18 +994,45 @@ save, and false of this one.
 
 **The fix.**
 
-1. Give `upgrade.php` a fresh-install exit immediately after `$version` is read
-   and before the `< 2.0.0` branch: when both `WC_SCANPAY_URI_SETTINGS` and
-   `wc_scanpay_version` are absent there is nothing to migrate, so
+1. Give `upgrade.php` a fresh-install exit **above the `scanpay_log( 'info', "Upgrading …" )`
+   at `:10`** and before the `< 2.0.0` branch: when both `WC_SCANPAY_URI_SETTINGS`
+   and `wc_scanpay_version` are absent there is nothing to migrate, so
    `require WC_SCANPAY_DIR . '/install.php';` — which creates this blog's tables
    and stamps the version through its own `$fresh_install` path — and `return`.
-2. Comment it with the mechanism: the activation hook fires once
+   Above the log line, not below it: a blog with no history must not report an
+   upgrade "from 0.0.0" it never ran, and that line is the only record a merchant
+   or a support case ever sees of this path. `set_time_limit( 60 )` at `:9` may
+   stay where it is; three `CREATE TABLE`s do not need it.
+2. **`$version` cannot answer the question — do not test it.** `:7` reads the
+   option with a `'0.0.0'` default, so an absent version and a stored `'0.0.0'`
+   are the same string by the time any branch sees it. The exit has to read the
+   options itself:
+   `if ( false === get_option( WC_SCANPAY_URI_SETTINGS ) && false === get_option( 'wc_scanpay_version' ) )`
+   — the same two reads, in the same order, as `install.php:77`. Both are
+   autoloaded, so this costs nothing.
+
+   That makes the fresh-install discriminator live in two files, and they must
+   stay in step. Comment it on the `upgrade.php` side by pointing at
+   `install.php:72-76`, which is where the *reason* is written down — settings
+   absent, not version absent, because 1.x wrote settings and never a version.
+   Anyone who "simplifies" this side to a version test alone re-opens exactly the
+   bug that comment exists to prevent.
+3. Verify the stamp before returning, as `:168-174` does for the normal path:
+   `if ( get_option( 'wc_scanpay_version' ) !== WC_SCANPAY_VERSION ) { throw new Exception( 'Could not store the new plugin version' ); }`.
+   The early return bypasses that tail, and the tail's own comment says why it is
+   there — "far better than reporting a version this site does not have". The
+   throw lands in the loader's `catch` (`woocommerce-scanpay.php:417-423`), which
+   keeps the five-minute transient and retries; `install.php` is idempotent, so
+   the retry costs three `SHOW TABLES LIKE` and nothing else.
+4. Comment the exit with the mechanism: the activation hook fires once
    (`wp-admin/includes/plugin.php:703`), so on a network activation every blog
    but one arrives here, and the 1.x branch would otherwise write 1.x defaults
    over a blog that has no history.
-3. Correct `install.php:102-104` to say that `upgrade.php` returns before
+5. Correct `install.php:102-104` to say that `upgrade.php` returns before
    reaching the 1.x branch, so the stamp there is the fresh-install stamp and
-   not a mid-migration one.
+   not a mid-migration one. The current sentence lists `upgrade.php` among the
+   callers where the stamp "is a no-op"; after this task it is the opposite —
+   the one caller where the stamp is the point.
 
 **Do not** make `wc_scanpay_activate()` loop the network's blogs. `uninstall.php`
 has to, because it must reach blogs the plugin is no longer active on; activation
@@ -923,9 +1043,13 @@ single-site path already uses.
 
 - Quote `wp-admin/includes/plugin.php:703` and state that `$network_wide` is a
   hook argument, not a loop.
+- Put the new condition and `install.php:77` side by side in `HANDOFF.md` and
+  confirm they test the same two options in the same order. If they have drifted
+  by the time you read this, the source wins and the divergence is the finding.
 - Walk a fresh blog through the loader with the new exit in place and confirm:
-  tables created, version stamped once, and the settings option untouched by the
-  1.x branch — after `install.php` it holds a `secret` and nothing else.
+  tables created, version stamped once and re-read, the "Upgrading … from 0.0.0"
+  line **not** logged, and the settings option untouched by the 1.x branch —
+  after `install.php` it holds a `secret` and nothing else.
 - State plainly where `wc_autocapture` comes from on that blog, and do not write
   "the gateway field defaults" without checking: `WC_Settings_API::init_settings()`
   merges them into the gateway *object*, not into the stored option, while the
@@ -1014,9 +1138,15 @@ reading them.
 
 ## Task J — The admin polling URL assumes pretty permalinks
 
-**Files:** `src/admin/orders.php:105-113`, `src/admin/subscriptions.php:33-36`,
-`src/admin/settings/admin-options.php:130-134`, and their three consumers
-`admin/assets/js/order.ts:175`, `subs.ts:75`, `util/compat.ts:22`.
+**Files:** three payload sites — `src/admin/orders.php:105-113`,
+`src/admin/subscriptions.php:33-36`,
+`src/admin/settings/admin-options.php:130-134` — and **five** TS files, not
+three: the fetch sites `admin/assets/js/order.ts:175`, `subs.ts:75` and
+`util/compat.ts:22`, plus `admin/assets/js/settings.ts:46`, the only caller of
+`getLastSync()`, and `admin/assets/js/types/order.d.ts:12-32`, where the
+`OrderData` interface `order.ts` reads is declared. Miss either of the last two
+and `pnpm exec tsc` fails; they are named here so that failure is not the first
+you hear of them.
 
 All three admin polls are fetched from a hardcoded relative path:
 
@@ -1060,9 +1190,31 @@ goes to a real PHP file rather than through a path that has to be rewritten:
    plugins, so our dispatch at `woocommerce-scanpay.php:95-107` runs — and the
    endpoint `die()`s — before admin-ajax.php sends its own
    `Content-Type: text/html` header or looks for an `action` parameter.
-2. In the three TS files, build the request as `${endpoint}?x=meta&…` instead of
+2. In the TS, build the request as `${endpoint}?x=meta&…` instead of
    `../wp-scanpay/fetch?x=…`, falling back to the current relative path when the
-   attribute is missing so a stale cached script keeps working.
+   value is missing so a stale cached script keeps working. How each site gets
+   the value is decided here, not in the moment:
+
+   - **`order.ts:175`** reads `data.endpoint` off `window.ScanpayOrderData`, so
+     add `endpoint: string;` to the `OrderData` interface in
+     `types/order.d.ts:12-32`, beside `secret`, with the same one-line trailing
+     comment the neighbours carry. Without it `tsc` fails on the property, and
+     the `.d.ts` is the only place that shape is written down.
+   - **`subs.ts:75`** reads its own `#wcsp-meta` dataset, like `secret` and
+     `subid` above it. Self-contained.
+   - **`util/compat.ts:22`** is inside `getLastSync()`, which is a shared helper
+     and must **not** reach into the DOM for it. Take the base as a parameter —
+     `getLastSync( secret: string, endpoint: string, force = false )` — for the
+     same reason `secret` is already a parameter: this file knows nothing about
+     which screen called it, and `#wcsp-set-alert` exists on exactly one of them.
+     `settings.ts:46` is the sole caller (`grep -rn getLastSync src/`) and passes
+     `alertBox.dataset.endpoint ?? ''`; `force` keeps its default, so no other
+     call site changes.
+
+   The fallback lives in one place per file, not inside the template literal:
+   resolve the base to a local first (`const ep = data.endpoint || '../wp-scanpay/fetch';`)
+   so the empty-string and undefined cases collapse into the old behaviour
+   together.
 3. Re-run `pnpm exec tsc` and `pnpm lint:js`; the `.js` bundles only change once
    `./build.sh` runs esbuild, which is not this task's job.
 
@@ -1082,9 +1234,13 @@ deliberately does not depend on WordPress's routing at all.
 - Confirm `wp_send_json()` terminates the request on that path too
   (`wp_doing_ajax()` is true, so it takes the `wp_die()` branch), so nothing of
   admin-ajax.php's own output can follow the JSON.
-- Confirm all three payload sites and all three consumers are updated, and that
-  no other file fetches `wp-scanpay/fetch` (`grep -rn "wp-scanpay/fetch" src/`).
-- Confirm the fallback branch compiles and that `tsc` is clean.
+- Confirm all three payload sites and all five TS files are updated. Then
+  `grep -rn "wp-scanpay/fetch" src/` must return **exactly three** hits, one per
+  fetch site, and every one of them a fallback constant — never a live URL. Any
+  other count means a site was missed or a fallback was dropped.
+- Confirm the fallback branch compiles and that `tsc` and `pnpm lint:js` are both
+  clean. `tsc` is the check that catches a forgotten `types/order.d.ts`; say in
+  `HANDOFF.md` that it ran after the `.d.ts` edit, not before.
 
 ### Handoff
 
@@ -1171,6 +1327,17 @@ throw, like the three table creations above.
 **Do not** throw on the INSERT's return value. Two activations racing is benign
 and must not fail a merchant's key save.
 
+**Do not** wrap the card gateway's require in a `try`/`catch` to soften the new
+throw. `WC_Gateway_Scanpay_Card::process_admin_options():101-103` requires
+`install.php` bare, so this throw — like the three `CREATE TABLE` throws already
+above it — surfaces as WordPress's "There has been a critical error" page on the
+settings save, *after* `parent::process_admin_options()` has already stored the
+key. That is loud rather than graceful, and it is the file's existing contract,
+not something this task introduces: the same page appears today when a table
+cannot be created. Making that path report gracefully means deciding what a
+half-completed key save should leave behind, which is a separate change with its
+own commit. State the behaviour plainly in `HANDOFF.md` and leave it.
+
 **Do not** extend this to the secret's `update_option()` at `:97` while you are
 in the file. That one is unchecked too, but `update_option()` also answers false
 for an unchanged value, so its return is not a failure signal — and a re-read
@@ -1179,10 +1346,17 @@ different problem, and not this task's.
 
 ### Verify
 
-- Confirm every caller can survive a throw here: the activation hook, the card
-  gateway's first-key save (`class-wc-gateway-scanpay-card.php:102`),
-  `upgrade.php`, and the reset endpoint, which already wraps its require in
-  `try`/`catch` and answers `install_failed` (`wp-ajax-wc-scanpay-reset.php:155-162`).
+- Walk all four callers and record, for each, **what a throw here actually does**
+  — not whether it is "handled", which two of them do not do. The reset endpoint
+  wraps its require and answers `install_failed`
+  (`wp-ajax-wc-scanpay-reset.php:155-162`); `upgrade.php` throws on to the
+  loader's `catch`, which keeps the transient and retries. The other two catch
+  nothing: the card gateway's first-key save
+  (`class-wc-gateway-scanpay-card.php:101-103`) and the activation hook both end
+  in WordPress's critical-error page, and on the first of those the key is
+  already stored by then. That is the accepted outcome — see the "Do not" above —
+  but it must be written down as what it is, so the next reader does not infer a
+  clean error path from this bullet.
 - Confirm the reset endpoint's postconditions still pass: it drops the tables and
   re-runs `install.php` with no key stored, so `0 !== $shopid` is false and this
   block does not run at all.
@@ -1191,8 +1365,16 @@ different problem, and not this task's.
 ### Handoff
 
 - On a shop: revoke the database user's INSERT right on `wp_scanpay_seq`, save an
-  API key, and confirm the save now reports a failure instead of succeeding into
-  a shop that never syncs.
+  API key, and confirm the save now fails visibly instead of succeeding into a
+  shop that never syncs. Expect WordPress's critical-error page, not a settings
+  notice, and expect the key to be stored already — record both, and whether the
+  merchant can recover at all. Do not assume re-saving the form is enough:
+  `validate_apikey_field()` refuses to replace a stored key, so `$new !== $old`
+  at `class-wc-gateway-scanpay-card.php:101` is false on the second save and
+  `install.php` never re-runs from there — and the loader's upgrade gate is
+  closed too, because the version is stamped. If the reset button turns out to be
+  the only way back, that is the finding, and it belongs in `HANDOFF.md` rather
+  than in a fix here.
 
 ## Task M — The long-poll answers `text/html`
 
@@ -1204,9 +1386,15 @@ finish with `wp_send_json()`. That function sets the content type and the status
 code only `if ( ! headers_sent() )` (`wp-includes/functions.php:4593-4598`), and
 the first `echo` plus `flush()` has already sent them. So the same endpoint
 answers `application/json` on the fast path and PHP's default `text/html` on the
-long-poll path, with any status code dropped. It works today only because
-`fetch`'s `res.json()` ignores the content type and `JSON.parse` tolerates the
-leading whitespace.
+long-poll path. It works today only because `fetch`'s `res.json()` ignores the
+content type and `JSON.parse` tolerates the leading whitespace.
+
+**Only the content type is actually lost**, and say so rather than widening the
+claim: neither long-poll call passes a status argument, so there is nothing for
+the second half of that guard to drop. The 403 at `:19` in both files does pass
+one, and it returns before any output. The status half is latent — it becomes real
+the day someone adds a status to the tail call — which is a reason to fix the
+header once per request, not a defect to report.
 
 **The fix.** Send `header( 'Content-Type: application/json; charset=UTF-8' );`
 exactly once per request in both files, with a comment saying why it cannot be
@@ -1401,6 +1589,13 @@ Comments are what verification runs on here, so a drifted one is a failing test.
 Six, in five files. **No code changes in this task at all** — if a fix needs one,
 it belongs to whichever task owns that behaviour.
 
+Two of those files are shared. Item 5 is in `public/generate-payment-link.php`,
+which A, C and F have already edited and S and T edit after this; items 1 and 2
+are in `library/class-wcs-scanpay-charge.php`, which C edited and S edits after.
+Both anchors sit clear of every one of those edits — that is why R lands here and
+not at the end — so keep the diff to comment lines and the `git diff --stat`
+below stays the whole check.
+
 1. **`src/library/class-wcs-scanpay-charge.php:109-113`** cites
    `class-wc-scanpay-sync.php:359-367` for the `WC_SCANPAY_URI_SHOPID` write and
    `:346-351` for the `scanpay_subs` upsert. Both drifted about a hundred lines:
@@ -1467,7 +1662,8 @@ it belongs to whichever task owns that behaviour.
 **Files:** `src/gateways/class-wc-gateway-scanpay-mobilepay.php:26-27`,
 `src/gateways/class-wc-gateway-scanpay-applepay.php:73-74`,
 `src/admin/settings/admin-options.php:138`,
-`src/public/generate-payment-link.php:213-217` — as tasks A and F left it.
+`src/public/generate-payment-link.php:213-217` — as tasks A, C, F and R left it —
+and `src/library/class-wcs-scanpay-charge.php:274-278`, as C and R left that one.
 
 1. **`esc_url()` on the two icon URLs.** Both gateways interpolate
    `WC_SCANPAY_URL` into a `src=""` unescaped; the card gateway escapes the
@@ -1522,7 +1718,8 @@ it belongs to whichever task owns that behaviour.
 ## Task T — The renewal "Pay now" link tells the customer it charged them
 
 **File:** `src/public/generate-payment-link.php`, the `$subid` branch at
-`:109-168` — as tasks A, C, F and S left it. Nothing outside that branch changes.
+`:109-168` — as tasks A, C, F, R and S left it. Nothing outside that branch
+changes.
 
 `/v1/subscribers/{subid}/renew` **charges nothing**; it returns a link to a page
 where the customer updates their payment details. That is settled with Scanpay —
