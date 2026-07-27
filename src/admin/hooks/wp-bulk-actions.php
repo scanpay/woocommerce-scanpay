@@ -49,6 +49,10 @@ function wc_scanpay_handle_bulk_capture( string $redirect_to, array $ids, bool $
 		}
 		$wco->set_status( 'completed', __( 'Order status changed by bulk edit.', 'scanpay-for-woocommerce' ), true );
 		$wco->save();
+		// The second fire, as upstream's own bulk loops do it. set_status( ..., true ) above
+		// already made the first, but that one runs before the write, so a listener reading
+		// the order back rather than trusting the arguments would see the pre-change status.
+		do_action( 'woocommerce_order_edit_status', $oid, 'completed' );
 		++$changed;
 	}
 	return add_query_arg(
