@@ -9,7 +9,6 @@ require_once WC_SCANPAY_DIR . '/library/functions.php';
 
 /** Synchronizes Scanpay payments with WooCommerce orders and subscriptions. */
 final class WC_Scanpay_Sync {
-	public array $settings;
 	private int $shopid;
 	private bool $wcs_enabled;
 
@@ -46,11 +45,14 @@ final class WC_Scanpay_Sync {
 	 * @param int                  $shopid   Scanpay shop ID for this store.
 	 */
 	public function __construct( array $settings, int $shopid ) {
-		$this->settings    = $settings;
 		$this->shopid      = $shopid;
 		$this->wcs_enabled = class_exists( 'WC_Subscriptions', false );
 
-		if ( 'yes' === ( $this->settings['wc_complete_virtual'] ?? 'no' ) ) {
+		// Deliberately not kept as a field: this filter is the only thing the class takes
+		// from the live settings. Every later decision reads the flag persisted on the
+		// order instead -- see the forced-completion comment in sync() -- so holding the
+		// array would invite exactly the mid-payment-window reinterpretation that avoids.
+		if ( 'yes' === ( $settings['wc_complete_virtual'] ?? 'no' ) ) {
 			add_filter( 'woocommerce_order_item_needs_processing', 'wc_scanpay_item_needs_processing', 10, 3 );
 		}
 	}

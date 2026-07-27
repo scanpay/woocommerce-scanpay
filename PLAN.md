@@ -176,7 +176,6 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 7 | `WC_Scanpay_Sync::$settings` is public for no reader | `library/class-wc-scanpay-sync.php` |
 | 8 | The 2.1.3 migration cannot finish on a large shop | `upgrade.php` |
 | 9 | A site-wide menu removal contradicts our stated policy | `woocommerce-scanpay.php` |
 | 10 | Three registrations in the router that state nothing | `woocommerce-scanpay.php` |
@@ -195,44 +194,6 @@ Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 7 — `WC_Scanpay_Sync::$settings` is public for no reader
-
-**File:** `src/library/class-wc-scanpay-sync.php` (after task 6)
-**Anchor:** `public array $settings;` (~`:12`)
-
-It is written once in the constructor and read once beside it, in the
-`wc_complete_virtual` test. Nothing outside the class touches it — the only
-construction site (`new WC_Scanpay_Sync( $settings, $shopid )` in
-`wc-scanpay-ping.php`) passes the array in and never reads it back. Its two
-neighbours, holding the same kind of derived configuration, are private. The class
-is `final`.
-
-**Fix.** `private array $settings;`
-
-Then decide whether the property earns its place at all: if the constructor
-remains its only reader, a local variable is smaller, and `AGENTS.md`'s "a class
-only earns its place when it holds a resource or state across calls" applies to
-fields as much as classes. Record which you took and why. If in doubt keep the
-property — the visibility fix is the task.
-
-**Verify**
-
-- `grep -rn '\->settings' src/` returns 22 hits in four files; only those in
-  `class-wc-scanpay-sync.php` are this property. The rest are
-  `WCS_Scanpay_Charge`'s own private field and the gateways' inherited
-  `WC_Settings_API::$settings`. Confirm that split rather than reporting a count.
-- `grep -rn 'new WC_Scanpay_Sync' src/` returns the one construction site, which
-  passes the array in and never reads it back.
-- `pnpm phpcs` still passes. PHPCS does not check visibility, so a clean run is
-  the whole static signal.
-
-**Handoff**
-
-- None. A visibility change with no runtime surface; say so rather than inventing
-  a shop check.
 
 ---
 
