@@ -402,9 +402,6 @@ final class WC_Scanpay_Sync {
 	 * @throws \RuntimeException On validation or database errors.
 	 */
 	public function subscriber( array $c ): void {
-		if ( ! $this->wcs_enabled ) {
-			return;
-		}
 		$subid = $c['id'] ?? null;
 		if ( ! is_int( $subid ) || $subid <= 0 ) {
 			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
@@ -447,6 +444,14 @@ final class WC_Scanpay_Sync {
 			$err = $wpdb->last_error;
 			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new \RuntimeException( "subscriber #$subid: could not save subscriber data: $err" );
+		}
+
+		// Only the tail below needs Subscriptions -- wcs_get_subscription() is undefined
+		// without it. The row above is not, and it holds the rev idempotency_key() builds
+		// from: seq only moves forward, so a revision skipped while WCS was deactivated is
+		// gone for good, and the shop would charge under a stale key once it comes back.
+		if ( ! $this->wcs_enabled ) {
+			return;
 		}
 
 		$pm_title = $this->parse_payment_method( $c['method'] ?? null );
