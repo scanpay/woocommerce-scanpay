@@ -7,6 +7,41 @@ global $wpdb;
 $version    = (string) get_option( 'wc_scanpay_version', '0.0.0' );
 $wcs_exists = class_exists( 'WC_Subscriptions', false );
 set_time_limit( 60 );
+
+/*
+ * A blog with no history at all, which is not an upgrade. register_activation_hook()
+ * fires activate_{$plugin} once however wide the activation is
+ * (wp-admin/includes/plugin.php:703) -- $network_wide is an argument to the hook, not a
+ * loop over the network -- so a network activation runs install.php for one blog's
+ * $wpdb->prefix. Every other blog, and every blog created afterwards, first meets the
+ * plugin at the loader gate with both options absent, and would fall into the '< 2.0.0'
+ * branch below: 1.x defaults written over a site that never ran 1.x, and the version
+ * stamped mid-migration by install.php's own $fresh_install path.
+ *
+ * Above the log line on purpose: a blog with no history must not report an upgrade
+ * "from 0.0.0" it never ran, and that line is the only record of this path a merchant or
+ * a support case ever sees.
+ *
+ * The options are read here rather than $version, which cannot answer the question: :7
+ * defaults it to '0.0.0', so an absent version and a stored '0.0.0' are the same string
+ * by the time any branch sees it. Same two reads, same order, as install.php:77, and
+ * install.php:72-76 is where the reason is written down -- absent *settings* is the
+ * discriminator, because 1.x wrote settings and never a version. The two must stay in
+ * step; simplifying this side to a version test alone re-opens that bug.
+ */
+if ( false === get_option( WC_SCANPAY_URI_SETTINGS ) && false === get_option( 'wc_scanpay_version' ) ) {
+	// Creates this blog's tables and stamps the version through its own $fresh_install
+	// path. Re-read for the reason the tail at :168-174 gives, which this return skips:
+	// reporting a version the site does not have is worse than a retry. The throw lands
+	// in the loader's catch, which keeps the five-minute transient, and install.php is
+	// idempotent -- the retry costs three SHOW TABLES LIKE and nothing else.
+	require WC_SCANPAY_DIR . '/install.php';
+	if ( get_option( 'wc_scanpay_version' ) !== WC_SCANPAY_VERSION ) {
+		throw new Exception( 'Could not store the new plugin version' );
+	}
+	return;
+}
+
 scanpay_log( 'info', "Upgrading Scanpay plugin from $version to " . WC_SCANPAY_VERSION );
 
 if ( version_compare( $version, '2.0.0', '<' ) ) {

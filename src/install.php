@@ -99,9 +99,11 @@ if ( empty( $settings['secret'] ) ) {
 
 // Nothing to migrate: stamp the version so the loader gate does not run upgrade.php's
 // 1.x settings migration over a new install and overwrite the gateway field defaults.
-// A no-op in install.php's other callers (upgrade.php, the reset endpoint, the card
-// gateway's first-key save), which all run on a shop that already has settings, a
-// version, or both.
+// A no-op in the reset endpoint and in the card gateway's first-key save, which run on a
+// shop that already has settings, a version, or both. Not in upgrade.php: its
+// fresh-install exit requires this file for exactly this stamp -- on a network activation
+// every blog but the activated one arrives there with neither option -- and returns above
+// the 1.x branch, so there the stamp is the point rather than a no-op.
 if ( $fresh_install ) {
 	add_option( 'wc_scanpay_version', WC_SCANPAY_VERSION, '', true );
 }
