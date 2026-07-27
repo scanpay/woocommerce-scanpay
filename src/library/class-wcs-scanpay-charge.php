@@ -276,7 +276,7 @@ final class WCS_Scanpay_Charge {
 				];
 				scanpay_log(
 					'warning',
-					"Order #$oid: The sum of all items ($sum) does not match the order total ($wc_total)." .
+					"Order #$oid: The sum of all items ($sum) does not match the order total ($wc_total). " .
 					'The item list will not be available in the scanpay dashboard.'
 				);
 			}

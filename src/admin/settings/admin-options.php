@@ -137,7 +137,9 @@ $nav_tabs = [
 
 <table class="form-table wcsp-set-<?php echo esc_attr( $gateway->id ); ?>">
 	<?php
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		// Carries no escaping suppression, and needs none: this is a method call, not an
+		// echo, so WordPress.Security.EscapeOutput cannot fire on it -- the echo happens
+		// inside generate_settings_html() (abstract-wc-settings-api.php:370-374).
 		$gateway->generate_settings_html( $gateway->get_form_fields(), true );
 	?>
 </table>

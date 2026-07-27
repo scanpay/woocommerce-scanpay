@@ -271,7 +271,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 			];
 			scanpay_log(
 				'warning',
-				"Order #$oid: The sum of all items ($sum) does not match the order total ($wc_total)." .
+				"Order #$oid: The sum of all items ($sum) does not match the order total ($wc_total). " .
 				'The item list will not be available in the scanpay dashboard.'
 			);
 		}

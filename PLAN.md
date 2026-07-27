@@ -288,64 +288,6 @@ the head of the file), **S** item 3 (a log string), **T** (the `$subid` branch).
 Every one of those anchors sits below the previous task's edit or above it, never
 inside it — but the line numbers move, so locate the symbol.
 
-## Task S — Three hygiene gaps the guide already rules on
-
-**Files:** `src/gateways/class-wc-gateway-scanpay-mobilepay.php:26-27`,
-`src/gateways/class-wc-gateway-scanpay-applepay.php:73-74`,
-`src/admin/settings/admin-options.php:138`,
-`src/public/generate-payment-link.php:213-217` — as tasks A, C, F and R left it —
-and `src/library/class-wcs-scanpay-charge.php:274-278`, as C and R left that one.
-
-1. **`esc_url()` on the two icon URLs.** Both gateways interpolate
-   `WC_SCANPAY_URL` into a `src=""` unescaped; the card gateway escapes the
-   identical concatenation (`class-wc-gateway-scanpay-card.php:66`), and
-   WooCommerce echoes `get_icon()` raw
-   (`templates/checkout/payment-method.php:26`). `WC_SCANPAY_URL` is
-   `untrailingslashit( plugins_url( '', __FILE__ ) )`
-   (`woocommerce-scanpay.php:35`), and `plugins_url()` runs a third-party filter,
-   so it is not a compile-time constant. PHPCS misses it because the value is
-   returned rather than echoed. Wrap both, matching the card.
-2. **The bare `phpcs:ignore`** at `admin-options.php:138`. It is deleted because
-   it suppresses nothing, not because of its missing reason: the annotated
-   statement is a method call, not an `echo`, so `WordPress.Security.EscapeOutput`
-   cannot fire on it — the echo happens inside `generate_settings_html()`
-   (`abstract-wc-settings-api.php:370-374`). A suppression that suppresses
-   nothing is the one kind that can never be justified with a reason, which is
-   what makes it this task's. Delete it, and confirm `pnpm phpcs` stays clean; if
-   it does not, keep it with the reason instead.
-
-   **Do not generalise this into a sweep.** `AGENTS.md` says *"`phpcs:ignore`
-   always carries `-- <reason>`"*, and roughly thirty suppressions in the tree do
-   not — most of them the `EscapeOutput.ExceptionNotEscaped` line above a
-   `throw`, in `class-wc-scanpay-sync.php`, `class-wc-scanpay-client.php`,
-   `math.php`, `class-wcs-scanpay-charge.php`, `class-wc-scanpay-capture.php` and
-   `woocommerce-scanpay.php`. Nothing enforces the rule — only the DocComment and
-   CommentedOutCode sniffs are configured — so they are a style debt, not a
-   defect, and annotating them is a separate decision about a separate commit.
-   This task touches one file's one line.
-3. **A missing space in a log line.** `generate-payment-link.php:213-217`
-   concatenates `"…does not match the order total ($wc_total)."` directly onto
-   `'The item list will not be available…'`, so the merchant reads
-   `(199.00).The item list`. The identical string in
-   `class-wcs-scanpay-charge.php:274-278` has the same defect — fix both, and
-   record the msgid situation: neither is translated, so no catalog changes.
-
-### Verify
-
-- `grep -n "phpcs:ignore" src/admin/settings/admin-options.php` comes back empty.
-  Scoped to that one file on purpose: the tree-wide grep still returns about
-  thirty lines, all of them out of scope per the note above, and an empty
-  tree-wide result would mean the commit grew far past this task.
-- Confirm `esc_url()` leaves both URLs byte-identical in the ordinary case: a
-  plugin URL with no query string.
-- Confirm the two log strings now render with one space and no double space.
-- `pnpm phpcs` clean.
-
-### Handoff
-
-- Render a classic checkout with MobilePay and Apple Pay enabled and confirm both
-  icons still load.
-
 ## Task T — The renewal "Pay now" link tells the customer it charged them
 
 **File:** `src/public/generate-payment-link.php`, the `$subid` branch at

@@ -23,8 +23,12 @@ final class WC_Gateway_Scanpay_Mobilepay extends WC_Gateway_Scanpay_Base {
 
 	/** The checkout icon. $this->icon stays live for the admin Payments list. */
 	public function get_icon(): string {
+		// esc_url() as the card gateway does on the identical concatenation: WooCommerce
+		// echoes get_icon() raw (templates/checkout/payment-method.php:26), and
+		// WC_SCANPAY_URL is plugins_url()-derived, which runs a third-party filter -- so it
+		// is not a compile-time constant. PHPCS misses it because the value is returned.
 		$html = '<span class="wcsp-methods"><img width="92" height="23" class="wcsp-mobilepay" src="' .
-			WC_SCANPAY_URL . '/public/assets/images/mobilepay.svg" alt="MobilePay" title="MobilePay"></span>';
+			esc_url( WC_SCANPAY_URL . '/public/assets/images/mobilepay.svg' ) . '" alt="MobilePay" title="MobilePay"></span>';
 		// Filtered after the markup is built, as WC_Payment_Gateway does; cast because a
 		// filter callback can return anything and this method returns string.
 		return (string) apply_filters( 'woocommerce_gateway_icon', $html, $this->id );
