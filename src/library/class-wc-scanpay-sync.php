@@ -243,10 +243,18 @@ final class WC_Scanpay_Sync {
 		// The upsert above and payment_complete() below are not atomic, so the order
 		// itself is what says whether it is already paid (transaction_id, set below).
 		$wco = wc_get_order( $oid );
-		if ( ! $wco ) {
+		if ( ! $wco instanceof WC_Order ) {
 			// Legitimate state, not a protocol violation: the order may have been deleted
 			// or the store reset while Scanpay still holds the old transaction. Log and
 			// continue -- throwing would retry the same seq forever and wedge the sync.
+			//
+			// instanceof, not a truthiness test: refunds share the order id space, and
+			// wc_get_order() resolves a refund id to a WC_Order_Refund, which extends
+			// WC_Abstract_Order and defines none of get_transaction_id(),
+			// set_transaction_id(), get_payment_method() or payment_complete() -- those are
+			// WC_Order's, and nothing in the chain defines __call. Calling one below would
+			// be an Error, which the ping handler catches as a Throwable: a 500 and the same
+			// seq page replayed forever. Same guard, same reason, as functions.php:34.
 			scanpay_log( 'warning', "$label: order not found (order=$oid)" );
 			return;
 		}
@@ -275,15 +283,24 @@ final class WC_Scanpay_Sync {
 			// on one. Log + note + return, never throw -- see the total guard above.
 			if ( wc_scanpay_cmpmoney( $auth, $total ) < 0 ) {
 				scanpay_log( 'error', "$label: authorized $auth does not cover order total $total (order=$oid)" );
-				$wco->add_order_note(
-					sprintf(
-						/* translators: 1: authorized amount, 2: order total, 3: currency code. */
-						__( 'Scanpay: the authorized amount (%1$s %3$s) does not cover the order total (%2$s %3$s); the order was not marked as paid.', 'scanpay-for-woocommerce' ),
-						$auth,
-						$total,
-						$cur
-					)
-				);
+				try {
+					$wco->add_order_note(
+						sprintf(
+							/* translators: 1: authorized amount, 2: order total, 3: currency code. */
+							__( 'Scanpay: the authorized amount (%1$s %3$s) does not cover the order total (%2$s %3$s); the order was not marked as paid.', 'scanpay-for-woocommerce' ),
+							$auth,
+							$total,
+							$cur
+						)
+					);
+				} catch ( \Throwable $note_error ) {
+					// add_order_note() runs woocommerce_new_order_note_data,
+					// wp_insert_comment() and woocommerce_order_note_added -- all third-party
+					// surface -- so the branch that promises never to throw has to say so here
+					// too. Same rule as report_incomplete(): reporting a failure must not
+					// become the failure, and the cursor advances either way.
+					scanpay_log( 'error', "$label: could not add the underpayment note to order #$oid: " . $note_error->getMessage() );
+				}
 				return;
 			}
 			$txn = (string) $trnid;
