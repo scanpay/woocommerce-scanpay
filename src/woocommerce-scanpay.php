@@ -33,6 +33,11 @@ const WC_SCANPAY_URI_COMPLETE = '_scanpay_complete';
 
 define( 'WC_SCANPAY_DIR', __DIR__ );
 define( 'WC_SCANPAY_URL', untrailingslashit( plugins_url( '', __FILE__ ) ) );
+// "<dir>/woocommerce-scanpay.php", the key get_plugins() and the plugin_action_links_
+// hook use. Derived, not spelled out, so a renamed directory or a checkout symlinked
+// into plugins/ still resolves -- plugin_basename() maps the realpath back through
+// $wp_plugin_paths, which wp-settings.php filled when it included this file.
+define( 'WC_SCANPAY_BASENAME', plugin_basename( __FILE__ ) );
 
 /** Write to the WooCommerce log; a silent no-op until wc_get_logger() exists. */
 function scanpay_log( string $level, string $msg ): void {
@@ -56,7 +61,7 @@ if ( isset( $_SERVER['HTTP_X_SIGNATURE'] ) ) {
 		// Not left to wc_scanpay_init() on 'init': the return below skips the whole
 		// bootstrap, so that hook is never registered on a ping. Sync persists three
 		// translated order notes from this very request, which no later one repairs.
-		load_plugin_textdomain( 'scanpay-for-woocommerce', false, 'scanpay-for-woocommerce/languages' );
+		load_plugin_textdomain( 'scanpay-for-woocommerce', false, dirname( WC_SCANPAY_BASENAME ) . '/languages' );
 		require WC_SCANPAY_DIR . '/callback/wc-scanpay-ping.php';
 	}
 	add_action( 'woocommerce_api_wc_scanpay', 'wc_scanpay_handle_ping' );
@@ -474,7 +479,7 @@ add_action( 'before_woocommerce_init', 'wc_scanpay_before_woocommerce_init' );
  * Action: init (load_plugin_textdomain must not run any earlier)
  */
 function wc_scanpay_init() {
-	load_plugin_textdomain( 'scanpay-for-woocommerce', false, 'scanpay-for-woocommerce/languages' );
+	load_plugin_textdomain( 'scanpay-for-woocommerce', false, dirname( WC_SCANPAY_BASENAME ) . '/languages' );
 }
 add_action( 'init', 'wc_scanpay_init', 0 );
 

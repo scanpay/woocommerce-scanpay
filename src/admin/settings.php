@@ -67,7 +67,7 @@ function wc_scanpay_admin_settings_link( array $links ): array {
 	array_unshift( $links, '<a href="' . $url . '">' . __( 'Settings', 'scanpay-for-woocommerce' ) . '</a>' );
 	return $links;
 }
-add_filter( 'plugin_action_links_scanpay-for-woocommerce/woocommerce-scanpay.php', 'wc_scanpay_admin_settings_link' );
+add_filter( 'plugin_action_links_' . WC_SCANPAY_BASENAME, 'wc_scanpay_admin_settings_link' );
 
 
 /**
