@@ -16,8 +16,9 @@ nocache_headers();
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 $secret   = (string) ( $settings['secret'] ?? '' );
 if ( '' === $secret || ! hash_equals( $secret, trim( (string) ( $_SERVER['HTTP_X_SCANPAY'] ?? '' ) ) ) ) {
+	// No die() after any wp_send_json() here: it terminates either way, through wp_die()
+	// when wp_doing_ajax() and a bare die otherwise (wp-includes/functions.php:4602-4611).
 	wp_send_json( [ 'error' => 'forbidden' ], 403 );
-	die();
 }
 
 $shopid = (int) strstr( (string) ( $settings['apikey'] ?? '' ), ':', true );

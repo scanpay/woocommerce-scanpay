@@ -176,7 +176,6 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 17 | Four local inconsistencies | `admin/orders.php`, `admin/ajax/wp-scanpay-fetch-{meta,sub}.php` |
 | 18 | Comment audit against the documented standard | all 35 PHP files |
 | 19 | i18n audit, English source and Danish catalog | `src/languages/`, every `__()` site |
 | 20 | Fresh full review → `RESULTS.md` | all 35 PHP files |
@@ -185,61 +184,6 @@ Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 17 — Four local inconsistencies
-
-**Files:** `src/admin/orders.php`, `src/admin/ajax/wp-scanpay-fetch-meta.php`,
-`src/admin/ajax/wp-scanpay-fetch-sub.php`
-
-Four small changes, one commit, no behaviour change. Do all four or none.
-
-1. **`'meta' => $meta ?? null,` in `admin/orders.php`** (~`:119`). `$wpdb->get_row()`
-   already returns `null` when there is no row, so the coalesce cannot fire. Drop
-   to `'meta' => $meta`.
-2. **The two long-poll endpoints spell termination differently.** `-sub.php` writes
-   `wp_send_json( … ); die();` after the secret check and bare `die;` after the
-   shopid and subid checks; `-meta.php` writes bare `wp_send_json( … )` at the
-   matching two. `wp_send_json()` terminates either way, so both are correct and
-   one is redundant — but a reader cannot tell which without checking core. Take
-   the bare form, delete the three redundant `die`s, and comment at the first site
-   that `wp_send_json()` terminates. **Do not pre-empt
-   `docs/performance-review.md` §5.2**, which folds these files' shared auth
-   preamble into one `admin/ajax/auth.php`; only make the two agree in place.
-3. **`$sec = $sec + $sec;` in `-sub.php`** (~`:61`). Write `$sec *= 2;`. The comment
-   above already says "0.5s, 1s, 2s, 4s, 8s", so the doubling should read as
-   doubling.
-4. **A null `rev` never breaks the poll — say so, do not code around it.**
-   `scanpay_subs.rev` is nullable (`rev INT unsigned,` in `install.php`'s
-   `CREATE TABLE $subs_tbl`, ~`:61` — unlike `scanpay_meta.rev`, which is
-   `NOT NULL`) and the exit test is `$sub['rev'] > $rev`; `null > 0` is false, so
-   such a row would poll the full 15.5 s. It cannot arise:
-   `WC_Scanpay_Sync::subscriber()` is the only writer, and it validates
-   `if ( ! is_int( $rev ) || $rev <= 0 )` with a throw before building the
-   statement (`class-wc-scanpay-sync.php`, ~`:427-430`), so a stored rev is always
-   ≥ 1. `docs/ts-review.md` §4 reached the same conclusion from the browser side.
-   **Write the comment, not a break condition** — model it on
-   `wc_scanpay_read_cursor()`'s note for `scanpay_seq.ping`, and cite the validating
-   guard by symbol. Re-read that guard before you write it; do not take it from here.
-
-**Leave the keep-alive `echo "\n"` alone**, though item 3 edits the line beside it
-in `-sub.php`. `docs/ts-review.md` §4 settled it: the body arrives as `"\n\n\n{…}"`
-and `JSON.parse` skips leading whitespace per specification, so the browser side is
-unaffected. It is not a fifth item.
-
-**Verify**
-
-- Quote `wp_send_json()` showing both termination branches.
-- Confirm `subscriber()` is the only `INSERT` into `scanpay_subs`
-  (`grep -rn "scanpay_subs" src/` returns one INSERT) and that its `rev` is
-  validated as a positive int before the statement is built.
-- Confirm none of the four alters a response body or status code.
-
-**Handoff**
-
-- Both meta boxes still poll and render; `?x=meta` and `?x=sub` still answer JSON
-  with the same shape.
 
 ---
 

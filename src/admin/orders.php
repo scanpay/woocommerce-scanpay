@@ -116,7 +116,7 @@ function wc_scanpay_admin_render_meta_box( $post ): void {
 	$props = [
 		'oid'         => $oid,
 		'wc_decimals' => wc_get_price_decimals(),
-		'meta'        => $meta ?? null,
+		'meta'        => $meta,
 		'currency'    => $wco->get_currency( 'edit' ),
 		'secret'      => (string) ( is_array( $settings ) ? ( $settings['secret'] ?? '' ) : '' ),
 		'dashboard'   => $dashboard,

@@ -16,8 +16,9 @@ nocache_headers();
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 $secret   = (string) ( $settings['secret'] ?? '' );
 if ( '' === $secret || ! hash_equals( $secret, trim( (string) ( $_SERVER['HTTP_X_SCANPAY'] ?? '' ) ) ) ) {
+	// No die() after any wp_send_json() here: it terminates either way, through wp_die()
+	// when wp_doing_ajax() and a bare die otherwise (wp-includes/functions.php:4602-4611).
 	wp_send_json( [ 'error' => 'forbidden' ], 403 );
-	die();
 }
 
 $shopid = (int) strstr( (string) ( $settings['apikey'] ?? '' ), ':', true );
@@ -26,12 +27,10 @@ $subid  = (int) wp_unslash( $_GET['subid'] ?? 0 );
 
 if ( 0 === $shopid ) {
 	wp_send_json( [ 'error' => 'invalid shopid' ] );
-	die;
 }
 
 if ( 0 === $subid ) {
 	wp_send_json( [ 'error' => 'not found' ] );
-	die;
 }
 
 global $wpdb;
@@ -54,11 +53,16 @@ if ( isset( $sub['rev'] ) && $rev >= $sub['rev'] ) {
 	usleep( 500000 ); // usleep() for the sub-second wait only; sleep() for the rest.
 	while ( 1 ) {
 		$sub = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid", ARRAY_A );
+		// rev is nullable in the DDL, and NULL > $rev is false, so such a row would poll
+		// the full 15.5s before answering. It is unreachable: WC_Scanpay_Sync::subscriber()
+		// is the only INSERT into scanpay_subs and throws on ! is_int( $rev ) || $rev <= 0
+		// before building the statement, so a stored rev is always >= 1. Keep it that way
+		// rather than adding a break condition for a row that cannot exist.
 		if ( null === $sub || $sub['rev'] > $rev || $sec > 8 ) {
 			break; // Row vanished, was updated, or the backoff is spent; respond below.
 		}
 		sleep( $sec );
-		$sec = $sec + $sec;
+		$sec *= 2;
 		echo "\n"; // Write something each round, so a disconnected client is detected.
 		if ( ob_get_level() ) {
 			ob_flush();
