@@ -36,6 +36,17 @@ function wc_scanpay_add_bulk_actions( array $actions ): array {
 	if ( 'trash' === $view ) {
 		return $actions;
 	}
+	// Same principle, the other half of it: when WooCommerce has withheld its own actions
+	// entirely, ours must not be the only entry left. HPOS returns array() from
+	// get_bulk_actions() for a user without edit_others_posts
+	// (src/Internal/Admin/Orders/ListTable.php:323-327), and WP_List_Table applies this
+	// filter at class-wp-list-table.php:598 but only tests for emptiness at :605 -- so a
+	// role with edit_shop_orders but not edit_others_shop_orders would be shown a dropdown
+	// holding exactly one action, ours, which handle_bulk_actions() then rejects silently
+	// on the same capability (ListTable.php:1418-1421).
+	if ( ! $actions ) {
+		return $actions;
+	}
 	$arr = [];
 	foreach ( $actions as $k => $v ) {
 		$arr[ 'mark_completed' === $k ? 'scanpay_mark_completed' : $k ] = $v;

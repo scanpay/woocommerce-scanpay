@@ -288,43 +288,6 @@ the head of the file), **S** item 3 (a log string), **T** (the `$subid` branch).
 Every one of those anchors sits below the previous task's edit or above it, never
 inside it — but the line numbers move, so locate the symbol.
 
-## Task N — Our bulk action re-fills a list WooCommerce emptied on purpose
-
-**File:** `src/admin/orders.php`, `wc_scanpay_add_bulk_actions()` at `:29-44` —
-as task J left the file.
-
-```php
-return [ 'scanpay_capture_complete' => __( 'Capture and complete', … ) ] + $arr;
-```
-
-HPOS returns an **empty array** from `get_bulk_actions()` when the user lacks
-`edit_others_posts` (`src/Internal/Admin/Orders/ListTable.php:323-327`), and
-`WP_List_Table` applies our filter *before* it tests for emptiness
-(`class-wp-list-table.php:598` then `:605`). So a role with `edit_shop_orders`
-but not `edit_others_shop_orders` — enough to reach the Orders screen — is shown
-a bulk dropdown holding exactly one entry, ours, which the executor then rejects
-silently at `ListTable.php:1419-1421`. The trash-view guard at `:36` already
-establishes the principle: when WooCommerce has withheld its own actions, ours
-must not appear either.
-
-**The fix.** Return `$actions` unchanged when it is empty, beside the existing
-trash guard, with a comment naming both halves — `get_bulk_actions()`'s cap check
-and `WP_List_Table`'s filter-then-test order.
-
-### Verify
-
-- Quote all three upstream lines and confirm the filter runs before the empty
-  test.
-- Confirm the legacy (CPT) list table has the same shape, or say plainly that it
-  does not and that the guard is harmless there.
-- Confirm the trash guard and the `mark_completed` rename are untouched.
-
-### Handoff
-
-- On a shop: create a role with `edit_shop_orders` but not
-  `edit_others_shop_orders`, open the Orders list, and confirm the bulk dropdown
-  no longer offers "Capture and complete".
-
 ## Task O — The subscription meta box reads two keys nothing writes
 
 **File:** `src/admin/subscriptions.php:29-40` — as task J left the file.
