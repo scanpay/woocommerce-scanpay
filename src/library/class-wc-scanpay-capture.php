@@ -103,15 +103,26 @@ final class WC_Scanpay_Capture {
 				'index' => (int) $meta['nacts'],
 			]
 		);
-		$wco->add_order_note(
-			sprintf(
-				/* translators: %s is the captured amount with its currency, e.g. "99.00 DKK". */
-				__( 'Scanpay capture of %s completed.', 'scanpay-for-woocommerce' ),
-				$amount
-			),
-			0,
-			true
-		);
+		// The money moved when client->capture() returned, so the note must not be able to
+		// read as a capture failure: capture_or_hold()'s catch would park the paid order
+		// on-hold and tell its caller not to complete it. add_order_note() runs
+		// woocommerce_new_order_note_data, wp_insert_comment() and
+		// woocommerce_order_note_added, all third-party surface; contained as in
+		// WC_Scanpay_Sync::sync(), WC_Scanpay_Sync::report_incomplete() and
+		// wc_scanpay_process_payment().
+		try {
+			$wco->add_order_note(
+				sprintf(
+					/* translators: %s is the captured amount with its currency, e.g. "99.00 DKK". */
+					__( 'Scanpay capture of %s completed.', 'scanpay-for-woocommerce' ),
+					$amount
+				),
+				0,
+				true
+			);
+		} catch ( \Throwable $note_error ) {
+			scanpay_log( 'error', "Could not add the capture note to order #$oid: " . $note_error->getMessage() );
+		}
 	}
 
 	/**

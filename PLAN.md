@@ -176,7 +176,6 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 1 | A completed capture can be recorded as a failure | `library/class-wc-scanpay-capture.php` |
 | 2 | The last money read in the view context sets a capture amount | `library/class-wc-scanpay-capture.php` |
 | 3 | A cleared API key reads as a broken one | `library/class-wc-scanpay-capture.php` |
 | 4 | A collected renewal can be marked failed | `library/class-wcs-scanpay-charge.php` |
@@ -201,67 +200,6 @@ Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 1 — A completed capture can be recorded as a failure
-
-**File:** `src/library/class-wc-scanpay-capture.php`
-**Anchor:** `__( 'Scanpay capture of %s completed.'` in `capture()` (~`:106-114`)
-
-`capture()` ends by writing that note. Its only caller, `capture_or_hold()`,
-invokes it inside a `try` whose `catch` means *the capture failed*: it memoizes
-`self::$processed[ $oid ] = false`, logs, calls
-`update_status( 'on-hold', "Scanpay capture failed: …" )` and returns `false`.
-
-`add_order_note()` runs `woocommerce_new_order_note_data`, `wp_insert_comment()`
-and `woocommerce_order_note_added`. A `Throwable` from any of them arrives after
-`WC_Scanpay_Client::capture()` has returned — **after the money moved** — and
-produces: a memo of `false`, a note reading "Scanpay capture failed: <the note's
-own error>", the order demoted from `completed` to `on-hold`, and `false` returned
-to `wp-ajax-wc-mark-order-status.php` and `wp-bulk-actions.php`, which therefore do
-not complete the order. The customer has been charged; nothing retries, because
-from Scanpay's side nothing went wrong.
-
-**Fix.** Contain the note where it is written, in the tree's existing idiom:
-
-```php
-try {
-    $wco->add_order_note( sprintf( /* … */ ), 0, true );
-} catch ( \Throwable $note_error ) {
-    scanpay_log( 'error', "Could not add the capture note to order #$oid: " . $note_error->getMessage() );
-}
-```
-
-Keep the `__()` string, its `sprintf()` arguments, its translators comment and
-both positional arguments (`0, true`) byte-identical — no msgid changes here.
-Comment the new `try` with what it buys: the money has already moved by this line,
-so a throw must not read as a capture failure. Cite the three sibling sites by
-symbol (`WC_Scanpay_Sync::sync()`, `WC_Scanpay_Sync::report_incomplete()`,
-`wc_scanpay_process_payment()`), not by line number.
-
-**Do not** hoist the note into `capture_or_hold()`. `capture()` returns `void` and
-its "nothing left to capture" early return must stay noteless; hoisting would
-either note that case too or need a second signal, and `capture()` is documented as
-having none.
-
-**Verify**
-
-- Re-read the three sibling `try`/`catch` sites; confirm shape and comment style
-  match.
-- Trace `capture_or_hold()` and state that every remaining throw source inside its
-  `try` occurs *before* `WC_Scanpay_Client::capture()` returns.
-- `grep -rn 'add_order_note' src/` returns four call sites, all four now contained.
-  Note separately that `wcs_scanpay_fail_renewal()` and `wp-bulk-actions.php` write
-  notes through `update_status()` / `set_status()` and so do not appear — that is
-  correct, not a gap.
-
-**Handoff**
-
-- A successful capture whose note write throws (mu-plugin on
-  `woocommerce_order_note_added`) leaves the order `completed`, returns true, and
-  logs one error line.
-- The ordinary path still adds exactly one capture note.
 
 ---
 
