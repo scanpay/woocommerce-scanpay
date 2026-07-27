@@ -24,14 +24,14 @@ set_time_limit( 60 );
  *
  * The options are read here rather than $version, which cannot answer the question: :7
  * defaults it to '0.0.0', so an absent version and a stored '0.0.0' are the same string
- * by the time any branch sees it. Same two reads, same order, as install.php:77, and
- * install.php:72-76 is where the reason is written down -- absent *settings* is the
+ * by the time any branch sees it. Same two reads, same order, as install.php:81, and
+ * install.php:76-80 is where the reason is written down -- absent *settings* is the
  * discriminator, because 1.x wrote settings and never a version. The two must stay in
  * step; simplifying this side to a version test alone re-opens that bug.
  */
 if ( false === get_option( WC_SCANPAY_URI_SETTINGS ) && false === get_option( 'wc_scanpay_version' ) ) {
 	// Creates this blog's tables and stamps the version through its own $fresh_install
-	// path. Re-read for the reason the tail at :168-174 gives, which this return skips:
+	// path. Re-read for the reason the tail at :261-267 gives, which this return skips:
 	// reporting a version the site does not have is worse than a retry. The throw lands
 	// in the loader's catch, which keeps the five-minute transient, and install.php is
 	// idempotent -- the retry costs three SHOW TABLES LIKE and nothing else.
@@ -138,7 +138,7 @@ if ( $wcs_exists && version_compare( $version, '2.1.3', '<' ) ) {
 				'type'     => 'shop_subscription',
 				'status'   => 'all',
 				'return'   => 'ids',
-				'meta_key' => '_scanpay_subscriber_id', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+				'meta_key' => '_scanpay_subscriber_id', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- The 1.x key is the only way to find these rows, and this branch runs once per shop.
 				'limit'    => $page_size,
 				'offset'   => $offset,
 				'orderby'  => 'ID',

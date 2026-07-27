@@ -37,7 +37,7 @@ function wc_scanpay_is_money( string $s ): bool {
  */
 function wc_scanpay_dighomogenize( string $a, string $b ): array {
 	if ( ! wc_scanpay_is_money( $a ) || ! wc_scanpay_is_money( $b ) ) {
-		// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+		// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 		throw new \InvalidArgumentException( "invalid money amount: '$a' or '$b'" );
 	}
 	$h       = [];
@@ -148,7 +148,7 @@ function wc_scanpay_addmoney( string $a, string $b ): string {
 function wc_scanpay_submoney( string $a, string $b ): string {
 	// Validate before negating: stripping the '-' would launder '--5' into a valid '-5'.
 	if ( ! wc_scanpay_is_money( $b ) ) {
-		// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+		// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 		throw new \InvalidArgumentException( "invalid money amount: '$b'" );
 	}
 	// a - b is a + (-b).
@@ -199,7 +199,7 @@ function wc_scanpay_money_equals( string $a, string $b ): bool {
  */
 function wc_scanpay_is_zero( string $s ): bool {
 	if ( ! wc_scanpay_is_money( $s ) ) {
-		// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+		// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 		throw new \InvalidArgumentException( "invalid money amount: '$s'" );
 	}
 	return false === strpbrk( $s, '123456789' );

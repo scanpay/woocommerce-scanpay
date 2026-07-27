@@ -32,7 +32,7 @@ final class Scanpay_Flock {
 	 * @throws RuntimeException If the lock file cannot be opened.
 	 */
 	public function acquire(): bool {
-		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- The ! $handle check below is the error handling; the warning would only add itself to the ping's plain-text response body.
 		$handle = @fopen( $this->path, 'c' );
 		if ( ! $handle ) {
 			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.

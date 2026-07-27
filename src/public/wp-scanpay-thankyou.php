@@ -31,7 +31,7 @@ defined( 'ABSPATH' ) || exit();
  * builds the order object exactly once, after the wait. The wait itself overlaps the
  * redirect from the payment window, so the customer rarely sees it.
  */
-// phpcs:disable WordPress.Security.NonceVerification
+// phpcs:disable WordPress.Security.NonceVerification -- No nonce by design; the order key is the authentication, per the first paragraph above.
 
 $order_type = sanitize_key( wp_unslash( $_GET['scanpay_type'] ?? '' ) );
 

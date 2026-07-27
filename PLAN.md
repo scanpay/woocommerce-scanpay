@@ -176,7 +176,6 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 18 | Comment audit against the documented standard | all 35 PHP files |
 | 19 | i18n audit, English source and Danish catalog | `src/languages/`, every `__()` site |
 | 20 | Fresh full review → `RESULTS.md` | all 35 PHP files |
 
@@ -184,75 +183,6 @@ Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 18 — Comment audit against the documented standard
-
-**Files:** all 35 PHP files in `src/`
-
-Comments are about 37 % of the tree — roughly 2 100 lines of ~5 600. Both figures
-drift with every commit; neither is a checksum. `AGENTS.md` makes them
-load-bearing: "Comments are the compensation, and what verification runs on: a
-change is checked against the invariants they state, so a comment that has drifted
-is a broken test."
-This task audits them against the **Comments** section of `AGENTS.md`, which is the
-specification — read it first and apply it, not this summary.
-
-Go file by file in `find src -name '*.php' | sort` order. One commit.
-
-**What to change.** Apply `AGENTS.md`'s Comments section as written — restatement,
-change logs and `@param`/`@return` ceremony go; file-header, inline and length
-rules hold. Three points it does not cover:
-
-- **Drift** is the priority: a comment that no longer describes the code, cites a
-  symbol that moved or was renamed, or states an invariant the code no longer
-  holds. Fix the comment to match the code. If the *code* looks wrong instead, that
-  is a finding for task 20, not a fix here.
-- **`phpcs:ignore` without `-- <reason>`.** 32 of the tree's 44 lack one. Add the
-  real reason, derived from the code, not "suppress sniff". Where you cannot state
-  one, the suppression is the finding: record it for task 20 rather than inventing
-  a justification. The 5 `phpcs:disable` are outside the guide's literal wording
-  and 4 carry no `--`, but three of those (the `?x=` endpoints') are already
-  explained by the file docblock directly above them — do not duplicate that into
-  an inline reason; `wp-scanpay-thankyou.php`'s is the one genuinely bare.
-- **Keep `@return array{…}`** where the shape is not obvious, `@throws` for what a
-  caller must catch, `@internal` outside a module's surface.
-
-**What must survive verbatim in substance**
-
-The long comments in this tree are not padding — most encode a decision that cost
-someone a debugging session, and several were written by earlier tasks in this very
-plan. **Never delete a comment that states why something is deliberate, what
-failure a line prevents, what a third party may do to a value, or why an obvious
-simplification is wrong.** Shorten the prose, keep the fact and the reason. If you
-cannot shorten it without losing either, leave it.
-
-Specifically protected, non-exhaustive: the `Settled` reasoning at the router's
-dispatch gates; every "do not simplify this away" note; the containment comments in
-`class-wc-scanpay-capture.php`, `class-wcs-scanpay-charge.php` and
-`class-wc-scanpay-sync.php`; the upstream citations by file and line; and the
-`'edit'`-context rationales.
-
-**Do not** rewrite comments into a house voice of your own, translate any of them,
-or touch a single line of executable code. If a comment cannot be made true without
-a code change, that is task 20's finding.
-
-**Verify**
-
-- Report the count of comments changed and deleted, per file.
-- `grep -rn "phpcs:ignore" src/ | grep -v -- "--"` returns nothing, or the
-  remainder is listed with why it could not be justified.
-- `pnpm phpcs` clean — it enforces docblock shape and commented-out code, so a
-  clean run is the structural half of this task.
-- `git diff --stat` shows changes only to comment lines. State this explicitly:
-  the diff must contain no executable change.
-
-**Handoff**
-
-- None: comments have no runtime surface. Instead, list every comment whose
-  underlying claim you could not verify from the tree or `.stubs/`, so task 20
-  starts from them.
 
 ---
 

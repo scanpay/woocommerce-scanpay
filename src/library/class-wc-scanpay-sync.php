@@ -42,7 +42,6 @@ final class WC_Scanpay_Sync {
 	 * Sets up the sync service.
 	 *
 	 * @param array<string, mixed> $settings Gateway settings (the woocommerce_scanpay_settings option).
-	 * @param int                  $shopid   Scanpay shop ID for this store.
 	 */
 	public function __construct( array $settings, int $shopid ) {
 		$this->shopid      = $shopid;
@@ -121,16 +120,16 @@ final class WC_Scanpay_Sync {
 	private function extract_amount( string $s ): string {
 		$n = strlen( $s );
 		if ( $n < 5 || ' ' !== $s[ $n - 4 ] ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 			throw new \RuntimeException( "missing space before currency: $s" );
 		}
 		if ( ! ctype_upper( substr( $s, -3 ) ) ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 			throw new \RuntimeException( "invalid currency code: $s" );
 		}
 		$amount = substr( $s, 0, $n - 4 );
 		if ( ! wc_scanpay_is_money( $amount ) ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 			throw new \RuntimeException( "invalid currency amount: $s" );
 		}
 		return $amount;
@@ -145,7 +144,6 @@ final class WC_Scanpay_Sync {
 	 * transaction's id and authorized amount via ON DUPLICATE KEY UPDATE.
 	 *
 	 * @param string $label Log/exception prefix, e.g. "transaction #123".
-	 * @param int    $oid   WooCommerce order ID.
 	 * @param int    $trnid Scanpay transaction ID claiming the order.
 	 * @param string $sql   Prebuilt INSERT ... ON DUPLICATE KEY UPDATE statement.
 	 * @return bool True if the row is now owned by $trnid; false if another
@@ -157,7 +155,7 @@ final class WC_Scanpay_Sync {
 		$owner = $wpdb->get_var( "SELECT id FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
 		if ( $wpdb->last_error ) {
 			// A query error also returns null; keep it distinct from a missing row.
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 			throw new \RuntimeException( "$label: could not read payment data for order #$oid: {$wpdb->last_error}" );
 		}
 		if ( null !== $owner && (int) $owner !== $trnid ) {
@@ -167,7 +165,7 @@ final class WC_Scanpay_Sync {
 			return false;
 		}
 		if ( false === $wpdb->query( $sql ) ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 			throw new \RuntimeException( "$label: could not save payment data to order #$oid: {$wpdb->last_error}" );
 		}
 		return true;
@@ -200,20 +198,20 @@ final class WC_Scanpay_Sync {
 		}
 		$trnid = $c['id'] ?? null;
 		if ( ! is_int( $trnid ) || $trnid <= 0 ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 			throw new \RuntimeException( "$type: invalid transaction ID for order #$oid (id=$trnid)" );
 		}
 		$label = "$type #$trnid";
 		$rev   = $c['rev'] ?? null;
 		if ( ! is_int( $rev ) || $rev <= 0 ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 			throw new \RuntimeException( "$label: invalid revision number (rev=$rev)" );
 		}
 		$subid = null;
 		if ( 'charge' === $type ) {
 			$subid = $c['subscriber']['id'] ?? null;
 			if ( ! is_int( $subid ) || $subid <= 0 ) {
-				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 				throw new \RuntimeException( "$label: invalid subscriber id (id=$subid)" );
 			}
 		}
@@ -423,12 +421,12 @@ final class WC_Scanpay_Sync {
 	public function subscriber( array $c ): void {
 		$subid = $c['id'] ?? null;
 		if ( ! is_int( $subid ) || $subid <= 0 ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 			throw new \RuntimeException( "subscription: invalid scanpay subscription ID (id=$subid)" );
 		}
 		$rev = $c['rev'] ?? null;
 		if ( ! is_int( $rev ) || $rev <= 0 ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 			throw new \RuntimeException( "subscription #$subid: invalid revision number (rev=$rev)" );
 		}
 		$ref = $c['ref'] ?? null;
@@ -461,7 +459,7 @@ final class WC_Scanpay_Sync {
 		);
 		if ( false === $res ) {
 			$err = $wpdb->last_error;
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 			throw new \RuntimeException( "subscriber #$subid: could not save subscriber data: $err" );
 		}
 

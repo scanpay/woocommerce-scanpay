@@ -71,7 +71,7 @@ if ( isset( $_SERVER['HTTP_X_SIGNATURE'] ) ) {
 	// The action outlived the class it was named after: since WC 9.0 it is fired on
 	// parse_request by Internal/Utilities/LegacyRestApiStub, not by the removed WC_API.
 	add_action( 'woocommerce_api_wc_scanpay', 'wc_scanpay_handle_ping' );
-	// phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+	// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- Only compared with str_ends_with(); never echoed, stored or put in a query.
 	$uri = $_SERVER['REQUEST_URI'] ?? '';
 	if ( str_ends_with( $uri, 'wc_scanpay/' ) || str_ends_with( $uri, 'wc_scanpay' ) ) {
 		return;
@@ -83,7 +83,7 @@ if ( isset( $_SERVER['HTTP_X_SIGNATURE'] ) ) {
  * known type; anything else falls through to a normal plugin load. The order-key
  * ownership check happens inside the handler, before any polling.
  */
-// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Routing decision only; the handler checks the order key before it reads or writes anything.
 if ( isset( $_GET['scanpay_thankyou'], $_GET['scanpay_type'], $_GET['key'] ) && in_array( $_GET['scanpay_type'], [ 'wc', 'wcs', 'wcs_free' ], true ) ) {
 	require WC_SCANPAY_DIR . '/public/wp-scanpay-thankyou.php';
 	return;
@@ -111,9 +111,9 @@ if ( isset( $_GET['scanpay_thankyou'], $_GET['scanpay_type'], $_GET['key'] ) && 
  * re-raise it as an authorization gap without new information (a role that grants
  * partial order access would be exactly that).
  */
-// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Routing decision only; the endpoints authenticate with the shared secret in hash_equals(), for the reason above.
 if ( isset( $_SERVER['HTTP_X_SCANPAY'], $_GET['x'] ) ) {
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- The match arms are the whitelist; any other value yields null and falls through to a normal load.
 	$file = match ( $_GET['x'] ) {
 		'meta' => '/admin/ajax/wp-scanpay-fetch-meta.php',
 		'ping' => '/admin/ajax/wp-scanpay-fetch-ping.php',
@@ -261,7 +261,7 @@ function wcs_scanpay_validate_terms( array $data, WP_Error $errors ): void {
 	 * marker, and wcs_scanpay_blocks_validate_terms() stays strict.
 	 */
 	// The checkout nonce is verified by WC_Checkout::process_checkout() before this action.
-	// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotValidated
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotValidated -- Nonce as above; neither value is read, only tested with empty().
 	if ( empty( $_POST['wcssp-terms'] ) && ! empty( $_POST['wcssp-terms-field'] ) ) {
 		$errors->add( 'wcssp-terms', __( 'You must accept the subscription terms to complete your purchase.', 'scanpay-for-woocommerce' ) );
 	}
@@ -356,7 +356,7 @@ function wcs_scanpay_wants_completion( array $settings, string $flow ): bool {
  * status event failed." note on the order -- so both are reported here, in wording that
  * tells the returned-false half from the escaping-Throwable half. Noticing matters:
  * WCS calls payment_failed() only from a 'failed' transition
- * (class-wc-subscriptions-renewal-order.php:143-145), so a missed write leaves the
+ * (class-wc-subscriptions-renewal-order.php:142-144), so a missed write leaves the
  * renewal pending, the subscription unsuspended and no retry scheduled.
  */
 function wcs_scanpay_fail_renewal( WC_Order $wco, string $diagnostic, string $reason ): void {

@@ -61,7 +61,7 @@ final class WC_Scanpay_Capture {
 
 		$order_shopid = (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' );
 		if ( $order_shopid !== self::$shopid ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 			throw new \RuntimeException( "ShopID mismatch for order #$oid: order has $order_shopid, APIkey has " . self::$shopid );
 		}
 		global $wpdb;
@@ -74,7 +74,7 @@ final class WC_Scanpay_Capture {
 		);
 		if ( $wpdb->last_error ) {
 			// A query error also returns null; keep it distinct from a missing row.
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 			throw new \RuntimeException( "Payment lookup failed for order #$oid: {$wpdb->last_error}" );
 		}
 		if ( null === $meta ) {

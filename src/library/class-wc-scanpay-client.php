@@ -20,7 +20,7 @@ final class WC_Scanpay_Client {
 	public function __construct( string $apikey ) {
 		$this->ch      = curl_init();
 		$this->headers = [
-			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- HTTP Basic credentials, which RFC 7617 defines as base64; not obfuscation.
 			'Authorization: Basic ' . base64_encode( $apikey ),
 			'X-Shop-Plugin: WC-' . WC_SCANPAY_VERSION . '/' . WC()->version . '; PHP-' . PHP_VERSION,
 			'Accept: application/json',
@@ -87,7 +87,7 @@ final class WC_Scanpay_Client {
 		];
 		if ( null !== $data ) {
 			$headers[] = 'Content-Type: application/json';
-			// phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode -- wp_json_encode()'s only addition is a sanity-check fallback that rewrites invalid UTF-8; a payment payload must fail loudly instead, which JSON_THROW_ON_ERROR is here to do.
 			$curlopts[ CURLOPT_POSTFIELDS ] = json_encode( $data, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE );
 		}
 		if ( ! empty( $hdrs ) ) {
@@ -107,20 +107,20 @@ final class WC_Scanpay_Client {
 		if ( false === $result ) {
 			$err    = curl_strerror( curl_errno( $this->ch ) );
 			$detail = curl_error( $this->ch );
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 			throw new \RuntimeException( $detail ? "$err: $detail" : $err );
 		}
 
 		$status_code = (int) curl_getinfo( $this->ch, CURLINFO_RESPONSE_CODE );
 		if ( 200 !== $status_code ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 			throw new \RuntimeException( $status_code . ' ' . $this->error_body( (string) $result ) );
 		}
 		if ( $expect_idem && ! $this->idem ) {
 			throw new \RuntimeException( 'Missing Idempotency-Status header' );
 		}
 		if ( $this->idem && 'ok' !== $this->idemstatus ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 			throw new \RuntimeException( 'Server failed to provide idempotency: ' . $this->error_body( (string) $result ) );
 		}
 		$json = json_decode( (string) $result, true, 64, JSON_THROW_ON_ERROR );
@@ -142,7 +142,7 @@ final class WC_Scanpay_Client {
 	 * address and simply omit the header when it is not an IP.
 	 */
 	private function cardholder_ip_header(): array {
-		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- filter_var( FILTER_VALIDATE_IP ) is the validation; anything else yields false and the header is omitted.
 		$ip = filter_var( $_SERVER['REMOTE_ADDR'] ?? '', FILTER_VALIDATE_IP );
 		return is_string( $ip ) ? [ 'X-Cardholder-IP' => $ip ] : [];
 	}

@@ -19,7 +19,7 @@ final class WCS_Scanpay_Charge {
 		$apikey         = (string) ( $this->settings['apikey'] ?? '' );
 		// Derived here, reported in scheduled_charge(): this constructor has no order to
 		// mark failed. A throw here is per-renewal, not per-request -- the hook's memo is
-		// assigned after the constructor returns (woocommerce-scanpay.php:379), so a throw
+		// assigned after the constructor returns (woocommerce-scanpay.php:399), so a throw
 		// leaves $handler null and the next action in the batch constructs again.
 		$this->shopid = (int) strstr( $apikey, ':', true );
 		$this->client = new WC_Scanpay_Client( $apikey );
@@ -52,11 +52,11 @@ final class WCS_Scanpay_Charge {
 		$rev = $wpdb->get_var( "SELECT rev FROM {$wpdb->prefix}scanpay_subs WHERE subid = $subid" );
 		if ( $wpdb->last_error ) {
 			// A query error also returns null; keep it distinct from a missing row.
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 			throw new Exception( "subscriber (subid=$subid) lookup failed: {$wpdb->last_error}" );
 		}
 		if ( null === $rev ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 			throw new Exception( "subscriber (subid=$subid) does not exist" );
 		}
 		return $oid . '_' . (int) $rev . '_' . intdiv( time() - $created, DAY_IN_SECONDS );
@@ -288,7 +288,7 @@ final class WCS_Scanpay_Charge {
 				// A SELECT returns its row count, or false on error -- never read that as "no
 				// payment row". The catch below marks the renewal failed so WCS reschedules,
 				// and the idempotency key dedupes the retry.
-				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 				throw new \RuntimeException( "scanpay_meta lookup failed: {$wpdb->last_error}" );
 			}
 			if ( $found > 0 || $wco->get_transaction_id( 'edit' ) ) {

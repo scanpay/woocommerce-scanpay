@@ -295,8 +295,6 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	 * standard and URL-safe base64 alphabets are accepted, so this stays permissive
 	 * about the secret while still rejecting the pasted-wrong-thing cases (no
 	 * separator, a non-numeric shop id, embedded whitespace, stray quotes).
-	 *
-	 * @param string $key Candidate key.
 	 */
 	private function is_apikey( string $key ): bool {
 		$colon = strpos( $key, ':' );
