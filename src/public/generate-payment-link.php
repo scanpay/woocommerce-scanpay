@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 
-require WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
-require WC_SCANPAY_DIR . '/library/math.php';
+// require_once on both, because they declare a class and functions and five other
+// sites require_once the same two. A bare require here includes them a second time
+// regardless of that registration, and redeclares: capture.php is the reachable case,
+// pulled in when a third party completes the order on
+// woocommerce_checkout_order_processed, which fires before process_order_payment().
+require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
+require_once WC_SCANPAY_DIR . '/library/math.php';
 
 function wc_scanpay_phone_prefixer( string $phone, string $country ): string {
 	if ( ! empty( $phone ) ) {
