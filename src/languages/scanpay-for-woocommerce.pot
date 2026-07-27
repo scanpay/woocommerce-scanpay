@@ -309,3 +309,7 @@ msgstr ""
 #, js-format
 msgid "Your Scanpay extension (<i>%1$s</i>) needs to be updated to <span class=\"wcsp-set-version\"></span> (<a href=\"//github.com/scanpay/woocommerce-scanpay/releases\" target=\"_blank\">changelog</a>)."
 msgstr ""
+
+#: public/assets/js/applepay.js:36
+msgid "Apple Pay is not available in this browser or on this device. Please choose another payment method."
+msgstr ""

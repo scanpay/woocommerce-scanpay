@@ -45,6 +45,12 @@ declare global {
 		ApplePaySession?: {
 			canMakePayments: () => boolean;
 		};
+		// Only the delegated event binding applepay.ts needs. Optional because the
+		// classic checkout script declares jquery as a dependency but the global is not
+		// ours to guarantee.
+		jQuery?: (target: Document | HTMLElement) => {
+			on: (events: string, handler: () => void) => void;
+		};
 	}
 }
 
