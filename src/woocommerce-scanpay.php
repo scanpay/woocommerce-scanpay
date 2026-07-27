@@ -16,6 +16,10 @@
  * Domain Path: /languages/
  * License: GPLv3
  * License URI: https://www.gnu.org/licenses/gpl-3.0.html
+ *
+ * Requires the PHP cURL extension on top of the fields above. WC_Scanpay_Client is built
+ * on ext-curl with no fallback transport, so without it the plugin cannot reach Scanpay
+ * at all. WordPress has no plugin-header field for extensions, which is why this is prose.
  */
 
 declare(strict_types=1);

@@ -176,7 +176,6 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 11 | The cURL extension is required and declared nowhere | `woocommerce-scanpay.php`, `gateways/abstract-wc-gateway-scanpay-base.php` |
 | 12 | The checkout stylesheet's enqueue states none of its invariants | `gateways/class-wc-gateway-scanpay-card.php` |
 | 13 | Two settings fields with an inert tooltip and no label | `admin/settings/fields/scanpay.php` |
 | 14 | The Plugins-screen link escapes nothing | `admin/settings.php` |
@@ -191,58 +190,6 @@ Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 11 — The cURL extension is required and declared nowhere
-
-**Files:** `src/woocommerce-scanpay.php`,
-`src/gateways/abstract-wc-gateway-scanpay-base.php` (after tasks 9 and 10)
-**Anchor:** `} catch ( Exception ) {` in `process_admin_options()` (~`:167-198`)
-
-`WC_Scanpay_Client` is built on ext-curl unconditionally (`private \CurlHandle $ch;`
-and `curl_init()` in the constructor). Without the extension that is
-`Error: Call to undefined function curl_init()`. Nothing declares the dependency:
-the plugin header states `Requires PHP` and `Requires Plugins` but no extension,
-and `composer.json` is `require-dev` only by design.
-
-The failure is worse than needed in one place.
-`WC_Gateway_Scanpay_Base::process_admin_options()` validates a new key inside
-`try { … } catch ( Exception )` — `Error` is not an `Exception`, so on a curl-less
-host saving the settings form is a white-screen fatal rather than the "Invalid
-Scanpay API key" notice the code was written to show.
-
-**Fix.** Two parts, one commit:
-
-1. **Declare it** in the plugin header comment (WordPress has no header field for
-   extensions, so a prose line is the honest place) and in the requirements section
-   of `src/readme.txt` — that file exists; read it and match its formatting.
-2. **Fail legibly** in `process_admin_options()`: add an explicit
-   `function_exists( 'curl_init' )` check before constructing the client, with a
-   `WC_Admin_Settings::add_error()` naming the missing extension. Prefer this over
-   widening the catch to `\Throwable`, which would also swallow programming errors
-   the current catch deliberately lets through. Comment that the check exists
-   because the client is unusable without the extension and `Error` is not an
-   `Exception`.
-
-**Do not** add a runtime guard to `wc_scanpay_plugins_loaded()` that disables the
-plugin — a large behaviour change on a condition nobody has reported, and the
-payment paths already surface transport failures to the customer.
-
-**Verify**
-
-- Confirm `curl_init()` is the only ext-curl entry point reached before a guard
-  could run; list every `curl_*` call in `src/` (they are all in
-  `class-wc-scanpay-client.php`).
-- Confirm `Error` does not extend `Exception` (`php -r`), so the existing catch
-  genuinely misses it.
-- Confirm the header line you add contains no `{{ … }}` placeholder, so
-  `./build.sh`'s substitution pass is unaffected.
-
-**Handoff**
-
-- Only a curl-less host can settle the fatal. State what changed and what a
-  merchant on such a host now sees.
 
 ---
 

@@ -47,6 +47,10 @@ Scanpay is engineered for speed and scalability, handling millions of transactio
 
 == Installation ==
 
+**Requirements**
+
+Besides WooCommerce and the WordPress and PHP versions listed above, the plugin needs the PHP cURL extension (`ext-curl`). It is enabled by default on virtually every host. Scanpay is reached over HTTPS through cURL and there is no fallback transport, so the plugin cannot process payments without it.
+
 **Installation guide:**
 
 1. Log in to your WordPress dashboard and navigate to `Plugins > Add New`. Search for *"Scanpay for WooCommerce"* and install the plugin.

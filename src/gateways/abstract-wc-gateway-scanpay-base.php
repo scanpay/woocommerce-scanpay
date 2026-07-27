@@ -164,6 +164,20 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 			return true;
 		}
 
+		// The client is ext-curl end to end with no fallback transport, so on a host without
+		// the extension its constructor fatals on curl_init(). The catch below cannot soften
+		// that: a call to an undefined function raises an Error, and Error does not extend
+		// Exception -- so saving this form would be a white screen rather than the notice the
+		// code was written to show. Reported, not repaired: the settings are already stored
+		// by the parent, and disabling the gateway from here is a larger change than the
+		// condition warrants.
+		if ( ! function_exists( 'curl_init' ) ) {
+			WC_Admin_Settings::add_error(
+				__( 'Error: Scanpay requires the PHP cURL extension, which is not installed on this server.', 'scanpay-for-woocommerce' )
+			);
+			return true;
+		}
+
 		try {
 			// Cheapest call that proves the key: seq(0) reads the change stream from the start
 			// and changes nothing. The key is always the card gateway's, shared by all three.
