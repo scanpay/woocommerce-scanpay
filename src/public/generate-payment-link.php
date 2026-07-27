@@ -58,6 +58,11 @@ function wc_scanpay_subref( int $oid, object $wco ): ?string {
 			'status' => ( $wco->get_status() === 'pending' ) ? 'wc-pending' : 'all',
 			'parent' => $oid,
 			'return' => 'ids', // array of ids (an order can have multiple subs)
+			// A protocol value, not a page of results: every id here becomes part of
+			// subscriber.ref, and one missing from it is a subscription sync never links,
+			// so its renewals fail forever. Without this WC_Object_Query supplies
+			// get_option( 'posts_per_page' ) -- ten on a default install.
+			'limit'  => -1,
 		]
 	);
 	if ( $wcs_subs_arr ) {

@@ -288,58 +288,6 @@ the head of the file), **S** item 3 (a log string), **T** (the `$subid` branch).
 Every one of those anchors sits below the previous task's edit or above it, never
 inside it — but the line numbers move, so locate the symbol.
 
-## Task F — An order with more than ten subscriptions loses the rest
-
-**File:** `src/public/generate-payment-link.php`, `wc_scanpay_subref()` at
-`:49-56` — as tasks A and C left the file.
-
-```php
-$wcs_subs_arr = wc_get_orders(
-    [ 'type' => 'shop_subscription', 'status' => …, 'parent' => $oid, 'return' => 'ids' ]
-);
-```
-
-No `'limit'`, so `WC_Object_Query::get_default_query_vars()` supplies
-`get_option( 'posts_per_page' )` — ten on a default install
-(`abstract-wc-object-query.php:84`), and both data stores honour it. The result
-is not a display list: it becomes `subscriber.ref`, which
-`WC_Scanpay_Sync::find_subs_from_ref()` parses and `subscriber()` uses to decide
-which subscriptions get `_scanpay_subid` and `_scanpay_shopid`. A subscription
-missing from that string is never linked, so `WCS_Scanpay_Charge::scheduled_charge()`
-fails it at `:73-79` with "Invalid Scanpay subscriber ID" — every renewal,
-forever, with no way for the merchant to repair it from the admin.
-
-The card gateway declares `multiple_subscriptions`, so a cart producing eleven
-subscriptions is a supported purchase. Eleven *products* is not the same thing:
-WCS groups cart items by recurring-cart key before creating subscriptions
-(`class-wc-subscriptions-cart.php:319`, `get_recurring_cart_key()` →
-`wcs_get_subscription_grouping_key()`), so products sharing a billing schedule
-collapse into one. Eleven subscriptions needs eleven distinct schedules —
-period, interval, length, trial. `upgrade.php:63` already uses the codebase's own
-idiom for the limit, `'limit' => -1`.
-
-**The fix.** Add `'limit' => -1,` to the args array, with a one-line comment:
-this list is a protocol value, not a page of results, and the default page size
-would silently drop subscriptions from it.
-
-### Verify
-
-- Quote `abstract-wc-object-query.php:84` and confirm both stores apply it
-  (`OrdersTableQuery` and the CPT `posts_per_page` path).
-- Trace one dropped id all the way to the failing renewal: `subscriber.ref` →
-  `find_subs_from_ref()` → the `foreach` in `subscriber()` →
-  `scheduled_charge():73-79`.
-- Confirm `-1` is the documented "no limit" value for `wc_get_orders()` and that
-  `upgrade.php` already relies on it.
-
-### Handoff
-
-- On a shop: buy eleven subscription products with **eleven different billing
-  schedules** in one order — same-schedule products merge into one subscription
-  and the test would prove nothing. Confirm the order really produced eleven
-  subscriptions, that all eleven end up with `_scanpay_subid` after the first
-  ping, and that all eleven renew.
-
 ## Task G — The mark-completed row action: three defects in one handler
 
 **Files:** `src/admin/hooks/wp-ajax-wc-mark-order-status.php`;
