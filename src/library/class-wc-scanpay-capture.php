@@ -28,6 +28,14 @@ final class WC_Scanpay_Capture {
 		$settings = get_option( WC_SCANPAY_URI_SETTINGS );
 		$apikey   = (string) ( $settings['apikey'] ?? '' );
 		$shopid   = (int) strstr( $apikey, ':', true );
+		// An absent key is the expected state after a reset -- it unsets 'apikey' and
+		// 'secret' but leaves wc_autocapture, so completing any historical Scanpay order
+		// still reaches this -- whereas a malformed one is a misconfiguration. Conflating
+		// them tells the merchant to repair a key they removed on purpose. Both still
+		// throw; the on-hold parking is what the message must not undo.
+		if ( '' === $apikey ) {
+			throw new \RuntimeException( 'No Scanpay API key is configured' );
+		}
 		if ( $shopid <= 0 ) {
 			throw new \RuntimeException( 'Invalid Scanpay API key configured' );
 		}

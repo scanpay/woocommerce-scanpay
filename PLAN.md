@@ -176,7 +176,6 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 3 | A cleared API key reads as a broken one | `library/class-wc-scanpay-capture.php` |
 | 4 | A collected renewal can be marked failed | `library/class-wcs-scanpay-charge.php` |
 | 5 | The drain's time limit is renewed by round count, not time | `callback/wc-scanpay-ping.php` |
 | 6 | Three status guards read through a third-party filter | `admin/hooks/wp-bulk-actions.php`, `admin/hooks/wp-ajax-wc-mark-order-status.php`, `library/class-wc-scanpay-sync.php` |
@@ -199,85 +198,6 @@ Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 3 — A cleared API key reads as a broken one
-
-**File:** `src/library/class-wc-scanpay-capture.php` (after tasks 1 and 2)
-**Anchor:** `throw new \RuntimeException( 'Invalid Scanpay API key configured' )` in
-`init()` (~`:28-33`)
-
-`init()` collapses two situations into one message: it derives
-`$shopid = (int) strstr( $apikey, ':', true )` and throws "Invalid Scanpay API key
-configured" whenever that is `<= 0` — which an empty key also is.
-
-The empty case is the common one and is not a fault. Reset unsets `apikey` and
-`secret` and drops the tables but leaves `wc_autocapture` — normally `'completed'`
-— and `wc_scanpay_order_status_completed()` gates on that alone. So completing any
-historical Scanpay order after a reset throws here and parks it `on-hold` with
-"Scanpay capture failed: Invalid Scanpay API key configured", telling the merchant
-their key is broken moments after they deliberately removed it. On a bulk
-completion of forty orders, forty times.
-
-**The on-hold status is correct and stays.** Settled with Scanpay: an order whose
-payment cannot be captured must not read as completed, or the merchant ships
-believing the money was taken. Only the message is wrong.
-
-**Fix.** Split the guard, both branches still throwing:
-
-```php
-if ( '' === $apikey ) {
-    throw new \RuntimeException( 'No Scanpay API key is configured; this order cannot be captured' );
-}
-if ( $shopid <= 0 ) {
-    throw new \RuntimeException( 'Invalid Scanpay API key configured' );
-}
-```
-
-Wording is yours within three constraints. It reaches the merchant untranslated
-via `sprintf( __( 'Scanpay capture failed: %s' ), … )`, so it must read as a
-sentence to a human, in the clipped style of its siblings (`'Transaction has been
-voided'`, `'No payment details found on order'`). It must fit **both** reasons the
-key is absent — a merchant who moved to a new Scanpay account, and one midway
-through rebuilding the tables with the same key. And it must not tell the merchant
-to fix the key, because in neither case is the key broken.
-
-Comment the new branch: an absent key is the expected state after a reset, a
-malformed one is a misconfiguration, and conflating them tells a merchant to
-repair something they removed on purpose.
-
-**Two things this task must not do**, both settled:
-
-- **Do not touch `wc_autocapture` in the reset endpoint.** The button also
-  rebuilds the tables after a fault with the same key; clearing the setting there
-  would silently disable auto-capture on a repair.
-- **Do not add a `_transaction_id` discriminator.** "Transaction id set but no
-  `scanpay_meta` row" looks like "history, nothing to capture" and is not: during a
-  rebuild the row is temporarily gone while the authorization is live and
-  re-syncable, so completing without capturing is exactly what the on-hold status
-  prevents.
-
-**Verify**
-
-- Both branches reachable, both throw, `capture_or_hold()`'s catch unchanged — the
-  status write must not move.
-- No new msgid: these are exception messages. State it so it is not read as
-  catalog work.
-- `init()`'s only callers are `self::capture()` and via it `capture_or_hold()`;
-  confirm, and confirm `self::$processed[ $oid ]` is set the same way on both
-  branches.
-- Re-read the reset endpoint's settings loop (anchor:
-  `unset( $wcsp_set['apikey'], $wcsp_set['secret'] );`) and record which keys
-  survive a reset, so the premise is evidenced rather than taken from this section.
-
-**Handoff**
-
-- After a reset with no new key, completing an old Scanpay order still parks it
-  `on-hold`, and the note names the missing account rather than an invalid key.
-- With a genuinely malformed key stored, the note still reads "Invalid Scanpay API
-  key configured".
-- A shop with a working key is unaffected on every capture path.
 
 ---
 
