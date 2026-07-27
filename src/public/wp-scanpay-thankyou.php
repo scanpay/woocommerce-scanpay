@@ -104,8 +104,13 @@ function wc_scanpay_init_thankyou(): void {
 		// Ownership gate: only busy-poll for a genuine thank-you request. The success URL
 		// carries WooCommerce's order key (get_checkout_order_received_url()); require it
 		// to match before tying up a PHP worker on an order that may not be ours.
+		// The stored key must be non-empty in its own right: order_key is nullable in the
+		// HPOS operational-data table, and both branches of the read can hand back NULL --
+		// so without this clause hash_equals( '', '' ) lets a bare "key=" through, which
+		// the router's isset() does not stop.
 		if ( 0 === $i && (
-			! hash_equals( (string) $row['order_key'], (string) wp_unslash( $_GET['key'] ?? '' ) )
+			'' === (string) $row['order_key']
+			|| ! hash_equals( (string) $row['order_key'], (string) wp_unslash( $_GET['key'] ?? '' ) )
 			|| ! str_starts_with( (string) $row['payment_method'], 'scanpay' )
 		) ) {
 			return;
@@ -140,11 +145,13 @@ function wcs_scanpay_init_thankyou_free(): void {
 	}
 	$hpos = wc_scanpay_thankyou_hpos();
 	$row  = wc_scanpay_thankyou_read( $oid, $hpos );
-	// Ownership gate on the parent order, whose key is in the success URL. (No
-	// transaction-id bail here: a free-trial parent has a zero total and may never
-	// carry one -- this branch polls subscription activation instead.)
+	// Ownership gate on the parent order, whose key is in the success URL, with the same
+	// non-empty precondition wc_scanpay_init_thankyou() explains. (No transaction-id bail
+	// here: a free-trial parent has a zero total and may never carry one -- this branch
+	// polls subscription activation instead.)
 	if (
 		! $row
+		|| '' === (string) $row['order_key']
 		|| ! hash_equals( (string) $row['order_key'], (string) wp_unslash( $_GET['key'] ?? '' ) )
 		|| ! str_starts_with( (string) $row['payment_method'], 'scanpay' )
 	) {
