@@ -47,7 +47,7 @@ msgstr ""
 msgid "Capture and complete"
 msgstr ""
 
-#: admin/settings.php:75
+#: admin/settings.php:79
 msgid "Settings"
 msgstr ""
 
@@ -175,19 +175,35 @@ msgstr ""
 msgid "Automatically mark virtual orders as completed."
 msgstr ""
 
-#: admin/settings/fields/scanpay.php:95
+#: admin/settings/fields/scanpay.php:99
+msgid "Auto-complete subscriptions"
+msgstr ""
+
+#: admin/settings/fields/scanpay.php:101
 msgid "Auto-complete new subscription orders (Subscriptions only)."
 msgstr ""
 
 #: admin/settings/fields/scanpay.php:102
-msgid "Auto-complete renewal orders (Subscriptions only)."
+msgid "Force the first order of a new subscription to Completed when Scanpay confirms the payment, instead of the status WooCommerce would otherwise set."
 msgstr ""
 
 #: admin/settings/fields/scanpay.php:108
-msgid "Subscription terms"
+msgid "Auto-complete renewals"
 msgstr ""
 
 #: admin/settings/fields/scanpay.php:110
+msgid "Auto-complete renewal orders (Subscriptions only)."
+msgstr ""
+
+#: admin/settings/fields/scanpay.php:111
+msgid "Force a renewal order to Completed when Scanpay confirms the charge, instead of the status WooCommerce would otherwise set."
+msgstr ""
+
+#: admin/settings/fields/scanpay.php:117
+msgid "Subscription terms"
+msgstr ""
+
+#: admin/settings/fields/scanpay.php:119
 msgid "Add a checkbox for subscription terms and conditions at checkout."
 msgstr ""
 
@@ -209,27 +225,31 @@ msgstr ""
 msgid "Enable MobilePay at checkout."
 msgstr ""
 
-#: gateways/abstract-wc-gateway-scanpay-base.php:196
+#: gateways/abstract-wc-gateway-scanpay-base.php:176
+msgid "Error: Scanpay requires the PHP cURL extension, which is not installed on this server."
+msgstr ""
+
+#: gateways/abstract-wc-gateway-scanpay-base.php:210
 msgid "Error: Invalid Scanpay API key. Please check your key and try again."
 msgstr ""
 
-#: gateways/abstract-wc-gateway-scanpay-base.php:257
+#: gateways/abstract-wc-gateway-scanpay-base.php:271
 msgid "Paste your Scanpay API key"
 msgstr ""
 
-#: gateways/abstract-wc-gateway-scanpay-base.php:262
+#: gateways/abstract-wc-gateway-scanpay-base.php:276
 msgid "To use a different Scanpay account, delete the local Scanpay data first. Nothing is lost for good: it is re-synced from Scanpay once you add a key."
 msgstr ""
 
-#: gateways/abstract-wc-gateway-scanpay-base.php:266
+#: gateways/abstract-wc-gateway-scanpay-base.php:280
 msgid "Delete data and change API key"
 msgstr ""
 
-#: gateways/abstract-wc-gateway-scanpay-base.php:335
+#: gateways/abstract-wc-gateway-scanpay-base.php:347
 msgid "Error: The Scanpay API key cannot be replaced. Delete the local Scanpay data first."
 msgstr ""
 
-#: gateways/abstract-wc-gateway-scanpay-base.php:349
+#: gateways/abstract-wc-gateway-scanpay-base.php:361
 msgid "Error: The Scanpay API key is malformed. It should look like \"1234:xxxxxxxx\"."
 msgstr ""
 
@@ -246,8 +266,8 @@ msgid "subscription terms"
 msgstr ""
 
 #: gateways/blocks/class-wc-scanpay-blocks-support.php:83
-#: woocommerce-scanpay.php:262
-#: woocommerce-scanpay.php:293
+#: woocommerce-scanpay.php:266
+#: woocommerce-scanpay.php:297
 msgid "You must accept the subscription terms to complete your purchase."
 msgstr ""
 
@@ -264,13 +284,13 @@ msgid "MobilePay Online through Scanpay."
 msgstr ""
 
 #. translators: %s is the captured amount with its currency, e.g. "99.00 DKK".
-#: library/class-wc-scanpay-capture.php:109
+#: library/class-wc-scanpay-capture.php:127
 #, php-format
 msgid "Scanpay capture of %s completed."
 msgstr ""
 
 #. translators: %s is the raw failure reason, which is not translated.
-#: library/class-wc-scanpay-capture.php:172
+#: library/class-wc-scanpay-capture.php:193
 #, php-format
 msgid "Scanpay capture failed: %s"
 msgstr ""
@@ -287,7 +307,7 @@ msgstr ""
 msgid "Scanpay holds a successful payment for this order (%1$s), but WooCommerce could not complete order #%2$d. Reconcile the order manually: the payment is settled at Scanpay and nothing will retry the completion."
 msgstr ""
 
-#: library/class-wc-scanpay-sync.php:504
+#: library/class-wc-scanpay-sync.php:511
 msgid "Subscription initiated without payment."
 msgstr ""
 
@@ -321,7 +341,7 @@ msgstr ""
 msgid "The zero-amount renewal could not be completed."
 msgstr ""
 
-#: library/class-wcs-scanpay-charge.php:349
+#: library/class-wcs-scanpay-charge.php:362
 msgid "The Scanpay charge failed. See the WooCommerce logs for details."
 msgstr ""
 
@@ -344,7 +364,7 @@ msgstr ""
 msgid "Your payment details were updated. This renewal has not been charged yet; it will be collected automatically with the new details."
 msgstr ""
 
-#: woocommerce-scanpay.php:404
+#: woocommerce-scanpay.php:408
 msgid "The Scanpay renewal could not be processed. See the WooCommerce logs for details."
 msgstr ""
 

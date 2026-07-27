@@ -176,102 +176,12 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 19 | i18n audit, English source and Danish catalog | `src/languages/`, every `__()` site |
 | 20 | Fresh full review → `RESULTS.md` | all 35 PHP files |
 
 Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 19 — i18n audit, English source and Danish catalog
-
-**Files:** `src/languages/`, and every `__()` / `_e()` / `esc_html__()` site
-
-The catalog holds 115 msgids; `da_DK` is the only translation and carries no fuzzy
-entries. `./build.sh` owns extraction — it re-derives `.pot` and updates `.po` from
-the built tree on every run, deterministically, through `./vendor/bin/wp i18n`.
-**Never hand-edit `scanpay-for-woocommerce.pot`**: it is generated, and an edit is
-lost on the next build. `.po` msgstrs are hand-written and are what this task
-changes.
-
-Audit three things, in this order.
-
-**1. English source strings.** They are the msgids, so changing one orphans its
-translation — do it only where the string is wrong, not merely improvable. Check:
-they read as a sentence to a merchant or customer; placeholders are positional
-(`%1$s`) wherever there is more than one; every placeholder has a
-`/* translators: … */` comment above the call naming each one; and no string
-concatenates a translated fragment with another, which cannot be translated
-correctly.
-
-**2. Danish translations.** Full orthography — æ, ø, å, never an ASCII
-substitution. One agreed WooCommerce term each for order, subscription, payment,
-capture and refund, used throughout. Placeholders preserved exactly, including
-positional numbers, which may legitimately reorder in Danish. Register matched to
-the audience: merchant-facing admin strings and customer-facing order notes are not
-the same voice.
-
-One msgid deserves a named check: **`'I accept the %s.'`** is declared twice, in
-`wcs-scanpay-checkout-terms.php` and `class-wc-scanpay-blocks-support.php`, and its
-`%s` carries the terms link in both checkouts. `docs/ts-review.md` §1.4 established
-that the two degrade differently if a translation drops it — classic goes through
-`sprintf()` and loses the link cleanly, Blocks splits on `'%s'` and renders the link
-text stranded at the end of the sentence. The Danish msgstr keeps it today
-(`"Jeg accepterer %s."`); confirm it still does and do not reword it away.
-
-**3. Coverage.** Every user-visible string reaches a translation function, and
-nothing that must not be translated does. Three rules bind here. From `AGENTS.md`:
-**settings-field defaults stay plain strings**, because `__()` cannot localize a
-stored value; and exception messages are deliberately untranslated — they reach the
-merchant raw through `sprintf( __( 'Scanpay capture failed: %s' ),
-$e->getMessage() )`, whose translators comment says so. Third, from
-`docs/ts-review.md` §2.5 and the comment now at the enqueue site: **`checkout.ts`
-translates nothing on purpose**, so its bundle carries neither `wp-i18n` nor
-`wp_set_script_translations()` — every string it renders was translated PHP-side
-and travels in the `get_payment_method_data()` payload. Do not "fix" any of the
-three; a `__()` added to that bundle renders English with no warning.
-
-**The catalog is not PHP-only.** 40 of the 115 msgids carry `#:` references into
-the *compiled* `admin/assets/js/*.js` and `public/assets/js/*.js` — `wp i18n
-make-pot` runs over the built tree, so the `.ts` sources' `__()` calls are in
-scope for reading, never for editing. No task in this plan edits a `.ts` file.
-
-**One known-bad msgid is out of your reach, deliberately.** The catalog holds
-`" Could not delete the data: %s"` with a leading space — a real defect (leading and
-trailing spaces are invisible in a PO file and translators drop them), but its
-source is `settings.ts` and its fix is markup or CSS, already written up in
-`docs/ts-review.md` §3.3. Do not edit the `.ts`, do not paper over it in the Danish
-msgstr, and above all do not hand-edit the `.pot`. Note it in `HANDOFF-2.md` as
-found-and-owned-elsewhere, and leave both catalogs' entries as they are.
-
-Task 13 adds two msgids; they are in scope here.
-
-**Fix.** Update `src/languages/*.po` only, plus source strings in `src/` where item
-1 found a real fault. Leave `.pot` alone; leave `build/` alone.
-
-**Verify**
-
-- Run `printf 'n\n' | ./build.sh` and confirm the regenerated `.pot` matches the
-  committed one except for strings you deliberately changed. A diff in the `msgid`
-  set means a source string moved when it should not have. A diff confined to `#:`
-  reference lines does **not**: those track file and line in the compiled `.js`, so
-  any earlier `.ts` edit shifts them. If that is all you see, say so and commit the
-  regenerated catalogs rather than reverting them.
-- Report every msgid added, changed or removed, and every msgstr rewritten, with
-  the reason in one line each.
-- Confirm no msgid is a concatenation and every multi-placeholder string is
-  positional with a translators comment.
-- Confirm no settings-field `'default'` and no exception message became
-  translated.
-
-**Handoff**
-
-- On a Danish shop: checkout, the settings screens, the order and subscription
-  meta boxes, and the order notes a payment writes all render in Danish with no
-  raw msgid and no broken placeholder.
 
 ---
 
