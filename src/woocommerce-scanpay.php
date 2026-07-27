@@ -137,7 +137,7 @@ function wc_scanpay_register_blocks( $registry ): void {
 }
 
 /** Let wp_safe_redirect() send the customer on to the payment window. */
-function wp_scanpay_allowed_redirect_hosts( array $hosts ): array {
+function wc_scanpay_allowed_redirect_hosts( array $hosts ): array {
 	$hosts[] = 'betal.scanpay.dk';
 	return $hosts;
 }
@@ -470,14 +470,25 @@ function wc_scanpay_plugins_loaded() {
 	require WC_SCANPAY_DIR . '/gateways/class-wc-gateway-scanpay-mobilepay.php';
 	require WC_SCANPAY_DIR . '/gateways/class-wc-gateway-scanpay-applepay.php';
 
-	add_filter( 'allowed_redirect_hosts', 'wp_scanpay_allowed_redirect_hosts' );
+	add_filter( 'allowed_redirect_hosts', 'wc_scanpay_allowed_redirect_hosts' );
 	add_filter( 'woocommerce_payment_gateways', 'wc_scanpay_register_gateways' );
+	// Priority 5 is load-bearing. Every WooCommerce listener on this hook runs at 10 or
+	// later -- queue_transactional_email / send_transactional_email
+	// (class-wc-emails.php:141, :145), wc_downloadable_product_permissions
+	// (wc-order-functions.php:494), wc_maybe_reduce_stock_levels
+	// (wc-stock-functions.php:125), wc_update_total_sales_counts (:992),
+	// wc_update_coupon_usage_counts (:1069), and wc_release_stock_for_order at 11
+	// (wc-stock-functions.php:495). Capturing first means a failure parks the order
+	// 'on-hold' before the customer is mailed "completed" and granted download
+	// permissions for goods that were never paid for. WooCommerce's own PayPal gateway
+	// captures at the default 10, after both (class-wc-gateway-paypal.php:196); ours is
+	// deliberately stricter.
 	add_action( 'woocommerce_order_status_completed', 'wc_scanpay_order_status_completed', 5, 2 );
 	add_action( 'woocommerce_blocks_payment_method_type_registration', 'wc_scanpay_register_blocks' );
 
 	// WooCommerce Subscriptions hooks
 	if ( class_exists( 'WC_Subscriptions', false ) ) {
-		add_action( 'woocommerce_scheduled_subscription_payment_scanpay', 'wcs_scanpay_scheduled_charge', 3, 2 );
+		add_action( 'woocommerce_scheduled_subscription_payment_scanpay', 'wcs_scanpay_scheduled_charge', 10, 2 );
 		add_action( 'woocommerce_checkout_after_terms_and_conditions', 'wcs_scanpay_checkout_terms', 10 );
 		add_action( 'woocommerce_after_checkout_validation', 'wcs_scanpay_validate_terms', 10, 2 );
 		add_action( 'woocommerce_store_api_checkout_update_order_from_request', 'wcs_scanpay_blocks_validate_terms', 10, 2 );

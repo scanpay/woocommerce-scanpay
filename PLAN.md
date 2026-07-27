@@ -176,7 +176,6 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 10 | Three registrations in the router that state nothing | `woocommerce-scanpay.php` |
 | 11 | The cURL extension is required and declared nowhere | `woocommerce-scanpay.php`, `gateways/abstract-wc-gateway-scanpay-base.php` |
 | 12 | The checkout stylesheet's enqueue states none of its invariants | `gateways/class-wc-gateway-scanpay-card.php` |
 | 13 | Two settings fields with an inert tooltip and no label | `admin/settings/fields/scanpay.php` |
@@ -192,80 +191,6 @@ Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 10 — Three registrations in the router that state nothing
-
-**File:** `src/woocommerce-scanpay.php` (after task 9)
-
-Three hygiene defects in one file, one commit: two renames/changes and one comment.
-
-**1. `wp_scanpay_allowed_redirect_hosts()` uses WordPress's prefix.**
-Anchor: `function wp_scanpay_allowed_redirect_hosts` (~`:140`), registered by
-`add_filter( 'allowed_redirect_hosts', 'wp_scanpay_allowed_redirect_hosts' );`
-(~`:473`). `AGENTS.md` names the namespace as `wc_scanpay_` / `wcs_scanpay_`. This
-is the only `wp_scanpay_*` function in `src/`, and `wp_` is core's — a future core
-function of that name is a fatal redeclare in a plugin with no autoloader to
-arbitrate. Rename to `wc_scanpay_allowed_redirect_hosts` and update the single
-`add_filter`.
-
-`scanpay_log()` and `scanpay_remove_wc_payments_menu()` are outside both prefixes
-too. Leave them: `scanpay_` collides with nothing upstream, `scanpay_log()` has 24
-call sites, and the second may no longer exist after task 9. Record the decision.
-
-**2. The scheduled-charge hook registers at priority 3.**
-Anchor: `'woocommerce_scheduled_subscription_payment_scanpay', 'wcs_scanpay_scheduled_charge', 3, 2`
-(~`:480`). It carries no comment, and the hook is gateway-suffixed (`…_scanpay`) so
-nothing else plausibly listens — which argues for `10`, not against it.
-
-The history has already been read: the `3` traces back to the repository's earliest
-commits and has never been deliberately changed (the only commit touching that
-registration since is `3f99c49`, a function-name typo fix). Treat it as legacy.
-
-**Change it to `10`.** Keep the `2` — the callback takes `$amount` and `$wco`.
-
-**3. `woocommerce_order_status_completed` at priority 5 is load-bearing and says
-so nowhere.** Anchor:
-`'woocommerce_order_status_completed', 'wc_scanpay_order_status_completed', 5, 2`
-(~`:475`). Add a comment only — do not change the number. WooCommerce registers on
-that same hook, all at the default 10: `queue_transactional_email` /
-`send_transactional_email` (`class-wc-emails.php:140-146`),
-`wc_downloadable_product_permissions` (`wc-order-functions.php:494`),
-`wc_maybe_reduce_stock_levels` (`wc-stock-functions.php:125`),
-`wc_update_total_sales_counts` and `wc_update_coupon_usage_counts`. Priority 5
-means the capture is attempted — and, on failure, the order parked `on-hold` —
-before WooCommerce mails the customer "completed" and grants download permissions
-for goods that were never paid for. WooCommerce's own PayPal gateway captures at
-the default 10, i.e. after both; ours is deliberately stricter. Verify each
-citation in `.stubs/` before writing the comment.
-
-**Scope bound.** The tree's remaining non-default priorities have been assessed and
-are **out of scope**: the four `add_meta_boxes_*` at 9 (WordPress fires the generic
-`add_meta_boxes`, where WooCommerce registers, entirely before the `_{screen}`
-variant we hook, so 9 orders us against almost nothing), the two `woocommerce_init`
-at 99, the two `wp_ajax_wc_scanpay_*` at 0 (our own action names — nothing else
-listens), the two `handle_bulk_actions-*` at 0 and `init`/`admin_init` at 0
-(defensive, same family as the documented `wp_ajax_woocommerce_mark_order_status`
-at 0). None is wrong; none is load-bearing. **Do not comment them** — this commit
-changes two registrations and comments a third.
-
-**Verify**
-
-- `grep -rn "wp_scanpay_" src/ build/` returns nothing after the rename (`build/`
-  is generated; if stale, say so rather than editing it).
-- `git diff` touches exactly two `add_action`/`add_filter` lines, the function
-  declaration, and the comment added above the priority-5 registration — whose own
-  number must be unchanged.
-- Quote each `.stubs/` citation behind item 3 rather than copying the list from
-  this section.
-- Nothing outside `src/` (`readme.txt`, `docs/`) names the old function.
-
-**Handoff**
-
-- The redirect to `betal.scanpay.dk` still succeeds from `process_payment()` (a
-  broken filter shows as `wp_safe_redirect()` falling back to `wp-admin/`).
-- A scheduled renewal still fires `wcs_scanpay_scheduled_charge()`.
 
 ---
 
