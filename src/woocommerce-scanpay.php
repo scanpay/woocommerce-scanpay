@@ -64,6 +64,8 @@ if ( isset( $_SERVER['HTTP_X_SIGNATURE'] ) ) {
 		load_plugin_textdomain( 'scanpay-for-woocommerce', false, dirname( WC_SCANPAY_BASENAME ) . '/languages' );
 		require WC_SCANPAY_DIR . '/callback/wc-scanpay-ping.php';
 	}
+	// The action outlived the class it was named after: since WC 9.0 it is fired on
+	// parse_request by Internal/Utilities/LegacyRestApiStub, not by the removed WC_API.
 	add_action( 'woocommerce_api_wc_scanpay', 'wc_scanpay_handle_ping' );
 	// phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 	$uri = $_SERVER['REQUEST_URI'] ?? '';
@@ -504,6 +506,10 @@ register_activation_hook( __FILE__, 'wc_scanpay_activate' );
 /**
  * Declare compatibility with WooCommerce High-Performance Order Storage (HPOS).
  * Action: before_woocommerce_init
+ *
+ * HPOS is the only feature worth declaring. Features default to compatible and WC's
+ * incompatibility notice lists explicit *negative* declarations only, so the absent
+ * cart_checkout_blocks declaration is a no-op rather than an oversight.
  */
 function wc_scanpay_before_woocommerce_init() {
 	// Autoload ($autoload = true): this may run before WooCommerce's classes are loaded.

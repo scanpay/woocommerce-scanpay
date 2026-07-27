@@ -49,6 +49,10 @@ if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $me
 	}
 }
 
+// 'method' is the payment-method *type*, not the pretty card label the order screen
+// prints. No retry count, idempotency key or lock column, deliberately: charging is
+// lock-free, the key is derived per renewal, and WooCommerce Subscriptions owns retry
+// scheduling.
 $subs_tbl = $wpdb->prefix . 'scanpay_subs';
 if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $subs_tbl ) ) ) !== $subs_tbl ) {
 	$res = $wpdb->query(
