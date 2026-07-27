@@ -90,6 +90,20 @@ if ( isset( $_GET['scanpay_thankyou'], $_GET['scanpay_type'], $_GET['key'] ) && 
  * request header (not the query string), so it never reaches access/proxy logs,
  * browser history, or Referer headers. Each endpoint re-verifies it with
  * hash_equals; this is only the dispatch gate.
+ *
+ * A secret rather than a capability, and unscoped, both deliberately. This runs
+ * during plugin load -- wp-settings.php includes pluggable.php only afterwards, so
+ * current_user_can() does not exist yet -- and deferring the work to a later hook
+ * would buy the whole WordPress and WooCommerce bootstrap these endpoints exist to
+ * skip. The secret is therefore the only credential available here, and no
+ * per-order scope is layered on top of it: the screens that print it
+ * (admin/orders.php, admin/subscriptions.php) already require order-editing
+ * access, which on a WooCommerce shop is all-or-nothing, so the holder can read
+ * every order anyway. What the endpoints expose is a subset of what those screens
+ * show -- amounts, a transaction id, a card type and expiry -- read-only, with no
+ * card numbers or customer details. Reviewed and settled on those grounds; do not
+ * re-raise it as an authorization gap without new information (a role that grants
+ * partial order access would be exactly that).
  */
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 if ( isset( $_SERVER['HTTP_X_SCANPAY'], $_GET['x'] ) ) {

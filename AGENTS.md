@@ -193,6 +193,15 @@ Each looks like a bug and is not.
 - **The missing `cart_checkout_blocks` compatibility declaration is a no-op** — the
   feature defaults to compatible and WC's notice lists only explicit *negative*
   declarations (HPOS is the disanalogy).
+- **The admin-AJAX secret is unscoped, and stays that way.** The `?x=` endpoints
+  authenticate on the shared secret alone — no capability, no per-order token, no
+  rate limit — and the order and subscription screens print it into the DOM. Both
+  are deliberate: the endpoints dispatch during plugin load, before `pluggable.php`
+  is included, so `current_user_can()` does not exist yet, and order-editing access
+  on a WooCommerce shop is all-or-nothing, so scoping would gate nothing the holder
+  cannot already read. The reasoning is written out at the dispatch gate in
+  `woocommerce-scanpay.php`. A role granting *partial* order access would be new
+  information; nothing else is.
 
 Verified sound, do not re-audit: ping/sync, `math.php`, the flock, client TLS,
 capture money math, secret auth.
