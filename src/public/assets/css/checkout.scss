@@ -1,6 +1,12 @@
 /*
     CSS for Block-Based Checkout (Cart and Checkout Blocks)
-    This stylesheet can be disabled in the admin panel.
+
+    This stylesheet can be disabled in the admin panel, so no rule here may
+    be the only thing standing between an asset and a broken layout. The icon
+    SVGs carry their own width/height for that reason: a viewBox-only SVG in
+    an <img> has no intrinsic size and falls back to the 300x150 default
+    object size, so turning the stylesheet off blew every payment icon up to
+    ~150px tall.
 */
 
 .wcsp-label {
@@ -15,7 +21,7 @@
     Every gateway's icon row is a .wcsp-icons container (checkout.ts), so
     size the images here rather than per gateway: the old
     .wcsp-icons-scanpay / -applepay rules covered card and Apple Pay but
-    left MobilePay's SVG at its intrinsic size.
+    left MobilePay's SVG at whatever the browser defaulted it to.
 */
 .wcsp-icons {
 	display: flex;
@@ -45,9 +51,14 @@
 
 /*
     CSS for the old Checkout
-*/
 
-.wcsp-cards > img {
+    All three get_icon() methods wrap their images in .wcsp-methods, so this
+    is the classic-checkout twin of .wcsp-icons above: one rule for every
+    gateway. It used to key on .wcsp-cards, which only the card gateway adds,
+    so MobilePay and Apple Pay got neither the height nor the left margin.
+    .wcsp-cards stays in the markup as a card-only hook for themes.
+*/
+.wcsp-methods > img {
 	margin: 0 0 0 5px;
 	height: 24px;
 }
