@@ -331,13 +331,58 @@ final class WC_Scanpay_Sync {
 				};
 				add_filter( 'woocommerce_payment_complete_order_status', $hook, 10, 2 );
 			}
+			$ok  = false;
+			$err = null;
 			try {
-				$wco->payment_complete( $txn );
+				$ok = $wco->payment_complete( $txn );
+			} catch ( \Throwable $e ) {
+				// WooCommerce catches Exception, not Throwable, so an Error from a third-party
+				// callback escapes payment_complete() with neither its log entry nor its note.
+				// Held, not reported here: the forced-status filter is still installed until
+				// the finally runs, and the reporting below writes to the order.
+				$err = $e;
 			} finally {
 				if ( null !== $hook ) {
 					remove_filter( 'woocommerce_payment_complete_order_status', $hook, 10 );
 				}
 			}
+			if ( ! $ok ) {
+				$this->report_incomplete( $wco, $label, $oid, $err );
+			}
+		}
+	}
+
+	/**
+	 * Record an order Scanpay has paid but WooCommerce would not complete.
+	 *
+	 * Best effort, and deliberately silent to the caller. Throwing would pin the cursor:
+	 * the failure is typically a third-party callback that fails the same way on every
+	 * replay, so the seq page would repeat forever and stop every other order in the shop
+	 * from syncing -- one stuck order turned into an outage. Log, note, return.
+	 *
+	 * On the false path WooCommerce has already logged and left its own generic note, so
+	 * this one complements it with what only we know: that the money is at Scanpay and
+	 * nothing will retry. On the escaping-Error path ours is the only record there is.
+	 *
+	 * @param string          $label Scanpay's label for the change, e.g. "charge #4321".
+	 * @param \Throwable|null $err   Set only when the Error escaped payment_complete().
+	 */
+	private function report_incomplete( \WC_Order $wco, string $label, int $oid, ?\Throwable $err ): void {
+		$why = null === $err ? 'see the order note WooCommerce added' : trim( $err->getMessage() );
+		scanpay_log( 'error', "$label: WooCommerce could not complete order #$oid: $why" );
+		try {
+			$wco->add_order_note(
+				sprintf(
+					/* translators: 1: Scanpay transaction or charge label, e.g. "charge #4321". 2: WooCommerce order ID. */
+					__( 'Scanpay holds a successful payment for this order (%1$s), but WooCommerce could not complete order #%2$d. Reconcile the order manually: the payment is settled at Scanpay and nothing will retry the completion.', 'scanpay-for-woocommerce' ),
+					$label,
+					$oid
+				)
+			);
+		} catch ( \Throwable $note_error ) {
+			// Reporting a failure must not become the failure. Same rule as above: the
+			// cursor advances either way.
+			scanpay_log( 'error', "$label: could not add the reconciliation note to order #$oid: " . $note_error->getMessage() );
 		}
 	}
 
