@@ -71,8 +71,11 @@ final class WCS_Scanpay_Charge {
 		$subid        = (int) $wco->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
 		$order_shopid = (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' );
 		if ( $subid <= 0 ) {
-			scanpay_log( 'error', "scheduled charge: invalid subscriber ID on #$oid" );
-			$wco->update_status( 'failed', 'invalid Scanpay subscriber ID' );
+			wcs_scanpay_fail_renewal(
+				$wco,
+				"scheduled charge: invalid subscriber ID on #$oid",
+				__( 'Invalid Scanpay subscriber ID.', 'scanpay-for-woocommerce' )
+			);
 			return;
 		}
 		if ( $wco->is_paid() || ! empty( $wco->get_transaction_id( 'edit' ) ) ) {
@@ -81,8 +84,11 @@ final class WCS_Scanpay_Charge {
 		}
 		if ( $this->shopid <= 0 ) {
 			// Caught locally so the merchant reads a cause, not an opaque 401 from the API.
-			scanpay_log( 'error', "scheduled charge: invalid API key configured; cannot charge #$oid (subid=$subid)" );
-			$wco->update_status( 'failed', 'invalid Scanpay API key configured' );
+			wcs_scanpay_fail_renewal(
+				$wco,
+				"scheduled charge: invalid API key configured; cannot charge #$oid (subid=$subid)",
+				__( 'Invalid Scanpay API key configured.', 'scanpay-for-woocommerce' )
+			);
 			return;
 		}
 		/*
@@ -109,8 +115,16 @@ final class WCS_Scanpay_Charge {
 		if ( $order_shopid <= 0 ) {
 			scanpay_log( 'warning', "scheduled charge: no shop id on #$oid; charging under shop {$this->shopid} (subid=$subid)" );
 		} elseif ( $order_shopid !== $this->shopid ) {
-			scanpay_log( 'error', "scheduled charge: shop mismatch on #$oid: order has $order_shopid, API key has {$this->shopid} (subid=$subid)" );
-			$wco->update_status( 'failed', "subscription belongs to Scanpay shop $order_shopid, not {$this->shopid}" );
+			wcs_scanpay_fail_renewal(
+				$wco,
+				"scheduled charge: shop mismatch on #$oid: order has $order_shopid, API key has {$this->shopid} (subid=$subid)",
+				sprintf(
+					/* translators: 1: Scanpay shop ID the subscription was created under, 2: the shop ID of the configured API key. */
+					__( 'This subscription belongs to Scanpay shop %1$d, not %2$d.', 'scanpay-for-woocommerce' ),
+					$order_shopid,
+					$this->shopid
+				)
+			);
 			return;
 		}
 		/*
@@ -123,21 +137,36 @@ final class WCS_Scanpay_Charge {
 		 */
 		$amt_str = wc_format_decimal( $amount, wc_get_price_decimals() );
 		$tot_str = (string) $wco->get_total( 'edit' );
-		// Pre-guard before cmpmoney(), which throws InvalidArgumentException on
-		// non-money input. This runs outside charge()'s try, so a corrupt local total
-		// would otherwise escape to Action Scheduler and leave the renewal neither
-		// charged nor marked failed. WC_Scanpay_Sync pre-guards for the same reason.
+		// Pre-guard before cmpmoney(), which throws InvalidArgumentException on non-money
+		// input. The hook contains that throw, but it would arrive as an opaque "unhandled
+		// error"; this names what was wrong. WC_Scanpay_Sync pre-guards for the same reason.
 		if ( ! wc_scanpay_is_money( $amt_str ) || ! wc_scanpay_is_money( $tot_str ) ) {
-			scanpay_log( 'error', "scheduled charge: invalid amount on #$oid: WCS=$amt_str, order_total=$tot_str (subid=$subid)" );
-			$wco->update_status( 'failed', "invalid amount ($amt_str) or order total ($tot_str)" );
+			wcs_scanpay_fail_renewal(
+				$wco,
+				"scheduled charge: invalid amount on #$oid: WCS=$amt_str, order_total=$tot_str (subid=$subid)",
+				sprintf(
+					/* translators: 1: amount supplied by WooCommerce Subscriptions, 2: the order total. */
+					__( 'Invalid renewal amount (%1$s) or order total (%2$s).', 'scanpay-for-woocommerce' ),
+					$amt_str,
+					$tot_str
+				)
+			);
 			return;
 		}
 		// charge() builds the payload from the order total, so a scheduler amount that
 		// disagrees with it means we'd charge something other than what WCS asked for.
 		// Fail loud instead of silently charging the order total; WCS owns retry scheduling.
 		if ( wc_scanpay_cmpmoney( $amt_str, $tot_str ) !== 0 ) {
-			scanpay_log( 'error', "scheduled charge: amount mismatch on #$oid: WCS=$amt_str, order_total=$tot_str (subid=$subid)" );
-			$wco->update_status( 'failed', "WCS amount ($amt_str) does not match order total ($tot_str)" );
+			wcs_scanpay_fail_renewal(
+				$wco,
+				"scheduled charge: amount mismatch on #$oid: WCS=$amt_str, order_total=$tot_str (subid=$subid)",
+				sprintf(
+					/* translators: 1: amount supplied by WooCommerce Subscriptions, 2: the order total. */
+					__( 'The renewal amount (%1$s) does not match the order total (%2$s).', 'scanpay-for-woocommerce' ),
+					$amt_str,
+					$tot_str
+				)
+			);
 			return;
 		}
 		/*
@@ -152,88 +181,101 @@ final class WCS_Scanpay_Charge {
 			// Surface a completion WooCommerce could not persist: WCS must see a failed
 			// renewal rather than a silently unpaid order it believes it settled.
 			if ( ! $wco->payment_complete() ) {
-				scanpay_log( 'error', "scheduled charge: could not complete zero-amount renewal #$oid (subid=$subid)" );
-				$wco->update_status( 'failed', "could not complete the zero-amount renewal ($amt_str)" );
+				wcs_scanpay_fail_renewal(
+					$wco,
+					"scheduled charge: could not complete zero-amount renewal #$oid (subid=$subid)",
+					__( 'The zero-amount renewal could not be completed.', 'scanpay-for-woocommerce' )
+				);
 			}
 			return;
 		}
 		$this->charge( $wco, $subid );
 	}
 
-	/** Charge an order against the Scanpay subscriber's stored payment method. */
-	public function charge( object $wco, int $subid ): void {
-		$oid  = $wco->get_id();
-		$data = [
-			'orderid'  => (string) $oid,
-			'billing'  => [
-				'name'    => $wco->get_billing_first_name( 'edit' ) . ' ' . $wco->get_billing_last_name( 'edit' ),
-				'email'   => $wco->get_billing_email( 'edit' ),
-				'phone'   => $wco->get_billing_phone( 'edit' ),
-				'address' => [ $wco->get_billing_address_1( 'edit' ), $wco->get_billing_address_2( 'edit' ) ],
-				'city'    => $wco->get_billing_city( 'edit' ),
-				'zip'     => $wco->get_billing_postcode( 'edit' ),
-				'country' => $wco->get_billing_country( 'edit' ),
-				'state'   => $wco->get_billing_state( 'edit' ),
-				'company' => $wco->get_billing_company( 'edit' ),
-			],
-			'shipping' => [
-				'name'    => $wco->get_shipping_first_name( 'edit' ) . ' ' . $wco->get_shipping_last_name( 'edit' ),
-				'address' => [ $wco->get_shipping_address_1( 'edit' ), $wco->get_shipping_address_2( 'edit' ) ],
-				'city'    => $wco->get_shipping_city( 'edit' ),
-				'zip'     => $wco->get_shipping_postcode( 'edit' ),
-				'country' => $wco->get_shipping_country( 'edit' ),
-				'state'   => $wco->get_shipping_state( 'edit' ),
-				'company' => $wco->get_shipping_company( 'edit' ),
-			],
-		];
-
-		// $sum is checked against the order total below; $is_virtual feeds the
-		// auto-complete/autocapture decision. WC has no "all items are virtual" query.
-		$sum        = '0';
-		$currency   = $wco->get_currency( 'edit' );
-		$is_virtual = 1;
-		foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping' ] ) as $id => $item ) {
-			if ( $is_virtual && $item instanceof WC_Order_Item_Product ) {
-				$prod = $item->get_product();
-				if ( $prod ) {
-					$is_virtual = $prod->is_virtual() && (
-						'yes' === ( $this->settings['wc_complete_virtual'] ?? 'no' ) ||
-						$prod->is_downloadable()
-					);
-				}
-			}
-			$line_total = $wco->get_line_total( $item, true, true ); // Incl. tax and rounded, as WC totals it.
-			if ( $line_total >= 0 ) {
-				$line_str        = wc_format_decimal( $line_total, wc_get_price_decimals() );
-				$sum             = wc_scanpay_addmoney( $sum, $line_str );
-				$data['items'][] = [
-					'name'     => $item->get_name( 'edit' ),
-					'quantity' => $item->get_quantity(),
-					'total'    => $line_str . ' ' . $currency,
-				];
-			}
-		}
-		$auto_completed      = $is_virtual || 'yes' === ( $this->settings['wcs_complete_renewal'] ?? 'no' );
-		$autocapture         = $this->settings['wc_autocapture'] ?? 'completed';
-		$data['autocapture'] = 'on' === $autocapture || ( 'completed' === $autocapture && $auto_completed );
-		$wc_total            = (string) $wco->get_total( 'edit' );
-		if ( $sum !== $wc_total && wc_scanpay_cmpmoney( $sum, $wc_total ) !== 0 ) {
-			$data['items'] = [
-				[
-					'name'  => 'Total',
-					'total' => $wc_total . ' ' . $currency,
+	/**
+	 * Charge an order against the Scanpay subscriber's stored payment method.
+	 *
+	 * The whole body is inside the handler, not just the request: the payload build, the
+	 * per-line wc_scanpay_addmoney() summation and the total comparison all call money
+	 * helpers that throw InvalidArgumentException, and the per-line values are the one
+	 * input scheduled_charge() cannot pre-validate -- get_line_total() passes through the
+	 * woocommerce_order_amount_line_total filter, where a third party can return null.
+	 * Defence in depth behind the hook's own catch, which is the real boundary; this one
+	 * exists to report the failure with the context only this method has.
+	 */
+	private function charge( WC_Order $wco, int $subid ): void {
+		try {
+			$oid  = $wco->get_id();
+			$data = [
+				'orderid'  => (string) $oid,
+				'billing'  => [
+					'name'    => $wco->get_billing_first_name( 'edit' ) . ' ' . $wco->get_billing_last_name( 'edit' ),
+					'email'   => $wco->get_billing_email( 'edit' ),
+					'phone'   => $wco->get_billing_phone( 'edit' ),
+					'address' => [ $wco->get_billing_address_1( 'edit' ), $wco->get_billing_address_2( 'edit' ) ],
+					'city'    => $wco->get_billing_city( 'edit' ),
+					'zip'     => $wco->get_billing_postcode( 'edit' ),
+					'country' => $wco->get_billing_country( 'edit' ),
+					'state'   => $wco->get_billing_state( 'edit' ),
+					'company' => $wco->get_billing_company( 'edit' ),
+				],
+				'shipping' => [
+					'name'    => $wco->get_shipping_first_name( 'edit' ) . ' ' . $wco->get_shipping_last_name( 'edit' ),
+					'address' => [ $wco->get_shipping_address_1( 'edit' ), $wco->get_shipping_address_2( 'edit' ) ],
+					'city'    => $wco->get_shipping_city( 'edit' ),
+					'zip'     => $wco->get_shipping_postcode( 'edit' ),
+					'country' => $wco->get_shipping_country( 'edit' ),
+					'state'   => $wco->get_shipping_state( 'edit' ),
+					'company' => $wco->get_shipping_company( 'edit' ),
 				],
 			];
-			scanpay_log(
-				'warning',
-				"Order #$oid: The sum of all items ($sum) does not match the order total ($wc_total)." .
-				'The item list will not be available in the scanpay dashboard.'
-			);
-		}
 
-		// Authoritative double-charge guard:
-		global $wpdb;
-		try {
+			// $sum is checked against the order total below; $is_virtual feeds the
+			// auto-complete/autocapture decision. WC has no "all items are virtual" query.
+			$sum        = '0';
+			$currency   = $wco->get_currency( 'edit' );
+			$is_virtual = 1;
+			foreach ( $wco->get_items( [ 'line_item', 'fee', 'shipping' ] ) as $id => $item ) {
+				if ( $is_virtual && $item instanceof WC_Order_Item_Product ) {
+					$prod = $item->get_product();
+					if ( $prod ) {
+						$is_virtual = $prod->is_virtual() && (
+							'yes' === ( $this->settings['wc_complete_virtual'] ?? 'no' ) ||
+							$prod->is_downloadable()
+						);
+					}
+				}
+				$line_total = $wco->get_line_total( $item, true, true ); // Incl. tax and rounded, as WC totals it.
+				if ( $line_total >= 0 ) {
+					$line_str        = wc_format_decimal( $line_total, wc_get_price_decimals() );
+					$sum             = wc_scanpay_addmoney( $sum, $line_str );
+					$data['items'][] = [
+						'name'     => $item->get_name( 'edit' ),
+						'quantity' => $item->get_quantity(),
+						'total'    => $line_str . ' ' . $currency,
+					];
+				}
+			}
+			$auto_completed      = $is_virtual || 'yes' === ( $this->settings['wcs_complete_renewal'] ?? 'no' );
+			$autocapture         = $this->settings['wc_autocapture'] ?? 'completed';
+			$data['autocapture'] = 'on' === $autocapture || ( 'completed' === $autocapture && $auto_completed );
+			$wc_total            = (string) $wco->get_total( 'edit' );
+			if ( $sum !== $wc_total && wc_scanpay_cmpmoney( $sum, $wc_total ) !== 0 ) {
+				$data['items'] = [
+					[
+						'name'  => 'Total',
+						'total' => $wc_total . ' ' . $currency,
+					],
+				];
+				scanpay_log(
+					'warning',
+					"Order #$oid: The sum of all items ($sum) does not match the order total ($wc_total)." .
+					'The item list will not be available in the scanpay dashboard.'
+				);
+			}
+
+			// Authoritative double-charge guard:
+			global $wpdb;
 			$found = $wpdb->query( "SELECT orderid FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
 			if ( false === $found ) {
 				// A SELECT returns its row count, or false on error -- never read that as "no
@@ -256,13 +298,17 @@ final class WCS_Scanpay_Charge {
 			$idem = $this->idempotency_key( $oid, $subid, $created->getTimestamp() );
 			$this->client->charge( $subid, $data, $idem );
 		} catch ( \Throwable $e ) {
-			// \Throwable, not \Exception: an Error/TypeError here would otherwise escape
-			// to Action Scheduler and leave the renewal neither charged nor marked
-			// failed. WC_Scanpay_Capture::capture_or_hold() catches the same way.
-			// WCS owns retry scheduling; we keep no local retry/lock state.
-			$str = trim( $e->getMessage() );
-			scanpay_log( 'error', "charge failed on #$oid: $str" );
-			$wco->update_status( 'failed', "Charge failed: $str" );
+			// \Throwable, not \Exception: an Error or TypeError here is as fatal to the
+			// renewal as an Exception. Reported, never rethrown, so the hook's outer catch
+			// cannot report the same failure a second time. WCS owns retry scheduling; we
+			// keep no local retry or lock state.
+			wcs_scanpay_fail_renewal(
+				$wco,
+				'charge failed on #' . $wco->get_id() . ': ' . trim( $e->getMessage() ),
+				// The raw message can be a database or transport error; the merchant gets a
+				// fixed sentence and the detail goes to the log.
+				__( 'The Scanpay charge failed. See the WooCommerce logs for details.', 'scanpay-for-woocommerce' )
+			);
 		}
 	}
 }

@@ -259,16 +259,62 @@ function wcs_scanpay_blocks_validate_terms( WC_Order $order, WP_REST_Request $re
 }
 
 /**
+ * Mark a renewal failed, and log why, without ever throwing.
+ *
+ * The one place in the renewal flow that writes a 'failed' status. Action Scheduler
+ * reads an escaping Throwable as a failed action, which would leave the renewal neither
+ * charged nor marked failed -- including when the status write is itself what fails, so
+ * that attempt is contained here and appended to the same log entry rather than
+ * reported again by an outer catch. One transition attempt, one log entry.
+ *
+ * $diagnostic is raw and internal; $reason is shown to the merchant on the order, so a
+ * backend or database exception message must never be passed as one.
+ */
+function wcs_scanpay_fail_renewal( WC_Order $wco, string $diagnostic, string $reason ): void {
+	try {
+		$wco->update_status( 'failed', $reason );
+	} catch ( \Throwable $e ) {
+		$diagnostic .= ' -- and the failed status could not be saved: ' . $e->getMessage();
+	}
+	try {
+		scanpay_log( 'error', $diagnostic );
+	} catch ( \Throwable $e ) {
+		// A broken WooCommerce logger has nowhere safer to report itself, but it must
+		// not escape to Action Scheduler either.
+		return;
+	}
+}
+
+/**
  * Handle a scheduled subscription payment; $wco is the renewal order, not the subscription.
  * Action: woocommerce_scheduled_subscription_payment_scanpay
+ *
+ * The outermost handler of the renewal flow: the require, the construction and
+ * everything in scheduled_charge() run inside it, so no Throwable reaches Action
+ * Scheduler. The one case it cannot contain is a missing class file, which is a compile
+ * error rather than a Throwable.
  */
 function wcs_scanpay_scheduled_charge( float $amount, WC_Order $wco ): void {
 	static $handler = null;
-	if ( null === $handler ) {
-		require WC_SCANPAY_DIR . '/library/class-wcs-scanpay-charge.php';
-		$handler = new WCS_Scanpay_Charge();
+	try {
+		if ( null === $handler ) {
+			// require_once, because the catch below turns a constructor throw into a
+			// normal return: the next action in the same Action Scheduler batch re-enters
+			// this function with $handler still null, and a second require of the same
+			// file would be a fatal class redeclaration.
+			require_once WC_SCANPAY_DIR . '/library/class-wcs-scanpay-charge.php';
+			$handler = new WCS_Scanpay_Charge();
+		}
+		$handler->scheduled_charge( $amount, $wco );
+	} catch ( \Throwable $e ) {
+		// Reported here only when nothing below did: scheduled_charge() and charge()
+		// route their own failures through the reporter and never rethrow.
+		wcs_scanpay_fail_renewal(
+			$wco,
+			'scheduled charge: unhandled error on #' . $wco->get_id() . ': ' . $e->getMessage(),
+			__( 'The Scanpay renewal could not be processed. See the WooCommerce logs for details.', 'scanpay-for-woocommerce' )
+		);
 	}
-	$handler->scheduled_charge( $amount, $wco );
 }
 
 /**
