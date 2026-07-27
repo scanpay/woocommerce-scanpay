@@ -13,10 +13,21 @@ final class WC_Gateway_Scanpay_Mobilepay extends WC_Gateway_Scanpay_Base {
 		parent::__construct();
 	}
 
+	protected function default_title(): string {
+		return 'MobilePay';
+	}
+
+	protected function default_description(): string {
+		return 'Pay with MobilePay.';
+	}
+
 	/** The checkout icon. $this->icon stays live for the admin Payments list. */
 	public function get_icon(): string {
-		return '<span class="wcsp-methods"><img width="92" height="23" class="wcsp-mobilepay" src="' .
+		$html = '<span class="wcsp-methods"><img width="92" height="23" class="wcsp-mobilepay" src="' .
 			WC_SCANPAY_URL . '/public/assets/images/mobilepay.svg" alt="MobilePay" title="MobilePay"></span>';
+		// Filtered after the markup is built, as WC_Payment_Gateway does; cast because a
+		// filter callback can return anything and this method returns string.
+		return (string) apply_filters( 'woocommerce_gateway_icon', $html, $this->id );
 	}
 
 	/**

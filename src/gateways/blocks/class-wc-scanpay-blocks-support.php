@@ -32,7 +32,17 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 		return [ 'wcsp-blocks' ];
 	}
 
-	/** The payload checkout.ts renders from. Checkout only, so per-request cost is fine. */
+	/**
+	 * The payload checkout.ts renders from. Checkout only, so per-request cost is fine.
+	 *
+	 * Settings are read straight from the option, deliberately, not through the classic
+	 * gateways' get_title()/get_description()/get_icon(). Those apply
+	 * woocommerce_gateway_title, _description and _icon, whose callbacks may return HTML,
+	 * while checkout.ts hands the payload to React as text -- markup would render
+	 * literally. The JSON encoder plus React's text rendering are also what keep raw
+	 * settings from becoming executable markup here. If WooCommerce ever exposes a Blocks
+	 * filter contract, add it separately; do not invent one.
+	 */
 	public function get_payment_method_data(): array {
 		$settings = get_option( WC_SCANPAY_URI_SETTINGS );
 		$data     = [

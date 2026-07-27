@@ -28,6 +28,10 @@ if ( ! $saved ) {
 	return false; // update_option() saved nothing: the posted settings are unchanged.
 }
 $this->init_settings();
+// Re-derive $enabled/$title/$description from what was just saved. Without this the
+// gateway object stays on its pre-save values for the rest of the request -- the very
+// request in which the Payments list, the REST controllers and the CLI read them back.
+$this->init_gateway_props();
 
 $is_enabled  = ( 'yes' === $this->get_option( 'enabled', 'no' ) );
 $key_changed = $is_card && ( (string) $this->get_option( 'apikey', '' ) !== $old_apikey );
@@ -77,6 +81,9 @@ try {
 		$this->settings['apikey'] = '';
 	}
 	update_option( $this->get_option_key(), $this->settings );
+	// The force-disable above edited $this->settings directly, so the properties need
+	// the same refresh: is_available() reads $this->enabled, not the option.
+	$this->init_gateway_props();
 	WC_Admin_Settings::add_error(
 		__( 'Error: Invalid Scanpay API key. Please check your key and try again.', 'scanpay-for-woocommerce' )
 	);

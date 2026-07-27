@@ -13,10 +13,21 @@ final class WC_Gateway_Scanpay_ApplePay extends WC_Gateway_Scanpay_Base {
 		parent::__construct();
 	}
 
+	protected function default_title(): string {
+		return 'Apple Pay';
+	}
+
+	protected function default_description(): string {
+		return 'Pay with Apple Pay.';
+	}
+
 	/** The checkout icon. $this->icon stays live for the admin Payments list. */
 	public function get_icon(): string {
-		return '<span class="wcsp-methods"><img width="45" height="20" class="wcsp-applepay" src="' .
+		$html = '<span class="wcsp-methods"><img width="45" height="20" class="wcsp-applepay" src="' .
 			WC_SCANPAY_URL . '/public/assets/images/applepay.svg" alt="Apple Pay" title="Apple Pay"></span>';
+		// Filtered after the markup is built, as WC_Payment_Gateway does; cast because a
+		// filter callback can return anything and this method returns string.
+		return (string) apply_filters( 'woocommerce_gateway_icon', $html, $this->id );
 	}
 
 	/**

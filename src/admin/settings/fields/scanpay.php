@@ -36,7 +36,7 @@ return [
 		'type'        => 'text',
 		'description' => __( 'The payment method title displayed at checkout.', 'scanpay-for-woocommerce' ),
 		'desc_tip'    => true,
-		'default'     => 'Pay by card',
+		'default'     => $this->default_title(),
 	],
 
 	'description'          => [
@@ -44,7 +44,7 @@ return [
 		'type'        => 'text',
 		'description' => __( 'The payment method description displayed at checkout.', 'scanpay-for-woocommerce' ),
 		'desc_tip'    => true,
-		'default'     => 'Pay with a payment card via Scanpay.',
+		'default'     => $this->default_description(),
 	],
 
 	'card_icons'           => [

@@ -17,7 +17,7 @@ return [
 		'type'        => 'text',
 		'description' => __( 'The payment method title shown at checkout.', 'scanpay-for-woocommerce' ),
 		'desc_tip'    => true,
-		'default'     => 'Apple Pay',
+		'default'     => $this->default_title(),
 	],
 
 	'description' => [
@@ -25,6 +25,6 @@ return [
 		'type'        => 'text',
 		'description' => __( 'The payment method description shown at checkout.', 'scanpay-for-woocommerce' ),
 		'desc_tip'    => true,
-		'default'     => 'Pay with Apple Pay.',
+		'default'     => $this->default_description(),
 	],
 ];

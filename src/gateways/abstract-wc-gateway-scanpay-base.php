@@ -9,7 +9,44 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 		$this->supports   = [ 'products' ];
 		$this->has_fields = false;
 		$this->init_settings();
+		$this->init_gateway_props();
 		add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, [ $this, 'process_admin_options' ] );
+	}
+
+	/**
+	 * This gateway's shipped checkout title, e.g. "Pay by card". One source, shared by
+	 * init_gateway_props() and the gateway's own field definitions, so the property and
+	 * the settings form cannot disagree about what the default is.
+	 */
+	abstract protected function default_title(): string;
+
+	/** This gateway's shipped checkout description. See default_title(). */
+	abstract protected function default_description(): string;
+
+	/**
+	 * Copy the saved settings into WooCommerce's own gateway properties.
+	 *
+	 * WC_Payment_Gateway defaults $enabled to 'yes' and leaves $title and $description
+	 * undeclared, and it is the properties -- not our getters -- that inherited
+	 * is_available(), the REST controllers, the CLI and the tracker read.
+	 * get_available_payment_gateways() filters on is_available() alone, with no separate
+	 * enabled check, so an uninitialized $enabled offers a gateway the merchant disabled.
+	 *
+	 * Called again after anything that re-reads or edits $this->settings, or the
+	 * properties go stale for the rest of the request -- which is exactly the save
+	 * request the Payments list and the REST controllers read back.
+	 *
+	 * Reads $this->settings directly: WC_Settings_API::get_option() force-loads the lazy
+	 * form fields for a key that is missing from the saved option, and the card's fields
+	 * file calls get_pages(). init_settings() has already merged the field defaults when
+	 * the option is not an array, so ?? only fires for a saved array missing the key.
+	 */
+	protected function init_gateway_props(): void {
+		$this->enabled = 'yes' === ( $this->settings['enabled'] ?? 'no' ) ? 'yes' : 'no';
+		// A stored empty title stays empty, as it would on any other gateway; only an
+		// absent key falls back. Our old get_option( 'title', 'Scanpay' ) replaced it.
+		$this->title       = (string) ( $this->settings['title'] ?? $this->default_title() );
+		$this->description = (string) ( $this->settings['description'] ?? $this->default_description() );
 	}
 
 	/**
@@ -32,31 +69,40 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	/**
 	 * The checkout display title, e.g. "Pay by card".
 	 *
-	 * 'Scanpay' under is_admin() is deliberate branding: sync collapses all three
-	 * gateways into the 'scanpay' payment method and owns the real
-	 * payment_method_title, so the admin should name the account, not the button.
+	 * The branding decision only; everything else -- sanitization and the
+	 * woocommerce_gateway_title filter -- is the parent's, now that $this->title is
+	 * initialized. Casts on both branches: a filter result is not constrained by any
+	 * contract, and strict_types would turn a non-string into a TypeError on a method
+	 * WooCommerce calls while rendering checkout.
 	 */
 	public function get_title(): string {
-		// Cast: get_option() returns whatever is stored, and strict_types turns a
-		// non-string (a hand-edited option, a filter) into a TypeError on a method WC
-		// calls while rendering checkout.
-		return is_admin() ? 'Scanpay' : (string) $this->get_option( 'title', 'Scanpay' );
-	}
-
-	/** The checkout description, e.g. "Pay with a payment card via Scanpay." */
-	public function get_description(): string {
-		return (string) $this->get_option( 'description', '' ); // Cast: see get_title().
+		// 'Scanpay' under is_admin() is deliberate branding, not a missing setting: sync
+		// collapses all three gateways into the 'scanpay' payment method and owns the real
+		// payment_method_title, so the admin names the account, not the checkout button.
+		return is_admin()
+			? (string) apply_filters( 'woocommerce_gateway_title', 'Scanpay', $this->id )
+			: (string) parent::get_title();
 	}
 
 	/**
 	 * The Scanpay dashboard URL for this order's transaction.
 	 *
+	 * The override stays: the parent builds its URL from view_transaction_url, a template
+	 * carrying the transaction ID alone, and ours needs the per-order shop ID too.
+	 *
 	 * @param WC_Order $wco Untyped in the signature to match WC_Payment_Gateway.
 	 */
 	public function get_transaction_url( $wco ): string {
-		$shop = (string) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true );
+		// 'edit' on both reads, matching every other reader of these two values.
+		$shop = (string) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' );
 		$tx   = (string) $wco->get_transaction_id( 'edit' );
-		return esc_url( WC_SCANPAY_DASHBOARD . rawurlencode( $shop ) . '/' . rawurlencode( $tx ) );
+		// Hardening, not a live fix: WooCommerce's two call sites both gate on a non-empty
+		// transaction id, and sync refuses to write one unless the shop id matches. It is
+		// still not this method's job to hand back "dashboard.scanpay.dk//".
+		$url = ( '' === $shop || '' === $tx )
+			? ''
+			: esc_url( WC_SCANPAY_DASHBOARD . rawurlencode( $shop ) . '/' . rawurlencode( $tx ) );
+		return (string) apply_filters( 'woocommerce_get_transaction_url', $url, $wco, $this );
 	}
 
 	/** Render the settings screen. $gateway is the required file's handle on $this. */

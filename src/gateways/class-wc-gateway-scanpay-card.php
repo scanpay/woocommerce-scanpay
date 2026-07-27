@@ -34,6 +34,14 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 		}
 	}
 
+	protected function default_title(): string {
+		return 'Pay by card';
+	}
+
+	protected function default_description(): string {
+		return 'Pay with a payment card via Scanpay.';
+	}
+
 	/**
 	 * The card icons rendered at checkout, per the 'card_icons' setting.
 	 *
@@ -41,17 +49,23 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 	 * property for the admin Payments list.
 	 */
 	public function get_icon(): string {
-		$cards = (array) $this->get_option( 'card_icons', [] );
-		if ( ! $cards ) {
-			return '';
+		// array_filter for the same normalization the Blocks payload applies. Defensive
+		// consistency, not a fix: get_option()'s $empty_value already coerces a stored ''
+		// to [] before this cast, so an empty entry cannot reach the loop today.
+		$cards = array_values( array_filter( (array) $this->get_option( 'card_icons', [] ) ) );
+		$html  = '';
+		if ( $cards ) {
+			$html = '<span class="wcsp-methods wcsp-cards">';
+			foreach ( $cards as $card ) {
+				$card  = (string) $card;
+				$html .= '<img src="' . esc_url( WC_SCANPAY_URL . '/public/assets/images/' . $card . '.svg' ) .
+					'" class="wcsp-' . esc_attr( $card ) . '" alt="' . esc_attr( $card ) . '" title="' . esc_attr( $card ) . '">';
+			}
+			$html .= '</span>';
 		}
-		$html = '<span class="wcsp-methods wcsp-cards">';
-		foreach ( $cards as $card ) {
-			$card  = (string) $card;
-			$html .= '<img src="' . esc_url( WC_SCANPAY_URL . '/public/assets/images/' . $card . '.svg' ) .
-				'" class="wcsp-' . esc_attr( $card ) . '" alt="' . esc_attr( $card ) . '" title="' . esc_attr( $card ) . '">';
-		}
-		return $html . '</span>';
+		// Filtered after our own markup is built and escaped, as WC_Payment_Gateway does.
+		// Cast: a filter callback is bound by no contract, and this method returns string.
+		return (string) apply_filters( 'woocommerce_gateway_icon', $html, $this->id );
 	}
 
 	/**
