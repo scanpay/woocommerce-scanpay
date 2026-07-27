@@ -48,8 +48,10 @@ procedural, hook-based host.
   a free function. Concrete classes are `final`; the only inheritance is the one WC
   requires. No interfaces, traits or DI containers — do not introduce any.
 - **`require` doubles as a call.** A settings-field file returns an array;
-  `process-admin-options.php` runs in the gateway's scope with `$this` live.
-  Intentional — do not refactor it away.
+  `admin-options.php` is a template taking a `$gateway` handle. Intentional — do not
+  refactor it away. The bound is that a required file never relies on inherited class
+  scope: bare `$this`, `parent::` or a protected call means it is a method body in the
+  wrong file, and belongs in the gateway (where WC's contract already earns a class).
 - **Fail loud.** Primitives throw; one place per flow catches. A typed parameter is
   the preferred guard — a `TypeError` beats a defensive `if`.
 

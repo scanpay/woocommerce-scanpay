@@ -11,7 +11,7 @@ final class WCS_Scanpay_Charge {
 	public function __construct() {
 		// math.php and the client are independent requires: gating math.php on the client's
 		// class would leave the money helpers undefined on any request that already loaded
-		// the client by itself (process-admin-options.php does). require_once is its own guard.
+		// the client by itself (process_admin_options() does). require_once is its own guard.
 		require_once WC_SCANPAY_DIR . '/library/math.php';
 		require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
 		$opts           = get_option( WC_SCANPAY_URI_SETTINGS );

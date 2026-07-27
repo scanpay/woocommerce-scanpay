@@ -112,12 +112,77 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	}
 
 	/**
-	 * Process and save admin options. The required file runs in this scope, with $this live.
+	 * Process, validate and save admin options.
 	 *
 	 * @return bool Whether anything was saved.
 	 */
 	public function process_admin_options() {
-		return require WC_SCANPAY_DIR . '/admin/settings/process-admin-options.php';
+		// Only the card has an 'apikey' field, and its key is shared by all three. Reading it
+		// off MobilePay/Apple Pay would plant a phantom one: get_option() injects a missing
+		// key into $this->settings, and the catch below writes that array back verbatim.
+		$is_card = ( 'scanpay' === $this->id );
+
+		// Both must be read before the parent saves over them.
+		$was_enabled = ( 'yes' === $this->get_option( 'enabled', 'no' ) );
+		$old_apikey  = $is_card ? (string) $this->get_option( 'apikey', '' ) : '';
+
+		if ( ! parent::process_admin_options() ) {
+			return false; // update_option() saved nothing: the posted settings are unchanged.
+		}
+		$this->init_settings();
+		// Without this the gateway keeps its pre-save values for the rest of the request --
+		// the very request in which the Payments list, the REST controllers and the CLI read
+		// them back.
+		$this->init_gateway_props();
+
+		$key_changed = $is_card && ( (string) $this->get_option( 'apikey', '' ) !== $old_apikey );
+		$now_enabled = ! $was_enabled && 'yes' === $this->get_option( 'enabled', 'no' );
+
+		/*
+		 * The enabled state must not gate a newly entered key. Skipping the check while
+		 * disabled would let an invalid key store and mask itself, and by the time the
+		 * merchant enables the gateway $key_changed is false -- so the catch below would keep
+		 * the dead key and only disable, leaving the reset button as the only way out.
+		 *
+		 * A UX check only: nothing destructive hangs off the result.
+		 */
+		if ( ! $key_changed && ! $now_enabled ) {
+			return true;
+		}
+
+		try {
+			// Cheapest call that proves the key: seq(0) reads the change stream from the start
+			// and changes nothing. The key is always the card gateway's, shared by all three.
+			$primary = get_option( WC_SCANPAY_URI_SETTINGS, [] );
+			require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
+			$client = new WC_Scanpay_Client( (string) ( $primary['apikey'] ?? '' ) );
+			$client->seq( 0 );
+		} catch ( Exception ) {
+			// Invalid key: force-disable the gateway, keeping the entered settings.
+			$this->settings['enabled'] = 'no';
+			/*
+			 * Drop the key we just stored, so generate_apikey_html() renders the input again.
+			 * Otherwise the field goes masked and input-less, and a one-character typo can only
+			 * be undone through the reset button, whose copy is about deleting data.
+			 *
+			 * Only when the key changed in this save: a stored, working key must survive a
+			 * transient failure above. It also keeps install.php from seeding a shop row for a
+			 * key that never validated, since the card gateway reads the key back after this to
+			 * decide whether to seed -- do not gate validation on the enabled state again
+			 * without revisiting install.php's "0 !== $shopid" seq-row seeding.
+			 */
+			if ( $key_changed ) {
+				$this->settings['apikey'] = '';
+			}
+			update_option( $this->get_option_key(), $this->settings );
+			// The force-disable edited $this->settings directly, so the properties need the
+			// same refresh: is_available() reads $this->enabled, not the option.
+			$this->init_gateway_props();
+			WC_Admin_Settings::add_error(
+				__( 'Error: Invalid Scanpay API key. Please check your key and try again.', 'scanpay-for-woocommerce' )
+			);
+		}
+		return true;
 	}
 
 	/**
@@ -261,7 +326,7 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 		 * Reject a malformed key instead of storing it. Storing first is what makes a
 		 * typo expensive: the field then renders masked with no input, so "try again"
 		 * is impossible short of the reset button, whose copy warns about deleting
-		 * data. process-admin-options.php also proves the key against the API, even
+		 * data. process_admin_options() above also proves the key against the API, even
 		 * while the gateway is disabled, but that is a network call: this shape check
 		 * is the cheap, offline first pass.
 		 */
