@@ -59,10 +59,12 @@ $wcsp_fail = static function ( string $code, int $status, string $log ) use ( &$
 
 /*
  * Derive the shop id before the loop below unsets 'apikey': afterwards nothing is
- * left to derive it from, and it names the lock file.
+ * left to derive it from, and it names the lock file. The old secret is captured for
+ * the same reason -- the loop destroys what the postcondition below compares against.
  */
 $wcsp_settings = get_option( WC_SCANPAY_URI_SETTINGS );
 $wcsp_shopid   = is_array( $wcsp_settings ) ? (int) strstr( (string) ( $wcsp_settings['apikey'] ?? '' ), ':', true ) : 0;
+$wcsp_secret   = (string) ( $wcsp_settings['secret'] ?? '' );
 
 /*
  * Hold the old shop's sync lock across the whole reset. A worker draining a change set
@@ -103,6 +105,15 @@ if ( $wcsp_shopid > 0 ) {
  *
  * An option that does not exist is a gateway that was never configured: nothing to
  * clear, and nothing to assert about it afterwards.
+ *
+ * The admin-AJAX secret goes with the key: the reset exists to hand the store to a
+ * different Scanpay account, whose predecessor must not keep a working credential.
+ * install.php below mints the replacement and stays the only place that does -- its
+ * branch is empty()-gated, so a second mint here would survive rather than be
+ * overwritten. A failure in between (a drop_failed, say) therefore leaves no secret at
+ * all until the merchant retries, and the endpoints' own '' === $secret guard is what
+ * makes that window fail closed rather than open. The two secondary options never
+ * carry a secret, so unsetting it there is a no-op.
  */
 foreach (
 	[
@@ -115,7 +126,7 @@ foreach (
 	if ( ! is_array( $wcsp_set ) ) {
 		continue;
 	}
-	unset( $wcsp_set['apikey'] );
+	unset( $wcsp_set['apikey'], $wcsp_set['secret'] );
 	$wcsp_set['enabled'] = 'no';
 	update_option( $wcsp_opt, $wcsp_set );
 
@@ -186,6 +197,13 @@ foreach ( $wcsp_schema as $wcsp_tbl => $wcsp_want ) {
 $wcsp_settings = get_option( WC_SCANPAY_URI_SETTINGS );
 if ( ! empty( $wcsp_settings['apikey'] ) || 'yes' === ( $wcsp_settings['enabled'] ?? 'no' ) ) {
 	$wcsp_fail( 'verify_failed', 500, 'the API key is still configured after the reset' );
+}
+// The rotation itself: an unchanged secret means the loop's unset did not persist, and
+// an absent one means install.php's mint did not. Either way the outgoing account may
+// still hold a working credential, which is the whole point of clearing it.
+$wcsp_new_secret = (string) ( $wcsp_settings['secret'] ?? '' );
+if ( '' === $wcsp_new_secret || $wcsp_new_secret === $wcsp_secret ) {
+	$wcsp_fail( 'verify_failed', 500, 'the admin-AJAX secret was not rotated' );
 }
 
 $wcsp_lock?->release();
