@@ -72,16 +72,14 @@ final class WCS_Scanpay_Charge {
 			scanpay_log( 'debug', "scheduled charge: order #$oid already paid; skipping (subid=$subid)" );
 			return;
 		}
-		// WCS normally auto-completes zero-amount renewals without reaching this callback;
-		// this covers the edge cases (a 100% discount, a proration credit).
-		if ( $amount <= 0.0 ) {
-			scanpay_log( 'debug', "scheduled charge: zero-amount renewal on #$oid; skipping charge (subid=$subid)" );
-			$wco->payment_complete();
-			return;
-		}
-		// charge() builds the payload from the order total, so a scheduler amount that
-		// disagrees with it means we'd charge something other than what WCS asked for.
-		// Fail loud instead of silently charging the order total; WCS owns retry scheduling.
+		/*
+		 * Both amounts are normalized and compared before anything here decides the
+		 * renewal is free. WCS imposes the float signature; every decision below is made
+		 * on the money string. A scheduler amount of zero against a positive order total
+		 * is a disagreement, not a free renewal, and must not complete the order without
+		 * charging it -- the hook is reachable off-schedule, from third-party code or a
+		 * "Process renewal" admin action.
+		 */
 		$amt_str = wc_format_decimal( $amount, wc_get_price_decimals() );
 		$tot_str = (string) $wco->get_total( 'edit' );
 		// Pre-guard before cmpmoney(), which throws InvalidArgumentException on
@@ -93,9 +91,29 @@ final class WCS_Scanpay_Charge {
 			$wco->update_status( 'failed', "invalid amount ($amt_str) or order total ($tot_str)" );
 			return;
 		}
+		// charge() builds the payload from the order total, so a scheduler amount that
+		// disagrees with it means we'd charge something other than what WCS asked for.
+		// Fail loud instead of silently charging the order total; WCS owns retry scheduling.
 		if ( wc_scanpay_cmpmoney( $amt_str, $tot_str ) !== 0 ) {
 			scanpay_log( 'error', "scheduled charge: amount mismatch on #$oid: WCS=$amt_str, order_total=$tot_str (subid=$subid)" );
 			$wco->update_status( 'failed', "WCS amount ($amt_str) does not match order total ($tot_str)" );
+			return;
+		}
+		/*
+		 * WCS normally auto-completes zero-amount renewals without reaching this callback;
+		 * this covers the edge cases (a 100% discount, a proration credit). The test is
+		 * non-positive, not strictly zero: a credit whose total matches has nothing to
+		 * charge either, and wc_scanpay_is_zero() -- true for '-0.00', false for '-50.00'
+		 * -- would send that one to the API instead.
+		 */
+		if ( wc_scanpay_cmpmoney( $amt_str, '0' ) <= 0 ) {
+			scanpay_log( 'debug', "scheduled charge: zero-amount renewal on #$oid; skipping charge (subid=$subid)" );
+			// Surface a completion WooCommerce could not persist: WCS must see a failed
+			// renewal rather than a silently unpaid order it believes it settled.
+			if ( ! $wco->payment_complete() ) {
+				scanpay_log( 'error', "scheduled charge: could not complete zero-amount renewal #$oid (subid=$subid)" );
+				$wco->update_status( 'failed', "could not complete the zero-amount renewal ($amt_str)" );
+			}
 			return;
 		}
 		$this->charge( $wco, $subid );
