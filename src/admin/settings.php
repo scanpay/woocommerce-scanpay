@@ -49,6 +49,22 @@ add_action( 'admin_enqueue_scripts', 'wc_scanpay_admin_assets' );
 
 
 /**
+ * Display an admin notice on the gateway settings screen.
+ *
+ * Declared here rather than in admin/settings/admin-options.php, which calls it: that
+ * file is pulled in with a bare require because the include is the render call, so
+ * anything it declared would fatally redeclare on a second render in one request.
+ *
+ * @param string $msg  Pre-escaped HTML message.
+ * @param string $type Notice type: 'info', 'warning', 'error' or 'success'.
+ */
+function wc_scanpay_admin_notice( string $msg, string $type = 'info' ): void {
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $msg is trusted, pre-escaped HTML assembled by the callers in admin/settings/admin-options.php.
+	echo '<div class="notice notice-' . esc_attr( $type ) . ' wcsp-notice"><p>' . $msg . '</p></div>';
+}
+
+
+/**
  * Delete all Scanpay data and clear the API key (the settings page's
  * "Delete data and change API key" button).
  *

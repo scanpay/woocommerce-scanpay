@@ -12,17 +12,9 @@ declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 
-
-/**
- * Display an admin notice.
- *
- * @param string $msg  Pre-escaped HTML message.
- * @param string $type Notice type: 'info', 'warning', 'error' or 'success'.
- */
-function wc_scanpay_admin_notice( string $msg, string $type = 'info' ): void {
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $msg is trusted, pre-escaped HTML assembled by the callers below.
-	echo '<div class="notice notice-' . esc_attr( $type ) . ' wcsp-notice"><p>' . $msg . '</p></div>';
-}
+// Declares nothing on purpose: the require at WC_Gateway_Scanpay_Base::admin_options()
+// is the render call, so a second one in a request would fatally redeclare anything
+// here. wc_scanpay_admin_notice() lives in admin/settings.php for that reason.
 
 $settings = get_option( WC_SCANPAY_URI_SETTINGS, [] );
 $shopid   = (int) strstr( (string) ( $settings['apikey'] ?? '' ), ':', true );
