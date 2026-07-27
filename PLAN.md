@@ -176,7 +176,6 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 4 | A collected renewal can be marked failed | `library/class-wcs-scanpay-charge.php` |
 | 5 | The drain's time limit is renewed by round count, not time | `callback/wc-scanpay-ping.php` |
 | 6 | Three status guards read through a third-party filter | `admin/hooks/wp-bulk-actions.php`, `admin/hooks/wp-ajax-wc-mark-order-status.php`, `library/class-wc-scanpay-sync.php` |
 | 7 | `WC_Scanpay_Sync::$settings` is public for no reader | `library/class-wc-scanpay-sync.php` |
@@ -198,73 +197,6 @@ Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 4 — A collected renewal can be marked failed
-
-**File:** `src/library/class-wcs-scanpay-charge.php`
-**Anchor:** `$res = $this->client->charge( $subid, $data, $idem );` in `charge()`
-(~`:332`)
-
-`charge()` wraps its whole body in `try`/`catch ( \Throwable )` whose catch calls
-`wcs_scanpay_fail_renewal()`, writing the order's `failed` status. The last two
-statements inside that `try`:
-
-```php
-$res = $this->client->charge( $subid, $data, $idem );
-scanpay_log( 'info', "charged order #$oid: charge {$res['id']} (subid=$subid)" );
-```
-
-`scanpay_log()` reaches `WC_Logger::log()`, which dispatches to handlers a third
-party can register via `woocommerce_register_log_handlers`. A throw there lands in
-the catch **after the customer has been charged** and marks the renewal `failed`.
-WCS calls `payment_failed()` only from a `failed` transition
-(`class-wc-subscriptions-renewal-order.php:143-145`), so the subscription is
-suspended and put into dunning over a renewal that was collected. The idempotency
-key limits this to one real charge; it does not stop the status write, and the
-retry it dedupes is the very thing that would otherwise reconcile the order.
-
-**Fix.** Nothing after `client->charge()` returns may read as a charge failure.
-Contain the log call where it is written:
-
-```php
-$res = $this->client->charge( $subid, $data, $idem );
-try {
-    scanpay_log( 'info', "charged order #$oid: charge {$res['id']} (subid=$subid)" );
-} catch ( \Throwable $log_error ) {
-    // Nowhere left to report this: the money has moved, and treating it as a
-    // charge failure would fail a renewal the customer paid.
-    return;
-}
-```
-
-**The `return;` is required, not stylistic.** A catch body holding only a comment
-trips `Generic.CodeAnalysis.EmptyStatement.DetectedCatch` and step 4 fails.
-`wcs_scanpay_fail_renewal()`'s own log-containment catch ends in `return;` for the
-same reason — match it. `charge()` returns `void` and the log is the last statement
-in the outer `try`, so the `return` changes no control flow.
-
-Keep the log string byte-identical (run 2's task S settled its wording) and keep
-the comment that sits between `$res` and the log call, explaining that this line is
-the only store-side record of the charge — move it above the new `try`, or leave it
-inside; do not delete it. A `$charged = true` flag checked by the outer catch also
-works; prefer the containment — one exit, no new state.
-
-**Verify**
-
-- Read `WC_Logger::log()` and `wc_get_logger()`; state which hook lets a third
-  party install a handler and that nothing between it and `scanpay_log()` catches.
-- Trace `charge()`; confirm no statement between `client->charge()` returning and
-  the end of the outer `try` can throw.
-- Confirm `scheduled_charge()`'s early returns are untouched — they run before any
-  request and must keep failing the renewal.
-
-**Handoff**
-
-- With a throwing log handler, a successful renewal charge leaves the order paid,
-  the subscription active, and no `failed` transition.
-- The ordinary path still writes exactly one "charged order #… " line.
 
 ---
 

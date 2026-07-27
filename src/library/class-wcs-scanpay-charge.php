@@ -335,7 +335,20 @@ final class WCS_Scanpay_Charge {
 			// record that the customer was charged. No isset() around $res['id']: the client
 			// throws unless the response carries type 'charge' and an int id
 			// (class-wc-scanpay-client.php:205-208), so a return here means both are present.
-			scanpay_log( 'info', "charged order #$oid: charge {$res['id']} (subid=$subid)" );
+			//
+			// Contained, because it is not the throw-free tail it looks like: scanpay_log()
+			// reaches WC_Logger::log(), which resolves its class through
+			// woocommerce_logging_class, its handlers through woocommerce_register_log_handlers
+			// and each message through woocommerce_logger_log_message, and neither it nor
+			// scanpay_log() catches. wcs_scanpay_fail_renewal() contains its own log call for
+			// the same reason.
+			try {
+				scanpay_log( 'info', "charged order #$oid: charge {$res['id']} (subid=$subid)" );
+			} catch ( \Throwable $log_error ) {
+				// Nowhere left to report this: the money has moved, and treating it as a
+				// charge failure would fail a renewal the customer paid.
+				return;
+			}
 		} catch ( \Throwable $e ) {
 			// \Throwable, not \Exception: an Error or TypeError here is as fatal to the
 			// renewal as an Exception. Reported, never rethrown, so the hook's outer catch
