@@ -26,10 +26,15 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 			'subscription_payment_method_change_admin',
 			'multiple_subscriptions',
 		];
-		if ( 'yes' === $this->get_option( 'stylesheet' ) ) {
+		// Both read $this->settings directly, for the reason init_gateway_props() documents:
+		// get_option() would force-load the lazy form fields for a key the stored option
+		// lacks, and this gateway's fields file opens with an unbounded get_pages(). The
+		// fallbacks are the field definitions' own defaults, and ?? -- not ?: -- because
+		// neither call passed an $empty_value, so a stored '' registers nothing today.
+		if ( 'yes' === ( $this->settings['stylesheet'] ?? 'yes' ) ) {
 			add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_checkout_styles' ] );
 		}
-		if ( 'yes' === $this->get_option( 'wc_complete_virtual' ) ) {
+		if ( 'yes' === ( $this->settings['wc_complete_virtual'] ?? 'no' ) ) {
 			add_filter( 'woocommerce_order_item_needs_processing', 'wc_scanpay_item_needs_processing', 10, 3 );
 		}
 	}
