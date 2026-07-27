@@ -242,6 +242,9 @@ try {
 	$start = microtime( true );
 
 	$n = 0;
+	// Seeded from $start so the first renewal is due 30 s into the drain; $start itself
+	// stays the anchor of the elapsed-time debug line below.
+	$limit_renewed = $start;
 	do {
 		/*
 		 * We hold the lock now, so re-read the cursor: the read that picked this branch
@@ -306,9 +309,27 @@ try {
 			}
 
 			if ( $target > $seq ) {
-				// Long backfill: every 6th round, buy back the time limit and bound memory.
-				if ( ++$n > 5 ) {
+				/*
+				 * Long backfill: two bounds, on two cadences, deliberately not the same one.
+				 *
+				 * The grant is a time bound, and rounds are no proxy for it -- one round is a
+				 * /v1/seq call, whose client-side budget is WC_Scanpay_Client::request()'s
+				 * default $timeout = 40, plus a page of changes that can each build a WC_Order
+				 * and write to the database. Renewing every sixth round can therefore outlast
+				 * the 60 s last granted, and the kill lands mid-page: sync() calls
+				 * payment_complete() per change while the cursor UPDATE runs only after the
+				 * whole page, so the next ping replays a page whose orders it then skips for
+				 * already carrying a transaction id -- wasted work, ending the same way, on
+				 * every keepalive. set_time_limit() resets the counter rather than adding to
+				 * it, so renewing before it is due costs nothing.
+				 *
+				 * The flush is a memory bound, and there rounds are a fair proxy for allocation.
+				 */
+				if ( microtime( true ) - $limit_renewed >= 30 ) {
 					set_time_limit( 60 );
+					$limit_renewed = microtime( true );
+				}
+				if ( ++$n > 5 ) {
 					wc_scanpay_memory_usage_debug();
 					wc_scanpay_flush_order_runtime_cache();
 					$n = 0;

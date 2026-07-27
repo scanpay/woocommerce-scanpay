@@ -176,7 +176,6 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 5 | The drain's time limit is renewed by round count, not time | `callback/wc-scanpay-ping.php` |
 | 6 | Three status guards read through a third-party filter | `admin/hooks/wp-bulk-actions.php`, `admin/hooks/wp-ajax-wc-mark-order-status.php`, `library/class-wc-scanpay-sync.php` |
 | 7 | `WC_Scanpay_Sync::$settings` is public for no reader | `library/class-wc-scanpay-sync.php` |
 | 8 | The 2.1.3 migration cannot finish on a large shop | `upgrade.php` |
@@ -197,62 +196,6 @@ Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 5 — The drain's time limit is renewed by round count, not time
-
-**File:** `src/callback/wc-scanpay-ping.php`
-**Anchor:** `if ( ++$n > 5 ) {` in the drain loop (~`:310`)
-
-`$start = microtime( true )` and `$n = 0` are seeded above the drain; `$start` only
-ever feeds the loop's `$elapsed` debug line. Inside the loop, every sixth round
-(`if ( ++$n > 5 )`) calls `set_time_limit( 60 )`,
-`wc_scanpay_memory_usage_debug()`, `wc_scanpay_flush_order_runtime_cache()` and
-resets `$n`.
-
-Round count is not a proxy for elapsed time. One round is a `/v1/seq` call — whose
-client-side budget is `WC_Scanpay_Client::request()`'s default `$timeout = 40` —
-plus a full page of changes, each able to build a `WC_Order` and write to the
-database. Six rounds can exceed the 60 s last granted, and PHP kills the worker
-mid-drain.
-
-Where it dies matters: `sync()` upserts `scanpay_meta` and calls
-`payment_complete()` per change, but the cursor `UPDATE` runs only after the whole
-page. A kill between them leaves orders paid and the cursor unmoved, so the next
-ping replays the page — and orders already carrying a transaction id are skipped by
-`WC_Scanpay_Sync::sync()` (anchor: `if ( empty( $wco->get_transaction_id( 'edit' ) ) )`),
-so the replay is wasted work ending the same way. The five-minute keepalive then
-retries indefinitely; the shop cannot make progress.
-
-**Fix.** Renew on elapsed time. Track the moment of the last renewal (reuse
-`$start` or add `$limit_renewed` seeded from it — whichever keeps the existing
-debug line measuring from the top of the drain), and renew when ~30 s has passed,
-resetting it.
-
-Keep `wc_scanpay_memory_usage_debug()` and `wc_scanpay_flush_order_runtime_cache()`
-on their present cadence or move them to the same trigger — but if the round
-counter stays for the cache flush, comment why the cadences differ: the flush is a
-memory bound and rounds are a fair proxy for allocation; the time limit is a
-wall-clock bound and rounds are not. That asymmetry is the task and belongs in the
-file.
-
-**Do not** raise the constant instead. A larger grant moves the cliff without
-removing it.
-
-**Verify**
-
-- State the arithmetic: five rounds at the client's 40 s ceiling against a 60 s
-  grant.
-- Confirm `set_time_limit()` resets the counter rather than adding, so calling it
-  more often is free.
-- Confirm the drain still calls it at least once per iteration's worst case, and
-  that the heartbeat and busy paths above the loop are untouched.
-
-**Handoff**
-
-- A backfill of several thousand changes completes without a worker being killed,
-  and the log shows elapsed time advancing to "Sync completed to seq …".
 
 ---
 
