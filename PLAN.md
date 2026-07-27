@@ -84,7 +84,7 @@ Released 2.x behaviour is in tags `v2.0.0`–`v2.9.1`. `php -r` settles PHP
 semantics empirically — to load `src/library/math.php` directly,
 `define( 'ABSPATH', … )` first, or the file `exit()`s and prints nothing.
 
-Six tasks here rest on upstream behaviour that has already been read out of
+Five tasks here rest on upstream behaviour that has already been read out of
 `.stubs/` rather than inferred. Re-read the citation, but do not re-derive the
 conclusion from scratch:
 
@@ -93,7 +93,7 @@ conclusion from scratch:
 | A | Just-in-time l10n searches only `WP_LANG_DIR` plus `load_plugin_textdomain()`'s custom path | `wp-includes/class-wp-textdomain-registry.php:286-297` |
 | C | `get_option()` force-loads `get_form_fields()` for a key missing from the stored option | `includes/abstracts/abstract-wc-settings-api.php:305-307` |
 | E | Both bulk handlers fire `woocommerce_order_edit_status` per changed order | `src/Internal/Admin/Orders/ListTable.php:1568`, `includes/admin/list-tables/class-wc-admin-list-table-orders.php:508` |
-| F | HPOS `order_key` is nullable | `src/Internal/DataStores/Orders/OrdersTableDataStore.php:3512` |
+| F | HPOS `order_key` is nullable | `src/Internal/DataStores/Orders/OrdersTableDataStore.php:3521` |
 | J | Checkout puts a caught exception message in front of the customer | `includes/class-wc-checkout.php:1419-1422` |
 
 ## Do not weaken
@@ -217,7 +217,7 @@ Neither emits a translated string today, so this task is about the ping alone.
 
 - Quote `LegacyRestApiStub::add_rewrite_rules_for_legacy_rest_api_stub()`
   (`:55-59`, the `add_rewrite_endpoint( 'wc-api', EP_ALL )` call) and
-  `WooCommerce::api_request_url()` (`includes/class-woocommerce.php:1184`) from
+  `WooCommerce::api_request_url()` (`includes/class-woocommerce.php:1198`) from
   the stub, derive both URL forms, and confirm each reaches the `return` at
   `:62`.
 - Grep `callback/` and `library/class-wc-scanpay-sync.php` and confirm those
@@ -259,16 +259,20 @@ move together now rather than earlier.
 
 ### Fix
 
-1. In `woocommerce-scanpay.php`, derive the directory once alongside the
-   existing `WC_SCANPAY_DIR` / `WC_SCANPAY_URL` defines at `:34-35`:
-   `plugin_basename( __FILE__ )` gives `<dir>/woocommerce-scanpay.php`, and
-   `dirname()` of that gives the directory. Use it for both
-   `load_plugin_textdomain()` call sites.
+1. In `woocommerce-scanpay.php`, define **one** constant alongside the existing
+   `WC_SCANPAY_DIR` / `WC_SCANPAY_URL` defines at `:34-35`, holding
+   `plugin_basename( __FILE__ )` — the *full* `<dir>/woocommerce-scanpay.php`,
+   not the directory alone. Each consumer derives what it needs:
+   `dirname( … ) . '/languages'` at both `load_plugin_textdomain()` call sites,
+   and the constant verbatim at step 3's filter. A directory-only constant
+   would force the file name to be spelled out again in `admin/settings.php`,
+   which is exactly what step 3 forbids.
 2. Use `define()`, not `const`. A `const` cannot hold a function call, and the
    two neighbouring path constants already establish the pattern for exactly
    this reason.
-3. In `admin/settings.php:70`, build the filter name from the same constant.
-   Do not recompute it there with
+3. In `admin/settings.php:70`, build the filter name by concatenating that same
+   constant: `'plugin_action_links_' . <constant>`, with no file name written
+   out. Do not recompute it there with
    `plugin_basename( WC_SCANPAY_DIR . '/woocommerce-scanpay.php' )` — that
    reintroduces a hardcoded file name one directory over from the one you just
    removed.
@@ -402,7 +406,9 @@ trigger `install.php`.
    the contract documented rather than enforced.
 
    The upstream check this step used to defer is done. `WC_Settings_API::process_admin_options()`
-   is untyped (`woocommerce-stubs.php:817`) and `WC_Payment_Gateway` does not
+   is untyped (`.stubs/woocommerce/includes/abstracts/abstract-wc-settings-api.php:206`,
+   mirrored at `vendor/php-stubs/woocommerce-stubs/woocommerce-stubs.php:817`
+   — that one is outside `.stubs/`) and `WC_Payment_Gateway` does not
    override it, so the base's `parent::` reaches `WC_Settings_API` directly;
    adding a return type where the parent has none is covariant and legal. All
    three concrete gateways are `final`, so the card is the only override in the
@@ -505,7 +511,7 @@ passes the gate.
 
 The column is nullable upstream — `order_key varchar(100) NULL` in the HPOS
 operational-data table
-(`.stubs/woocommerce/src/Internal/DataStores/Orders/OrdersTableDataStore.php:3512`)
+(`.stubs/woocommerce/src/Internal/DataStores/Orders/OrdersTableDataStore.php:3521`)
 — and the query joins it with a `LEFT JOIN` (`:58-61`), so a missing
 operational-data row yields the same `NULL`. The legacy branch aggregates
 `MAX( CASE WHEN meta_key = '_order_key' … )` (`:65`), which is `NULL` when the
@@ -564,9 +570,10 @@ fatal redeclaration.
 
 The require-as-a-call idiom is deliberate (see Code style in `AGENTS.md`) and
 this file genuinely needs `$gateway` in scope — but the idiom is only safe for
-files that *declare* nothing. The plugin's other two such files already know
-this: `public/generate-payment-link.php` and `admin/hooks/wp-bulk-actions.php`
-both declare functions and are both pulled in with `require_once`.
+files that *declare* nothing, once the include site can be reached more than
+once. The plugin's other two files in that position already know this:
+`public/generate-payment-link.php` and `admin/hooks/wp-bulk-actions.php` both
+declare functions and are both pulled in with `require_once`.
 
 WooCommerce renders one gateway's screen per request, so nothing calls it twice
 today. This removes a trap, it does not fix a crash — which is why it sits
@@ -596,9 +603,13 @@ below the three substantive tasks.
 - Confirm `admin/settings.php` cannot itself be included twice — trace
   `wc_scanpay_admin_init()` and its `admin_init` registration, and say what
   would happen if it were.
-- Confirm no other `require`d (not `require_once`) file in `src/` declares a
-  function or a class. If one does, name it in `HANDOFF.md` rather than fixing
-  it here.
+- Confirm no other file that is `require`d (not `require_once`) **from a call
+  site that can run twice in one request** declares a function or a class. The
+  one-shot sites are not findings and must not be listed as such: the router's
+  own three branches, the four gateway/Blocks class files, and
+  `admin/orders.php` / `settings.php` / `subscriptions.php` all declare things
+  and are all reached at most once per request. If a repeatable one does turn
+  up, name it in `HANDOFF.md` rather than fixing it here.
 - `pnpm phpcs` clean — the moved function keeps its docblock and its ignore
   comment.
 
@@ -631,9 +642,12 @@ The class gate is right for the WCS-dependent half — `wcs_get_subscription()` 
 
 ### Fix
 
-1. Move the `wcs_enabled` check down so it guards only the subscription loop
-   (`:453-485`), leaving the validation and the `scanpay_subs` upsert
-   unconditional.
+1. Move the `wcs_enabled` check down so it guards only the WCS-dependent tail,
+   leaving the validation and the `scanpay_subs` upsert unconditional. Put it
+   immediately after the upsert's error check at `:450`, so it covers `:452-485`
+   — `$pm_title` at `:452` included, since that value is read only at `:462` and
+   `:481`, both inside the loop, and a shop without WCS should not compute it
+   either.
 2. Keep the guards above the upsert exactly where they are. The id and rev
    throws (`:408-417`) stay fail-loud, and the `ref` early return (`:418-421`)
    stays above the upsert — a subscriber with no reference still has nothing to
@@ -710,8 +724,10 @@ wrong.
 
 ### Verify
 
-- Confirm all three methods' title and description fallbacks now match their
-  gateway counterparts, or state deliberately why one still does not.
+- Confirm all three methods' **title** fallbacks now match their gateway
+  counterparts. All three *description* fallbacks deliberately still do not —
+  they stay `''` per step 3, against non-empty `default_description()`s — so
+  say that rather than "fixing" them.
 - Confirm nothing in the Blocks class instantiates a gateway or calls a gateway
   method.
 - Enumerate the ways the stored option can end up without a `title` key, and say
@@ -815,10 +831,11 @@ keep a working credential.
 1. Unset `secret` alongside `apikey` in the reset loop at `:118`. Doing it for
    all three options is fine and simplest — the two secondary gateway options
    never carry one, so it is a no-op there.
-2. Do not mint a replacement here. `install.php` runs later in the same request
-   (`:148`) and its `if ( empty( $settings['secret'] ) )` branch mints a fresh
-   one; confirm that ordering rather than adding a second mint that would
-   immediately be overwritten.
+2. Do not mint a replacement here. `install.php` is required later in the same
+   request (this file's `:148` — not a line in `install.php`, which is 107 lines
+   long) and its `if ( empty( $settings['secret'] ) )` branch at
+   `install.php:92-98` mints a fresh one; confirm that ordering rather than
+   adding a second mint that would immediately be overwritten.
 3. Extend the postcondition block at `:186-189` — which already rereads the
    primary option — to assert that a secret exists and differs from the
    pre-reset value. Capture the old value before the loop, next to where
@@ -877,6 +894,9 @@ which is why it is last.
 2. If nothing in the loop reads stale data, drop the call. If something does,
    replace it with the narrowest invalidation that covers that read — the
    subscription's own cache entry, never the site's.
+   `callback/wc-scanpay-ping.php:79-86` is the in-tree precedent for the narrow
+   form: `wp_cache_flush_group()` on the order groups, with a comment on how a
+   drop-in without group support degrades.
 3. Do not compromise by moving it below the loop. A single site-wide flush is
    still a site-wide flush; only step 1's answer justifies keeping one at all.
 4. Leave the rest of the migration untouched, including the `$black_subid` /
