@@ -66,7 +66,7 @@ return [
 	],
 
 	'stylesheet'           => [
-		'title'   => 'Stylesheet',
+		'title'   => __( 'Stylesheet', 'scanpay-for-woocommerce' ),
 		'type'    => 'checkbox',
 		'label'   => __( 'Use the default Scanpay checkout stylesheet (CSS).', 'scanpay-for-woocommerce' ),
 		'default' => 'yes',

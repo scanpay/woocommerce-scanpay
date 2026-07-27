@@ -288,38 +288,6 @@ the head of the file), **S** item 3 (a log string), **T** (the `$subid` branch).
 Every one of those anchors sits below the previous task's edit or above it, never
 inside it — but the line numbers move, so locate the symbol.
 
-## Task P — One settings-field title never translates
-
-**File:** `src/admin/settings/fields/scanpay.php:71` — as task I left the file.
-
-```php
-'stylesheet' => [
-    'title'   => 'Stylesheet',
-```
-
-Every other field in all three files wraps `title` in `__()`, and
-`grep -n "Stylesheet" src/languages/scanpay-for-woocommerce.pot` finds nothing —
-the string is never extracted, while "Card icons" and "Auto-complete" are.
-WooCommerce renders `title` twice per checkbox row, in the `<th class="titledesc">`
-and in the screen-reader legend (`abstract-wc-settings-api.php:708`, `:712`), so
-it is user-visible. `AGENTS.md`'s "settings-field *defaults* stay plain strings"
-exemption does not cover it: this is a label, not a stored value.
-
-**The fix.** `'title' => __( 'Stylesheet', 'scanpay-for-woocommerce' ),`. Nothing
-else. Leave `src/languages/` alone and record the new msgid in `HANDOFF.md`.
-
-### Verify
-
-- Grep all three field files for a `title` or `label` that is not wrapped, and
-  report the full list — this task is only worth a commit if it closes the set.
-- Confirm the string is absent from the current `.pot`.
-- `pnpm phpcs` clean (the I18n sniff is configured for this text domain).
-
-### Handoff
-
-- On a Danish shop, confirm the row heading is translated once the catalogs are
-  regenerated and a translation exists.
-
 ## Task Q — A filter nothing consumes
 
 **File:** `src/admin/settings.php:7-12`.
