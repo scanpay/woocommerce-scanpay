@@ -176,73 +176,8 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 20 | Fresh full review → `RESULTS.md` | all 35 PHP files |
 
 Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 20 — Fresh full review → `RESULTS.md`
-
-**Files:** all 35 PHP files in `src/`; output to `RESULTS.md` at the repo root
-
-A new, thorough review of the tree as tasks 1–19 leave it. This is a *review*, not
-a fix: change no code. The deliverable is `RESULTS.md`.
-
-**Before reading any source**, read all of `AGENTS.md` (especially **Settled — do
-not "fix" these**, and note its standing rule that anything else odd is answered by
-a comment at the line itself — read that comment before flagging), this file's
-header including **Verified sound, do not re-audit**,
-`docs/performance-review.md` (its §5 and §6 record what was measured and
-deliberately left alone), `docs/ts-review.md` and `docs/scss-review.md` (their §4s do
-the same for the TypeScript and stylesheet layers, and several of their entries
-land on PHP files — the `?x=` endpoints, the Blocks enqueue site, the card
-gateway's stylesheet enqueue), `docs/requirements.md`, `HANDOFF-2.md`,
-and `HANDOFF.md` (runs 1-2). Everything
-those establish is out of scope. A review that re-discovers a settled decision has
-produced noise, and this is the third run to face that risk — three of the previous
-review's candidate findings died on those documents and one died on a `php -r`
-check.
-
-**Method.** Read every file in full — not greps against a hypothesis. Per finding,
-before writing it down: quote the code at its file and symbol; state the concrete
-failure (inputs or state → wrong output, wrong money, wrong status, fatal, data
-loss — a finding with no reachable failure is not one); settle the upstream half
-against `.stubs/` and the language half with `php -r`; then try to refute it, and
-check whatever would make it false.
-
-Cover at least: money arithmetic and every path that moves money; the ping and
-sync loop, including failure and replay behaviour; capture, charge and refund
-reconciliation; the admin AJAX endpoints and their authentication; install,
-upgrade, reset and uninstall, including multisite; the gateway lifecycle and
-settings persistence; the Blocks and classic checkout paths; the subscription
-terms consent; and error handling and containment boundaries everywhere.
-
-**`RESULTS.md` format.** Findings first, ordered most severe first. Per finding:
-a heading naming the defect, the file and symbol, the quoted code, the failure
-scenario, what you did to verify it, and a proposed fix in one paragraph — no
-patch. Mark each **Confirmed** (traced to a reachable failure) or **Plausible**
-(the mechanism is real, reachability unproven), and say which. Close with two
-lists: what you examined and found sound, and what you could not settle statically
-and why.
-
-**Do not** open a pull request, do not fix anything, and do not add findings to
-`PLAN.md` — `RESULTS.md` is the whole output. If a finding is severe enough to act
-on immediately, say so in its entry and stop there.
-
-**Verify**
-
-- Confirm every file in `find src -name '*.php'` was read in full; list them.
-- Confirm every finding cites a `.stubs/` path or a `php -r` result where it
-  depends on upstream or language behaviour.
-- Confirm no finding restates a settled decision; state which documents you
-  checked each against.
-- `git status` shows `RESULTS.md` added and no file under `src/` modified.
-
-**Handoff**
-
-- The list of findings that need a running shop to confirm, so they are not lost
-  when this plan ends.
