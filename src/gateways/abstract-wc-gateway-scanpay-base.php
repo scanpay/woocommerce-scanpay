@@ -111,12 +111,8 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 		require WC_SCANPAY_DIR . '/admin/settings/admin-options.php';
 	}
 
-	/**
-	 * Process, validate and save admin options.
-	 *
-	 * @return bool Whether anything was saved.
-	 */
-	public function process_admin_options() {
+	/** Process, validate and save admin options. */
+	public function process_admin_options(): bool {
 		// Only the card has an 'apikey' field, and its key is shared by all three. Reading it
 		// off MobilePay/Apple Pay would plant a phantom one: get_option() injects a missing
 		// key into $this->settings, and the catch below writes that array back verbatim.

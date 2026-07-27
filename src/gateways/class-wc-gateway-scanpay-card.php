@@ -84,10 +84,10 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 	}
 
 	/** Process and save admin options, seeding the SQL tables on a first API key. */
-	public function process_admin_options(): void {
-		$old = (int) explode( ':', (string) $this->get_option( 'apikey', '' ) )[0];
-		parent::process_admin_options();
-		$new = (int) explode( ':', (string) $this->get_option( 'apikey', '' ) )[0];
+	public function process_admin_options(): bool {
+		$old   = (int) explode( ':', (string) $this->get_option( 'apikey', '' ) )[0];
+		$saved = parent::process_admin_options();
+		$new   = (int) explode( ':', (string) $this->get_option( 'apikey', '' ) )[0];
 		/*
 		 * A stored key can never be replaced here (validate_apikey_field() refuses),
 		 * so this only fires when a key is first set -- on a fresh install or after a
@@ -101,6 +101,7 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 		if ( $new && $new !== $old ) {
 			require WC_SCANPAY_DIR . '/install.php';
 		}
+		return $saved;
 	}
 
 	/** Action: wp_enqueue_scripts (only hooked when the 'stylesheet' setting is on). */
