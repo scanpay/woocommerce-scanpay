@@ -165,6 +165,15 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 				// unconditionally, so a retry under changed settings replaces the old intent
 				// rather than leaving a stale one.
 				$wco->add_meta_data( WC_SCANPAY_URI_COMPLETE, $complete && $data['autocapture'], true );
+				// And which shop it was created under, for the reason WCS_Scanpay_Charge::charge()
+				// stamps it: an order with no stamp reads as *another* shop's to both readers --
+				// sync() drops the drained payment as a "shopid mismatch", capture() throws --
+				// after the customer has paid. Only when absent; a different shop id is a real
+				// mismatch and not ours to overwrite.
+				if ( (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' ) <= 0 ) {
+					$shopid = (int) strstr( (string) ( $settings['apikey'] ?? '' ), ':', true );
+					$wco->add_meta_data( WC_SCANPAY_URI_SHOPID, $shopid, true );
+				}
 				$wco->save_meta_data();
 			}
 			return [

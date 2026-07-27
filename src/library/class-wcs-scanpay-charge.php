@@ -310,8 +310,29 @@ final class WCS_Scanpay_Charge {
 				$data['autocapture'] && wcs_scanpay_wants_completion( $this->settings, 'renewal' ),
 				true
 			);
+			/*
+			 * Which shop the attempt ran under -- the other half of that record. Absent is
+			 * legitimate here (scheduled_charge():106-116 lets a 1.x-migrated order through),
+			 * but both readers of the stamp treat absent as *another* shop's order:
+			 * WC_Scanpay_Sync::sync():258-260 drops the drained charge as a "shopid mismatch"
+			 * and WC_Scanpay_Capture::capture():55-58 throws -- with the money already moved,
+			 * while every WCS retry short-circuits on the already-paid guard above without
+			 * writing a status, so nothing fails and nothing reconciles.
+			 *
+			 * Only when absent. A stamp that names a different shop is the mismatch
+			 * scheduled_charge() refuses at :117-129, and it must stay refused.
+			 */
+			if ( (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' ) <= 0 ) {
+				$wco->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
+			}
 			$wco->save_meta_data();
-			$this->client->charge( $subid, $data, $idem );
+			$res = $this->client->charge( $subid, $data, $idem );
+			// Every other outcome of a renewal writes a log line; the one that moves money
+			// wrote none. On a shop whose pings are blocked this is the only store-side
+			// record that the customer was charged. No isset() around $res['id']: the client
+			// throws unless the response carries type 'charge' and an int id
+			// (class-wc-scanpay-client.php:205-208), so a return here means both are present.
+			scanpay_log( 'info', "charged order #$oid: charge {$res['id']} (subid=$subid)" );
 		} catch ( \Throwable $e ) {
 			// \Throwable, not \Exception: an Error or TypeError here is as fatal to the
 			// renewal as an Exception. Reported, never rethrown, so the hook's outer catch
