@@ -4,14 +4,6 @@ declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 
-/** Expose the plugin version to WC admin JS, under the 'scanpay' key. */
-function wc_scanpay_admin_add_version( array $settings ): array {
-	$settings['scanpay'] = WC_SCANPAY_VERSION;
-	return $settings;
-}
-add_filter( 'woocommerce_admin_shared_settings', 'wc_scanpay_admin_add_version', 10, 1 );
-
-
 /**
  * Whether the current request targets one of the plugin's own settings screens
  * (WooCommerce > Settings > Payments > Scanpay / MobilePay / Apple Pay).

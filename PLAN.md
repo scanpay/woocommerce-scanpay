@@ -288,46 +288,6 @@ the head of the file), **S** item 3 (a log string), **T** (the `$subid` branch).
 Every one of those anchors sits below the previous task's edit or above it, never
 inside it — but the line numbers move, so locate the symbol.
 
-## Task Q — A filter nothing consumes
-
-**File:** `src/admin/settings.php:7-12`.
-
-`wc_scanpay_admin_add_version()` puts the plugin version into WC Admin's
-`wcSettings` bag on every admin request, under the `scanpay` key. Nothing reads
-it. `grep -r "wcSettings\|getSetting" src build` returns one live read,
-`checkout.ts:13`, and that is `getSetting( 'scanpay_data' )` — the **Blocks**
-payload, which arrives through
-`WC_Scanpay_Blocks_Support::get_payment_method_data()` and has nothing to do with
-this filter. `admin/assets/js/types/order.d.ts:36` declares `wcSettings: unknown`
-and never dereferences it. The version the admin screens do use has two other,
-live sources: the `data-version` attribute on `#wcsp-set-alert`
-(`admin/settings/admin-options.php:130-134`, read by `settings.ts`) and
-`window.ScanpayOrderData`.
-
-Before deleting, apply the `$this->icon` lesson from `AGENTS.md`: a hook that
-looks dead can be read by WooCommerce itself. It is not, here — WC Admin merges
-extension keys into a JS bag and never interprets an unknown one — but say so in
-`HANDOFF.md` with the grep that proves it.
-
-**The fix.** Delete the function and its `add_filter`. Nothing else in the file
-references either.
-
-### Verify
-
-- Paste the full output of
-  `grep -rn "wcSettings\|getSetting\|admin_shared_settings" src/ build/`.
-- Confirm from `src/Internal/Admin/WCAdminSharedSettings.php` that the filter's
-  result is passed to JS verbatim and that WooCommerce reads no key of its own
-  out of it.
-- Confirm `settings.ts` takes the running version from `data-version`.
-
-### Handoff
-
-- Load the Scanpay settings screen and confirm the update banner and the "last
-  sync" indicator both still work.
-- If anyone at Scanpay uses `wcSettings.scanpay` from a browser console for
-  support, this removes it. The version is on the Plugins screen either way.
-
 ## Task R — Comments that no longer describe the code
 
 Comments are what verification runs on here, so a drifted one is a failing test.
