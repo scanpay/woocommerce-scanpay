@@ -5,14 +5,11 @@
 Twenty tasks, **1** through **20**, in execution order. One commit each, titled
 `<summary> (task N)`. No `scanpay:` prefix.
 
-Tasks 1–17 come from a full read of all 34 PHP files in `src/` (5 599 lines);
-`pnpm phpcs` was clean before that read, so each is a defect or a drift no sniff
-can see. Tasks 18–20 are standing sweeps and must run last, in order, against the
-tree the first 17 leave behind.
-
-Order is by file, then by severity within a file, so no file is opened twice
-except where noted. Tasks 1–5 are live defects; stopping early costs the least
-there.
+Tasks 1–17 come from a full read of all 35 PHP files in `src/` (~5 600 lines) with
+`pnpm phpcs` clean, so each is a defect or a drift no sniff can see. Tasks 18–20
+are standing sweeps and must run last, in order, against the tree the first 17
+leave behind. Order is by file, then by severity within a file; tasks 1–5 are live
+defects, so stopping early costs least there.
 
 ## Run protocol
 
@@ -23,8 +20,10 @@ fine.
 
 Per task:
 
-1. Read `AGENTS.md`, then `HANDOFF.md` (an earlier task may have blocked this
-   one), then `## Task N` here. Do not read this whole file.
+1. Read `AGENTS.md`, then `HANDOFF-2.md` (an earlier task in this run may have
+   blocked this one), then this file's header — everything above `## Tasks` — and
+   `## Task N`. Skip the other task sections; they are not your commit. Runs 1–2
+   live in `HANDOFF.md`; only task 20 needs it, so do not read it otherwise.
 2. Confirm a clean tree and that the previous task's commit is `HEAD`. For task 1:
    `git log -1 --oneline -- PLAN.md`.
 3. Implement, in `src/` only. `build/` is generated.
@@ -32,10 +31,10 @@ Per task:
    `find src -type f -name '*.php' -print0 | sort -z | xargs -0 -n1 php -l`; add
    `pnpm lint:js` and `pnpm exec tsc` if any `.ts` changed, `pnpm lint:style` if
    any `.scss` changed. All clean as written — any diagnostic is yours.
-5. Do the **Verify** bullets; write them and the **Handoff** list to `HANDOFF.md`
+5. Do the **Verify** bullets; write them and the **Handoff** list to `HANDOFF-2.md`
    (gitignored, never `git add`). Append; head each entry
    `## Run 3 · Task N — <summary>`.
-6. Delete the task's section from this file.
+6. Delete the task's section from this file, and its row from the task table.
 7. `git add -A` and commit. Keep verification status out of the message.
 8. Next task in a fresh context (new session or `/clear`), from step 1.
 
@@ -45,14 +44,17 @@ When task 20 lands, this file is its header alone. Never push, never open a PR.
 looks like a failed build. Use `printf 'n\n' | ./build.sh`. Answering `y` rsyncs
 to a live server.
 
-**Line numbers here were correct when written; earlier tasks move them.** Locate
-the cited symbol. When a number disagrees with the source, the source wins.
-
 **Blocked** = the source contradicts a task's premise in a way that changes the
 fix, or step 4 cannot come clean. Do not improvise a different design, do not
-commit a partial task: restore the tree, record it in `HANDOFF.md` under
+commit a partial task: restore the tree, record it in `HANDOFF-2.md` under
 `## Blocked: task N`, leave the section, move to the next independent task.
 "Hard" is not "blocked".
+
+## Locating code
+
+Every task cites an **Anchor**: a literal string unique in the file. Grep for it.
+Line numbers appear only as a hint and drift as earlier tasks land — when a number
+and the source disagree, the source wins and the anchor is the address.
 
 ## Evidence rules
 
@@ -76,18 +78,24 @@ current WordPress/WooCommerce do", never "what does our 3.6 / 6.3 floor do", whi
 `src/library/math.php` directly, `define( 'ABSPATH', … )` first or it `exit()`s
 silently.
 
-Facts already read out of `.stubs/` during the review. Re-read the citation; do
-not re-derive the conclusion:
+### Facts already checked — re-read the citation, do not re-derive the conclusion
 
 | Task | Fact | Where |
 | --- | --- | --- |
-| 1, 4 | The tree already treats "a third party's hook can throw out of `add_order_note()`" as live, in three places, each naming `woocommerce_new_order_note_data`, `wp_insert_comment`, `woocommerce_order_note_added` | `class-wc-scanpay-sync.php:296-303`, `:407-411`, `generate-payment-link.php:176-183` |
-| 4 | The tree already treats "`scanpay_log()` can throw" as live: `wcs_scanpay_fail_renewal()` wraps its own log call for exactly that | `woocommerce-scanpay.php:352-358` |
+| 1, 4 | The tree already treats "a third party's hook can throw out of `add_order_note()`" as live in three places, each naming `woocommerce_new_order_note_data`, `wp_insert_comment`, `woocommerce_order_note_added` | `WC_Scanpay_Sync::sync()`, `WC_Scanpay_Sync::report_incomplete()`, `wc_scanpay_process_payment()` |
+| 1, 4 | Exactly four `add_order_note()` call sites exist; the three above are contained, `WC_Scanpay_Capture::capture()` is not | `grep -rn add_order_note src/` |
+| 4 | The tree already treats "`scanpay_log()` can throw" as live: `wcs_scanpay_fail_renewal()` wraps its own log call, and its catch body is `return;` | `woocommerce-scanpay.php`, `wcs_scanpay_fail_renewal()` |
+| 4 | **A catch block holding only a comment fails `pnpm phpcs`**: `Generic.CodeAnalysis.EmptyStatement.DetectedCatch`, "Empty CATCH statement detected". Confirmed by running it | `phpcs -s` on a probe file |
+| 2 | `WC_Order_Refund::get_amount( $context = 'view' )` is a plain `get_prop()`, so the context argument is honoured | `includes/class-wc-order-refund.php:95` |
 | 2, 6 | `WC_Data::get_prop()` applies `{hook_prefix}{prop}` **only** in the `view` context | `abstracts/abstract-wc-data.php`, `get_prop()` |
-| 6 | `WC_Abstract_Order::get_status()` substitutes `apply_filters( 'woocommerce_default_order_status', 'pending' )` for an empty status **in `view` only** | `abstracts/abstract-wc-order.php`, `get_status()` |
+| 6 | `WC_Abstract_Order::get_status()` substitutes `apply_filters( 'woocommerce_default_order_status', OrderStatus::PENDING )` for an empty status **in `view` only** | `abstracts/abstract-wc-order.php:482-494` |
+| 16 | `WC_Subscription extends WC_Order extends WC_Abstract_Order`; `WC_Order_Refund extends WC_Abstract_Order` directly | the three class files in `.stubs/` |
 | 13 | `get_tooltip_html()` takes `$tip` from `$data['description']` when `desc_tip === true` and returns `''` when empty — `desc_tip` with no `description` renders nothing | `abstracts/abstract-wc-settings-api.php` |
 | 13 | `generate_checkbox_html()` echoes `$data['title']` into `<th scope="row">` unconditionally — no title means an empty header cell | `abstracts/abstract-wc-settings-api.php` |
 | 3 | `wp-settings.php` loads plugins at `:579` and `pluggable.php` at `:610`, so `current_user_can()` does not exist at router dispatch | `.stubs/wordpress/wp-settings.php` |
+| 11, 19 | wp-cli is `./vendor/bin/wp` (2.12.0, a `require-dev` package) and `build.sh` calls it there; header substitution touches `{{ … }}` placeholders only | `build.sh` |
+| 12 | `WC_Payment_Gateways::init()` runs `$gateway = new $gateway();` for every class the `woocommerce_payment_gateways` filter returns — no `enabled` test in that loop, so every gateway constructor runs on every request | `includes/class-wc-payment-gateways.php`, `init()` |
+| 17 | `WC_Scanpay_Sync::subscriber()` throws on `! is_int( $rev ) \|\| $rev <= 0` before building its INSERT, so a stored `scanpay_subs.rev` is always ≥ 1 | `class-wc-scanpay-sync.php`, ~`:427-430` |
 | — | `empty( $x->prop )` on a null `$x` emits no diagnostic — `empty()`/`isset()` suppress "Attempt to read property on null" | `php -r 'error_reporting(E_ALL); $a=null; var_dump(empty($a->b));'` |
 
 ## Do not weaken
@@ -97,6 +105,25 @@ flock, the API-key write-once policy, the lock-free charge design.
 
 Standing decisions. No task reopens any:
 
+- **The stylesheets are out of scope, and `docs/scss-review.md` owns them.** No task
+  edits a `.scss` file. Its §4 settled that `checkout.css` deliberately reaches
+  MobilePay-only shops — which is what rewrote task 12 — and its §1.1 establishes
+  that the stylesheet sizes all three gateways' icons through the shared
+  `.wcsp-methods` wrapper. Anything about icon sizing, `:has()`, `!important` or the
+  duplicated warning palette belongs there, not in a finding here.
+- **The TypeScript layer is out of scope, and `docs/ts-review.md` owns it.** No task
+  edits a `.ts` file. Its **§4 is settled** — the same standing as
+  `performance-review.md` §5–§6 — and two of its entries bound tasks here: the
+  keep-alive `"\n"` written before `wp_send_json()` in both `?x=` endpoints
+  (`JSON.parse` skips leading whitespace; bounds task 17) and `subs.ts`'s `rev=0`
+  reasoning, which establishes that `scanpay_subs.rev` is always ≥ 1 (bounds task
+  17 item 4). Neither is reopened.
+  Its **§1–§3 are open findings, not settled ones**, and several name PHP files as
+  the fix site (`subscriptions.php`'s meta-box shell, `orders.php`'s inline script,
+  the shared `'I accept the %s.'` msgid). Task 20 may legitimately reach the same
+  conclusions from the PHP side — but it must say which of its findings already
+  appear there rather than presenting them as new, and it must not propose a `.ts`
+  change as the fix.
 - **Performance is out of scope.** `docs/performance-review.md` owns it and
   already covers: the duplicated payment payload (§5.1), the AJAX auth preamble
   (§5.2), `wc_scanpay_thankyou_read()` as a shared helper (§5.3), the two shop-id
@@ -135,6 +162,15 @@ Standing decisions. No task reopens any:
   `subscriber.ref` and no `items` creates a subscriber and nothing else;
   `/v1/subscribers/{subid}/renew` charges nothing. Do not re-derive either from
   the public documentation.
+- **The tree's non-default hook priorities have been assessed; only two are
+  load-bearing** — `woocommerce_order_status_completed` at 5 and `admin_menu` at
+  999, which tasks 10 and 9 comment. The rest are defensive or inert and are
+  deliberately left bare. Do not comment or change them.
+
+**Verified sound, do not re-audit:** ping/sync, `math.php`, the flock, client TLS,
+capture money math, secret auth. This list used to live in `AGENTS.md` and was
+trimmed out of it in commit `685a78e`; it is kept here because task 20 is the run
+that would otherwise re-derive all six.
 
 ## Tasks
 
@@ -149,54 +185,43 @@ Standing decisions. No task reopens any:
 | 7 | `WC_Scanpay_Sync::$settings` is public for no reader | `library/class-wc-scanpay-sync.php` |
 | 8 | The 2.1.3 migration cannot finish on a large shop | `upgrade.php` |
 | 9 | A site-wide menu removal contradicts our stated policy | `woocommerce-scanpay.php` |
-| 10 | Two registrations in the router that state nothing | `woocommerce-scanpay.php` |
+| 10 | Three registrations in the router that state nothing | `woocommerce-scanpay.php` |
 | 11 | The cURL extension is required and declared nowhere | `woocommerce-scanpay.php`, `gateways/abstract-wc-gateway-scanpay-base.php` |
-| 12 | A disabled card gateway still loads its checkout stylesheet | `gateways/class-wc-gateway-scanpay-card.php` |
+| 12 | The checkout stylesheet's enqueue states none of its invariants | `gateways/class-wc-gateway-scanpay-card.php` |
 | 13 | Two settings fields with an inert tooltip and no label | `admin/settings/fields/scanpay.php` |
 | 14 | The Plugins-screen link escapes nothing | `admin/settings.php` |
 | 15 | `wc_scanpay_money_equals()` has no callers | `library/math.php` + 3 call sites |
 | 16 | `wc_scanpay_subref()` takes `object` | `public/generate-payment-link.php` |
 | 17 | Four local inconsistencies | `admin/orders.php`, `admin/ajax/wp-scanpay-fetch-{meta,sub}.php` |
-| 18 | Comment audit against the documented standard | all 34 PHP files |
+| 18 | Comment audit against the documented standard | all 35 PHP files |
 | 19 | i18n audit, English source and Danish catalog | `src/languages/`, every `__()` site |
-| 20 | Fresh full review → `RESULTS.md` | all 34 PHP files |
+| 20 | Fresh full review → `RESULTS.md` | all 35 PHP files |
 
-Files opened by more than one task, in order: `class-wc-scanpay-capture.php`
-(1, 2, 3), `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php`
-(9, 10, 11), `class-wcs-scanpay-charge.php` (4, then 15's call site),
-`generate-payment-link.php` (16, and 15's call site). Tasks 18–20 read everything
-and must run after all of the above.
+Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
+`class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
+`class-wcs-scanpay-charge.php` (4, then 15's call site),
+`generate-payment-link.php` (16, and 15's call site).
 
 ---
 
 ## Task 1 — A completed capture can be recorded as a failure
 
 **File:** `src/library/class-wc-scanpay-capture.php`
+**Anchor:** `__( 'Scanpay capture of %s completed.'` in `capture()` (~`:106-114`)
 
-`capture()` ends by writing the "Scanpay capture of %s completed." note
-(`:106-114`). Its only caller invokes it inside a `try` whose `catch` means *the
-capture failed*:
-
-```php
-try {
-    self::capture( $wco );
-    self::$processed[ $oid ] = true;
-    return true;
-} catch ( \Throwable $e ) {
-    self::$processed[ $oid ] = false;
-    // … log + update_status( 'on-hold', "Scanpay capture failed: …" )
-    return false;
-}
-```
+`capture()` ends by writing that note. Its only caller, `capture_or_hold()`,
+invokes it inside a `try` whose `catch` means *the capture failed*: it memoizes
+`self::$processed[ $oid ] = false`, logs, calls
+`update_status( 'on-hold', "Scanpay capture failed: …" )` and returns `false`.
 
 `add_order_note()` runs `woocommerce_new_order_note_data`, `wp_insert_comment()`
 and `woocommerce_order_note_added`. A `Throwable` from any of them arrives after
 `WC_Scanpay_Client::capture()` has returned — **after the money moved** — and
 produces: a memo of `false`, a note reading "Scanpay capture failed: <the note's
 own error>", the order demoted from `completed` to `on-hold`, and `false` returned
-to `wp-ajax-wc-mark-order-status.php:116` and `wp-bulk-actions.php:47`, which
-therefore do not complete the order. The customer has been charged; nothing
-retries, because from Scanpay's side nothing went wrong.
+to `wp-ajax-wc-mark-order-status.php` and `wp-bulk-actions.php`, which therefore do
+not complete the order. The customer has been charged; nothing retries, because
+from Scanpay's side nothing went wrong.
 
 **Fix.** Contain the note where it is written, in the tree's existing idiom:
 
@@ -212,12 +237,13 @@ Keep the `__()` string, its `sprintf()` arguments, its translators comment and
 both positional arguments (`0, true`) byte-identical — no msgid changes here.
 Comment the new `try` with what it buys: the money has already moved by this line,
 so a throw must not read as a capture failure. Cite the three sibling sites by
-symbol, not line number.
+symbol (`WC_Scanpay_Sync::sync()`, `WC_Scanpay_Sync::report_incomplete()`,
+`wc_scanpay_process_payment()`), not by line number.
 
 **Do not** hoist the note into `capture_or_hold()`. `capture()` returns `void` and
-its early return at `:94-97` ("nothing left to capture") must stay noteless;
-hoisting would either note that case too or need a second signal, and `capture()`
-is documented as having none.
+its "nothing left to capture" early return must stay noteless; hoisting would
+either note that case too or need a second signal, and `capture()` is documented as
+having none.
 
 **Verify**
 
@@ -225,10 +251,10 @@ is documented as having none.
   match.
 - Trace `capture_or_hold()` and state that every remaining throw source inside its
   `try` occurs *before* `WC_Scanpay_Client::capture()` returns.
-- `grep -n 'add_order_note' src/` and list each site with whether it is contained.
-  Two are legitimately not — `wcs_scanpay_fail_renewal()` writes through
-  `update_status()`, `wp-bulk-actions.php` through `set_status()`; neither calls
-  `add_order_note()`. Report, do not "fix".
+- `grep -rn 'add_order_note' src/` returns four call sites, all four now contained.
+  Note separately that `wcs_scanpay_fail_renewal()` and `wp-bulk-actions.php` write
+  notes through `update_status()` / `set_status()` and so do not appear — that is
+  correct, not a gap.
 
 **Handoff**
 
@@ -242,11 +268,12 @@ is documented as having none.
 ## Task 2 — The last money read in the view context sets a capture amount
 
 **File:** `src/library/class-wc-scanpay-capture.php` (after task 1)
+**Anchor:** `foreach ( $wco->get_refunds() as $refund )` in `capture()` (~`:81-83`)
 
 ```php
 $amount = (string) $wco->get_total( 'edit' );
 foreach ( $wco->get_refunds() as $refund ) {
-    $amount = wc_scanpay_submoney( $amount, (string) $refund->get_amount() );   // :82
+    $amount = wc_scanpay_submoney( $amount, (string) $refund->get_amount() );
 }
 ```
 
@@ -265,8 +292,6 @@ party move it. Do not restate what `get_prop()` does.
   remaining view-context money read in one line. `get_line_total()` stays: it runs
   `woocommerce_order_amount_line_total` by design and both call sites already wrap
   it in a `try` that names it.
-- Read `WC_Order_Refund::get_amount()`; confirm it is a plain `get_prop()` with no
-  override, so the context argument is honoured.
 - Confirm the sign is unchanged: `get_amount()` returns positive and
   `wc_scanpay_submoney()` removes it.
 
@@ -279,18 +304,14 @@ party move it. Do not restate what `get_prop()` does.
 ## Task 3 — A cleared API key reads as a broken one
 
 **File:** `src/library/class-wc-scanpay-capture.php` (after tasks 1 and 2)
+**Anchor:** `throw new \RuntimeException( 'Invalid Scanpay API key configured' )` in
+`init()` (~`:28-33`)
 
-`init()` collapses two situations into one message:
+`init()` collapses two situations into one message: it derives
+`$shopid = (int) strstr( $apikey, ':', true )` and throws "Invalid Scanpay API key
+configured" whenever that is `<= 0` — which an empty key also is.
 
-```php
-$apikey = (string) ( $settings['apikey'] ?? '' );
-$shopid = (int) strstr( $apikey, ':', true );
-if ( $shopid <= 0 ) {
-    throw new \RuntimeException( 'Invalid Scanpay API key configured' );
-}
-```
-
-The empty case is the common one and is not a fault. Reset clears `apikey` and
+The empty case is the common one and is not a fault. Reset unsets `apikey` and
 `secret` and drops the tables but leaves `wc_autocapture` — normally `'completed'`
 — and `wc_scanpay_order_status_completed()` gates on that alone. So completing any
 historical Scanpay order after a reset throws here and parks it `on-hold` with
@@ -314,13 +335,12 @@ if ( $shopid <= 0 ) {
 ```
 
 Wording is yours within three constraints. It reaches the merchant untranslated
-via `sprintf( __( 'Scanpay capture failed: %s' ), … )`, whose translators comment
-already says the reason is not translated — so it must read as a sentence to a
-human, in the clipped style of its siblings (`'Transaction has been voided'`,
-`'No payment details found on order'`). It must fit **both** reasons the key is
-absent: a merchant who moved to a new Scanpay account, and one midway through
-rebuilding the tables with the same key. And it must not tell the merchant to fix
-the key, because in neither case is the key broken.
+via `sprintf( __( 'Scanpay capture failed: %s' ), … )`, so it must read as a
+sentence to a human, in the clipped style of its siblings (`'Transaction has been
+voided'`, `'No payment details found on order'`). It must fit **both** reasons the
+key is absent — a merchant who moved to a new Scanpay account, and one midway
+through rebuilding the tables with the same key. And it must not tell the merchant
+to fix the key, because in neither case is the key broken.
 
 Comment the new branch: an absent key is the expected state after a reset, a
 malformed one is a misconfiguration, and conflating them tells a merchant to
@@ -330,13 +350,12 @@ repair something they removed on purpose.
 
 - **Do not touch `wc_autocapture` in the reset endpoint.** The button also
   rebuilds the tables after a fault with the same key; clearing the setting there
-  would silently disable auto-capture on a repair — the failure mode
-  `install.php`'s `$fresh_install` comment exists to prevent.
+  would silently disable auto-capture on a repair.
 - **Do not add a `_transaction_id` discriminator.** "Transaction id set but no
   `scanpay_meta` row" looks like "history, nothing to capture" and is not: during a
   rebuild the row is temporarily gone while the authorization is live and
-  re-syncable, so completing without capturing would be exactly what the on-hold
-  status prevents.
+  re-syncable, so completing without capturing is exactly what the on-hold status
+  prevents.
 
 **Verify**
 
@@ -347,8 +366,9 @@ repair something they removed on purpose.
 - `init()`'s only callers are `self::capture()` and via it `capture_or_hold()`;
   confirm, and confirm `self::$processed[ $oid ]` is set the same way on both
   branches.
-- Re-read the reset endpoint's settings loop; record which keys survive a reset so
-  the premise is evidenced, not taken from this section.
+- Re-read the reset endpoint's settings loop (anchor:
+  `unset( $wcsp_set['apikey'], $wcsp_set['secret'] );`) and record which keys
+  survive a reset, so the premise is evidenced rather than taken from this section.
 
 **Handoff**
 
@@ -363,10 +383,12 @@ repair something they removed on purpose.
 ## Task 4 — A collected renewal can be marked failed
 
 **File:** `src/library/class-wcs-scanpay-charge.php`
+**Anchor:** `$res = $this->client->charge( $subid, $data, $idem );` in `charge()`
+(~`:332`)
 
-`charge()` wraps its body in `try`/`catch ( \Throwable )` (`:210`, `:339`) whose
-catch calls `wcs_scanpay_fail_renewal()`, writing the order's `failed` status. The
-last two statements inside that `try`:
+`charge()` wraps its whole body in `try`/`catch ( \Throwable )` whose catch calls
+`wcs_scanpay_fail_renewal()`, writing the order's `failed` status. The last two
+statements inside that `try`:
 
 ```php
 $res = $this->client->charge( $subid, $data, $idem );
@@ -383,8 +405,7 @@ key limits this to one real charge; it does not stop the status write, and the
 retry it dedupes is the very thing that would otherwise reconcile the order.
 
 **Fix.** Nothing after `client->charge()` returns may read as a charge failure.
-Contain the log call where it is written, matching task 1 and
-`wcs_scanpay_fail_renewal()`:
+Contain the log call where it is written:
 
 ```php
 $res = $this->client->charge( $subid, $data, $idem );
@@ -393,20 +414,28 @@ try {
 } catch ( \Throwable $log_error ) {
     // Nowhere left to report this: the money has moved, and treating it as a
     // charge failure would fail a renewal the customer paid.
+    return;
 }
 ```
 
+**The `return;` is required, not stylistic.** A catch body holding only a comment
+trips `Generic.CodeAnalysis.EmptyStatement.DetectedCatch` and step 4 fails.
+`wcs_scanpay_fail_renewal()`'s own log-containment catch ends in `return;` for the
+same reason — match it. `charge()` returns `void` and the log is the last statement
+in the outer `try`, so the `return` changes no control flow.
+
 Keep the log string byte-identical (run 2's task S settled its wording) and keep
-the comment above `$res` explaining that this is the only store-side record of the
-charge. A `$charged = true` flag checked by the catch also works; prefer the
-containment — one exit, no new state.
+the comment that sits between `$res` and the log call, explaining that this line is
+the only store-side record of the charge — move it above the new `try`, or leave it
+inside; do not delete it. A `$charged = true` flag checked by the outer catch also
+works; prefer the containment — one exit, no new state.
 
 **Verify**
 
 - Read `WC_Logger::log()` and `wc_get_logger()`; state which hook lets a third
   party install a handler and that nothing between it and `scanpay_log()` catches.
 - Trace `charge()`; confirm no statement between `client->charge()` returning and
-  the end of the `try` can throw.
+  the end of the outer `try` can throw.
 - Confirm `scheduled_charge()`'s early returns are untouched — they run before any
   request and must keep failing the renewal.
 
@@ -421,21 +450,13 @@ containment — one exit, no new state.
 ## Task 5 — The drain's time limit is renewed by round count, not time
 
 **File:** `src/callback/wc-scanpay-ping.php`
+**Anchor:** `if ( ++$n > 5 ) {` in the drain loop (~`:310`)
 
-```php
-$start = microtime( true );          // :242 — currently only feeds a debug log
-$n = 0;                              // :244
-// … in the drain loop:
-if ( $target > $seq ) {
-    if ( ++$n > 5 ) {                // :310
-        set_time_limit( 60 );
-        wc_scanpay_memory_usage_debug();
-        wc_scanpay_flush_order_runtime_cache();
-        $n = 0;
-    }
-}
-$elapsed = microtime( true ) - $start;                                  // :324
-```
+`$start = microtime( true )` and `$n = 0` are seeded above the drain; `$start` only
+ever feeds the loop's `$elapsed` debug line. Inside the loop, every sixth round
+(`if ( ++$n > 5 )`) calls `set_time_limit( 60 )`,
+`wc_scanpay_memory_usage_debug()`, `wc_scanpay_flush_order_runtime_cache()` and
+resets `$n`.
 
 Round count is not a proxy for elapsed time. One round is a `/v1/seq` call — whose
 client-side budget is `WC_Scanpay_Client::request()`'s default `$timeout = 40` —
@@ -445,10 +466,11 @@ mid-drain.
 
 Where it dies matters: `sync()` upserts `scanpay_meta` and calls
 `payment_complete()` per change, but the cursor `UPDATE` runs only after the whole
-page (`:296-306`). A kill between them leaves orders paid and the cursor unmoved,
-so the next ping replays the page — orders already carrying a `transaction_id` are
-skipped at `:261`, so the replay is wasted work ending the same way. The
-five-minute keepalive then retries indefinitely; the shop cannot make progress.
+page. A kill between them leaves orders paid and the cursor unmoved, so the next
+ping replays the page — and orders already carrying a transaction id are skipped by
+`WC_Scanpay_Sync::sync()` (anchor: `if ( empty( $wco->get_transaction_id( 'edit' ) ) )`),
+so the replay is wasted work ending the same way. The five-minute keepalive then
+retries indefinitely; the shop cannot make progress.
 
 **Fix.** Renew on elapsed time. Track the moment of the last renewal (reuse
 `$start` or add `$limit_renewed` seeded from it — whichever keeps the existing
@@ -490,11 +512,11 @@ removing it.
 Three decisions read `get_status()` in the `view` context, where
 `woocommerce_order_get_status` is a third party's answer:
 
-| Site | Code | Its own comment |
+| Site | Anchor | Its own comment |
 | --- | --- | --- |
-| `wp-bulk-actions.php:44` | `in_array( $wco->get_status(), [ 'completed', 'trash' ], true )` | "the last line of defense … capturing a trashed order would charge the customer and untrash it" |
-| `wp-ajax-wc-mark-order-status.php:79` | same guard | the row-action nonce is per *action*, so one valid link is reusable for any id, "a trashed one included" |
-| `class-wc-scanpay-sync.php:490` | `'pending' !== $parent->get_status()` | gates writing `completed` onto a subscription's parent order |
+| `wp-bulk-actions.php` (~`:44`) | `in_array( $wco->get_status(), [ 'completed', 'trash' ], true )` | "the last line of defense … capturing a trashed order would charge the customer and untrash it" |
+| `wp-ajax-wc-mark-order-status.php` (~`:79`) | same guard | the row-action nonce is per *action*, so one valid link is reusable for any id, "a trashed one included" |
+| `class-wc-scanpay-sync.php` (~`:490`) | `'pending' !== $parent->get_status()` | gates writing `completed` onto a subscription's parent order |
 
 A guard whose comment calls it a last line of defence should not read through a
 filter. Sites 1 and 2 are the security-shaped ones.
@@ -503,22 +525,22 @@ filter. Sites 1 and 2 are the security-shaped ones.
 
 Site 3 needs one extra sentence and a comment saying so: in `view`,
 `WC_Abstract_Order::get_status()` substitutes
-`apply_filters( 'woocommerce_default_order_status', 'pending' )` for an empty
-status, so an order with no status currently reads as `'pending'` and takes the
-branch; under `'edit'` it reads `''` and does not. That is correct — an order with
-no status is not a pending one, and the branch writes `completed` — but it is a
-behaviour change and must be recorded as one. Sites 1 and 2 have no such nuance.
+`apply_filters( 'woocommerce_default_order_status', … )` for an empty status, so an
+order with no status currently reads as `'pending'` and takes the branch; under
+`'edit'` it reads `''` and does not. That is correct — an order with no status is
+not a pending one, and the branch writes `completed` — but it is a behaviour change
+and must be recorded as one. Sites 1 and 2 have no such nuance.
 
-**Do not** touch `generate-payment-link.php:60`
-(`$wco->get_status() === 'pending'`). It picks a query filter for
-`wc_get_orders()`, not a guard, and the substitution there is harmless. Say so in
-`HANDOFF.md` so it is not reopened.
+**Do not** touch `generate-payment-link.php`'s
+`( $wco->get_status() === 'pending' ) ? 'wc-pending' : 'all'`. It picks a query
+filter for `wc_get_orders()`, not a guard, and the substitution there is harmless.
+Say so in `HANDOFF-2.md` so it is not reopened.
 
 **Verify**
 
 - Quote the `'view' === $context` branch performing the substitution.
-- `grep -rn "get_status()" src/` after the change: only
-  `generate-payment-link.php:60` remains.
+- `grep -rn "get_status()" src/` after the change: four sites before, only
+  `generate-payment-link.php`'s remains.
 - Confirm neither context adds or strips a `wc-` prefix on `WC_Order` — that
   prefix is in the database column, not the prop — so the compared strings are
   unchanged.
@@ -534,12 +556,14 @@ behaviour change and must be recorded as one. Sites 1 and 2 have no such nuance.
 ## Task 7 — `WC_Scanpay_Sync::$settings` is public for no reader
 
 **File:** `src/library/class-wc-scanpay-sync.php` (after task 6)
+**Anchor:** `public array $settings;` (~`:12`)
 
-`public array $settings;` (`:12`) is read once, in the constructor's
-`wc_complete_virtual` test at `:53`, and written once beside it. Nothing outside
-the class touches it — the only construction site (`wc-scanpay-ping.php:206`)
-passes the array in and never reads it back. Its two neighbours, holding the same
-kind of derived configuration, are private. The class is `final`.
+It is written once in the constructor and read once beside it, in the
+`wc_complete_virtual` test. Nothing outside the class touches it — the only
+construction site (`new WC_Scanpay_Sync( $settings, $shopid )` in
+`wc-scanpay-ping.php`) passes the array in and never reads it back. Its two
+neighbours, holding the same kind of derived configuration, are private. The class
+is `final`.
 
 **Fix.** `private array $settings;`
 
@@ -551,7 +575,12 @@ property — the visibility fix is the task.
 
 **Verify**
 
-- `grep -rn '\->settings' src/`; confirm no reader outside the class.
+- `grep -rn '\->settings' src/` returns 22 hits in four files; only those in
+  `class-wc-scanpay-sync.php` are this property. The rest are
+  `WCS_Scanpay_Charge`'s own private field and the gateways' inherited
+  `WC_Settings_API::$settings`. Confirm that split rather than reporting a count.
+- `grep -rn 'new WC_Scanpay_Sync' src/` returns the one construction site, which
+  passes the array in and never reads it back.
 - `pnpm phpcs` still passes. PHPCS does not check visibility, so a clean run is
   the whole static signal.
 
@@ -565,28 +594,23 @@ property — the visibility fix is the task.
 ## Task 8 — The 2.1.3 migration cannot finish on a large shop
 
 **File:** `src/upgrade.php`
+**Anchor:** `version_compare( $version, '2.1.3', '<' )` (~`:100-137`)
 
-```php
-$args    = [ 'type' => 'shop_subscription', 'status' => 'all', 'return' => 'ids',
-             'meta_key' => '_scanpay_subscriber_id', 'limit' => -1 ];
-$wc_subs = wc_get_orders( $args );                                    // :100-137
-foreach ( $wc_subs as $oid ) {
-    $wc_sub = wcs_get_subscription( $oid );
-    // … up to two scanpay_meta lookups per row …
-}
-```
+The branch runs `wc_get_orders()` over `'type' => 'shop_subscription'`,
+`'meta_key' => '_scanpay_subscriber_id'`, `'limit' => -1`, then loops
+`wcs_get_subscription( $oid )` with up to two `scanpay_meta` lookups per row.
 
 Three properties compound: `'limit' => -1` loads every matching id then builds a
 full `WC_Subscription` per row; the two in-loop lookups are
 `SELECT id FROM …scanpay_meta WHERE subid = … ORDER BY id DESC LIMIT 1`, and
-`scanpay_meta`'s only key is `PRIMARY KEY (orderid)` (`install.php:43`), so each is
-a full scan; and the whole file runs under one `set_time_limit( 60 )` at `:9`.
+`scanpay_meta`'s only key is `PRIMARY KEY (orderid)`, so each is a full scan; and
+the whole file runs under one `set_time_limit( 60 )` at the top.
 
 A shop with enough 1.x-era subscriptions cannot complete this branch in its grant.
 The loader makes that permanent rather than slow: the `wc_scanpay_updating`
-transient is kept on failure and the version is stamped **last** (`:207-209`), so
-the migration restarts from zero every five minutes forever and the plugin never
-reaches its current version.
+transient is kept on failure and the version is stamped **last**, so the migration
+restarts from zero every five minutes forever and the plugin never reaches its
+current version.
 
 `docs/performance-review.md` queues a `wp_cache_flush()` inside this loop, noting
 "it runs once per upgrade". That premise is what this task challenges.
@@ -595,8 +619,8 @@ reaches its current version.
 
 1. **Batch by id.** Replace `'limit' => -1` with `'limit' => 500`, `'offset' => …`,
    `'orderby' => 'ID'`, `'order' => 'ASC'`, looping until a short page returns.
-   `uninstall.php:74-99` already uses this shape for `get_sites()`; follow its
-   comment ("a short page is the last one").
+   `uninstall.php`'s `get_sites()` loop already uses this shape; follow its comment
+   ("a short page is the last one").
 2. **Renew the grant inside the loop**, as task 5 does for the drain: every N rows
    or every ~30 s.
 3. **Hoist the lookups**: one
@@ -615,6 +639,10 @@ thing to migrate.
 
 - Confirm the `wc_get_orders()` arguments you pass are honoured by both data
   stores — in particular `'offset'` and `'orderby' => 'ID'` alongside `'meta_key'`.
+- **Confirm offset paging cannot skip a row**: the loop writes
+  `WC_SCANPAY_URI_SUBID`, the query filters on `_scanpay_subscriber_id`, and those
+  are different meta keys, so the result set does not shrink underneath the paging.
+  State this; it is the one way batching could silently lose subscriptions.
 - State that the branch is still idempotent, quoting the `$black_subid > $subid`
   test.
 - Confirm from `install.php`'s DDL that `scanpay_meta` has no index on `subid`, and
@@ -632,95 +660,127 @@ thing to migrate.
 ## Task 9 — A site-wide menu removal contradicts our stated policy
 
 **File:** `src/woocommerce-scanpay.php`
+**Anchor:** `function scanpay_remove_wc_payments_menu()` (~`:547-557`)
 
-`admin/settings.php:81-92` states a policy and follows it:
+`admin/settings.php` states a policy and follows it, above
+`wc_scanpay_admin_footer_text()`:
 
 > Hide WooCommerce's promotional footer text, but only on the plugin's own
 > settings screens. Blanking `admin_footer_text` globally is a site-wide UI
 > change and is flagged by the WordPress.org plugin review.
 
-`woocommerce-scanpay.php:534-537` does the opposite, unconditionally, to a menu
-WooCommerce owns:
-
-```php
-function scanpay_remove_wc_payments_menu() {
-    remove_menu_page( 'admin.php?page=wc-settings&tab=checkout&from=PAYMENTS_MENU_ITEM' );
-}
-add_action( 'admin_menu', 'scanpay_remove_wc_payments_menu', 999 );
-```
-
-Every admin loses WooCommerce's top-level Payments entry on every admin page load,
-configured or not. Second problem: the slug is matched by exact string, and
-`from=PAYMENTS_MENU_ITEM` is telemetry, not a route — if WooCommerce changes it
-this silently becomes a no-op and nobody learns.
+The menu removal does the opposite, unconditionally, to a menu WooCommerce owns: a
+bare `remove_menu_page( 'admin.php?page=wc-settings&tab=checkout&from=PAYMENTS_MENU_ITEM' )`
+on `admin_menu` at priority 999. Every admin loses WooCommerce's top-level Payments
+entry on every admin page load, configured or not. Second problem: the slug is
+matched by exact string, and `from=PAYMENTS_MENU_ITEM` is telemetry, not a route —
+if WooCommerce changes it this silently becomes a no-op and nobody learns.
 
 **This task does not decide the UI question — it makes code and policy agree.**
-Check `HANDOFF.md` and `git log -p -- src/woocommerce-scanpay.php` first: this is
-the one place in this plan where reading history is warranted, because the
-question is "was this wanted" and the tree cannot answer it.
 
-- **If history shows Scanpay asked for it:** keep the behaviour and rewrite the
-  docblock to say plainly that this is a deliberate site-wide change to another
-  plugin's menu, why it is worth it, that it is expected to trip the review the
-  sibling comment cites, and that the slug is fragile.
-- **Otherwise:** delete the function and the `add_action`, and record that the
-  duplicate entry returns.
+**Decided: keep the behaviour, document it.** Do not re-derive the history and do
+not reopen the choice. It arrived in commit `8340b9f`, "Remove WooCommerce Payments
+\"Payments\" admin menu entry for a cleaner UI", and the maintainer has confirmed
+it stays. The docblock already gives the UI rationale (the slug points at the same
+screen that already holds the gateway list, so keeping both makes the setup path
+ambiguous). What is missing is not intent but disclosure.
 
-Either way the comment must stop being silent about the conflict.
+Extend the docblock with the three things it is silent about:
+
+1. This is a deliberate **site-wide** change to another plugin's menu, applied to
+   every admin on every admin page load — the one place the plugin does what the
+   `admin_footer_text` comment refuses to do, and expected to trip the same
+   WordPress.org review that comment cites.
+2. The slug is matched as a literal string and `from=PAYMENTS_MENU_ITEM` is a
+   telemetry parameter, not a route: if WooCommerce changes it, this silently
+   becomes a no-op and the entry returns with no error and no log line.
+3. **Priority 999 is required, not decorative** — `remove_menu_page()` can only
+   remove an entry that is already registered, and WooCommerce adds its own menus
+   across priorities 9 to 70 (`class-wc-admin-menus.php:39-59`), with WooCommerce
+   Admin later still. 999 means "after every menu registration". Verified in
+   `.stubs/`; state the range so the next reader does not lower it.
 
 **Verify**
 
-- Report which option and what evidence decided it.
-- If kept: confirm the slug against WooCommerce's own `add_menu_page()` call and
-  record whether it still matches at 11.1.0-dev.
-- If dropped: `grep -rn "remove_menu_page\|admin_menu" src/` and confirm nothing
-  depends on the entry being gone (`admin-options.php:82`'s back-arrow links to
-  `wc-settings&tab=checkout` directly and does not).
+- Confirm the slug against WooCommerce's own `add_menu_page()` call in `.stubs/`
+  and record whether it still matches at 11.1.0-dev. If it does not, say so — the
+  removal is already a no-op today and that is the finding, not a reason to change
+  the code here.
+- Quote the WC menu priorities backing point 3.
+- `git diff` touches comment lines only: this task changes no executable code.
 
 **Handoff**
 
-- WooCommerce's Payments entry is present or absent as chosen, and the Scanpay
-  settings screen is still reachable from WooCommerce → Settings → Payments.
+- WooCommerce's Payments entry is still absent, and the Scanpay settings screen is
+  still reachable from WooCommerce → Settings → Payments.
 
 ---
 
-## Task 10 — Two registrations in the router that state nothing
+## Task 10 — Three registrations in the router that state nothing
 
 **File:** `src/woocommerce-scanpay.php` (after task 9)
 
-Two hygiene defects in one file, one commit.
+Three hygiene defects in one file, one commit: two renames/changes and one comment.
 
-**1. `wp_scanpay_allowed_redirect_hosts()` uses WordPress's prefix** (`:124`,
-registered `:457`). `AGENTS.md` names the namespace as `wc_scanpay_` /
-`wcs_scanpay_`. This is the only `wp_scanpay_*` function in `src/`, and `wp_` is
-core's — a future core function of that name is a fatal redeclare in a plugin with
-no autoloader to arbitrate. Rename to `wc_scanpay_allowed_redirect_hosts` and
-update the single `add_filter`.
+**1. `wp_scanpay_allowed_redirect_hosts()` uses WordPress's prefix.**
+Anchor: `function wp_scanpay_allowed_redirect_hosts` (~`:140`), registered by
+`add_filter( 'allowed_redirect_hosts', 'wp_scanpay_allowed_redirect_hosts' );`
+(~`:473`). `AGENTS.md` names the namespace as `wc_scanpay_` / `wcs_scanpay_`. This
+is the only `wp_scanpay_*` function in `src/`, and `wp_` is core's — a future core
+function of that name is a fatal redeclare in a plugin with no autoloader to
+arbitrate. Rename to `wc_scanpay_allowed_redirect_hosts` and update the single
+`add_filter`.
 
 `scanpay_log()` and `scanpay_remove_wc_payments_menu()` are outside both prefixes
 too. Leave them: `scanpay_` collides with nothing upstream, `scanpay_log()` has 24
 call sites, and the second may no longer exist after task 9. Record the decision.
 
-**2. The scheduled-charge hook registers at priority 3** (`:464`). Every other
-non-default priority in the tree carries a comment saying why —
-`wc_scanpay_order_status_completed` at 5, `bulk_actions-edit-shop_order` at 20,
-`wp_ajax_woocommerce_mark_order_status` at 0, `admin_footer_text` at 11, the meta
-boxes at 9, `scanpay_remove_wc_payments_menu` at 999. This one carries none, and
-the hook is gateway-suffixed (`…_scanpay`) so nothing else plausibly listens —
-which argues for `10`, not against it.
+**2. The scheduled-charge hook registers at priority 3.**
+Anchor: `'woocommerce_scheduled_subscription_payment_scanpay', 'wcs_scanpay_scheduled_charge', 3, 2`
+(~`:480`). It carries no comment, and the hook is gateway-suffixed (`…_scanpay`) so
+nothing else plausibly listens — which argues for `10`, not against it.
 
-Change to `10` unless `git log -p` shows the 3 was deliberate; if it was, keep it
-and write the reason. `AGENTS.md` is explicit that a comment is what a change is
-verified against, so an unexplained priority is an untested invariant either way.
-Keep the `2` — the callback takes `$amount` and `$wco`.
+The history has already been read: the `3` traces back to the repository's earliest
+commits and has never been deliberately changed (the only commit touching that
+registration since is `3f99c49`, a function-name typo fix). Treat it as legacy.
+
+**Change it to `10`.** Keep the `2` — the callback takes `$amount` and `$wco`.
+
+**3. `woocommerce_order_status_completed` at priority 5 is load-bearing and says
+so nowhere.** Anchor:
+`'woocommerce_order_status_completed', 'wc_scanpay_order_status_completed', 5, 2`
+(~`:475`). Add a comment only — do not change the number. WooCommerce registers on
+that same hook, all at the default 10: `queue_transactional_email` /
+`send_transactional_email` (`class-wc-emails.php:140-146`),
+`wc_downloadable_product_permissions` (`wc-order-functions.php:494`),
+`wc_maybe_reduce_stock_levels` (`wc-stock-functions.php:125`),
+`wc_update_total_sales_counts` and `wc_update_coupon_usage_counts`. Priority 5
+means the capture is attempted — and, on failure, the order parked `on-hold` —
+before WooCommerce mails the customer "completed" and grants download permissions
+for goods that were never paid for. WooCommerce's own PayPal gateway captures at
+the default 10, i.e. after both; ours is deliberately stricter. Verify each
+citation in `.stubs/` before writing the comment.
+
+**Scope bound.** The tree's remaining non-default priorities have been assessed and
+are **out of scope**: the four `add_meta_boxes_*` at 9 (WordPress fires the generic
+`add_meta_boxes`, where WooCommerce registers, entirely before the `_{screen}`
+variant we hook, so 9 orders us against almost nothing), the two `woocommerce_init`
+at 99, the two `wp_ajax_wc_scanpay_*` at 0 (our own action names — nothing else
+listens), the two `handle_bulk_actions-*` at 0 and `init`/`admin_init` at 0
+(defensive, same family as the documented `wp_ajax_woocommerce_mark_order_status`
+at 0). None is wrong; none is load-bearing. **Do not comment them** — this commit
+changes two registrations and comments a third.
 
 **Verify**
 
 - `grep -rn "wp_scanpay_" src/ build/` returns nothing after the rename (`build/`
   is generated; if stale, say so rather than editing it).
-- `grep -rn "add_action\|add_filter" src/ | grep -v ", 10"` — every remaining
-  non-default priority has a comment.
-- Nothing outside `src/` (`README.txt`, `docs/`) names the old function.
+- `git diff` touches exactly two `add_action`/`add_filter` lines, the function
+  declaration, and the comment added above the priority-5 registration — whose own
+  number must be unchanged.
+- Quote each `.stubs/` citation behind item 3 rather than copying the list from
+  this section.
+- Nothing outside `src/` (`readme.txt`, `docs/`) names the old function.
 
 **Handoff**
 
@@ -734,6 +794,7 @@ Keep the `2` — the callback takes `$amount` and `$wco`.
 
 **Files:** `src/woocommerce-scanpay.php`,
 `src/gateways/abstract-wc-gateway-scanpay-base.php` (after tasks 9 and 10)
+**Anchor:** `} catch ( Exception ) {` in `process_admin_options()` (~`:167-198`)
 
 `WC_Scanpay_Client` is built on ext-curl unconditionally (`private \CurlHandle $ch;`
 and `curl_init()` in the constructor). Without the extension that is
@@ -743,15 +804,15 @@ and `composer.json` is `require-dev` only by design.
 
 The failure is worse than needed in one place.
 `WC_Gateway_Scanpay_Base::process_admin_options()` validates a new key inside
-`try { … } catch ( Exception )` (`:167-198`) — `Error` is not an `Exception`, so on
-a curl-less host saving the settings form is a white-screen fatal rather than the
-"Invalid Scanpay API key" notice the code was written to show.
+`try { … } catch ( Exception )` — `Error` is not an `Exception`, so on a curl-less
+host saving the settings form is a white-screen fatal rather than the "Invalid
+Scanpay API key" notice the code was written to show.
 
 **Fix.** Two parts, one commit:
 
 1. **Declare it** in the plugin header comment (WordPress has no header field for
-   extensions, so a prose line is the honest place) and in `README.txt`'s
-   requirements section if one exists — check before assuming.
+   extensions, so a prose line is the honest place) and in the requirements section
+   of `src/readme.txt` — that file exists; read it and match its formatting.
 2. **Fail legibly** in `process_admin_options()`: add an explicit
    `function_exists( 'curl_init' )` check before constructing the client, with a
    `WC_Admin_Settings::add_error()` naming the missing extension. Prefer this over
@@ -767,11 +828,12 @@ payment paths already surface transport failures to the customer.
 **Verify**
 
 - Confirm `curl_init()` is the only ext-curl entry point reached before a guard
-  could run; list every `curl_*` call in `src/`.
+  could run; list every `curl_*` call in `src/` (they are all in
+  `class-wc-scanpay-client.php`).
 - Confirm `Error` does not extend `Exception` (`php -r`), so the existing catch
   genuinely misses it.
-- Confirm the header/README change does not disturb the `{{ VERSION }}`-style
-  substitution `./build.sh` performs on that header.
+- Confirm the header line you add contains no `{{ … }}` placeholder, so
+  `./build.sh`'s substitution pass is unaffected.
 
 **Handoff**
 
@@ -780,69 +842,81 @@ payment paths already surface transport failures to the customer.
 
 ---
 
-## Task 12 — A disabled card gateway still loads its checkout stylesheet
+## Task 12 — The checkout stylesheet's enqueue states none of its invariants
 
 **File:** `src/gateways/class-wc-gateway-scanpay-card.php`
+**Anchor:** `if ( 'yes' === ( $this->settings['stylesheet'] ?? 'yes' ) ) {` (~`:34`)
 
-```php
-if ( 'yes' === ( $this->settings['stylesheet'] ?? 'yes' ) ) {      // :34
-    add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_checkout_styles' ] );
-}
-```
+That condition alone gates
+`add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_checkout_styles' ] )`, and
+nothing consults `$this->enabled`. **This task previously called for adding
+`'yes' === $this->enabled &&` to that condition. Do not do that — it is a
+regression**, and the reasoning is recorded here so it is not re-proposed:
 
-Nothing consults `$this->enabled`, and the setting defaults to `'yes'` — so a shop
-with Scanpay switched off still ships `public/assets/css/checkout.css` to every
-customer, styling payment methods that are not ours. Three files away
-`WC_Gateway_Scanpay_ApplePay::__construct():17` does the opposite and says why:
-"so this hooks nothing on a store that does not offer Apple Pay". That comment's
-precondition holds here too — the base constructor calls `init_settings()` then
-`init_gateway_props()` before the subclass body resumes, so `$this->enabled` is
-already `'yes'`/`'no'` at `:34`.
+- `checkout.css` is **not** the card gateway's stylesheet. It sizes the payment
+  icons of all three gateways, which all wrap them in the same
+  `<span class="wcsp-methods">` (`docs/scss-review.md` §1.1). Gating it on the card
+  gateway's own `enabled` would strip the styling from a MobilePay-only or
+  Apple-Pay-only shop.
+- The enqueue lives in the card constructor because the card settings are the
+  primary/shared option, and it runs unconditionally because
+  `WC_Payment_Gateways::init()` does `$gateway = new $gateway();` for every class
+  the `woocommerce_payment_gateways` filter returns, with no `enabled` test in the
+  loop — that filtering happens later, in `get_available_payment_gateways()`.
+  Verified in `.stubs/`; re-read it rather than trusting this paragraph.
+- `WC_Gateway_Scanpay_ApplePay::__construct()` is **not** the sibling to copy. It
+  gates `enqueue_checkout_script` — a script that serves only Apple Pay — on its
+  own `enabled`. A per-gateway asset and a shared one do not take the same guard.
 
-**Fix.**
+So the residual defect is narrower than "a disabled gateway loads CSS": a shop with
+**all three** Scanpay gateways off still ships `checkout.css`. That is not worth two
+extra option reads per front-end request to close, and "performance is out of scope"
+stands.
 
-```php
-if ( 'yes' === $this->enabled && 'yes' === ( $this->settings['stylesheet'] ?? 'yes' ) ) {
-```
-
-Keep the existing comment about reading `$this->settings` directly — it explains
-the `??` and the avoided `get_option()`, and both survive. Add a clause pointing at
-the Apple Pay gateway as the sibling this now matches.
+**Fix.** Comment only — change no condition. Record at the enqueue what the code
+now silently assumes: that this stylesheet serves all three gateways, that the
+constructor therefore runs whatever `enabled` says (cite
+`WC_Payment_Gateways::init()`), and that gating it on `$this->enabled` would break
+a MobilePay-only shop. Keep the existing comment about reading `$this->settings`
+directly — it explains the `??` and the avoided `get_option()`, and both survive.
 
 **Leave the `wc_scanpay_item_needs_processing` filter on the next lines alone.** It
 must stay unconditional: it is scoped to Scanpay orders by
 `wc_scanpay_is_scanpay_order()`, and a shop that disables the gateway still has
 historical Scanpay orders whose completion behaviour must not change. Say this in
-`HANDOFF.md` or the next reader will "finish" the task wrongly.
+`HANDOFF-2.md` or the next reader will "finish" the task wrongly.
 
 **Verify**
 
-- Confirm the ordering claim: `init_settings()` at base `:11`,
-  `init_gateway_props()` at `:12`, both before the card constructor continues.
-- `enqueue_checkout_styles()`'s own `is_checkout()` guard unchanged.
-- `grep -rn "wp_enqueue_style\|wp_enqueue_script" src/` — state that no other asset
-  is enqueued without an enabled or screen gate.
+- Quote the `new $gateway()` loop in `WC_Payment_Gateways::init()` and state that
+  no `enabled` check precedes it.
+- Quote the three gateways' `<span class="wcsp-methods">` icon wrappers, showing
+  the stylesheet is shared.
+- `git diff` touches comment lines only: this task changes no executable code.
 
 **Handoff**
 
-- With Scanpay disabled, `checkout.css` is absent from the checkout page; with it
-  enabled and `stylesheet` on, present.
+- None: a comment has no runtime surface. If a shop check is wanted anyway, the one
+  worth running is that a MobilePay-only shop still renders sized icons at
+  checkout — the case the abandoned fix would have broken.
 
 ---
 
 ## Task 13 — Two settings fields with an inert tooltip and no label
 
 **File:** `src/admin/settings/fields/scanpay.php`
+**Anchors:** `'wcs_complete_initial' =>` (~`:93`) and `'wcs_complete_renewal' =>`
+(~`:100`)
 
-`wcs_complete_initial` (`:96`) and `wcs_complete_renewal` (`:103`) are the only
-fields in the three field files with `desc_tip` and **no** `description`, and the
-only two with no `title`. Both facts have a consequence: `get_tooltip_html()`
-returns `''` for an empty description, so the flag renders nothing — dead
-configuration that reads like a feature; and `generate_checkbox_html()` echoes
-`$data['title']` into `<th scope="row">` unconditionally, so each renders an empty
-header cell. Visually they look grouped under the preceding "Auto-complete" row;
-semantically they are two unlabelled rows, which is what a screen reader gets.
-`WC_Settings_API` has no `checkboxgroup` support (that is
+These two are the only fields in the three field files with `desc_tip` and **no**
+`description`, and the only two with no `title`. Both facts have a consequence:
+`get_tooltip_html()` returns `''` for an empty description, so the flag renders
+nothing — dead configuration that reads like a feature; and
+`generate_checkbox_html()` echoes `$data['title']` into `<th scope="row">`
+unconditionally, so each renders an empty header cell. Visually they look grouped
+under the preceding "Auto-complete" row (`wc_complete_virtual`, which does have a
+title); semantically they are two unlabelled rows, which is what a screen reader
+gets. `WC_Settings_API` has no `checkboxgroup` support (that is
 `woocommerce_admin_fields()`), so grouping cannot fix it.
 
 **Fix.** Give both a `title`, and either a real `description` or no `desc_tip`.
@@ -855,15 +929,15 @@ Prefer writing the description over dropping `desc_tip`: these two settings deci
 whether an order is force-completed on sync, the least obvious behaviour on the
 screen.
 
-Do not touch `'default' => 'no'` on either, or the four fields whose `desc_tip`
-pairs with a real `description`.
+Do not touch `'default' => 'no'` on either, or the other fields whose `desc_tip`
+already pairs with a real `description`.
 
 **Verify**
 
 - Quote `get_tooltip_html()` and `generate_checkbox_html()` showing the empty-`$tip`
   return and the unconditional `<th>` echo.
-- `grep -n "desc_tip" src/admin/settings/fields/*.php` — every occurrence now has a
-  sibling `description`.
+- `grep -n "desc_tip" src/admin/settings/fields/*.php` — eleven occurrences; every
+  one now has a sibling `description`.
 - List the msgids added, verbatim, for task 19.
 
 **Handoff**
@@ -876,13 +950,11 @@ pairs with a real `description`.
 ## Task 14 — The Plugins-screen link escapes nothing
 
 **File:** `src/admin/settings.php`
+**Anchor:** `array_unshift( $links, '<a href="' . $url . '">'` (~`:75`)
 
-```php
-$url = admin_url( 'admin.php?page=wc-settings&tab=checkout&section=scanpay' );
-array_unshift( $links, '<a href="' . $url . '">' . __( 'Settings', … ) . '</a>' );   // :75
-```
-
-Neither value is escaped. `admin_url()` runs the `admin_url` filter and `__()` runs
+`$url` comes from `admin_url( 'admin.php?page=wc-settings&tab=checkout&section=scanpay' )`
+and the label from `__( 'Settings', … )`; the two are concatenated straight into an
+`<a href="…">`. Neither value is escaped. `admin_url()` runs the `admin_url` filter and `__()` runs
 `gettext` — both third-party surface, and both the reason the MobilePay and Apple
 Pay gateways escape their own concatenations, with the comment "PHPCS misses it
 because the value is returned". Same shape, same blind spot. The value is returned
@@ -912,34 +984,48 @@ reason (a returned value, so the escape sniff cannot see it).
 ## Task 15 — `wc_scanpay_money_equals()` has no callers
 
 **File:** `src/library/math.php` and three call sites
+**Anchor:** `function wc_scanpay_money_equals( string $a, string $b ): bool`
+(~`:187`)
 
-`wc_scanpay_money_equals( string $a, string $b ): bool` (`:187-190`) is called from
-nowhere. The three places asking whether two money strings are equal spell it as a
-comparison: `class-wcs-scanpay-charge.php:162` and `:270`, and
-`generate-payment-link.php:264`, all `wc_scanpay_cmpmoney( … ) !== 0`.
+It is called from nowhere. The three places asking whether two money strings are
+equal spell it as a comparison, all `wc_scanpay_cmpmoney( … ) !== 0`:
+
+- `class-wcs-scanpay-charge.php`, `scheduled_charge()`: `cmpmoney( $amt_str, $tot_str ) !== 0`
+- `class-wcs-scanpay-charge.php`, `charge()`: `$sum !== $wc_total && cmpmoney( $sum, $wc_total ) !== 0`
+- `generate-payment-link.php`: the same `$sum !== $wc_total &&` shape
+
+(The tree's other `cmpmoney()` calls test `<`, `>` or `<= 0` and are not equality
+tests. Leave them.)
 
 So either the function is the better spelling those three should use, or it is
-dead. It cannot be neither: `AGENTS.md` lists it as part of the money API, which is
-why it must be decided rather than quietly deleted.
+dead. It cannot be neither.
 
-**Fix.** Adopt it — replace the three tests with `! wc_scanpay_money_equals( … )`.
-It states the intent and is cheaper (no `strcmp`, no sign branches). Two of the
-sites guard with `$sum !== $wc_total &&` as a fast path on identical strings; keep
-that, or drop it and say why.
+**Decided: adopt it.** Replace the three tests with `! wc_scanpay_money_equals( … )`.
+Do not delete the function instead — that fork is closed.
 
-Removing it instead is acceptable only if adoption changes behaviour at any of the
-three sites — and then `AGENTS.md`'s money-API list must be edited in the same
-commit, or the guide becomes wrong.
+Both functions call the same `wc_scanpay_dighomogenize()`; after it, `cmpmoney()`
+adds `strcmp()` plus up to three sign branches where `money_equals()` does two
+`===`. Measured here over 1.6 M calls across four representative pairs,
+`money_equals()` is consistently **2–4 % faster** — about 14 ns per call, so the
+speed is real but immaterial at three call sites. Adopt it for the intent it
+states; the benchmark only settles that it costs nothing. Do not re-run it.
+
+The two sites guarding with `$sum !== $wc_total &&` keep that fast path unless you
+say why not. `AGENTS.md` no longer enumerates the money-API function names beside
+`src/library/math.php` (commit `685a78e` trimmed the list), so this needs no guide
+edit — confirm that, then leave the guide alone.
 
 **Do not** change `math.php`'s implementation either way. The file is settled and
 `docs/performance-review.md` §6.2 says so.
 
 **Verify**
 
-- `grep -rn "money_equals\|cmpmoney" src/` before and after.
-- Confirm `wc_scanpay_money_equals()` and `wc_scanpay_cmpmoney( … ) === 0` agree on
-  what the three sites see — including `'0'` vs `'0.00'` and a negative zero.
-  `php -r`, loading `math.php` after `define( 'ABSPATH', … )`.
+- `grep -rn "money_equals\|cmpmoney" src/` before and after: three equality tests
+  become `money_equals()`, and the `<`/`>`/`<= 0` comparisons are untouched.
+- Re-confirm the two agree on the cases the sites see. Already checked here — they
+  agree on identical strings, on `'1250.0'` vs `'1250.00'`, on unequal amounts and
+  on `'0'` vs `'-0.00'` — so this is a cheap re-run, not a derivation. `php -r`,
+  loading `math.php` after `define( 'ABSPATH', … )`.
 
 **Handoff**
 
@@ -951,26 +1037,27 @@ commit, or the guide becomes wrong.
 ## Task 16 — `wc_scanpay_subref()` takes `object`
 
 **File:** `src/public/generate-payment-link.php`
+**Anchor:** `function wc_scanpay_subref( int $oid, object $wco ): ?string` (~`:34`)
 
-`function wc_scanpay_subref( int $oid, object $wco ): ?string` (`:34`) uses the
-loosest hint PHP has on a parameter that is always a `WC_Abstract_Order`: either
-the `WC_Order` from `wc_get_order()` or, on the payment-method-change path, the
-`WC_Subscription` WCS hands the gateway. The body calls `$wco->get_status()`, which
-`object` does not promise. `AGENTS.md`: "A typed parameter is the preferred guard —
-a `TypeError` beats a defensive `if`."
+It uses the loosest hint PHP has on a parameter that is always a
+`WC_Abstract_Order`: either the `WC_Order` from `wc_get_order()` or, on the
+payment-method-change path, the `WC_Subscription` WCS hands the gateway. The body
+calls `$wco->get_status()`, which `object` does not promise. `AGENTS.md`: "A typed
+parameter is the preferred guard — a `TypeError` beats a defensive `if`."
 
 **Fix.** `WC_Abstract_Order $wco`. `WC_Order` is too narrow — it would `TypeError`
-on the method-change path. Confirm the chain in `.stubs/` rather than trusting this
-paragraph. Add no comment: the type is the statement.
+on the method-change path. Add no comment: the type is the statement.
 
 **Verify**
 
 - Quote the declarations proving `WC_Subscription extends WC_Order extends
   WC_Abstract_Order`.
-- Confirm both call sites (`:215`, `:287`) still type-check by naming what each
+- Confirm both call sites (`$data['subscriber'] = [ 'ref' => wc_scanpay_subref(…)`
+  and `$subref = wc_scanpay_subref(…)`) still type-check by naming what each
   passes.
 - Confirm `wc_scanpay_process_payment()`'s own `$wco` is not re-typed — it comes
-  from `wc_get_order()`, whose return is checked at `:77-81`, and that guard stays.
+  from `wc_get_order()`, whose return is checked immediately after, and that guard
+  stays.
 
 **Handoff**
 
@@ -986,33 +1073,45 @@ paragraph. Add no comment: the type is the statement.
 
 Four small changes, one commit, no behaviour change. Do all four or none.
 
-1. **`admin/orders.php:119` — `'meta' => $meta ?? null`.** `$wpdb->get_row()`
+1. **`'meta' => $meta ?? null,` in `admin/orders.php`** (~`:119`). `$wpdb->get_row()`
    already returns `null` when there is no row, so the coalesce cannot fire. Drop
    to `'meta' => $meta`.
 2. **The two long-poll endpoints spell termination differently.** `-sub.php` writes
-   `wp_send_json( … ); die();` at `:19-20` and `die;` at `:29`, `:34`; `-meta.php`
-   writes bare `wp_send_json( … )` at `:28`, `:32`. `wp_send_json()` terminates
-   either way, so both are correct and one is redundant — but a reader cannot tell
-   which without checking core. Take the bare form, delete the redundant `die`s,
-   and comment at the first site that `wp_send_json()` terminates. **Do not
-   pre-empt `docs/performance-review.md` §5.2**, which folds these files' shared
-   auth preamble into one `admin/ajax/auth.php`; only make the two agree in place.
-3. **`-sub.php:61` — `$sec = $sec + $sec;`.** Write `$sec *= 2;`. The comment above
-   already says "0.5s, 1s, 2s, 4s, 8s", so the doubling should read as doubling.
-4. **`-sub.php:57` — a null `rev` never breaks the poll.** `scanpay_subs.rev` is
-   nullable (`install.php:57`) and the exit test is `$sub['rev'] > $rev`;
-   `null > 0` is false, so such a row polls the full 15.5 s. Either add it to the
-   break condition, or comment why a null rev is unreachable — as
-   `wc_scanpay_read_cursor()` does for `scanpay_seq.ping`.
-   `WC_Scanpay_Sync::subscriber()` is the only writer and always supplies a rev, so
-   the comment is probably the truthful fix. Check, then choose.
+   `wp_send_json( … ); die();` after the secret check and bare `die;` after the
+   shopid and subid checks; `-meta.php` writes bare `wp_send_json( … )` at the
+   matching two. `wp_send_json()` terminates either way, so both are correct and
+   one is redundant — but a reader cannot tell which without checking core. Take
+   the bare form, delete the three redundant `die`s, and comment at the first site
+   that `wp_send_json()` terminates. **Do not pre-empt
+   `docs/performance-review.md` §5.2**, which folds these files' shared auth
+   preamble into one `admin/ajax/auth.php`; only make the two agree in place.
+3. **`$sec = $sec + $sec;` in `-sub.php`** (~`:61`). Write `$sec *= 2;`. The comment
+   above already says "0.5s, 1s, 2s, 4s, 8s", so the doubling should read as
+   doubling.
+4. **A null `rev` never breaks the poll — say so, do not code around it.**
+   `scanpay_subs.rev` is nullable (`rev INT unsigned,` in `install.php`'s
+   `CREATE TABLE $subs_tbl`, ~`:61` — unlike `scanpay_meta.rev`, which is
+   `NOT NULL`) and the exit test is `$sub['rev'] > $rev`; `null > 0` is false, so
+   such a row would poll the full 15.5 s. It cannot arise:
+   `WC_Scanpay_Sync::subscriber()` is the only writer, and it validates
+   `if ( ! is_int( $rev ) || $rev <= 0 )` with a throw before building the
+   statement (`class-wc-scanpay-sync.php`, ~`:427-430`), so a stored rev is always
+   ≥ 1. `docs/ts-review.md` §4 reached the same conclusion from the browser side.
+   **Write the comment, not a break condition** — model it on
+   `wc_scanpay_read_cursor()`'s note for `scanpay_seq.ping`, and cite the validating
+   guard by symbol. Re-read that guard before you write it; do not take it from here.
+
+**Leave the keep-alive `echo "\n"` alone**, though item 3 edits the line beside it
+in `-sub.php`. `docs/ts-review.md` §4 settled it: the body arrives as `"\n\n\n{…}"`
+and `JSON.parse` skips leading whitespace per specification, so the browser side is
+unaffected. It is not a fifth item.
 
 **Verify**
 
 - Quote `wp_send_json()` showing both termination branches.
 - Confirm `subscriber()` is the only `INSERT` into `scanpay_subs`
-  (`grep -rn "scanpay_subs" src/`) and that its `rev` is validated as a positive
-  int before the statement is built.
+  (`grep -rn "scanpay_subs" src/` returns one INSERT) and that its `rev` is
+  validated as a positive int before the statement is built.
 - Confirm none of the four alters a response body or status code.
 
 **Handoff**
@@ -1024,38 +1123,35 @@ Four small changes, one commit, no behaviour change. Do all four or none.
 
 ## Task 18 — Comment audit against the documented standard
 
-**Files:** all 34 PHP files in `src/`
+**Files:** all 35 PHP files in `src/`
 
-~2 059 of 5 599 lines are comments. `AGENTS.md` makes them load-bearing: "Comments
-are the compensation, and what verification runs on: a change is checked against
-the invariants they state, so a comment that has drifted is a broken test." This
-task audits them against the **Comments** section of `AGENTS.md`, which is the
+Comments are about 37 % of the tree — roughly 2 100 lines of ~5 600. Both figures
+drift with every commit; neither is a checksum. `AGENTS.md` makes them
+load-bearing: "Comments are the compensation, and what verification runs on: a
+change is checked against the invariants they state, so a comment that has drifted
+is a broken test."
+This task audits them against the **Comments** section of `AGENTS.md`, which is the
 specification — read it first and apply it, not this summary.
 
 Go file by file in `find src -name '*.php' | sort` order. One commit.
 
-**What to change**
+**What to change.** Apply `AGENTS.md`'s Comments section as written — restatement,
+change logs and `@param`/`@return` ceremony go; file-header, inline and length
+rules hold. Three points it does not cover:
 
-- **Drift.** A comment that no longer describes the code, cites a symbol that
-  moved or was renamed, or states an invariant the code no longer holds. Fix the
-  comment to match the code; if the *code* looks wrong, that is a finding for task
-  20, not a fix here.
-- **Restatement.** A comment that says what the next line says. Delete.
-- **Change log.** "Changed in 2.5", "was previously…". Delete — `git log` owns it.
-- **Ceremony.** `@param`/`@return` blocks that only repeat types the signature
-  states. Delete. Keep `@return array{…}` where the shape is not obvious, `@throws`
-  for what a caller must catch, `@internal` outside a module's surface.
-- **Length.** "Dense means precise, not long: two exact sentences beat a
-  paragraph." Where a comment argues the same point twice, or narrates a
-  derivation, compress to the conclusion and the reason.
-- **Form.** File headers `/** … */` between `<?php` and `declare`, one paragraph,
-  plus a `Contract:` list where the file speaks a wire protocol. Inline `//` on its
-  own line above the code, or trailing for a short aside; full sentences, English,
-  ending in a period.
-- **`phpcs:ignore` without `-- <reason>`.** 32 of the 44 in the tree lack one; the
-  guide requires it. Add the reason — the real one, derived from the code, not
-  "suppress sniff". Where you cannot state a reason, the suppression is the
-  finding: record it for task 20 rather than inventing a justification.
+- **Drift** is the priority: a comment that no longer describes the code, cites a
+  symbol that moved or was renamed, or states an invariant the code no longer
+  holds. Fix the comment to match the code. If the *code* looks wrong instead, that
+  is a finding for task 20, not a fix here.
+- **`phpcs:ignore` without `-- <reason>`.** 32 of the tree's 44 lack one. Add the
+  real reason, derived from the code, not "suppress sniff". Where you cannot state
+  one, the suppression is the finding: record it for task 20 rather than inventing
+  a justification. The 5 `phpcs:disable` are outside the guide's literal wording
+  and 4 carry no `--`, but three of those (the `?x=` endpoints') are already
+  explained by the file docblock directly above them — do not duplicate that into
+  an inline reason; `wp-scanpay-thankyou.php`'s is the one genuinely bare.
+- **Keep `@return array{…}`** where the shape is not obvious, `@throws` for what a
+  caller must catch, `@internal` outside a module's surface.
 
 **What must survive verbatim in substance**
 
@@ -1100,9 +1196,10 @@ a code change, that is task 20's finding.
 
 The catalog holds 115 msgids; `da_DK` is the only translation and carries no fuzzy
 entries. `./build.sh` owns extraction — it re-derives `.pot` and updates `.po` from
-the built tree on every run, deterministically. **Never hand-edit
-`scanpay-for-woocommerce.pot`**: it is generated, and an edit is lost on the next
-build. `.po` msgstrs are hand-written and are what this task changes.
+the built tree on every run, deterministically, through `./vendor/bin/wp i18n`.
+**Never hand-edit `scanpay-for-woocommerce.pot`**: it is generated, and an edit is
+lost on the next build. `.po` msgstrs are hand-written and are what this task
+changes.
 
 Audit three things, in this order.
 
@@ -1114,20 +1211,45 @@ they read as a sentence to a merchant or customer; placeholders are positional
 concatenates a translated fragment with another, which cannot be translated
 correctly.
 
-**2. Danish translations.** Full orthography — æ, ø, å, and correct use of them;
-never an ASCII substitution. Consistent WooCommerce terminology across the
-catalog (settle on one word each for order, subscription, payment, capture,
-refund and use it throughout). Placeholders preserved exactly, including their
-positional numbers, which may legitimately reorder in Danish. Register consistent
-with the audience: merchant-facing admin strings and customer-facing order notes
-are not the same voice.
+**2. Danish translations.** Full orthography — æ, ø, å, never an ASCII
+substitution. One agreed WooCommerce term each for order, subscription, payment,
+capture and refund, used throughout. Placeholders preserved exactly, including
+positional numbers, which may legitimately reorder in Danish. Register matched to
+the audience: merchant-facing admin strings and customer-facing order notes are not
+the same voice.
+
+One msgid deserves a named check: **`'I accept the %s.'`** is declared twice, in
+`wcs-scanpay-checkout-terms.php` and `class-wc-scanpay-blocks-support.php`, and its
+`%s` carries the terms link in both checkouts. `docs/ts-review.md` §1.4 established
+that the two degrade differently if a translation drops it — classic goes through
+`sprintf()` and loses the link cleanly, Blocks splits on `'%s'` and renders the link
+text stranded at the end of the sentence. The Danish msgstr keeps it today
+(`"Jeg accepterer %s."`); confirm it still does and do not reword it away.
 
 **3. Coverage.** Every user-visible string reaches a translation function, and
-nothing that must not be translated does. Two rules bind here, both from
-`AGENTS.md`: **settings-field defaults stay plain strings**, because `__()` cannot
-localize a stored value; and exception messages are deliberately untranslated —
-they reach the merchant raw through `sprintf( __( 'Scanpay capture failed: %s' ),
-$e->getMessage() )`, whose translators comment says so. Do not "fix" either.
+nothing that must not be translated does. Three rules bind here. From `AGENTS.md`:
+**settings-field defaults stay plain strings**, because `__()` cannot localize a
+stored value; and exception messages are deliberately untranslated — they reach the
+merchant raw through `sprintf( __( 'Scanpay capture failed: %s' ),
+$e->getMessage() )`, whose translators comment says so. Third, from
+`docs/ts-review.md` §2.5 and the comment now at the enqueue site: **`checkout.ts`
+translates nothing on purpose**, so its bundle carries neither `wp-i18n` nor
+`wp_set_script_translations()` — every string it renders was translated PHP-side
+and travels in the `get_payment_method_data()` payload. Do not "fix" any of the
+three; a `__()` added to that bundle renders English with no warning.
+
+**The catalog is not PHP-only.** 40 of the 115 msgids carry `#:` references into
+the *compiled* `admin/assets/js/*.js` and `public/assets/js/*.js` — `wp i18n
+make-pot` runs over the built tree, so the `.ts` sources' `__()` calls are in
+scope for reading, never for editing. No task in this plan edits a `.ts` file.
+
+**One known-bad msgid is out of your reach, deliberately.** The catalog holds
+`" Could not delete the data: %s"` with a leading space — a real defect (leading and
+trailing spaces are invisible in a PO file and translators drop them), but its
+source is `settings.ts` and its fix is markup or CSS, already written up in
+`docs/ts-review.md` §3.3. Do not edit the `.ts`, do not paper over it in the Danish
+msgstr, and above all do not hand-edit the `.pot`. Note it in `HANDOFF-2.md` as
+found-and-owned-elsewhere, and leave both catalogs' entries as they are.
 
 Task 13 adds two msgids; they are in scope here.
 
@@ -1137,8 +1259,11 @@ Task 13 adds two msgids; they are in scope here.
 **Verify**
 
 - Run `printf 'n\n' | ./build.sh` and confirm the regenerated `.pot` matches the
-  committed one except for strings you deliberately changed. A diff anywhere else
-  means a source string moved when it should not have.
+  committed one except for strings you deliberately changed. A diff in the `msgid`
+  set means a source string moved when it should not have. A diff confined to `#:`
+  reference lines does **not**: those track file and line in the compiled `.js`, so
+  any earlier `.ts` edit shifts them. If that is all you see, say so and commit the
+  regenerated catalogs rather than reverting them.
 - Report every msgid added, changed or removed, and every msgstr rewritten, with
   the reason in one line each.
 - Confirm no msgid is a concatenation and every multi-placeholder string is
@@ -1156,29 +1281,31 @@ Task 13 adds two msgids; they are in scope here.
 
 ## Task 20 — Fresh full review → `RESULTS.md`
 
-**Files:** all 34 PHP files in `src/`; output to `RESULTS.md` at the repo root
+**Files:** all 35 PHP files in `src/`; output to `RESULTS.md` at the repo root
 
 A new, thorough review of the tree as tasks 1–19 leave it. This is a *review*, not
 a fix: change no code. The deliverable is `RESULTS.md`.
 
-**Before reading any source**, read, in order: `AGENTS.md` (all of it, especially
-**Settled — do not "fix" these** and **Verified sound, do not re-audit**), this
-file's **Do not weaken** section, `docs/performance-review.md` (its §5 and §6
-record what was measured and deliberately left alone), `docs/requirements.md`, and
-`HANDOFF.md`. Everything those establish is out of scope. A review that
-re-discovers a settled decision has produced noise, and this is the third run to
-face that risk — three of the previous review's candidate findings died on those
-documents and one died on a `php -r` check.
+**Before reading any source**, read all of `AGENTS.md` (especially **Settled — do
+not "fix" these**, and note its standing rule that anything else odd is answered by
+a comment at the line itself — read that comment before flagging), this file's
+header including **Verified sound, do not re-audit**,
+`docs/performance-review.md` (its §5 and §6 record what was measured and
+deliberately left alone), `docs/ts-review.md` (its §4 does the same for the
+TypeScript layer, and several of its entries land on PHP files — the `?x=`
+endpoints and the Blocks enqueue site), `docs/requirements.md`, `HANDOFF-2.md`,
+and `HANDOFF.md` (runs 1-2). Everything
+those establish is out of scope. A review that re-discovers a settled decision has
+produced noise, and this is the third run to face that risk — three of the previous
+review's candidate findings died on those documents and one died on a `php -r`
+check.
 
-**Method.** Read every file in full — not greps against a hypothesis. For each
-finding, before writing it down:
-
-- Locate the exact file, symbol and line, and quote the code.
-- State the concrete failure: inputs or state → wrong output, wrong money, wrong
-  status, fatal, or data loss. A finding with no reachable failure is not one.
-- Verify the upstream half against `.stubs/`, and PHP semantics with `php -r`.
-  Never assert what WordPress, WooCommerce or WCS does from memory.
-- Try to refute it. Note what would make it false, and check that too.
+**Method.** Read every file in full — not greps against a hypothesis. Per finding,
+before writing it down: quote the code at its file and symbol; state the concrete
+failure (inputs or state → wrong output, wrong money, wrong status, fatal, data
+loss — a finding with no reachable failure is not one); settle the upstream half
+against `.stubs/` and the language half with `php -r`; then try to refute it, and
+check whatever would make it false.
 
 Cover at least: money arithmetic and every path that moves money; the ping and
 sync loop, including failure and replay behaviour; capture, charge and refund
