@@ -104,8 +104,10 @@ means precise, not long: two exact sentences beat a paragraph.
 `src/woocommerce-scanpay.php` is the router. It dispatches three special request
 types before registering anything else:
 
-- `X-Signature` header → `callback/wc-scanpay-ping.php` (ping/sync) via the WC API
-  endpoint `woocommerce_api_wc_scanpay`; no other plugin hook runs.
+- `X-Signature` header → `callback/wc-scanpay-ping.php` (ping/sync) via the `wc-api`
+  endpoint's `woocommerce_api_wc_scanpay` action, fired on `parse_request` — since
+  WC 9.0 by `Internal/Utilities/LegacyRestApiStub`, not the removed `WC_API` class.
+  The action outlived the class; cite the stub, not memory. No other plugin hook runs.
 - `?scanpay_thankyou` + `?scanpay_type` + `?key` → `public/wp-scanpay-thankyou.php`.
 - `X-Scanpay` header (shared secret) + `?x=…` → `admin/ajax/wp-scanpay-fetch-*.php`.
   The secret lives *inside* the settings option, minted by `install.php`.

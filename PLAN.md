@@ -188,10 +188,16 @@ Neither emits a translated string today, so this task is about the ping alone.
 ### Fix
 
 1. Load the domain inside `wc_scanpay_handle_ping()` (`:55-57`), ahead of the
-   `require`. The action it is hooked to, `woocommerce_api_wc_scanpay`, fires
-   from `WC_API::handle_api_requests()` on `parse_request` — well after
-   `init` — so this cannot trip the `_doing_it_wrong()` at `l10n.php:1444`,
-   which fires only for a load before `after_setup_theme`.
+   `require`. The action it is hooked to, `woocommerce_api_wc_scanpay`, is fired
+   by `LegacyRestApiStub::maybe_process_wc_api_query_var()`
+   (`src/Internal/Utilities/LegacyRestApiStub.php:166`), reached from
+   `parse_legacy_rest_api_request()` on `parse_request` priority 0 (`:36`) —
+   well after `init` — so this cannot trip the `_doing_it_wrong()` at
+   `l10n.php:1444`, which fires only for a load before `after_setup_theme`.
+   (`WC_API` was removed in WooCommerce 9.0 along with the Legacy REST API; when
+   the dedicated extension *is* installed the stub defers to it at `:91-93` and
+   that extension fires the same action, still on `parse_request`. The hook is
+   the contract, not its dispatcher.)
 2. **Do not move `add_action( 'init', 'wc_scanpay_init', 0 )` above the dispatch
    block instead.** It would work, and it is the wrong shape: it pays a
    `load_textdomain()` on every admin-AJAX poll and every thank-you request for
@@ -209,8 +215,11 @@ Neither emits a translated string today, so this task is about the ping alone.
 
 ### Verify
 
-- Quote `WC_API::add_endpoint()`/`api_request_url()` from the stub, derive both
-  URL forms, and confirm each reaches the `return` at `:62`.
+- Quote `LegacyRestApiStub::add_rewrite_rules_for_legacy_rest_api_stub()`
+  (`:55-59`, the `add_rewrite_endpoint( 'wc-api', EP_ALL )` call) and
+  `WooCommerce::api_request_url()` (`includes/class-woocommerce.php:1184`) from
+  the stub, derive both URL forms, and confirm each reaches the `return` at
+  `:62`.
 - Grep `callback/` and `library/class-wc-scanpay-sync.php` and confirm those
   three notes are the complete set of translated strings reachable from the ping
   request. `WC_Scanpay_Capture`'s notes are *not* — name which request types
