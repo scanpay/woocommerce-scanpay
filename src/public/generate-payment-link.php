@@ -123,44 +123,29 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		$subid = (int) $wco->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
 		if ( $subid ) {
 			/*
-			 * A customer paying for an existing subscriber: a failed renewal they retry, or
-			 * a resubscribe. Both take wcs_complete_renewal -- the payment mechanically is a
-			 * renew() against the existing subscriber, and wcs_complete_initial has only ever
-			 * applied to the new_url() sign-up path, so no resubscribe test is needed here.
+			 * An existing subscriber, reached three ways: a customer retrying a failed
+			 * renewal, a resubscribe, and a payment-method change. All three get the same
+			 * link, because renew() gives the same thing to all three.
 			 *
-			 * The exception is a payment-method change, which is not a paid order attempt:
-			 * it gets no completion intent, and writes no metadata at all -- $wco is the
-			 * subscription there, and a key on the subscription would be copied onto every
-			 * future renewal order by WC_Subscriptions_Data_Copier.
+			 * /v1/subscribers/{subid}/renew charges nothing. It returns a page where the
+			 * customer updates their stored payment details -- a flat fact, settled with
+			 * Scanpay, that no stub states and that the endpoint's name argues against. So
+			 * this branch creates no transaction, has nothing for the return page to wait
+			 * on, and records no completion intent: there is no payment for one to describe.
+			 * The $data['autocapture'] computed above rides along inert rather than being
+			 * zeroed here, so the payload shape stays the same on every path.
+			 *
+			 * $paid_renewal separates the two things that still differ: only a real order
+			 * gets the note and the stamp below. On a method change $wco is the WCS
+			 * subscription, and any key written on it is copied onto every future renewal
+			 * order by WC_Subscriptions_Data_Copier.
+			 *
+			 * The money is collected later, by WCS's own retry, which the card update does
+			 * unblock: the subscriber rev bumps, so WCS_Scanpay_Charge::idempotency_key()
+			 * builds a new key and the next scheduled charge is not deduped against the
+			 * declined one.
 			 */
 			$paid_renewal = ! wcs_scanpay_is_payment_method_change();
-			$complete     = $paid_renewal && wcs_scanpay_wants_completion( $settings, 'renewal' );
-			if ( $complete && 'completed' === $autocapture ) {
-				// Completion means the order is settled, so the attempt must capture. Already
-				// true under 'on', and deliberately left false under 'off'.
-				$data['autocapture'] = true;
-			}
-			if ( $paid_renewal ) {
-				/*
-				 * Route the return through the same bounded wait an ordinary paid order gets.
-				 * This payment does create order data: sync writes the transaction id onto the
-				 * order named by $data['orderid'], which here is the renewal order, so without
-				 * the wait the order-received page can render before the ping lands. Type 'wc'
-				 * selects the paid-order wait; scanpay_ref is read only by the free-trial
-				 * branch, so there is nothing to invent. The WooCommerce order key is already
-				 * in the filtered URL, so the handler's ownership gate still applies.
-				 *
-				 * A pure method change keeps the WCS-filtered My Account URL untouched: it
-				 * creates no order transaction, so there is nothing for it to wait on.
-				 */
-				$data['successurl'] = add_query_arg(
-					[
-						'scanpay_thankyou' => $oid,
-						'scanpay_type'     => 'wc',
-					],
-					$data['successurl']
-				);
-			}
 			try {
 				$link = $client->renew( $subid, $data );
 			} catch ( Exception $e ) {
@@ -168,20 +153,34 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 				throw new Exception( esc_html__( 'Error: We could not create a link to the payment window. Please wait a moment and try again.', 'scanpay-for-woocommerce' ) );
 			}
 			if ( $paid_renewal ) {
-				// Written after the link exists and before the customer can pay it, and
-				// unconditionally, so a retry under changed settings replaces the old intent
-				// rather than leaving a stale one.
-				$wco->add_meta_data( WC_SCANPAY_URI_COMPLETE, $complete && $data['autocapture'], true );
-				// And which shop it was created under, for the reason WCS_Scanpay_Charge::charge()
-				// stamps it: an order with no stamp reads as *another* shop's to both readers --
-				// sync() drops the drained payment as a "shopid mismatch", capture() throws --
-				// after the customer has paid. Only when absent; a different shop id is a real
-				// mismatch and not ours to overwrite.
+				// Which shop the subscriber belongs to. With no money moving here, that is the
+				// stamp's whole job: a merchant who switches API keys between the card update
+				// and the retry then gets scheduled_charge()'s deliberate refusal rather than a
+				// charge against a numerically colliding subid in the new shop. Only when
+				// absent; a different shop id is a real mismatch and not ours to overwrite.
 				if ( (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' ) <= 0 ) {
 					$shopid = (int) strstr( (string) ( $settings['apikey'] ?? '' ), ':', true );
 					$wco->add_meta_data( WC_SCANPAY_URI_SHOPID, $shopid, true );
 				}
 				$wco->save_meta_data();
+				// The customer followed a link labelled "Pay now" and will be returned to an
+				// order that is still unpaid; this is the only thing that tells them what
+				// actually happened. Customer-visible (the 1), so WooCommerce lists it under
+				// "Order updates" and mails it through woocommerce_new_customer_note.
+				//
+				// Contained the way WC_Scanpay_Sync::report_incomplete() contains its own:
+				// add_order_note() runs woocommerce_new_order_note_data, wp_insert_comment()
+				// and woocommerce_order_note_added, all third-party surface, and this runs
+				// inside process_payment(), where an escaping throw is put in front of the
+				// shopper by WC_Checkout instead of the link they came for.
+				try {
+					$wco->add_order_note(
+						__( 'Your payment details were updated. This renewal has not been charged yet; it will be collected automatically with the new details.', 'scanpay-for-woocommerce' ),
+						1
+					);
+				} catch ( \Throwable $e ) {
+					scanpay_log( 'error', "Order #$oid: could not add the payment-details note: " . trim( $e->getMessage() ) );
+				}
 			}
 			return [
 				'result'   => 'success',
