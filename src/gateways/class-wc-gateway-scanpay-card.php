@@ -31,6 +31,16 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 		// lacks, and this gateway's fields file opens with an unbounded get_pages(). The
 		// fallbacks are the field definitions' own defaults, and ?? -- not ?: -- because
 		// neither call passed an $empty_value, so a stored '' registers nothing today.
+		// The stylesheet setting is the only gate here, deliberately. checkout.css is not the
+		// card gateway's: all three gateways wrap their icons in the same
+		// <span class="wcsp-methods">, so it sizes the icons of whichever ones a shop runs,
+		// and adding 'yes' === $this->enabled would strip that from a MobilePay-only or
+		// Apple-Pay-only shop. It is registered from this constructor because the card
+		// settings are the primary/shared option, and the constructor runs whatever enabled
+		// says: WC_Payment_Gateways::init() does $gateway = new $gateway() for every class
+		// the woocommerce_payment_gateways filter returns, with no enabled test in that loop
+		// (class-wc-payment-gateways.php:110-113). That filtering happens later, in
+		// get_available_payment_gateways().
 		if ( 'yes' === ( $this->settings['stylesheet'] ?? 'yes' ) ) {
 			add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_checkout_styles' ] );
 		}

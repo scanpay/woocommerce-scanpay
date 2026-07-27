@@ -176,7 +176,6 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 12 | The checkout stylesheet's enqueue states none of its invariants | `gateways/class-wc-gateway-scanpay-card.php` |
 | 13 | Two settings fields with an inert tooltip and no label | `admin/settings/fields/scanpay.php` |
 | 14 | The Plugins-screen link escapes nothing | `admin/settings.php` |
 | 15 | `wc_scanpay_money_equals()` has no callers | `library/math.php` + 3 call sites |
@@ -190,66 +189,6 @@ Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 12 — The checkout stylesheet's enqueue states none of its invariants
-
-**File:** `src/gateways/class-wc-gateway-scanpay-card.php`
-**Anchor:** `if ( 'yes' === ( $this->settings['stylesheet'] ?? 'yes' ) ) {` (~`:34`)
-
-That condition alone gates
-`add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_checkout_styles' ] )`, and
-nothing consults `$this->enabled`. **This task previously called for adding
-`'yes' === $this->enabled &&` to that condition. Do not do that — it is a
-regression**, and the reasoning is recorded here so it is not re-proposed:
-
-- `checkout.css` is **not** the card gateway's stylesheet. It sizes the payment
-  icons of all three gateways, which all wrap them in the same
-  `<span class="wcsp-methods">` (`docs/scss-review.md` §1.1). Gating it on the card
-  gateway's own `enabled` would strip the styling from a MobilePay-only or
-  Apple-Pay-only shop.
-- The enqueue lives in the card constructor because the card settings are the
-  primary/shared option, and it runs unconditionally because
-  `WC_Payment_Gateways::init()` does `$gateway = new $gateway();` for every class
-  the `woocommerce_payment_gateways` filter returns, with no `enabled` test in the
-  loop — that filtering happens later, in `get_available_payment_gateways()`.
-  Verified in `.stubs/`; re-read it rather than trusting this paragraph.
-- `WC_Gateway_Scanpay_ApplePay::__construct()` is **not** the sibling to copy. It
-  gates `enqueue_checkout_script` — a script that serves only Apple Pay — on its
-  own `enabled`. A per-gateway asset and a shared one do not take the same guard.
-
-So the residual defect is narrower than "a disabled gateway loads CSS": a shop with
-**all three** Scanpay gateways off still ships `checkout.css`. That is not worth two
-extra option reads per front-end request to close, and "performance is out of scope"
-stands.
-
-**Fix.** Comment only — change no condition. Record at the enqueue what the code
-now silently assumes: that this stylesheet serves all three gateways, that the
-constructor therefore runs whatever `enabled` says (cite
-`WC_Payment_Gateways::init()`), and that gating it on `$this->enabled` would break
-a MobilePay-only shop. Keep the existing comment about reading `$this->settings`
-directly — it explains the `??` and the avoided `get_option()`, and both survive.
-
-**Leave the `wc_scanpay_item_needs_processing` filter on the next lines alone.** It
-must stay unconditional: it is scoped to Scanpay orders by
-`wc_scanpay_is_scanpay_order()`, and a shop that disables the gateway still has
-historical Scanpay orders whose completion behaviour must not change. Say this in
-`HANDOFF-2.md` or the next reader will "finish" the task wrongly.
-
-**Verify**
-
-- Quote the `new $gateway()` loop in `WC_Payment_Gateways::init()` and state that
-  no `enabled` check precedes it.
-- Quote the three gateways' `<span class="wcsp-methods">` icon wrappers, showing
-  the stylesheet is shared.
-- `git diff` touches comment lines only: this task changes no executable code.
-
-**Handoff**
-
-- None: a comment has no runtime surface. If a shop check is wanted anyway, the one
-  worth running is that a MobilePay-only shop still renders sized icons at
-  checkout — the case the abandoned fix would have broken.
 
 ---
 
