@@ -1,5 +1,5 @@
 /**
- * applepay.js: hide the Apple Pay gateway on classic checkouts that cannot pay with it.
+ * applepay.ts: hide the Apple Pay gateway on classic checkouts that cannot pay with it.
  *
  * Blocks makes this decision in checkout.ts, through the payment method's own
  * canMakePayment(). Classic checkout has no equivalent hook, so the same probe runs

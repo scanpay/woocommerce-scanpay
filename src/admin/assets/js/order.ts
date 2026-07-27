@@ -6,16 +6,11 @@
  * action plus a link to the Scanpay dashboard (where refunds are performed).
  */
 
-import { showError, showWarning, buildTable, pluginVersionCheck } from './types/meta';
+import { showError, showWarning, buildTable, pluginVersionCheck } from './util/meta';
 import { __, sprintf } from './util/i18n';
 
 const dom = document.getElementById('wcsp-meta');
 const data = window.ScanpayOrderData;
-
-// Base for the ?x= polls, sent by PHP so the request reaches a real file instead of a
-// path that only resolves with pretty permalinks. The fallback keeps a cached older
-// bundle working against a newer plugin, and collapses '' and undefined together.
-const ep = data.endpoint || '../wp-scanpay/fetch';
 
 type MetaRow = NonNullable<OrderData['meta']>;
 const MONEY_KEYS = ['authorized', 'captured', 'refunded', 'voided'] as const;
@@ -94,6 +89,10 @@ function renderFoot(meta: MetaRow, decimals: number): void {
 	const capturable =
 		isMoney(meta.authorized) &&
 		isMoney(meta.captured) &&
+		// isMoney() first: isZeroMoney() only looks for a digit 1-9, so a malformed
+		// `voided` would read as "not voided" and offer the button on an auth whose
+		// state is unknown. renderFigures() has already surfaced the error.
+		isMoney(meta.voided) &&
 		isZeroMoney(meta.voided) &&
 		fmtMoney(meta.captured, decimals) !== fmtMoney(meta.authorized, decimals);
 
@@ -174,6 +173,12 @@ async function onCapture(ev: Event): Promise<void> {
  * true if the figures were refreshed, false if the sync has not landed yet.
  */
 async function refresh(): Promise<boolean> {
+	// Base for the ?x= polls, sent by PHP so the request reaches a real file instead of a
+	// path that only resolves with pretty permalinks. The fallback keeps a cached older
+	// bundle working against a newer plugin, and collapses '' and undefined together.
+	// Read here, not at module scope: dereferencing `data` up there would throw before the
+	// guard at the bottom of this file ever runs.
+	const ep = data.endpoint || '../wp-scanpay/fetch';
 	const startRev = data.meta ? parseInt(data.meta.rev, 10) : 0;
 	for (let i = 0; i < 3; i++) {
 		try {
@@ -194,6 +199,9 @@ async function refresh(): Promise<boolean> {
 	return false;
 }
 
+// Guarded although order.d.ts types it non-nullable: orders.php prints the payload with
+// wp_add_inline_script() 'before', so it is always there today. Nothing above this line
+// dereferences `data`, which is what keeps the guard meaningful if that ever changes.
 if (dom && data) {
 	renderShell();
 	pluginVersionCheck();

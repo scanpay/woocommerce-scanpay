@@ -23,6 +23,12 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 				WC_SCANPAY_URL . '/public/assets/js/checkout.js',
 				// wc-blocks-checkout provides registerCheckoutBlock() and wp-data the
 				// validation/checkout stores, both used by the subscription terms block.
+				//
+				// Alone among this plugin's scripts, this one carries no 'wp-i18n' and gets no
+				// wp_set_script_translations(): checkout.ts calls __() nowhere, because every
+				// string it renders was translated on this side and travels in the payload
+				// get_payment_method_data() builds. A __() added to that bundle needs both, or
+				// it silently renders English.
 				[ 'wc-blocks-registry', 'wc-blocks-checkout', 'wc-settings', 'wp-data', 'wp-element' ],
 				WC_SCANPAY_VERSION,
 				true

@@ -1,5 +1,5 @@
 /**
- * checkout.js: Manages the integration of Scanpay within the Block-Based Checkout.
+ * checkout.ts: Manages the integration of Scanpay within the Block-Based Checkout.
  * Utilizes the `window` object to interface with the WooCommerce Blocks API.
  */
 

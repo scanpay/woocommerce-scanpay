@@ -4,8 +4,8 @@
 	Every helper no-ops when the meta box is not on the page.
 */
 
-import { checkVersion, isVersionGreater } from '../util/compat';
-import { __ } from '../util/i18n';
+import { checkVersion, isVersionGreater } from './compat';
+import { __ } from './i18n';
 
 /** The alert container, or null when the meta box was not rendered. */
 function alertHead(): HTMLElement | null {

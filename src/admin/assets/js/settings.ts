@@ -1,5 +1,8 @@
 /**
- * 	settings.js: Used in the Scanpay settings page.
+ * settings.ts: the Scanpay gateway settings screens (WooCommerce > Settings > Payments).
+ *
+ * Renders the "last synchronized" indicator and the sync / out-of-date warnings into
+ * #wcsp-set-alert, and drives the "delete data and change API key" button.
  */
 
 /**
@@ -129,13 +132,23 @@ function onReset(ev: Event): void {
 		)
 	);
 	if (!ok) return;
+	// Captured, not re-translated: PHP owns this label
+	// (abstract-wc-gateway-scanpay-base.php), and a second copy of the msgid here would be
+	// a catalog entry that has to stay in step with it for nothing. order.ts does the same.
+	const label = btn.textContent;
 	btn.disabled = true;
 	btn.textContent = __('Deleting…', 'scanpay-for-woocommerce');
 	postReset(btn.dataset.nonce ?? '')
-		.then(() => window.location.reload())
+		.then(() => {
+			// The ping cache outlives the tables it describes. Left in place, a timestamp
+			// under 5 minutes old lets the reloaded page report "Synchronized N seconds
+			// ago" for a shop whose data was just deleted.
+			localStorage.removeItem('scanpay_lastPing');
+			window.location.reload();
+		})
 		.catch((err) => {
 			btn.disabled = false;
-			btn.textContent = __('Delete data and change API key', 'scanpay-for-woocommerce');
+			btn.textContent = label;
 			if (msg) {
 				msg.textContent = sprintf(
 					/* translators: %s is the raw error code the server returned, which is not translated. */
@@ -161,9 +174,11 @@ if (alertBox.dataset.shopid === '0') {
 
 	const field = document.getElementById('woocommerce_scanpay_apikey') as HTMLElement;
 	if (field) {
-		// Get the <td> element that contains the input field
+		// Appended, never `innerHTML +=`: that serialises the cell and re-parses it, which
+		// replaces the API key <input> itself -- dropping anything already typed into it
+		// along with the listeners WooCommerce's settings JS has bound to it.
 		const td = field.closest('td');
-		if (td) td.innerHTML += html;
+		if (td) td.insertAdjacentHTML('beforeend', html);
 	}
 } else {
 	checkMtime();

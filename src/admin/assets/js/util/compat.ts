@@ -10,14 +10,16 @@ function safeJsonParse<T>(str: string | null, defaultValue: T): T {
 /*
 	Check if the system is in sync with the backend (wp-scanpay-fetch-ping.php)
 	Backend return a unixtime (secs) of the last ping or 0 if no ping has been received.
+
+	The 5-minute cache below matches Scanpay's keepalive interval, so a hit is never
+	older than one expected ping. A reset deletes the rows it summarises without
+	touching it, so settings.ts removes the key on that path.
 */
-export function getLastSync(secret: string, endpoint: string, force = false): Promise<number> {
-	if (!force) {
-		const cached = localStorage.getItem('scanpay_lastPing');
-		const threshold = Math.floor(Date.now() / 1000) - 300;
-		if (cached && parseInt(cached, 10) > threshold) {
-			return Promise.resolve(parseInt(cached, 10));
-		}
+export function getLastSync(secret: string, endpoint: string): Promise<number> {
+	const cached = localStorage.getItem('scanpay_lastPing');
+	const threshold = Math.floor(Date.now() / 1000) - 300;
+	if (cached && parseInt(cached, 10) > threshold) {
+		return Promise.resolve(parseInt(cached, 10));
 	}
 	// The base is a parameter for the reason `secret` already is: this helper is shared
 	// and knows nothing about which screen called it, and #wcsp-set-alert exists on
@@ -75,11 +77,12 @@ export function checkVersion(): Promise<string> {
 /**
  * Split a dotted version into numbers.
  *
- * parseInt (not Number) so a pre-release suffix is stripped rather than poisoning
- * the segment: Number('1-rc1') is NaN, parseInt('1-rc1', 10) is 1. Anything still
- * unparseable -- an unsubstituted '{{ VERSION }}' in unbuilt src/ -- becomes 0.
- * Every NaN comparison below returns false, so the update banner would silently
- * never fire.
+ * parseInt (not Number) so a pre-release suffix is stripped rather than poisoning the
+ * segment: Number('1-rc1') is NaN, parseInt('1-rc1', 10) is 1. Anything still unparseable
+ * is normalised to 0 rather than left as NaN, because NaN loses every comparison in
+ * isVersionGreater() and the banner would then silently never fire. The only value that
+ * reaches that path is an unsubstituted '{{ VERSION }}' in unbuilt src/, which compares
+ * as 0 -- so in development the banner fires on every load instead.
  */
 function parseVersion(version: string): number[] {
 	return version.split('.').map((part) => {

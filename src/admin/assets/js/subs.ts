@@ -9,7 +9,7 @@
  * are no retries/idempotency/nxt columns, so the box surfaces only those fields.
  */
 
-import { showWarning, buildTable, pluginVersionCheck } from './types/meta';
+import { showWarning, buildTable, pluginVersionCheck } from './util/meta';
 import { __, sprintf } from './util/i18n';
 
 interface SubRow {
