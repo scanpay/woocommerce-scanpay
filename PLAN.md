@@ -1291,9 +1291,10 @@ not "fix" these**, and note its standing rule that anything else odd is answered
 a comment at the line itself — read that comment before flagging), this file's
 header including **Verified sound, do not re-audit**,
 `docs/performance-review.md` (its §5 and §6 record what was measured and
-deliberately left alone), `docs/ts-review.md` (its §4 does the same for the
-TypeScript layer, and several of its entries land on PHP files — the `?x=`
-endpoints and the Blocks enqueue site), `docs/requirements.md`, `HANDOFF-2.md`,
+deliberately left alone), `docs/ts-review.md` and `docs/scss-review.md` (their §4s do
+the same for the TypeScript and stylesheet layers, and several of their entries
+land on PHP files — the `?x=` endpoints, the Blocks enqueue site, the card
+gateway's stylesheet enqueue), `docs/requirements.md`, `HANDOFF-2.md`,
 and `HANDOFF.md` (runs 1-2). Everything
 those establish is out of scope. A review that re-discovers a settled decision has
 produced noise, and this is the third run to face that risk — three of the previous
