@@ -261,7 +261,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 
 		$wc_totalf = $wco->get_total( 'edit' );
 		$wc_total  = (string) $wc_totalf;
-		if ( $sum !== $wc_total && wc_scanpay_cmpmoney( $sum, $wc_total ) !== 0 ) {
+		if ( $sum !== $wc_total && ! wc_scanpay_money_equals( $sum, $wc_total ) ) {
 			$data['items'] = [
 				[
 					'name'  => 'Total',

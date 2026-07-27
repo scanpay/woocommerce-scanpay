@@ -140,7 +140,7 @@ final class WCS_Scanpay_Charge {
 		 */
 		$amt_str = wc_format_decimal( $amount, wc_get_price_decimals() );
 		$tot_str = (string) $wco->get_total( 'edit' );
-		// Pre-guard before cmpmoney(), which throws InvalidArgumentException on non-money
+		// Pre-guard before money_equals(), which throws InvalidArgumentException on non-money
 		// input. The hook contains that throw, but it would arrive as an opaque "unhandled
 		// error"; this names what was wrong. WC_Scanpay_Sync pre-guards for the same reason.
 		if ( ! wc_scanpay_is_money( $amt_str ) || ! wc_scanpay_is_money( $tot_str ) ) {
@@ -159,7 +159,7 @@ final class WCS_Scanpay_Charge {
 		// charge() builds the payload from the order total, so a scheduler amount that
 		// disagrees with it means we'd charge something other than what WCS asked for.
 		// Fail loud instead of silently charging the order total; WCS owns retry scheduling.
-		if ( wc_scanpay_cmpmoney( $amt_str, $tot_str ) !== 0 ) {
+		if ( ! wc_scanpay_money_equals( $amt_str, $tot_str ) ) {
 			wcs_scanpay_fail_renewal(
 				$wco,
 				"scheduled charge: amount mismatch on #$oid: WCS=$amt_str, order_total=$tot_str (subid=$subid)",
@@ -267,7 +267,7 @@ final class WCS_Scanpay_Charge {
 			$autocapture         = $this->settings['wc_autocapture'] ?? 'completed';
 			$data['autocapture'] = 'on' === $autocapture || ( 'completed' === $autocapture && $auto_completed );
 			$wc_total            = (string) $wco->get_total( 'edit' );
-			if ( $sum !== $wc_total && wc_scanpay_cmpmoney( $sum, $wc_total ) !== 0 ) {
+			if ( $sum !== $wc_total && ! wc_scanpay_money_equals( $sum, $wc_total ) ) {
 				$data['items'] = [
 					[
 						'name'  => 'Total',

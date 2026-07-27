@@ -176,7 +176,6 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 15 | `wc_scanpay_money_equals()` has no callers | `library/math.php` + 3 call sites |
 | 16 | `wc_scanpay_subref()` takes `object` | `public/generate-payment-link.php` |
 | 17 | Four local inconsistencies | `admin/orders.php`, `admin/ajax/wp-scanpay-fetch-{meta,sub}.php` |
 | 18 | Comment audit against the documented standard | all 35 PHP files |
@@ -187,59 +186,6 @@ Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 15 — `wc_scanpay_money_equals()` has no callers
-
-**File:** `src/library/math.php` and three call sites
-**Anchor:** `function wc_scanpay_money_equals( string $a, string $b ): bool`
-(~`:187`)
-
-It is called from nowhere. The three places asking whether two money strings are
-equal spell it as a comparison, all `wc_scanpay_cmpmoney( … ) !== 0`:
-
-- `class-wcs-scanpay-charge.php`, `scheduled_charge()`: `cmpmoney( $amt_str, $tot_str ) !== 0`
-- `class-wcs-scanpay-charge.php`, `charge()`: `$sum !== $wc_total && cmpmoney( $sum, $wc_total ) !== 0`
-- `generate-payment-link.php`: the same `$sum !== $wc_total &&` shape
-
-(The tree's other `cmpmoney()` calls test `<`, `>` or `<= 0` and are not equality
-tests. Leave them.)
-
-So either the function is the better spelling those three should use, or it is
-dead. It cannot be neither.
-
-**Decided: adopt it.** Replace the three tests with `! wc_scanpay_money_equals( … )`.
-Do not delete the function instead — that fork is closed.
-
-Both functions call the same `wc_scanpay_dighomogenize()`; after it, `cmpmoney()`
-adds `strcmp()` plus up to three sign branches where `money_equals()` does two
-`===`. Measured here over 1.6 M calls across four representative pairs,
-`money_equals()` is consistently **2–4 % faster** — about 14 ns per call, so the
-speed is real but immaterial at three call sites. Adopt it for the intent it
-states; the benchmark only settles that it costs nothing. Do not re-run it.
-
-The two sites guarding with `$sum !== $wc_total &&` keep that fast path unless you
-say why not. `AGENTS.md` no longer enumerates the money-API function names beside
-`src/library/math.php` (commit `685a78e` trimmed the list), so this needs no guide
-edit — confirm that, then leave the guide alone.
-
-**Do not** change `math.php`'s implementation either way. The file is settled and
-`docs/performance-review.md` §6.2 says so.
-
-**Verify**
-
-- `grep -rn "money_equals\|cmpmoney" src/` before and after: three equality tests
-  become `money_equals()`, and the `<`/`>`/`<= 0` comparisons are untouched.
-- Re-confirm the two agree on the cases the sites see. Already checked here — they
-  agree on identical strings, on `'1250.0'` vs `'1250.00'`, on unequal amounts and
-  on `'0'` vs `'-0.00'` — so this is a cheap re-run, not a derivation. `php -r`,
-  loading `math.php` after `define( 'ABSPATH', … )`.
-
-**Handoff**
-
-- A renewal whose WCS amount matches the order total still charges; one that
-  disagrees still fails with the mismatch note.
 
 ---
 
