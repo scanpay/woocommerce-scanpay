@@ -228,9 +228,21 @@ function wcs_scanpay_validate_terms( array $data, WP_Error $errors ): void {
 	if ( '' === wcs_scanpay_terms_url() ) {
 		return; // Terms checkbox is disabled or its configured page is not published.
 	}
+	/*
+	 * Enforce only what was rendered. wcs_scanpay_checkout_terms() emits a
+	 * wcssp-terms-field marker beside the checkbox, so its absence means the render hook
+	 * never ran -- the terms area is filtered away or the theme overrides the template --
+	 * and demanding the box here would fail every classic checkout with a subscription in
+	 * the cart, with nothing on the page to tick.
+	 *
+	 * The cost is the one WooCommerce accepts for its own terms-field
+	 * (class-wc-checkout.php:794, :981): a crafted POST that omits the marker skips the
+	 * check. Blocks is unaffected -- it posts extensions.scanpay.terms and never this
+	 * marker, and wcs_scanpay_blocks_validate_terms() stays strict.
+	 */
 	// The checkout nonce is verified by WC_Checkout::process_checkout() before this action.
 	// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotValidated
-	if ( empty( $_POST['wcssp-terms'] ) ) {
+	if ( empty( $_POST['wcssp-terms'] ) && ! empty( $_POST['wcssp-terms-field'] ) ) {
 		$errors->add( 'wcssp-terms', __( 'You must accept the subscription terms to complete your purchase.', 'scanpay-for-woocommerce' ) );
 	}
 }

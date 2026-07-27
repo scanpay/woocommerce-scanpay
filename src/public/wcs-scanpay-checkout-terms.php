@@ -35,5 +35,16 @@ if (
 				'label'       => $txt,
 			]
 		);
+		/*
+		 * The marker that says this checkbox was rendered, copied from WooCommerce's own
+		 * terms field (templates/checkout/terms.php:33). Everything here runs from
+		 * woocommerce_checkout_after_terms_and_conditions, which that template fires at
+		 * :39 -- inside the `apply_filters( 'woocommerce_checkout_show_terms', true )`
+		 * block opened at :11. A store filtering that to false, or a theme overriding
+		 * checkout/terms.php or checkout/payment.php without the hook, renders nothing,
+		 * while woocommerce_after_checkout_validation still fires; the marker is how
+		 * wcs_scanpay_validate_terms() tells that apart from an unticked box.
+		 */
+		echo '<input type="hidden" name="wcssp-terms-field" value="1" />';
 	}
 }
