@@ -9,6 +9,14 @@ require_once WC_SCANPAY_DIR . '/library/functions.php';
 require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
 
 final class WC_Scanpay_Capture {
+	/**
+	 * What this request already decided about an order, keyed by order id: true for a
+	 * capture that succeeded or correctly found nothing left to capture, false for an
+	 * attempt that failed and was handled through the on-hold path. Owned by
+	 * capture_or_hold(); the map only ever holds booleans, so isset() is enough.
+	 *
+	 * @var array<int, bool>
+	 */
 	private static array $processed           = [];
 	private static ?WC_Scanpay_Client $client = null;
 	private static int $shopid                = 0;
@@ -30,26 +38,18 @@ final class WC_Scanpay_Capture {
 	/**
 	 * Attempts to capture payment for the given WooCommerce order.
 	 *
-	 * Throws on any failure (fail-loud primitive). Callers should go through
-	 * capture_or_hold(), which translates failures into an 'on-hold' status rather
-	 * than letting them surface as an unhandled Throwable or a 'failed' order.
+	 * Throws on any failure (fail-loud primitive). Only capture_or_hold() may call it:
+	 * that wrapper owns the per-request memo and the ownership check, and translates a
+	 * failure into an 'on-hold' status rather than letting it surface as an unhandled
+	 * Throwable or a 'failed' order. Returning is the only success signal there is --
+	 * the method stays void, so it cannot report "nothing to do" any other way.
 	 *
 	 * @throws \RuntimeException On an unsynced payment row, misconfiguration, a lookup
 	 *                           error, or a voided auth.
 	 */
 	private static function capture( WC_Order $wco ): void {
-		if ( ! wc_scanpay_is_scanpay_order( $wco ) ) {
-			return;
-		}
 		$oid = (int) $wco->get_id();
-		// One capture per order per request: more than one path can fire for the same
-		// completion (status hook, bulk action, mark-completed intercept, meta box).
-		if ( isset( self::$processed[ $oid ] ) ) {
-			scanpay_log( 'debug', "Skipping capture: already processed order #$oid" );
-			return;
-		}
 		self::init();
-		self::$processed[ $oid ] = true;
 
 		$order_shopid = (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' );
 		if ( $order_shopid !== self::$shopid ) {
@@ -118,15 +118,44 @@ final class WC_Scanpay_Capture {
 	 * @return bool True if the capture succeeded, so the caller may complete the order.
 	 */
 	public static function capture_or_hold( WC_Order $wco ): bool {
+		// Someone else's order: no attempt is made and nothing is recorded, since neither
+		// meaning of a recorded true fits it. The wrapper has to answer this, because
+		// capture() is void -- from outside, its early return and a completed capture
+		// look the same.
+		if ( ! wc_scanpay_is_scanpay_order( $wco ) ) {
+			return true;
+		}
+		$oid = (int) $wco->get_id();
+
+		// One capture per order per request: more than one path can fire for the same
+		// completion (status hook, bulk action, mark-completed intercept, meta box), and
+		// the bulk handler does not deduplicate its id list. A repeat call answers what
+		// actually happened -- a failed attempt that read as a success here would let the
+		// caller complete an order that was never captured.
+		if ( isset( self::$processed[ $oid ] ) ) {
+			scanpay_log( 'debug', "Skipping capture: order #$oid already processed in this request" );
+			return self::$processed[ $oid ];
+		}
 		try {
 			self::capture( $wco );
+			self::$processed[ $oid ] = true;
 			return true;
 		} catch ( \Throwable $e ) {
+			// Recorded first: the attempt has failed whether or not the log, the note and
+			// the status write below get through.
+			self::$processed[ $oid ] = false;
 			// Any failure -- including the "payment not synced yet" race (a merchant
 			// completing an order before the first ping) -- parks the order rather than
 			// failing it. The next ping reconciles it via payment_complete().
-			scanpay_log( 'error', 'Capture on order #' . $wco->get_id() . ' failed: ' . $e->getMessage() );
-			$wco->update_status( 'on-hold', 'Scanpay capture failed: ' . $e->getMessage(), true );
+			scanpay_log( 'error', "Capture on order #$oid failed: " . $e->getMessage() );
+			try {
+				$wco->update_status( 'on-hold', 'Scanpay capture failed: ' . $e->getMessage(), true );
+			} catch ( \Throwable $status_error ) {
+				// WooCommerce could not persist the fallback status. Nothing to retry: the
+				// capture failed either way, and this must still return the recorded false
+				// rather than escape into a caller that has no handler for it.
+				scanpay_log( 'error', "Could not park order #$oid on hold: " . $status_error->getMessage() );
+			}
 			return false;
 		}
 	}
