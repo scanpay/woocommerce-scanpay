@@ -35,6 +35,12 @@ function wc_scanpay_subref( int $oid, object $wco ): ?string {
 		 * Switching an existing subscription to us. No new order is created here, only
 		 * the subscription's payment method changes -- so $oid is the WCS subscription
 		 * id, not an order id.
+		 *
+		 * Reachable only from wc_scanpay_process_payment()'s method-change branch, which
+		 * returns above the item build. The other call site sits below that return and
+		 * can never see a method change, so this branch looks dead from there: it is not,
+		 * and the call stays rather than being inlined, because this is the one place the
+		 * wcs[] ref format is written.
 		 */
 		return 'wcs[]' . $oid;
 	}
@@ -160,6 +166,43 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 				// rather than leaving a stale one.
 				$wco->add_meta_data( WC_SCANPAY_URI_COMPLETE, $complete && $data['autocapture'], true );
 				$wco->save_meta_data();
+			}
+			return [
+				'result'   => 'success',
+				'redirect' => $link,
+			];
+		}
+		if ( wcs_scanpay_is_payment_method_change() ) {
+			/*
+			 * A method change on a subscription we do not know yet -- no _scanpay_subid,
+			 * so it is being moved to us from another gateway, which is what "change
+			 * payment method" is normally used for. It must register a card and charge
+			 * nothing, and it cannot fall through to the item build below:
+			 *
+			 * - $wco is the WCS subscription, not an order. WCS zeroes the amount with the
+			 *   woocommerce_subscription_get_total filter, but WC_Data::get_prop() applies
+			 *   {hook_prefix}{prop} in the 'view' context only, so get_total( 'edit' ) and
+			 *   the get_line_total() loop below both read the real recurring total and
+			 *   would bill it now.
+			 * - Every _scanpay_* key written here would land on the subscription, and
+			 *   WC_Subscriptions_Data_Copier excludes only WC/WCS internals -- so it would
+			 *   be copied onto every renewal order WCS creates afterwards, a stored
+			 *   completion intent included.
+			 * - The successurl is the WCS-filtered My Account URL and carries no order
+			 *   key, so thank-you args appended to it are litter the wait never reads.
+			 *
+			 * /v1/new with a subscriber.ref and no items creates a subscriber and nothing
+			 * else: no transaction, and the orderid riding along is discarded by the
+			 * backend rather than stored, so nothing comes back through the seq. That is
+			 * why orderid and autocapture can stay as computed above -- there is nothing
+			 * to capture and nothing for sync to resolve.
+			 */
+			$data['subscriber'] = [ 'ref' => wc_scanpay_subref( $oid, $wco ) ];
+			try {
+				$link = $client->new_url( $data );
+			} catch ( Exception $e ) {
+				scanpay_log( 'error', 'Payment link creation failed: ' . trim( $e->getMessage() ) );
+				throw new Exception( esc_html__( 'Error: We could not create a link to the payment window. Please wait a moment and try again.', 'scanpay-for-woocommerce' ) );
 			}
 			return [
 				'result'   => 'success',
