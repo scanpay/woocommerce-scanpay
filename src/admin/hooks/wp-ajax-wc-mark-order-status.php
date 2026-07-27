@@ -76,7 +76,7 @@ if ( ! str_starts_with( $wco->get_payment_method( 'edit' ), 'scanpay' ) ) {
 // WC_AJAX::mark_order_status(), which still completes and untrashes it. What this buys is
 // that no capture runs, so the customer is not charged; the untrash is core behaviour for
 // an order we declined and is not ours to stop from here.
-if ( in_array( $wco->get_status(), [ 'completed', 'trash' ], true ) ) {
+if ( in_array( $wco->get_status( 'edit' ), [ 'completed', 'trash' ], true ) ) {
 	return;
 }
 

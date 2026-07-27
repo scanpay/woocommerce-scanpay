@@ -176,7 +176,6 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 6 | Three status guards read through a third-party filter | `admin/hooks/wp-bulk-actions.php`, `admin/hooks/wp-ajax-wc-mark-order-status.php`, `library/class-wc-scanpay-sync.php` |
 | 7 | `WC_Scanpay_Sync::$settings` is public for no reader | `library/class-wc-scanpay-sync.php` |
 | 8 | The 2.1.3 migration cannot finish on a large shop | `upgrade.php` |
 | 9 | A site-wide menu removal contradicts our stated policy | `woocommerce-scanpay.php` |
@@ -196,56 +195,6 @@ Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 6 — Three status guards read through a third-party filter
-
-**Files:** `src/admin/hooks/wp-bulk-actions.php`,
-`src/admin/hooks/wp-ajax-wc-mark-order-status.php`,
-`src/library/class-wc-scanpay-sync.php`
-
-Three decisions read `get_status()` in the `view` context, where
-`woocommerce_order_get_status` is a third party's answer:
-
-| Site | Anchor | Its own comment |
-| --- | --- | --- |
-| `wp-bulk-actions.php` (~`:44`) | `in_array( $wco->get_status(), [ 'completed', 'trash' ], true )` | "the last line of defense … capturing a trashed order would charge the customer and untrash it" |
-| `wp-ajax-wc-mark-order-status.php` (~`:79`) | same guard | the row-action nonce is per *action*, so one valid link is reusable for any id, "a trashed one included" |
-| `class-wc-scanpay-sync.php` (~`:490`) | `'pending' !== $parent->get_status()` | gates writing `completed` onto a subscription's parent order |
-
-A guard whose comment calls it a last line of defence should not read through a
-filter. Sites 1 and 2 are the security-shaped ones.
-
-**Fix.** `get_status( 'edit' )` at all three.
-
-Site 3 needs one extra sentence and a comment saying so: in `view`,
-`WC_Abstract_Order::get_status()` substitutes
-`apply_filters( 'woocommerce_default_order_status', … )` for an empty status, so an
-order with no status currently reads as `'pending'` and takes the branch; under
-`'edit'` it reads `''` and does not. That is correct — an order with no status is
-not a pending one, and the branch writes `completed` — but it is a behaviour change
-and must be recorded as one. Sites 1 and 2 have no such nuance.
-
-**Do not** touch `generate-payment-link.php`'s
-`( $wco->get_status() === 'pending' ) ? 'wc-pending' : 'all'`. It picks a query
-filter for `wc_get_orders()`, not a guard, and the substitution there is harmless.
-Say so in `HANDOFF-2.md` so it is not reopened.
-
-**Verify**
-
-- Quote the `'view' === $context` branch performing the substitution.
-- `grep -rn "get_status()" src/` after the change: four sites before, only
-  `generate-payment-link.php`'s remains.
-- Confirm neither context adds or strips a `wc-` prefix on `WC_Order` — that
-  prefix is in the database column, not the prop — so the compared strings are
-  unchanged.
-
-**Handoff**
-
-- "Capture and complete" over a selection including a trashed order still skips
-  it; the row action on a trashed order still declines.
-- A subscription parent with a zero total is still completed by `subscriber()`.
 
 ---
 

@@ -486,8 +486,15 @@ final class WC_Scanpay_Sync {
 
 			// Free trial or a 100% coupon: the parent order carries no payment, so nothing
 			// else will ever complete it.
+			//
+			// 'edit' because the branch writes 'completed', and it is a deliberate behaviour
+			// change: in 'view', WC_Abstract_Order::get_status() substitutes
+			// apply_filters( 'woocommerce_default_order_status', OrderStatus::PENDING ) for an
+			// empty status, so an order with no status read as 'pending' and took the branch.
+			// Under 'edit' it reads '' and is skipped, which is right -- a statusless order is
+			// not a pending one.
 			$parent = $wcs_sub->get_parent();
-			if ( ! $parent || 'pending' !== $parent->get_status() ) {
+			if ( ! $parent || 'pending' !== $parent->get_status( 'edit' ) ) {
 				continue;
 			}
 			// See sync(): a corrupt local total must not throw and wedge the sync loop.
