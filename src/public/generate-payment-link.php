@@ -122,6 +122,27 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 				// true under 'on', and deliberately left false under 'off'.
 				$data['autocapture'] = true;
 			}
+			if ( $paid_renewal ) {
+				/*
+				 * Route the return through the same bounded wait an ordinary paid order gets.
+				 * This payment does create order data: sync writes the transaction id onto the
+				 * order named by $data['orderid'], which here is the renewal order, so without
+				 * the wait the order-received page can render before the ping lands. Type 'wc'
+				 * selects the paid-order wait; scanpay_ref is read only by the free-trial
+				 * branch, so there is nothing to invent. The WooCommerce order key is already
+				 * in the filtered URL, so the handler's ownership gate still applies.
+				 *
+				 * A pure method change keeps the WCS-filtered My Account URL untouched: it
+				 * creates no order transaction, so there is nothing for it to wait on.
+				 */
+				$data['successurl'] = add_query_arg(
+					[
+						'scanpay_thankyou' => $oid,
+						'scanpay_type'     => 'wc',
+					],
+					$data['successurl']
+				);
+			}
 			try {
 				$link = $client->renew( $subid, $data );
 			} catch ( Exception $e ) {
