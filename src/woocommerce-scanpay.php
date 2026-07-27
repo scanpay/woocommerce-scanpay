@@ -53,6 +53,10 @@ function scanpay_log( string $level, string $msg ): void {
  */
 if ( isset( $_SERVER['HTTP_X_SIGNATURE'] ) ) {
 	function wc_scanpay_handle_ping(): void {
+		// Not left to wc_scanpay_init() on 'init': the return below skips the whole
+		// bootstrap, so that hook is never registered on a ping. Sync persists three
+		// translated order notes from this very request, which no later one repairs.
+		load_plugin_textdomain( 'scanpay-for-woocommerce', false, 'scanpay-for-woocommerce/languages' );
 		require WC_SCANPAY_DIR . '/callback/wc-scanpay-ping.php';
 	}
 	add_action( 'woocommerce_api_wc_scanpay', 'wc_scanpay_handle_ping' );
