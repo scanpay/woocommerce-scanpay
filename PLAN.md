@@ -288,55 +288,6 @@ the head of the file), **S** item 3 (a log string), **T** (the `$subid` branch).
 Every one of those anchors sits below the previous task's edit or above it, never
 inside it — but the line numbers move, so locate the symbol.
 
-## Task K — The 2.2.0 migration branch assumes an array
-
-**File:** `src/upgrade.php:37-49` — as task H left it.
-
-```php
-$old      = get_option( WC_SCANPAY_URI_SETTINGS );
-$settings = array_merge( [ … ], $old );
-```
-
-`get_option()` answers `false` for an absent option, and `array_merge()` with a
-non-array is a `TypeError` on PHP 8 — not a warning, not a skipped merge. Both
-neighbouring branches already guard: the `< 2.0.0` one reads every key through
-`??` (`:21-35`), and the `< 2.5.0` one opens with
-`if ( ! is_array( $settings ) ) { $settings = []; }` (`:101-104`).
-
-The blast radius is the whole file. The throw escapes to the loader's
-`catch ( Throwable )` (`woocommerce-scanpay.php:417-423`), which deliberately
-keeps the `wc_scanpay_updating` transient — so the store retries the *entire*
-migration every five minutes, forever, and never reaches the 2.1.3, 2.5.0 or
-3.0.0 branches. `wc_autocapture` is never derived and the obsolete 2.x columns
-are never dropped, which under a strict SQL mode fails every `scanpay_meta`
-insert and pins the sync cursor.
-
-Reachable only with `wc_scanpay_version` in `[2.0.0, 2.2.0)` and the settings
-option absent or scalar — a partially restored database, a `wp option delete`, a
-selective staging import. Cold, but cheap to close.
-
-**The fix.** Normalize before the merge, in the shape `:101-104` uses. Keep
-`array_merge( [ defaults ], $old )` as it is — stored values must keep winning.
-One comment line: what a non-array means here, and that a `TypeError` takes down
-the whole upgrade rather than this branch.
-
-### Verify
-
-- `php -r 'array_merge( [], false );'` and paste the exact `TypeError`.
-- Read `woocommerce-scanpay.php:410-424` and state what the loader does with a
-  throwing `upgrade.php`: the transient is kept on purpose, so the cadence is
-  five minutes and the version is never stamped.
-- Confirm the three later branches and the version stamp are all downstream of
-  the throw, so none of them runs.
-- Grep the file for any other unguarded read of the settings option and report
-  the result either way.
-
-### Handoff
-
-- Nothing to run on a shop. Optional: set `wc_scanpay_version` to `2.1.0`, delete
-  `woocommerce_scanpay_settings`, load wp-admin, and confirm the upgrade
-  completes instead of logging `Upgrade failed:` every five minutes.
-
 ## Task L — The seq-row seed is the one write nothing checks
 
 **File:** `src/install.php:81-86` — as task H left it.

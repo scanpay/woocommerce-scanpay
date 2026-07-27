@@ -71,7 +71,15 @@ if ( version_compare( $version, '2.0.0', '<' ) ) {
 	update_option( WC_SCANPAY_URI_SETTINGS, $arr, true );
 } elseif ( version_compare( $version, '2.2.0', '<' ) ) {
 	// Backfill the settings added in 2.2.0; array_merge lets stored values win.
-	$old      = get_option( WC_SCANPAY_URI_SETTINGS );
+	$old = get_option( WC_SCANPAY_URI_SETTINGS );
+	// An absent or scalar option -- a partially restored database, a wp option delete --
+	// is an array_merge() TypeError on PHP 8, not a skipped merge, and it would take down
+	// the whole file: the loader keeps its transient, so every branch below this one, the
+	// version stamp included, is retried and re-thrown every five minutes forever. Same
+	// shape as the 2.5.0 branch's guard below.
+	if ( ! is_array( $old ) ) {
+		$old = [];
+	}
 	$settings = array_merge(
 		[
 			'wc_complete_virtual'  => 'no',
