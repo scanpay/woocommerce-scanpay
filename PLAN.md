@@ -24,6 +24,8 @@ For each task:
    slurp the file; it is around the size where a whole-file read comes back
    truncated, and you would silently get its first half.
 2. Confirm the working tree is clean and the previous task's commit is `HEAD`.
+   For the first task of the run there is no such commit: `HEAD` is then the
+   commit this file was last revised in — `git log -1 --oneline -- PLAN.md`.
 3. Implement it, in `src/` only — `build/` is generated.
 4. Run `pnpm phpcs` (autofix `pnpm phpcbf`) and
    `find src -type f -name '*.php' -print0 | sort -z | xargs -0 -n1 php -l`,
@@ -32,9 +34,10 @@ For each task:
    the start of this run, so any diagnostic it prints is yours.
 5. Do the task's **Verify** bullets, and write those findings plus its
    **Handoff** list into `HANDOFF.md` at the repo root. That file is gitignored
-   — never `git add` it. Head the entry `## Task X — <summary>`: `HANDOFF.md`
-   already carries a previous run's tasks A–O, so the summary is what tells the
-   two runs' entries apart.
+   — never `git add` it, and create it if it is not there. It is absent as this
+   run begins, so task A starts it; do not go looking for an earlier run's
+   copy. Head each entry `## Task X — <summary>`, so the entries stay
+   distinguishable if a later run appends its own A–L to the same file.
 6. Delete the task's section from this file. Every section is written to stand
    on its own, so no later task needs one back — but if you do want a landed
    task's reasoning, it is in `git log -p -- PLAN.md`, not lost.
@@ -74,7 +77,9 @@ checkout. So each task splits its checks:
 Fabricating a handoff result, or calling a task verified because its static half
 passed, is worse than leaving it open.
 
-Upstream source is in `.stubs/` — read it instead of guessing. WooCommerce
+Upstream source is in `.stubs/` — read it instead of guessing. It is gitignored
+and machine-local, so if it is not there the run is blocked; that is not licence
+to answer an upstream question from memory. WooCommerce
 citations resolve directly (`.stubs/woocommerce/includes/class-wc-order.php`),
 except the abstracts, which sit one level down
 (`.stubs/woocommerce/includes/abstracts/abstract-wc-payment-gateway.php`) and
@@ -305,7 +310,25 @@ trigger `install.php`.
   `parent::process_admin_options()` still sees `WC_Settings_API`, not the card.
 - Confirm PHP accepts both signatures against their ancestors: `php -l` on each
   file, plus loading the classes together so the card is checked against the
-  typed base, not just parsed.
+  typed base, not just parsed. `php -l` alone would not catch it — an
+  incompatible override is a runtime error at class-declaration time. Both files
+  `exit()` without `ABSPATH`, reference two `WC_SCANPAY_*` constants and extend
+  a WooCommerce class, so the load needs a stub harness. This one works today
+  and prints `'void'` / `NULL` before the change, `'bool'` / `'bool'` after:
+
+  ```php
+  define( 'ABSPATH', '/tmp/' );
+  define( 'WC_SCANPAY_DIR', __DIR__ . '/src' );  // repo root
+  define( 'WC_SCANPAY_URL', 'https://example.test' );
+  abstract class WC_Payment_Gateway {}
+  require WC_SCANPAY_DIR . '/gateways/abstract-wc-gateway-scanpay-base.php';
+  require WC_SCANPAY_DIR . '/gateways/class-wc-gateway-scanpay-card.php';
+  echo (string) ( new ReflectionMethod( 'WC_Gateway_Scanpay_Card', 'process_admin_options' ) )->getReturnType(), "\n";
+  ```
+
+  Reaching the `echo` at all is the check: an incompatible override fatals on
+  the second `require`. Keep the harness out of the repo — write it under the
+  session's scratch directory, not `src/`.
 - `pnpm phpcs` clean.
 
 ### Handoff
@@ -429,7 +452,10 @@ file because WordPress is the one including it — so deriving the value fixes t
 symlinked-checkout case rather than merely surviving a rename.
 
 Task C adds a second copy of the languages path, which is why both call sites
-move together now rather than earlier.
+move together now rather than earlier. **This task therefore requires C to have
+landed** — it is the plan's only hard dependency. If C was blocked, there is one
+`load_plugin_textdomain()` call rather than two and step 1 no longer describes
+the file: block this task as well rather than adapting it.
 
 ### Fix
 
