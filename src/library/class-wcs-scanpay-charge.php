@@ -256,6 +256,10 @@ final class WCS_Scanpay_Charge {
 					];
 				}
 			}
+			// Settling at Scanpay, not completing in WooCommerce: an order WooCommerce will
+			// never have to wait on may as well capture now. $is_virtual folds in
+			// wc_complete_virtual, which is why the WooCommerce completion decision below is
+			// wcs_scanpay_wants_completion() rather than a copy of this expression.
 			$auto_completed      = $is_virtual || 'yes' === ( $this->settings['wcs_complete_renewal'] ?? 'no' );
 			$autocapture         = $this->settings['wc_autocapture'] ?? 'completed';
 			$data['autocapture'] = 'on' === $autocapture || ( 'completed' === $autocapture && $auto_completed );
@@ -296,6 +300,17 @@ final class WCS_Scanpay_Charge {
 				throw new \RuntimeException( "order #$oid has no creation date" );
 			}
 			$idem = $this->idempotency_key( $oid, $subid, $created->getTimestamp() );
+			// Persisted before the charge, and after the already-paid guard so it is never
+			// written for an order this call declines to charge. Durable, because the money
+			// moves next: if the process dies here, sync still knows what this attempt asked
+			// for. A write that throws lands in the catch and fails the renewal, which is the
+			// right outcome -- an intent we could not record is one sync would not honour.
+			$wco->add_meta_data(
+				WC_SCANPAY_URI_COMPLETE,
+				$data['autocapture'] && wcs_scanpay_wants_completion( $this->settings, 'renewal' ),
+				true
+			);
+			$wco->save_meta_data();
 			$this->client->charge( $subid, $data, $idem );
 		} catch ( \Throwable $e ) {
 			// \Throwable, not \Exception: an Error or TypeError here is as fatal to the

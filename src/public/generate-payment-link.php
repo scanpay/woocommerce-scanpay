@@ -25,10 +25,7 @@ function wc_scanpay_phone_prefixer( string $phone, string $country ): string {
 }
 
 function wc_scanpay_subref( int $oid, object $wco ): ?string {
-	if (
-		class_exists( 'WC_Subscriptions_Change_Payment_Gateway', false )
-		&& WC_Subscriptions_Change_Payment_Gateway::$is_request_to_change_payment
-	) {
+	if ( wcs_scanpay_is_payment_method_change() ) {
 		/*
 		 * Switching an existing subscription to us. No new order is created here, only
 		 * the subscription's payment method changes -- so $oid is the WCS subscription
@@ -107,15 +104,41 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	if ( $wcs ) {
 		$subid = (int) $wco->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
 		if ( $subid ) {
+			/*
+			 * A customer paying for an existing subscriber: a failed renewal they retry, or
+			 * a resubscribe. Both take wcs_complete_renewal -- the payment mechanically is a
+			 * renew() against the existing subscriber, and wcs_complete_initial has only ever
+			 * applied to the new_url() sign-up path, so no resubscribe test is needed here.
+			 *
+			 * The exception is a payment-method change, which is not a paid order attempt:
+			 * it gets no completion intent, and writes no metadata at all -- $wco is the
+			 * subscription there, and a key on the subscription would be copied onto every
+			 * future renewal order by WC_Subscriptions_Data_Copier.
+			 */
+			$paid_renewal = ! wcs_scanpay_is_payment_method_change();
+			$complete     = $paid_renewal && wcs_scanpay_wants_completion( $settings, 'renewal' );
+			if ( $complete && 'completed' === $autocapture ) {
+				// Completion means the order is settled, so the attempt must capture. Already
+				// true under 'on', and deliberately left false under 'off'.
+				$data['autocapture'] = true;
+			}
 			try {
-				return [
-					'result'   => 'success',
-					'redirect' => $client->renew( $subid, $data ),
-				];
+				$link = $client->renew( $subid, $data );
 			} catch ( Exception $e ) {
 				scanpay_log( 'error', 'Renewal link creation failed: ' . trim( $e->getMessage() ) );
 				throw new Exception( 'Error: We could not create a link to the payment window. Please wait a moment and try again.' );
 			}
+			if ( $paid_renewal ) {
+				// Written after the link exists and before the customer can pay it, and
+				// unconditionally, so a retry under changed settings replaces the old intent
+				// rather than leaving a stale one.
+				$wco->add_meta_data( WC_SCANPAY_URI_COMPLETE, $complete && $data['autocapture'], true );
+				$wco->save_meta_data();
+			}
+			return [
+				'result'   => 'success',
+				'redirect' => $link,
+			];
 		}
 	}
 
@@ -156,15 +179,19 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 			'The item list will not be available in the scanpay dashboard.'
 		);
 	}
+	$complete = false;
 	if ( $subref ) {
 		$subref = wc_scanpay_subref( $oid, $wco );
 		if ( $subref ) {
 			$data['subscriber'] = [ 'ref' => $subref ];
 			$otype              = ( $wc_totalf > 0 ) ? 'wcs' : 'wcs_free';
-			// On an initial subscription order the setting also means capture now,
-			// rather than waiting for the order to be completed. (The auto-completion
-			// its label promises is not implemented yet -- PLAN.md task 1.)
-			if ( 'yes' === ( $settings['wcs_complete_initial'] ?? 'no' ) && 'completed' === $autocapture ) {
+			// This is the initial order of a subscription, so wcs_complete_initial applies.
+			// Settling at Scanpay and completing in WooCommerce are separate outcomes of the
+			// one setting: capture now rather than on completion, and complete the order
+			// once the payment syncs. Both need a capture, hence the 'completed' condition
+			// -- 'on' already captures, and 'off' must keep doing neither.
+			$complete = wcs_scanpay_wants_completion( $settings, 'initial' );
+			if ( $complete && 'completed' === $autocapture ) {
 				$data['autocapture'] = true;
 			}
 		}
@@ -186,6 +213,10 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		$wco->add_meta_data( WC_SCANPAY_URI_PAYID, basename( $link ), true );
 		$wco->add_meta_data( WC_SCANPAY_URI_PTIME, time(), true );
 		$wco->add_meta_data( WC_SCANPAY_URI_SHOPID, $shopid, true );
+		// Rides along with the writes above: no payment can exist before new_url() returns,
+		// and $unique replaces the previous attempt's value rather than keeping it, so the
+		// newest link -- the one the customer can still pay -- is the one described here.
+		$wco->add_meta_data( WC_SCANPAY_URI_COMPLETE, $complete && $data['autocapture'], true );
 		$wco->save_meta_data();
 		return [
 			'result'   => 'success',

@@ -29,6 +29,7 @@ const WC_SCANPAY_URI_SHOPID   = '_scanpay_shopid';
 const WC_SCANPAY_URI_PAYID    = '_scanpay_payid';
 const WC_SCANPAY_URI_PTIME    = '_scanpay_payid_time';
 const WC_SCANPAY_URI_SUBID    = '_scanpay_subid';
+const WC_SCANPAY_URI_COMPLETE = '_scanpay_complete';
 
 define( 'WC_SCANPAY_DIR', __DIR__ );
 define( 'WC_SCANPAY_URL', untrailingslashit( plugins_url( '', __FILE__ ) ) );
@@ -256,6 +257,43 @@ function wcs_scanpay_blocks_validate_terms( WC_Order $order, WP_REST_Request $re
 			400
 		);
 	}
+}
+
+/**
+ * Whether this request is WooCommerce Subscriptions changing a subscription's payment
+ * method, rather than paying for an order.
+ *
+ * On such a request the "order" our payment code is handed is the subscription itself,
+ * not an order -- see wc_scanpay_subref(). Guarded on the class, because WCS need not
+ * be active. One definition, because more than one caller has to agree on it.
+ */
+function wcs_scanpay_is_payment_method_change(): bool {
+	return class_exists( 'WC_Subscriptions_Change_Payment_Gateway', false )
+		&& WC_Subscriptions_Change_Payment_Gateway::$is_request_to_change_payment;
+}
+
+/**
+ * Whether a payment attempt asks WooCommerce to force the 'completed' status once the
+ * payment syncs, per wcs_complete_initial / wcs_complete_renewal.
+ *
+ * Request-time policy, evaluated by the three paths that create a payment attempt and
+ * persisted in WC_SCANPAY_URI_COMPLETE; sync obeys the persisted value and never reads
+ * these settings, so a merchant toggling them while a payment window is open cannot
+ * reinterpret an attempt the store already accepted.
+ *
+ * Not the payload's autocapture expression, which folds in wc_complete_virtual: settling
+ * at Scanpay and completing in WooCommerce are related decisions, not the same one, and
+ * mirroring that disjunct would force 'completed' on every virtual renewal with the
+ * setting off. Callers AND this with the attempt's final autocapture flag, since a
+ * deliberately uncaptured order must never be completed.
+ *
+ * @param string $flow 'renewal' for either renewal path, anything else for an initial
+ *                     subscription payment. Callers own the "is this a subscription
+ *                     order at all" question; this only reads the policy.
+ */
+function wcs_scanpay_wants_completion( array $settings, string $flow ): bool {
+	$key = 'renewal' === $flow ? 'wcs_complete_renewal' : 'wcs_complete_initial';
+	return 'yes' === ( $settings[ $key ] ?? 'no' );
 }
 
 /**

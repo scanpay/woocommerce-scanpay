@@ -296,7 +296,48 @@ final class WC_Scanpay_Sync {
 				scanpay_log( 'info', "$label: Order is not eligible for payment_complete (order=$oid)" );
 				$wco->save();
 			}
-			$wco->payment_complete( $txn );
+			/*
+			 * Force 'completed' when the accepted payment attempt asked for it -- the
+			 * persisted flag, never the live settings, so a merchant toggling them
+			 * mid-payment-window cannot reinterpret an attempt the store already accepted.
+			 * WooCommerce writes order meta as strings, so a stored true reads back as '1';
+			 * anything else -- absent, a stored false (both ''), '0', an array -- is not a
+			 * request.
+			 *
+			 * Restricted to pending/on-hold/failed. 'cancelled' is payment-complete eligible
+			 * and still transitions, but to 'processing', which leaves the merchant something
+			 * to review: forcing it would auto-fulfil an order hold-stock or the merchant
+			 * deliberately ended, and a payment landing after a stock cancellation reaches
+			 * this on a first sync, not only on a replay. 'refunded' never reaches the filter
+			 * at all -- it is not eligible, and WooCommerce applies the filter only inside
+			 * its has_status() branch, which is also why this forces through
+			 * payment_complete() rather than a set_status() call.
+			 */
+			$want = $wco->get_meta( WC_SCANPAY_URI_COMPLETE, true, 'edit' );
+			$hook = null;
+			if ( ( true === $want || '1' === $want ) && $wco->has_status( [ 'pending', 'on-hold', 'failed' ] ) ) {
+				/*
+				 * Scoped to this one call, not standing: the same filter is applied read-only
+				 * by maybe_set_date_paid() on every order saved before it has a paid date, so
+				 * a standing callback returning 'completed' would flip that comparison for
+				 * every unpaid Scanpay order in the request. Matching the order id is the whole
+				 * guard, and it is what stops a nested third-party hook -- one completing some
+				 * other order while ours is in flight -- from picking up the forced status. No
+				 * fire-once guard: payment_complete() sets date_paid before its set_status(),
+				 * so inside this window the filter fires exactly once.
+				 */
+				$hook = static function ( $status, $order_id ) use ( $oid ) {
+					return (int) $order_id === $oid ? 'completed' : $status;
+				};
+				add_filter( 'woocommerce_payment_complete_order_status', $hook, 10, 2 );
+			}
+			try {
+				$wco->payment_complete( $txn );
+			} finally {
+				if ( null !== $hook ) {
+					remove_filter( 'woocommerce_payment_complete_order_status', $hook, 10 );
+				}
+			}
 		}
 	}
 
