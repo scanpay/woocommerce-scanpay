@@ -31,7 +31,7 @@ function wc_scanpay_phone_prefixer( string $phone, string $country ): string {
 	return $phone;
 }
 
-function wc_scanpay_subref( int $oid, object $wco ): ?string {
+function wc_scanpay_subref( int $oid, WC_Abstract_Order $wco ): ?string {
 	if ( wcs_scanpay_is_payment_method_change() ) {
 		/*
 		 * Switching an existing subscription to us. No new order is created here, only

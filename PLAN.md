@@ -176,7 +176,6 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 16 | `wc_scanpay_subref()` takes `object` | `public/generate-payment-link.php` |
 | 17 | Four local inconsistencies | `admin/orders.php`, `admin/ajax/wp-scanpay-fetch-{meta,sub}.php` |
 | 18 | Comment audit against the documented standard | all 35 PHP files |
 | 19 | i18n audit, English source and Danish catalog | `src/languages/`, every `__()` site |
@@ -186,38 +185,6 @@ Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 16 — `wc_scanpay_subref()` takes `object`
-
-**File:** `src/public/generate-payment-link.php`
-**Anchor:** `function wc_scanpay_subref( int $oid, object $wco ): ?string` (~`:34`)
-
-It uses the loosest hint PHP has on a parameter that is always a
-`WC_Abstract_Order`: either the `WC_Order` from `wc_get_order()` or, on the
-payment-method-change path, the `WC_Subscription` WCS hands the gateway. The body
-calls `$wco->get_status()`, which `object` does not promise. `AGENTS.md`: "A typed
-parameter is the preferred guard — a `TypeError` beats a defensive `if`."
-
-**Fix.** `WC_Abstract_Order $wco`. `WC_Order` is too narrow — it would `TypeError`
-on the method-change path. Add no comment: the type is the statement.
-
-**Verify**
-
-- Quote the declarations proving `WC_Subscription extends WC_Order extends
-  WC_Abstract_Order`.
-- Confirm both call sites (`$data['subscriber'] = [ 'ref' => wc_scanpay_subref(…)`
-  and `$subref = wc_scanpay_subref(…)`) still type-check by naming what each
-  passes.
-- Confirm `wc_scanpay_process_payment()`'s own `$wco` is not re-typed — it comes
-  from `wc_get_order()`, whose return is checked immediately after, and that guard
-  stays.
-
-**Handoff**
-
-- Both a normal subscription checkout and a payment-method change still produce a
-  `wcs[]…` subscriber ref.
 
 ---
 
