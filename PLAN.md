@@ -288,53 +288,6 @@ the head of the file), **S** item 3 (a log string), **T** (the `$subid` branch).
 Every one of those anchors sits below the previous task's edit or above it, never
 inside it — but the line numbers move, so locate the symbol.
 
-## Task O — The subscription meta box reads two keys nothing writes
-
-**File:** `src/admin/subscriptions.php:29-40` — as task J left the file.
-
-The box emits `data-payid` and `data-ptime` from the subscription's own meta, and
-`subs.ts:58-59` renders "Payment ID" and "Payment date" only when they are
-non-empty. Nothing writes either key to a subscription created at checkout. The
-sole writer is `generate-payment-link.php:258-259`, which writes them on the
-**order**, from `process_payment()` — and WCS copies the parent's meta onto the
-subscription earlier in the same request, from `woocommerce_checkout_order_processed`
-priority 100 (`class-wc-subscriptions-checkout.php:24`, `:184`), which
-`WC_Checkout` fires at `class-wc-checkout.php:1396`, while
-`process_order_payment()` only runs at `:1414`. The Blocks path has the same
-ordering. Neither key is excluded from the copy — the copy simply happens first.
-
-So both rows are permanently absent from every subscription box, except in the
-one narrow case where `generate-payment-link.php` falls through to `new_url()`
-with `$wco` being the subscription — which task A has now removed. That is what
-makes this inconsistent rather than deliberate.
-
-**The fix.** Fall back to the parent order for both keys, keeping the
-subscription's own value when it has one:
-
-1. `$wcs_parent = $wc_sub->get_parent();` once, then for each key take the
-   subscription's value and, when it is `''` and a parent exists, the parent's.
-2. Comment the ordering: the keys are written in `process_payment()`, after WCS
-   has already copied the parent's meta, so they are never copied.
-
-**Do not** start writing these keys onto the subscription from
-`generate-payment-link.php` instead. Meta on a subscription is copied onto every
-renewal order (`DEFAULT_EXCLUDED_META_KEYS`), which is the failure task A exists
-to remove.
-
-### Verify
-
-- Quote the four ordering citations and state plainly that the copy precedes the
-  write.
-- Confirm `WC_Subscription::get_parent()` returns `false` (not null) when there
-  is none, and that the fallback handles it.
-- Confirm `subs.ts` needs no change: it reads the same two attributes.
-
-### Handoff
-
-- On a shop: open a subscription created through Scanpay checkout and confirm the
-  box now shows Payment ID and Payment date, and that they match the parent
-  order's `_scanpay_payid` / `_scanpay_payid_time`.
-
 ## Task P — One settings-field title never translates
 
 **File:** `src/admin/settings/fields/scanpay.php:71` — as task I left the file.
