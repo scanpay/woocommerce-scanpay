@@ -176,7 +176,6 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 13 | Two settings fields with an inert tooltip and no label | `admin/settings/fields/scanpay.php` |
 | 14 | The Plugins-screen link escapes nothing | `admin/settings.php` |
 | 15 | `wc_scanpay_money_equals()` has no callers | `library/math.php` + 3 call sites |
 | 16 | `wc_scanpay_subref()` takes `object` | `public/generate-payment-link.php` |
@@ -189,51 +188,6 @@ Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 13 — Two settings fields with an inert tooltip and no label
-
-**File:** `src/admin/settings/fields/scanpay.php`
-**Anchors:** `'wcs_complete_initial' =>` (~`:93`) and `'wcs_complete_renewal' =>`
-(~`:100`)
-
-These two are the only fields in the three field files with `desc_tip` and **no**
-`description`, and the only two with no `title`. Both facts have a consequence:
-`get_tooltip_html()` returns `''` for an empty description, so the flag renders
-nothing — dead configuration that reads like a feature; and
-`generate_checkbox_html()` echoes `$data['title']` into `<th scope="row">`
-unconditionally, so each renders an empty header cell. Visually they look grouped
-under the preceding "Auto-complete" row (`wc_complete_virtual`, which does have a
-title); semantically they are two unlabelled rows, which is what a screen reader
-gets. `WC_Settings_API` has no `checkboxgroup` support (that is
-`woocommerce_admin_fields()`), so grouping cannot fix it.
-
-**Fix.** Give both a `title`, and either a real `description` or no `desc_tip`.
-
-Two new msgids — field labels, not stored values, so `__()` is correct here
-(`AGENTS.md` bars it on *defaults*, which these are not). Pick wording that
-distinguishes the two rows from the `wc_complete_virtual` row above; reuse its
-exact string only if you also state why three rows sharing a header is right.
-Prefer writing the description over dropping `desc_tip`: these two settings decide
-whether an order is force-completed on sync, the least obvious behaviour on the
-screen.
-
-Do not touch `'default' => 'no'` on either, or the other fields whose `desc_tip`
-already pairs with a real `description`.
-
-**Verify**
-
-- Quote `get_tooltip_html()` and `generate_checkbox_html()` showing the empty-`$tip`
-  return and the unconditional `<th>` echo.
-- `grep -n "desc_tip" src/admin/settings/fields/*.php` — eleven occurrences; every
-  one now has a sibling `description`.
-- List the msgids added, verbatim, for task 19.
-
-**Handoff**
-
-- Both rows render a label and a working help tip, and toggling either still
-  stores `yes`/`no`.
 
 ---
 

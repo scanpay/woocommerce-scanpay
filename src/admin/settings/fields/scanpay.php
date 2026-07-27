@@ -90,18 +90,27 @@ return [
 		'default' => 'no',
 	],
 
+	// Both carry a title and a real description: generate_checkbox_html() echoes the title
+	// into the <th> and into the fieldset's screen-reader legend, so without one the row is
+	// unlabelled rather than merely grouped under the Auto-complete row above; and
+	// get_tooltip_html() returns '' for an empty description, so desc_tip alone rendered
+	// nothing at all.
 	'wcs_complete_initial' => [
-		'type'     => 'checkbox',
-		'label'    => __( 'Auto-complete new subscription orders (Subscriptions only).', 'scanpay-for-woocommerce' ),
-		'desc_tip' => true,
-		'default'  => 'no',
+		'title'       => __( 'Auto-complete subscriptions', 'scanpay-for-woocommerce' ),
+		'type'        => 'checkbox',
+		'label'       => __( 'Auto-complete new subscription orders (Subscriptions only).', 'scanpay-for-woocommerce' ),
+		'description' => __( 'Force the first order of a new subscription to Completed when Scanpay confirms the payment, instead of the status WooCommerce would otherwise set.', 'scanpay-for-woocommerce' ),
+		'desc_tip'    => true,
+		'default'     => 'no',
 	],
 
 	'wcs_complete_renewal' => [
-		'type'     => 'checkbox',
-		'label'    => __( 'Auto-complete renewal orders (Subscriptions only).', 'scanpay-for-woocommerce' ),
-		'desc_tip' => true,
-		'default'  => 'no',
+		'title'       => __( 'Auto-complete renewals', 'scanpay-for-woocommerce' ),
+		'type'        => 'checkbox',
+		'label'       => __( 'Auto-complete renewal orders (Subscriptions only).', 'scanpay-for-woocommerce' ),
+		'description' => __( 'Force a renewal order to Completed when Scanpay confirms the charge, instead of the status WooCommerce would otherwise set.', 'scanpay-for-woocommerce' ),
+		'desc_tip'    => true,
+		'default'     => 'no',
 	],
 
 	'wcs_terms'            => [
