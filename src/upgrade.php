@@ -66,7 +66,10 @@ if ( $wcs_exists && version_compare( $version, '2.1.3', '<' ) ) {
 
 	foreach ( $wc_subs as $oid ) {
 		$wc_sub = wcs_get_subscription( $oid );
-		if ( ! $wc_sub || ! str_starts_with( $wc_sub->get_payment_method(), 'scanpay' ) ) {
+		// 'edit', as every other payment-method read in the tree: a view-context read runs
+		// woocommerce_order_get_payment_method, which is a third party deciding what the
+		// stored value is while we decide whether to rewrite it.
+		if ( ! $wc_sub || ! str_starts_with( $wc_sub->get_payment_method( 'edit' ), 'scanpay' ) ) {
 			continue;
 		}
 		$subid       = (int) $wc_sub->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
@@ -81,8 +84,11 @@ if ( $wcs_exists && version_compare( $version, '2.1.3', '<' ) ) {
 			}
 			scanpay_log( 'info', "change subid on #$oid (from '$subid' to '$black_subid'" );
 			$wc_sub->update_meta_data( WC_SCANPAY_URI_SUBID, $black_subid );
+			// No cache invalidation of our own: WC_Data::save_meta_data() ends by deleting
+			// this object's own meta cache entry, and nothing here reads it back -- the next
+			// iteration loads a different subscription, and the two lookups above go straight
+			// to scanpay_meta through $wpdb, which never consults the object cache.
 			$wc_sub->save_meta_data();
-			wp_cache_flush();
 		}
 	}
 }
