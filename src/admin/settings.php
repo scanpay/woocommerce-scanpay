@@ -72,7 +72,11 @@ add_action( 'wp_ajax_wc_scanpay_reset', 'wc_scanpay_ajax_reset', 0, 0 );
 /** Add a "Settings" link to the Scanpay entry on the Plugins screen. */
 function wc_scanpay_admin_settings_link( array $links ): array {
 	$url = admin_url( 'admin.php?page=wc-settings&tab=checkout&section=scanpay' );
-	array_unshift( $links, '<a href="' . $url . '">' . __( 'Settings', 'scanpay-for-woocommerce' ) . '</a>' );
+	// Escaped as the MobilePay and Apple Pay gateways escape their own concatenations, and
+	// for the same blind spot: PHPCS misses it because the value is returned, not echoed.
+	// Both halves are third-party surface -- admin_url() runs the admin_url filter, __()
+	// runs gettext -- and WordPress echoes the result verbatim through row_actions().
+	array_unshift( $links, '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Settings', 'scanpay-for-woocommerce' ) . '</a>' );
 	return $links;
 }
 add_filter( 'plugin_action_links_' . WC_SCANPAY_BASENAME, 'wc_scanpay_admin_settings_link' );

@@ -176,7 +176,6 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 14 | The Plugins-screen link escapes nothing | `admin/settings.php` |
 | 15 | `wc_scanpay_money_equals()` has no callers | `library/math.php` + 3 call sites |
 | 16 | `wc_scanpay_subref()` takes `object` | `public/generate-payment-link.php` |
 | 17 | Four local inconsistencies | `admin/orders.php`, `admin/ajax/wp-scanpay-fetch-{meta,sub}.php` |
@@ -188,40 +187,6 @@ Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 14 — The Plugins-screen link escapes nothing
-
-**File:** `src/admin/settings.php`
-**Anchor:** `array_unshift( $links, '<a href="' . $url . '">'` (~`:75`)
-
-`$url` comes from `admin_url( 'admin.php?page=wc-settings&tab=checkout&section=scanpay' )`
-and the label from `__( 'Settings', … )`; the two are concatenated straight into an
-`<a href="…">`. Neither value is escaped. `admin_url()` runs the `admin_url` filter and `__()` runs
-`gettext` — both third-party surface, and both the reason the MobilePay and Apple
-Pay gateways escape their own concatenations, with the comment "PHPCS misses it
-because the value is returned". Same shape, same blind spot. The value is returned
-into `plugin_action_links_*`, which WordPress echoes raw.
-
-**Fix.** `esc_url( $url )` and `esc_html__( 'Settings', 'scanpay-for-woocommerce' )`.
-
-`esc_html__()` rather than wrapping `__()` keeps the msgid extractable and
-identical, so this adds no catalog work. Add a short trailing comment naming the
-reason (a returned value, so the escape sniff cannot see it).
-
-**Verify**
-
-- Confirm `plugin_action_links_{$plugin_file}`'s result is echoed unescaped by
-  `WP_Plugins_List_Table`.
-- Confirm the msgid is unchanged, so `src/languages/*.pot` needs no regeneration.
-- `grep -rn "'<a href=\|\"<a href=" src/` — report any other unescaped link
-  construction. `admin-options.php` builds several and escapes all; if that holds,
-  say so.
-
-**Handoff**
-
-- The "Settings" link still points at the Scanpay section and still renders.
 
 ---
 
