@@ -7,12 +7,21 @@
  */
 
 import { showError, showWarning, buildTable, pluginVersionCheck } from './types/meta';
+import { __, sprintf } from './util/i18n';
 
 const dom = document.getElementById('wcsp-meta');
 const data = window.ScanpayOrderData;
 
 type MetaRow = NonNullable<OrderData['meta']>;
 const MONEY_KEYS = ['authorized', 'captured', 'refunded', 'voided'] as const;
+
+// The row labels. Keyed by column name, which is an identifier and stays untranslated.
+const MONEY_LABELS: Record<(typeof MONEY_KEYS)[number], string> = {
+	authorized: __('Authorized', 'scanpay-for-woocommerce'),
+	captured: __('Captured', 'scanpay-for-woocommerce'),
+	refunded: __('Refunded', 'scanpay-for-woocommerce'),
+	voided: __('Voided', 'scanpay-for-woocommerce'),
+};
 
 /**
  * Format a decimal-string amount for display. Money is a decimal string on the PHP
@@ -52,12 +61,19 @@ function renderFigures(meta: MetaRow, currency: string, decimals: number): void 
 	for (const key of MONEY_KEYS) {
 		const raw = meta[key];
 		if (!isMoney(raw)) {
-			showError(`Invalid ${key} amount: ${String(raw)}`);
+			showError(
+				sprintf(
+					/* translators: %1$s is a database column name, %2$s the raw value it holds. Neither is translated. */
+					__('Invalid %1$s amount: %2$s', 'scanpay-for-woocommerce'),
+					key,
+					String(raw)
+				)
+			);
 			continue;
 		}
 		// Always show authorized + captured; show refunded/voided only when non-zero.
 		if ((key === 'refunded' || key === 'voided') && isZeroMoney(raw)) continue;
-		rows.push([key[0].toUpperCase() + key.slice(1), `${fmtMoney(raw, decimals)} ${currency}`]);
+		rows.push([MONEY_LABELS[key], `${fmtMoney(raw, decimals)} ${currency}`]);
 	}
 	buildTable(rows);
 }
@@ -78,12 +94,17 @@ function renderFoot(meta: MetaRow, decimals: number): void {
 
 	let html = '<div class="wcsp-meta-acts"><div class="wcsp-meta-acts-left">';
 	if (capturable) {
-		html += '<button type="button" class="button" id="wcsp-capture">Capture</button>';
+		html +=
+			'<button type="button" class="button" id="wcsp-capture">' +
+			__('Capture', 'scanpay-for-woocommerce') +
+			'</button>';
 	}
 	html += '</div>';
 	if (data.dashboard) {
 		html +=
-			`<a class="wcsp-meta-acts-refund" href="${data.dashboard}" target="_blank" rel="noopener">Refund…</a>`;
+			`<a class="wcsp-meta-acts-refund" href="${data.dashboard}" target="_blank" rel="noopener">` +
+			__('Refund…', 'scanpay-for-woocommerce') +
+			'</a>';
 	}
 	html += '</div>';
 	foot.innerHTML = html;
@@ -119,19 +140,25 @@ async function onCapture(ev: Event): Promise<void> {
 		btn.textContent = label;
 	}
 	btn.disabled = true;
-	btn.textContent = 'Capturing…';
+	btn.textContent = __('Capturing…', 'scanpay-for-woocommerce');
 	try {
 		await postCapture();
 		if (await refresh()) {
 			// refresh() re-rendered the foot (fresh button or none); the old button is gone.
-			showWarning('Capture complete.', 'info');
+			showWarning(__('Capture complete.', 'scanpay-for-woocommerce'), 'info');
 		} else {
 			// Sync has not landed yet; restore the button so it isn't stuck on "Capturing…".
-			showWarning('Capture requested — figures will refresh on the next sync.', 'info');
+			showWarning(__('Capture requested — figures will refresh on the next sync.', 'scanpay-for-woocommerce'), 'info');
 			restore();
 		}
 	} catch (err) {
-		showError('Capture failed: ' + (err instanceof Error ? err.message : String(err)));
+		showError(
+			sprintf(
+				/* translators: %s is the raw error code the server returned, which is not translated. */
+				__('Capture failed: %s', 'scanpay-for-woocommerce'),
+				err instanceof Error ? err.message : String(err)
+			)
+		);
 		restore();
 	}
 }
@@ -170,6 +197,6 @@ if (dom && data) {
 		renderFoot(data.meta, data.wc_decimals);
 	} else {
 		// No synced payment row yet (e.g. the order was opened before the first ping).
-		showWarning('Waiting for payment confirmation from Scanpay…', 'info');
+		showWarning(__('Waiting for payment confirmation from Scanpay…', 'scanpay-for-woocommerce'), 'info');
 	}
 }

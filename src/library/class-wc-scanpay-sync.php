@@ -275,7 +275,15 @@ final class WC_Scanpay_Sync {
 			// on one. Log + note + return, never throw -- see the total guard above.
 			if ( wc_scanpay_cmpmoney( $auth, $total ) < 0 ) {
 				scanpay_log( 'error', "$label: authorized $auth does not cover order total $total (order=$oid)" );
-				$wco->add_order_note( "Scanpay: authorized amount ($auth $cur) does not cover the order total ($total $cur); order not marked as paid." );
+				$wco->add_order_note(
+					sprintf(
+						/* translators: 1: authorized amount, 2: order total, 3: currency code. */
+						__( 'Scanpay: the authorized amount (%1$s %3$s) does not cover the order total (%2$s %3$s); the order was not marked as paid.', 'scanpay-for-woocommerce' ),
+						$auth,
+						$total,
+						$cur
+					)
+				);
 				return;
 			}
 			$txn = (string) $trnid;
@@ -471,7 +479,7 @@ final class WC_Scanpay_Sync {
 				$parent->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
 				$parent->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
 				$parent->set_payment_method_title( $pm_title );
-				$parent->set_status( 'completed', 'Subscription initiated without payment.', true );
+				$parent->set_status( 'completed', __( 'Subscription initiated without payment.', 'scanpay-for-woocommerce' ), true );
 				$parent->save();
 			}
 		}

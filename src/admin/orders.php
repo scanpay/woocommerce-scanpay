@@ -144,7 +144,7 @@ function wc_scanpay_add_meta_box( $wc_order ): void {
 	wp_enqueue_style( 'wcsp-meta', WC_SCANPAY_URL . '/admin/assets/css/meta.css', [], WC_SCANPAY_VERSION );
 	add_meta_box(
 		'wcsp-meta-box',
-		__( 'Scanpay', 'scanpay-for-woocommerce' ),
+		'Scanpay',
 		'wc_scanpay_admin_render_meta_box',
 		null,
 		'side',

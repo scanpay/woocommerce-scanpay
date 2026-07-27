@@ -5,6 +5,7 @@
 */
 
 import { checkVersion, isVersionGreater } from '../util/compat';
+import { __ } from '../util/i18n';
 
 /** The alert container, or null when the meta box was not rendered. */
 function alertHead(): HTMLElement | null {
@@ -76,10 +77,12 @@ export function pluginVersionCheck() {
 			// The one alert that needs markup, and all of it is plugin-authored.
 			// The version itself comes from the GitHub API, so it goes in as text.
 			const div = appendAlert(head, 'info');
-			div.innerHTML =
-				'Your scanpay plugin is <b class="scanpay-outdated">outdated</b>. Please update to ' +
-				'<span class="wcsp-meta-version"></span> ' +
-				'(<a href="//github.com/scanpay/woocommerce-scanpay/releases" target="_blank">changelog</a>)';
+			// A separate msgid from the settings-screen banner on purpose: that one names the
+			// running version, and only that screen has one to render.
+			div.innerHTML = __(
+				'Your scanpay plugin is <b class="scanpay-outdated">outdated</b>. Please update to <span class="wcsp-meta-version"></span> (<a href="//github.com/scanpay/woocommerce-scanpay/releases" target="_blank">changelog</a>)',
+				'scanpay-for-woocommerce'
+			);
 			const span = div.querySelector('.wcsp-meta-version');
 			if (span) {
 				span.textContent = version;

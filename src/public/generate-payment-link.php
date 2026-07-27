@@ -59,11 +59,11 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	$wco = wc_get_order( $oid );
 	if ( ! $wco ) {
 		scanpay_log( 'error', "Cannot create payment link: Order #$oid does not exist." );
-		throw new Exception( 'Error: The order does not exist. Please create a new order or contact support.' );
+		throw new Exception( esc_html__( 'Error: The order does not exist. Please create a new order or contact support.', 'scanpay-for-woocommerce' ) );
 	}
 	if ( empty( $settings['apikey'] ) ) {
 		scanpay_log( 'error', 'Cannot create payment link: Missing or invalid API key.' );
-		throw new Exception( 'Error: The payment plugin is not configured. Please contact support.' );
+		throw new Exception( esc_html__( 'Error: The payment plugin is not configured. Please contact support.', 'scanpay-for-woocommerce' ) );
 	}
 
 	scanpay_log( 'info', "Creating payment link for Order #$oid." );
@@ -147,7 +147,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 				$link = $client->renew( $subid, $data );
 			} catch ( Exception $e ) {
 				scanpay_log( 'error', 'Renewal link creation failed: ' . trim( $e->getMessage() ) );
-				throw new Exception( 'Error: We could not create a link to the payment window. Please wait a moment and try again.' );
+				throw new Exception( esc_html__( 'Error: We could not create a link to the payment window. Please wait a moment and try again.', 'scanpay-for-woocommerce' ) );
 			}
 			if ( $paid_renewal ) {
 				// Written after the link exists and before the customer can pay it, and
@@ -245,6 +245,6 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		];
 	} catch ( Exception $e ) {
 		scanpay_log( 'error', 'Payment link creation failed: ' . trim( $e->getMessage() ) );
-		throw new Exception( 'Error: We could not create a link to the payment window. Please wait a moment and try again.' );
+		throw new Exception( esc_html__( 'Error: We could not create a link to the payment window. Please wait a moment and try again.', 'scanpay-for-woocommerce' ) );
 	}
 }

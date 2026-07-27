@@ -12,6 +12,7 @@ declare global {
 			// a second time in an admin d.ts would be a duplicate-property error, not a merge.
 			i18n: {
 				__: (text: string, domain?: string) => string;
+				_n: (single: string, plural: string, number: number, domain?: string) => string;
 				sprintf: (format: string, ...args: (string | number)[]) => string;
 			};
 			element: typeof wpElement;

@@ -103,7 +103,15 @@ final class WC_Scanpay_Capture {
 				'index' => (int) $meta['nacts'],
 			]
 		);
-		$wco->add_order_note( "Scanpay capture of $amount completed.", 0, true );
+		$wco->add_order_note(
+			sprintf(
+				/* translators: %s is the captured amount with its currency, e.g. "99.00 DKK". */
+				__( 'Scanpay capture of %s completed.', 'scanpay-for-woocommerce' ),
+				$amount
+			),
+			0,
+			true
+		);
 	}
 
 	/**
@@ -149,7 +157,15 @@ final class WC_Scanpay_Capture {
 			// failing it. The next ping reconciles it via payment_complete().
 			scanpay_log( 'error', "Capture on order #$oid failed: " . $e->getMessage() );
 			try {
-				$wco->update_status( 'on-hold', 'Scanpay capture failed: ' . $e->getMessage(), true );
+				$wco->update_status(
+					'on-hold',
+					sprintf(
+						/* translators: %s is the raw failure reason, which is not translated. */
+						__( 'Scanpay capture failed: %s', 'scanpay-for-woocommerce' ),
+						$e->getMessage()
+					),
+					true
+				);
 			} catch ( \Throwable $status_error ) {
 				// WooCommerce could not persist the fallback status. Nothing to retry: the
 				// capture failed either way, and this must still return the recorded false

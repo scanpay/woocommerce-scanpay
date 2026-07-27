@@ -10,6 +10,7 @@
  */
 
 import { showWarning, buildTable, pluginVersionCheck } from './types/meta';
+import { __, sprintf } from './util/i18n';
 
 interface SubRow {
 	subid?: string;
@@ -27,8 +28,9 @@ const ptime = box?.dataset.ptime ?? '';
 
 // scanpay_subs.method stores the raw method type ($pm_type, class-wc-scanpay-sync.php),
 // not the pretty "Visa 1234" label (which lives on the WC subscription's method title).
+// MobilePay and Apple Pay are brand names and stay as they are.
 const METHOD_LABELS: Record<string, string> = {
-	card: 'Card',
+	card: __('Card', 'scanpay-for-woocommerce'),
 	mobilepay: 'MobilePay',
 	applepay: 'Apple Pay',
 };
@@ -53,15 +55,15 @@ function fmtMethod(method: string | undefined): string {
 
 function render(sub: SubRow): void {
 	const rows: [string, string][] = [];
-	if (payid) rows.push(['Payment ID', payid]);
-	if (ptime) rows.push(['Payment date', fmtDate(ptime)]);
-	rows.push(['Method', fmtMethod(sub.method)]);
+	if (payid) rows.push([__('Payment ID', 'scanpay-for-woocommerce'), payid]);
+	if (ptime) rows.push([__('Payment date', 'scanpay-for-woocommerce'), fmtDate(ptime)]);
+	rows.push([__('Method', 'scanpay-for-woocommerce'), fmtMethod(sub.method)]);
 
 	const exp = sub.method_exp ?? '0';
 	if (parseInt(exp, 10) > 0) {
-		rows.push(['Card expiry', fmtExp(exp)]);
+		rows.push([__('Card expiry', 'scanpay-for-woocommerce'), fmtExp(exp)]);
 		if (parseInt(exp, 10) * 1000 < Date.now()) {
-			showWarning('The saved card has expired.', 'warning');
+			showWarning(__('The saved card has expired.', 'scanpay-for-woocommerce'), 'warning');
 		}
 	}
 	buildTable(rows);
@@ -76,11 +78,17 @@ async function load(): Promise<void> {
 		if (!res.ok) throw new Error(await res.text());
 		const sub = (await res.json()) as SubRow;
 		if (sub.error || typeof sub.rev !== 'string') {
-			return showWarning('No Scanpay subscription data found yet.', 'info');
+			return showWarning(__('No Scanpay subscription data found yet.', 'scanpay-for-woocommerce'), 'info');
 		}
 		render(sub);
 	} catch (err) {
-		showWarning('Could not load subscription details: ' + (err instanceof Error ? err.message : String(err)));
+		showWarning(
+			sprintf(
+				/* translators: %s is the raw error the endpoint returned, which is not translated. */
+				__('Could not load subscription details: %s', 'scanpay-for-woocommerce'),
+				err instanceof Error ? err.message : String(err)
+			)
+		);
 	}
 }
 
@@ -90,7 +98,7 @@ if (box) {
 	if (subid) {
 		load();
 	} else {
-		showWarning('This subscription has no Scanpay payment data yet.', 'info');
+		showWarning(__('This subscription has no Scanpay payment data yet.', 'scanpay-for-woocommerce'), 'info');
 	}
 	pluginVersionCheck();
 }

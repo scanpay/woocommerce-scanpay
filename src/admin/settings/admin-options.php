@@ -104,7 +104,7 @@ $nav_tabs = [
 ];
 ?>
 
-<div class="wcsp-nav wcsp-nav-<?php echo esc_attr( $gateway->id ); ?>" aria-label="Scanpay menu">
+<div class="wcsp-nav wcsp-nav-<?php echo esc_attr( $gateway->id ); ?>" aria-label="<?php esc_attr_e( 'Scanpay menu', 'scanpay-for-woocommerce' ); ?>">
 	<?php foreach ( $nav_tabs as $section_id => $label ) : ?>
 		<?php
 		$url = add_query_arg(

@@ -7,10 +7,7 @@
  */
 import { getLastSync, checkVersion, isVersionGreater } from './util/compat';
 
-// The runtime WordPress already prints for the 'wp-i18n' script dependency declared at
-// the enqueue site. Taken off window rather than imported, so esbuild does not bundle a
-// second copy of @wordpress/i18n into this file.
-const { __, sprintf } = window.wp.i18n;
+import { __, _n, sprintf } from './util/i18n';
 
 /**
  * Render an alert into #wcsp-set-alert.
@@ -50,8 +47,11 @@ function checkMtime() {
 		.then((unixtime) => {
 			if (unixtime === 0) {
 				return showWarning(
-					'Initiate synchronization',
-					`Please click <i>'send ping'</i> to initiate the synchronization with the scanpay backend.`,
+					__('Initiate synchronization', 'scanpay-for-woocommerce'),
+					__(
+						"Please click <i>'send ping'</i> to initiate the synchronization with the scanpay backend.",
+						'scanpay-for-woocommerce'
+					),
 					'sync'
 				);
 			}
@@ -59,27 +59,44 @@ function checkMtime() {
 			if (dsecs < 400) {
 				const oldWarn = document.getElementById('wcsp-set-alert-sync');
 				if (oldWarn) oldWarn.remove();
-				document.getElementById('wcsp-set-nav-mtime')!.innerHTML = `<b>Synchronized:</b> ${dsecs} seconds ago.`;
+				document.getElementById('wcsp-set-nav-mtime')!.innerHTML = sprintf(
+					/* translators: %d is a number of seconds. */
+					_n('<b>Synchronized:</b> %d second ago.', '<b>Synchronized:</b> %d seconds ago.', dsecs, 'scanpay-for-woocommerce'),
+					dsecs
+				);
 			} else if (dsecs < 604800) {
 				const dmins = Math.floor(dsecs / 60);
 				showWarning(
-					'Warning: Your system may be out of sync',
-					`More than ${dmins} minutes have passed since the last received ping. Please check your <i>API key</i> and click <i>'send ping'</i>.`,
+					__('Warning: Your system may be out of sync', 'scanpay-for-woocommerce'),
+					sprintf(
+						/* translators: %d is a number of minutes. */
+						_n(
+							"More than %d minute has passed since the last received ping. Please check your <i>API key</i> and click <i>'send ping'</i>.",
+							"More than %d minutes have passed since the last received ping. Please check your <i>API key</i> and click <i>'send ping'</i>.",
+							dmins,
+							'scanpay-for-woocommerce'
+						),
+						dmins
+					),
 					'sync'
 				);
 			} else {
 				showWarning(
-					'Warning: Your system is out of sync',
-					`A long time has passed since the last received ping. Please check your <i>API key</i> and click <i>'send ping'</i>.`,
+					__('Warning: Your system is out of sync', 'scanpay-for-woocommerce'),
+					__(
+						"A long time has passed since the last received ping. Please check your <i>API key</i> and click <i>'send ping'</i>.",
+						'scanpay-for-woocommerce'
+					),
 					'sync'
 				);
 			}
 		})
 		.catch((err) => {
 			showWarning(
-				'Error: Something went wrong',
-				'Your system responded with the following error message: ',
+				__('Error: Something went wrong', 'scanpay-for-woocommerce'),
+				__('Your system responded with the following error message: ', 'scanpay-for-woocommerce'),
 				'sync',
+				// The raw response body, appended as text and never translated.
 				err.message
 			);
 		});
@@ -106,20 +123,26 @@ function onReset(ev: Event): void {
 	const btn = ev.currentTarget as HTMLButtonElement;
 	const msg = btn.parentElement?.querySelector('.wcsp-set-reset-msg') as HTMLElement | null;
 	const ok = confirm(
-		'Delete all local Scanpay data and clear the API key?\n\n' +
-			'This deletes the local payment tables and disables the Scanpay gateways. ' +
-			'It does not affect anything at Scanpay: adding a key for the same shop ' +
-			're-syncs the data automatically.'
+		__(
+			'Delete all local Scanpay data and clear the API key?\n\nThis deletes the local payment tables and disables the Scanpay gateways. It does not affect anything at Scanpay: adding a key for the same shop re-syncs the data automatically.',
+			'scanpay-for-woocommerce'
+		)
 	);
 	if (!ok) return;
 	btn.disabled = true;
-	btn.textContent = 'Deleting…';
+	btn.textContent = __('Deleting…', 'scanpay-for-woocommerce');
 	postReset(btn.dataset.nonce ?? '')
 		.then(() => window.location.reload())
 		.catch((err) => {
 			btn.disabled = false;
-			btn.textContent = 'Delete data and change API key';
-			if (msg) msg.textContent = ' Could not delete the data: ' + err.message;
+			btn.textContent = __('Delete data and change API key', 'scanpay-for-woocommerce');
+			if (msg) {
+				msg.textContent = sprintf(
+					/* translators: %s is the raw error code the server returned, which is not translated. */
+					__(' Could not delete the data: %s', 'scanpay-for-woocommerce'),
+					err.message
+				);
+			}
 		});
 }
 
@@ -128,9 +151,13 @@ if (resetBtn) resetBtn.addEventListener('click', onReset);
 
 const alertBox = document.getElementById('wcsp-set-alert') as HTMLElement;
 if (alertBox.dataset.shopid === '0') {
-	const html = `<span class="wcsp-set-api-info">
-            You can find your Scanpay API key <a target="_blank" href="https://dashboard.scanpay.dk/settings/api">here</a>.
-        </span>`;
+	const html =
+		'<span class="wcsp-set-api-info">' +
+		__(
+			'You can find your Scanpay API key <a target="_blank" href="https://dashboard.scanpay.dk/settings/api">here</a>.',
+			'scanpay-for-woocommerce'
+		) +
+		'</span>';
 
 	const field = document.getElementById('woocommerce_scanpay_apikey') as HTMLElement;
 	if (field) {
