@@ -43,7 +43,7 @@ function showWarning(title: string, msg: string, id: string | false = false, det
 
 function checkMtime() {
 	if (!alertBox.dataset.secret) return;
-	getLastSync(alertBox.dataset.secret)
+	getLastSync(alertBox.dataset.secret, alertBox.dataset.endpoint ?? '')
 		.then((unixtime) => {
 			if (unixtime === 0) {
 				return showWarning(

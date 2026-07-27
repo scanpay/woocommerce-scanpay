@@ -27,6 +27,7 @@ declare global {
         } | null;
         currency: string;    // e.g. "DKK"
         secret: string;      // admin-AJAX polling secret (sent in the X-Scanpay header)
+        endpoint: string;    // base URL for the ?x= polls (admin_url('admin-ajax.php'))
         dashboard: string;   // Scanpay dashboard transaction URL ('' if unsynced)
         nonce: string;       // guards the wc_scanpay_capture AJAX action
     }

@@ -22,6 +22,10 @@ interface SubRow {
 
 const box = document.getElementById('wcsp-meta');
 const secret = box?.dataset.secret ?? '';
+// Base for the ?x=sub poll, sent by PHP so the request reaches a real file instead of a
+// path that only resolves with pretty permalinks. The fallback keeps a cached older
+// bundle working against a newer plugin, and collapses '' and undefined together.
+const ep = box?.dataset.endpoint || '../wp-scanpay/fetch';
 const subid = box?.dataset.subid ?? '';
 const payid = box?.dataset.payid ?? '';
 const ptime = box?.dataset.ptime ?? '';
@@ -72,7 +76,7 @@ function render(sub: SubRow): void {
 /** Fetch the current subscriber row (rev=0 returns it without a long-poll hold). */
 async function load(): Promise<void> {
 	try {
-		const res = await fetch(`../wp-scanpay/fetch?x=sub&subid=${encodeURIComponent(subid)}&rev=0`, {
+		const res = await fetch(`${ep}?x=sub&subid=${encodeURIComponent(subid)}&rev=0`, {
 			headers: { 'X-Scanpay': secret },
 		});
 		if (!res.ok) throw new Error(await res.text());

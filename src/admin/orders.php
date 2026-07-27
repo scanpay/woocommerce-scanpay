@@ -110,6 +110,23 @@ function wc_scanpay_admin_render_meta_box( $post ): void {
 		'secret'      => (string) ( is_array( $settings ) ? ( $settings['secret'] ?? '' ) : '' ),
 		'dashboard'   => $dashboard,
 		'nonce'       => wp_create_nonce( 'scanpay-order-' . $oid ),
+		/*
+		 * The base for the ?x= polls. The router dispatches on the X-Scanpay header and
+		 * ?x= alone, so any URL that boots WordPress works -- but the relative path the
+		 * scripts used to hardcode only resolves through WordPress's catch-all front
+		 * controller, which on Apache is the mod_rewrite block WordPress writes only when a
+		 * permalink structure is set. With plain permalinks it is a filesystem 404 and PHP
+		 * never runs. No rewrite rule instead: that means a flush, and this endpoint
+		 * deliberately does not depend on WordPress's routing at all.
+		 *
+		 * admin_url(), never home_url(): the poll carries a custom X-Scanpay request
+		 * header, which makes it CORS-preflighted the moment its origin differs from the
+		 * screen doing the fetching, and WordPress answers no preflight. home_url() and the
+		 * admin origin part company on ordinary setups (FORCE_SSL_ADMIN over an http home,
+		 * WP_SITEURL on its own host); admin_url() is same-origin by construction.
+		 * Raw, not esc_url(): wp_json_encode() below owns the escaping.
+		 */
+		'endpoint'    => admin_url( 'admin-ajax.php' ),
 	];
 	wp_add_inline_script(
 		'wc-scanpay-order',

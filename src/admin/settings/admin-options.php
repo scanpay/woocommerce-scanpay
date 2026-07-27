@@ -129,6 +129,8 @@ $nav_tabs = [
 ?>
 <div id="wcsp-set-alert"
 	data-secret="<?php echo esc_attr( (string) ( $settings['secret'] ?? '' ) ); ?>"
+	<?php // The base for the ?x=ping poll. admin_url(), never home_url(): the poll sends a custom X-Scanpay header, so a differing origin makes it a CORS preflight WordPress does not answer. See admin/orders.php. ?>
+	data-endpoint="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>"
 	data-shopid="<?php echo esc_attr( (string) $shopid ); ?>"
 	<?php // The running version as data, so the update banner's msgid stays a %s placeholder rather than changing on every release. ?>
 	data-version="<?php echo esc_attr( WC_SCANPAY_VERSION ); ?>"></div>

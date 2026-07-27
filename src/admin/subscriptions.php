@@ -30,7 +30,11 @@ function wc_scanpay_create_meta_box_subs( $post, array $args ): void {
 	$wc_sub   = $args['args'][0];
 	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
 	$secret   = (string) ( is_array( $settings ) ? ( $settings['secret'] ?? '' ) : '' );
+	// data-endpoint is the base for the ?x=sub poll. admin_url(), never home_url(): the
+	// poll sends a custom X-Scanpay header, so a differing origin would make it a
+	// CORS-preflighted request that WordPress does not answer. See admin/orders.php.
 	echo '<div id="wcsp-meta" data-secret="' . esc_attr( $secret ) . '"
+		data-endpoint="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '"
 		data-subid="' . esc_attr( (string) $wc_sub->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ) ) . '"
 		data-payid="' . esc_attr( (string) $wc_sub->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' ) ) . '"
 		data-ptime="' . esc_attr( (string) $wc_sub->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' ) ) . '">

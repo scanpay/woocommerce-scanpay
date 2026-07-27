@@ -12,6 +12,11 @@ import { __, sprintf } from './util/i18n';
 const dom = document.getElementById('wcsp-meta');
 const data = window.ScanpayOrderData;
 
+// Base for the ?x= polls, sent by PHP so the request reaches a real file instead of a
+// path that only resolves with pretty permalinks. The fallback keeps a cached older
+// bundle working against a newer plugin, and collapses '' and undefined together.
+const ep = data.endpoint || '../wp-scanpay/fetch';
+
 type MetaRow = NonNullable<OrderData['meta']>;
 const MONEY_KEYS = ['authorized', 'captured', 'refunded', 'voided'] as const;
 
@@ -172,7 +177,7 @@ async function refresh(): Promise<boolean> {
 	const startRev = data.meta ? parseInt(data.meta.rev, 10) : 0;
 	for (let i = 0; i < 3; i++) {
 		try {
-			const res = await fetch(`../wp-scanpay/fetch?x=meta&oid=${data.oid}&rev=${startRev}`, {
+			const res = await fetch(`${ep}?x=meta&oid=${data.oid}&rev=${startRev}`, {
 				headers: { 'X-Scanpay': data.secret },
 			});
 			const row = await res.json();

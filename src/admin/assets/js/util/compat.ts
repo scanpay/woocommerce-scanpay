@@ -11,7 +11,7 @@ function safeJsonParse<T>(str: string | null, defaultValue: T): T {
 	Check if the system is in sync with the backend (wp-scanpay-fetch-ping.php)
 	Backend return a unixtime (secs) of the last ping or 0 if no ping has been received.
 */
-export function getLastSync(secret: string, force = false): Promise<number> {
+export function getLastSync(secret: string, endpoint: string, force = false): Promise<number> {
 	if (!force) {
 		const cached = localStorage.getItem('scanpay_lastPing');
 		const threshold = Math.floor(Date.now() / 1000) - 300;
@@ -19,7 +19,12 @@ export function getLastSync(secret: string, force = false): Promise<number> {
 			return Promise.resolve(parseInt(cached, 10));
 		}
 	}
-	return fetch('../wp-scanpay/fetch?x=ping', { headers: { 'X-Scanpay': secret } })
+	// The base is a parameter for the reason `secret` already is: this helper is shared
+	// and knows nothing about which screen called it, and #wcsp-set-alert exists on
+	// exactly one of them. The fallback is the old relative path, which only resolves
+	// with pretty permalinks — it keeps a cached older bundle working.
+	const ep = endpoint || '../wp-scanpay/fetch';
+	return fetch(`${ep}?x=ping`, { headers: { 'X-Scanpay': secret } })
 		.then(async (res) => {
 			const body = await res.text();
 			if (res.status !== 200) throw new Error(body);
