@@ -288,57 +288,6 @@ the head of the file), **S** item 3 (a log string), **T** (the `$subid` branch).
 Every one of those anchors sits below the previous task's edit or above it, never
 inside it — but the line numbers move, so locate the symbol.
 
-## Task M — The long-poll answers `text/html`
-
-**Files:** `src/admin/ajax/wp-scanpay-fetch-meta.php:51-58`,
-`src/admin/ajax/wp-scanpay-fetch-sub.php:55-62`.
-
-Both endpoints write keep-alive newlines while they hold the request open, then
-finish with `wp_send_json()`. That function sets the content type and the status
-code only `if ( ! headers_sent() )` (`wp-includes/functions.php:4593-4598`), and
-the first `echo` plus `flush()` has already sent them. So the same endpoint
-answers `application/json` on the fast path and PHP's default `text/html` on the
-long-poll path. It works today only because `fetch`'s `res.json()` ignores the
-content type and `JSON.parse` tolerates the leading whitespace.
-
-**Only the content type is actually lost**, and say so rather than widening the
-claim: neither long-poll call passes a status argument, so there is nothing for
-the second half of that guard to drop. The 403 at `:19` in both files does pass
-one, and it returns before any output. The status half is latent — it becomes real
-the day someone adds a status to the tail call — which is a reason to fix the
-header once per request, not a defect to report.
-
-**The fix.** Send `header( 'Content-Type: application/json; charset=UTF-8' );`
-exactly once per request in both files, with a comment saying why it cannot be
-left to `wp_send_json()`. Nothing else changes: the newlines are load-bearing
-(they are how a disconnected client is detected).
-
-**Placement, precisely: inside the long-poll branch but *outside* the loop** —
-next to `set_time_limit( 30 )` in `-meta.php`, and at the head of the same branch
-in `-sub.php`. The first `echo "\n"` lives in the loop body (`-meta.php:51`,
-`-sub.php:55`), so a `header()` written literally "before the echo" runs again on
-rounds two and three, after `flush()` has sent the headers, and PHP answers each
-repeat with `Cannot modify header information — headers already sent`. One
-warning per round, in the middle of the response body under `display_errors`,
-which is the bug this task exists to remove.
-
-### Verify
-
-- Quote `wp_send_json()`'s `headers_sent()` guard.
-- Confirm the header lands before the first byte on the long-poll path and that
-  the fast path (no hold) still gets `wp_send_json()`'s own header — no duplicate
-  `Content-Type`.
-- Confirm by reading the diff that the `header()` call sits outside the loop in
-  both files, and state how many times it executes on a three-round poll. Any
-  answer but one is the wrong placement.
-- Confirm the 403 branches are unaffected: they return before any output.
-
-### Handoff
-
-- `curl -i -H 'X-Scanpay: <secret>' '<shop>/?x=meta&oid=<id>&rev=<current rev>'`
-  on a real shop, and confirm the held response now carries
-  `Content-Type: application/json`.
-
 ## Task N — Our bulk action re-fills a list WooCommerce emptied on purpose
 
 **File:** `src/admin/orders.php`, `wc_scanpay_add_bulk_actions()` at `:29-44` —

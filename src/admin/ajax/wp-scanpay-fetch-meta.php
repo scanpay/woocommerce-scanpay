@@ -40,6 +40,13 @@ if ( isset( $meta['rev'] ) && $rev >= $meta['rev'] ) {
 	// max_execution_time of 30, but not a host that has tightened it, so ask for the
 	// headroom explicitly instead of relying on the default.
 	set_time_limit( 30 );
+	// Sent here, not left to wp_send_json(): that only sets the type and status
+	// `if ( ! headers_sent() )` (wp-includes/functions.php:4593-4598), and the keep-alive
+	// echo + flush() in the loop below has already sent them -- so the held response would
+	// answer PHP's default text/html. Outside the loop, because a second header() call
+	// after the first flush() is "headers already sent", one warning per round, in the
+	// middle of the body under display_errors.
+	header( 'Content-Type: application/json; charset=UTF-8' );
 	$counter = 0;
 	do {
 		// Exponential backoff: 0.5s, 1.5s, 3.5s (5.5s in total).

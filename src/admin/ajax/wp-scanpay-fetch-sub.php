@@ -42,6 +42,13 @@ if ( isset( $sub['rev'] ) && $rev >= $sub['rev'] ) {
 	// default max_execution_time of 30 once DB round-trips are added. Raise it so the
 	// endpoint answers rather than being killed mid-poll.
 	set_time_limit( 60 );
+	// Sent here, not left to wp_send_json(): that only sets the type and status
+	// `if ( ! headers_sent() )` (wp-includes/functions.php:4593-4598), and the keep-alive
+	// echo + flush() in the loop below has already sent them -- so the held response would
+	// answer PHP's default text/html. Outside the loop, because a second header() call
+	// after the first flush() is "headers already sent", one warning per round, in the
+	// middle of the body under display_errors.
+	header( 'Content-Type: application/json; charset=UTF-8' );
 	// Backoff: 0.5s, 1s, 2s, 4s, 8s -- 15.5s in total.
 	$sec = 1;
 	usleep( 500000 ); // usleep() for the sub-second wait only; sleep() for the rest.
