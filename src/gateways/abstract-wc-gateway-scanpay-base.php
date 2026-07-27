@@ -13,11 +13,7 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 		add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, [ $this, 'process_admin_options' ] );
 	}
 
-	/**
-	 * This gateway's shipped checkout title, e.g. "Pay by card". One source, shared by
-	 * init_gateway_props() and the gateway's own field definitions, so the property and
-	 * the settings form cannot disagree about what the default is.
-	 */
+	/** This gateway's shipped checkout title, e.g. "Pay by card". */
 	abstract protected function default_title(): string;
 
 	/** This gateway's shipped checkout description. See default_title(). */
@@ -58,12 +54,28 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	/**
 	 * The settings schema and its defaults, required from admin/settings/fields/<id>.php.
 	 * Only reached in the admin, or when a setting has no stored value yet.
+	 *
+	 * The require is the lazy half and still runs once. The map and the filter are
+	 * upstream's own body (abstract-wc-settings-api.php:66-68) and have to run on every
+	 * call: woocommerce_settings_api_form_fields_<id> is the documented way to extend any
+	 * WooCommerce gateway's settings -- WooCommerce's own PayPal gateway uses it -- and
+	 * returning the raw array made it silently do nothing on all three of ours.
 	 */
 	public function get_form_fields(): array {
 		if ( empty( $this->form_fields ) ) {
-			$this->form_fields = require WC_SCANPAY_DIR . '/admin/settings/fields/' . $this->id . '.php';
+			$fields = require WC_SCANPAY_DIR . '/admin/settings/fields/' . $this->id . '.php';
+			// Injected here rather than written into the field file: one source, shared with
+			// init_gateway_props(), so the property and the settings form cannot disagree
+			// about what the default is. It also keeps those files data -- a required file
+			// that calls $this->default_title() is a method body in the wrong file.
+			$fields['title']['default']       = $this->default_title();
+			$fields['description']['default'] = $this->default_description();
+			$this->form_fields                = $fields;
 		}
-		return $this->form_fields;
+		return apply_filters(
+			'woocommerce_settings_api_form_fields_' . $this->id,
+			array_map( [ $this, 'set_defaults' ], $this->form_fields )
+		);
 	}
 
 	/**
