@@ -11,3 +11,6 @@
 # Local editor tooling (machine-specific symlinks)
 /.stubs/
 /.zed/
+
+# Scratch notes from a PLAN.md run: local findings, never shipped
+/HANDOFF.md

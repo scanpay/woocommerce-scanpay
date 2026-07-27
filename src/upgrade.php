@@ -106,7 +106,64 @@ if ( version_compare( $version, '2.5.0', '<' ) ) {
 	update_option( WC_SCANPAY_URI_SETTINGS, $settings, true );
 }
 
+/*
+ *  Version: 3.0.0
+ *  The released 2.x schema carries columns v3 stopped writing: scanpay_meta.method,
+ *  and retries/nxt/method_id/idem on scanpay_subs from the pre-3.0 charge design.
+ *  scanpay_meta.method is NOT NULL with no DEFAULT, so under a strict SQL mode every
+ *  v3 insert fails outright (MySQL 1364) and the cursor cannot advance past that
+ *  change. Drop them in place: rows, cursors, revisions and method data all survive.
+ *  (2.x also declared UNIQUE alongside the PRIMARY KEY on all three tables, dropped
+ *  in 5f4468b. Redundant, not harmful, and left alone here.)
+ */
+if ( version_compare( $version, '3.0.0', '<' ) ) {
+	// Creates from the v3 schema whichever table this site never had; a no-op for the
+	// rest. It cannot stamp the version early -- reaching this branch means settings or
+	// a version exist, either of which makes install.php's $fresh_install false.
+	require WC_SCANPAY_DIR . '/install.php';
+	require_once WC_SCANPAY_DIR . '/library/schema.php';
+
+	// Presence is re-read on every run, so a retry after an interrupted migration
+	// accepts a mixture where some columns are already gone. Not DROP COLUMN IF EXISTS:
+	// that needs MySQL 8.0.29 / MariaDB 10.5, well above the oldest server the
+	// WordPress minimum supports.
+	$obsolete = [
+		$wpdb->prefix . 'scanpay_meta' => [ 'method' ],
+		$wpdb->prefix . 'scanpay_subs' => [ 'retries', 'nxt', 'method_id', 'idem' ],
+	];
+	foreach ( $obsolete as $tbl => $columns ) {
+		$found = wc_scanpay_table_columns( $tbl );
+		if ( '' !== $wpdb->last_error ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
+			throw new Exception( "Could not read the columns of $tbl: " . $wpdb->last_error );
+		}
+		$drops = [];
+		foreach ( $columns as $col ) {
+			if ( in_array( $col, $found, true ) ) {
+				$drops[] = "DROP COLUMN `$col`";
+			}
+		}
+		// One ALTER per table: fewer rebuilds, and MySQL applies it as a unit.
+		if ( $drops ) {
+			// A DDL query returns $wpdb->result, never a row count, so false is the failure.
+			$res = $wpdb->query( "ALTER TABLE $tbl " . implode( ', ', $drops ) );
+			if ( false === $res ) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
+				throw new Exception( "Could not drop obsolete columns from $tbl: " . $wpdb->last_error );
+			}
+		}
+	}
+}
+
 // Stamped last: an interrupted upgrade must re-run from the start on the next request.
 // Autoloaded, because the loader gate reads it on every request.
 update_option( 'wc_scanpay_version', WC_SCANPAY_VERSION, true );
+
+// Reread rather than trust the return: update_option() also answers false when the
+// stored value already matches, which a concurrent request can arrange. Throwing hands
+// the failure to the loader, which keeps its five-minute transient and retries the
+// whole migration -- far better than reporting a version this site does not have.
+if ( get_option( 'wc_scanpay_version' ) !== WC_SCANPAY_VERSION ) {
+	throw new Exception( 'Could not store the new plugin version' );
+}
 scanpay_log( 'info', 'Scanpay plugin upgrade complete' );
