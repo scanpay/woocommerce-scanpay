@@ -1,7 +1,8 @@
 # Scanpay for WooCommerce — agent guide
 
-> One guide for every coding agent. `CLAUDE.md` is a symlink to this file — edit
-> here; there is no second copy.
+> One guide for every coding agent. This file stays at the repo root because that
+> is where every agent looks for it; per-tool entry points are symlinks to it, kept
+> out of the root (`.claude/CLAUDE.md`). Edit here; there is no second copy.
 
 WordPress/WooCommerce payment gateway for [Scanpay](https://scanpay.dk): card,
 MobilePay Online and Apple Pay, plus WooCommerce Subscriptions. HPOS- and
