@@ -363,14 +363,13 @@ checkout stylesheet still enqueues once the form has been saved.
 
 ---
 
-## Task D: Return what the base class documents from `process_admin_options()`
+## Task D: Declare and return `process_admin_options()`'s documented bool
 
 `WC_Gateway_Scanpay_Card::process_admin_options(): void`
 (`class-wc-gateway-scanpay-card.php:82`) overrides a method the base declares as
 `@return bool Whether anything was saved`
-(`abstract-wc-gateway-scanpay-base.php:117-121`), which in turn returns whatever
-`admin/settings/process-admin-options.php` returns — `false` when nothing was
-saved (`:28`), `true` otherwise.
+(`abstract-wc-gateway-scanpay-base.php:114-119`), which in turn returns whatever
+its own body returns — `false` when nothing was saved, `true` otherwise.
 
 Adding `void` where the parent has no return type is legal PHP, so nothing
 errors: the value is simply discarded and any caller reading it gets `null`.
@@ -382,25 +381,34 @@ trigger `install.php`.
 
 ### Fix
 
-1. Declare `: bool` and return the parent's value.
+1. Declare `: bool` on the card and return the parent's value.
 2. Keep the seeding condition and its comment (`:83-98`) exactly as they are.
    The only change is that the parent's result is captured and handed back
    instead of dropped — the `install.php` require still runs on the same
    condition, after the parent call.
-3. **Do not add a return type to the base's `process_admin_options()`.** It has
-   none because `WC_Settings_API`'s has none; narrowing the whole chain is a
-   different change and would need the upstream signature checked first.
+3. **Declare `: bool` on the base too, in the same commit**, and drop the
+   `@return bool` line the signature then states. Both halves are required at
+   once: `void` is not a subtype of `bool`, so a typed base with the card still
+   on `void` is a fatal at class-declaration time, and a typed card alone leaves
+   the contract documented rather than enforced.
+
+   The upstream check this step used to defer is done. `WC_Settings_API::process_admin_options()`
+   is untyped (`woocommerce-stubs.php:817`) and `WC_Payment_Gateway` does not
+   override it, so the base's `parent::` reaches `WC_Settings_API` directly;
+   adding a return type where the parent has none is covariant and legal. All
+   three concrete gateways are `final`, so the card is the only override in the
+   tree and no third party can subclass one.
 
 ### Verify
 
-- Confirm both paths through the method return a bool, including the one that
+- Confirm every path through both methods returns a bool, including the one that
   requires `install.php`.
 - Grep `src/` for every `process_admin_options` call site and confirm none
-  depended on the `void` — in particular that `process-admin-options.php`'s own
-  `parent::process_admin_options()` at `:26` still sees the base, not the card.
-- Confirm PHP accepts the signature against both ancestors: run
-  `php -l` on the file and state why adding a return type where the parent has
-  none is covariant.
+  depended on the `void` — in particular that the base's own
+  `parent::process_admin_options()` still sees `WC_Settings_API`, not the card.
+- Confirm PHP accepts both signatures against their ancestors: `php -l` on each
+  file, plus loading the classes together so the card is checked against the
+  typed base, not just parsed.
 - `pnpm phpcs` clean.
 
 ### Handoff
