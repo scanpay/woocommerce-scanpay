@@ -7,7 +7,7 @@
 	min-height: 80px;
 }
 
-#wcsp-meta-box>.inside {
+#wcsp-meta-box > .inside {
 	margin: 10px 0 0;
 	padding: 0;
 }
@@ -15,16 +15,18 @@
 /*
     Alert box in meta box.
 
-    The modifier class is built by concatenation in types/meta.ts
-    ('wcsp-meta-alert-' + type), so grepping for a literal '-info' finds nothing --
-    it is nonetheless the most common type by far (meta.ts, order.ts, subs.ts).
-    The base rule therefore carries layout plus the neutral palette, and the two
-    modifiers below tint it. -info restates the neutral palette rather than relying
-    on the fall-through, so it is greppable and pinned.
+    The modifier class is built by concatenation in util/meta.ts
+    ('wcsp-meta-alert-' + type), so grepping for a literal '-info' finds
+    nothing -- it is nonetheless the most common type by far (meta.ts,
+    order.ts, subs.ts). The base rule therefore carries layout plus the
+    neutral palette, and the two modifiers below tint it. -info restates the
+    neutral palette rather than relying on the fall-through, so it is
+    greppable and pinned.
 
-    Previously -warning and -error were byte-identical red and -info had no rule at
-    all, so every informational banner fell through to a yellow base and the one
-    real warning ("The saved card has expired.") came out error-red.
+    Previously -warning and -error were byte-identical red and -info had no
+    rule at all, so every informational banner fell through to a yellow base
+    and the one real warning ("The saved card has expired.") came out
+    error-red.
 */
 .wcsp-meta-alert {
 	margin: 9px 11px;

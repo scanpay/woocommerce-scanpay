@@ -42,7 +42,7 @@
 	},
 	"scripts": {
 		"lint:js": "wp-scripts lint-js src/",
-		"lint:style": "wp-scripts lint-style src/public/assets/css/",
+		"lint:style": "wp-scripts lint-style \"src/**/*.{css,scss}\"",
 		"lint:pkg-json": "wp-scripts lint-pkg-json",
 		"lint:md:docs": "wp-scripts lint-md-docs",
 		"phpcs": "./vendor/bin/phpcs",
