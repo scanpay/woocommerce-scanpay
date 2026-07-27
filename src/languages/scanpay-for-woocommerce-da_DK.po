@@ -144,7 +144,7 @@ msgstr "Vælg hvilke kortikoner der skal vises ved checkout."
 
 #: admin/settings/fields/scanpay.php:69
 msgid "Stylesheet"
-msgstr ""
+msgstr "Stylesheet"
 
 #: admin/settings/fields/scanpay.php:71
 msgid "Use the default Scanpay checkout stylesheet (CSS)."
@@ -342,7 +342,7 @@ msgstr "Fejl: Vi kunne ikke oprette et link til betalingsvinduet. Vent et øjebl
 
 #: public/generate-payment-link.php:178
 msgid "Your payment details were updated. This renewal has not been charged yet; it will be collected automatically with the new details."
-msgstr ""
+msgstr "Dine betalingsoplysninger er opdateret. Denne fornyelse er endnu ikke trukket; beløbet bliver opkrævet automatisk med de nye oplysninger."
 
 #: woocommerce-scanpay.php:388
 msgid "The Scanpay renewal could not be processed. See the WooCommerce logs for details."
