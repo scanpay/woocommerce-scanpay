@@ -74,7 +74,11 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 		}
 		if ( is_array( $settings ) && ( 'yes' === ( $settings['enabled'] ?? 'no' ) ) ) {
 			$data['methods']['scanpay'] = [
-				'title'       => (string) ( $settings['title'] ?? 'Scanpay' ),
+				// WC_Gateway_Scanpay_Card::default_title() is the source of this string; the
+				// two must stay in step, or the same store renders a different label in the
+				// two checkouts. Copied rather than called: instantiating the gateway would
+				// drag its settings and lazy form fields into a payload built at checkout.
+				'title'       => (string) ( $settings['title'] ?? 'Pay by card' ),
 				'description' => (string) ( $settings['description'] ?? '' ),
 				// WC's validate_multiselect_field() stores '' (not []) when nothing is
 				// selected, and (array) '' is [ '' ] -- a non-empty array holding an
