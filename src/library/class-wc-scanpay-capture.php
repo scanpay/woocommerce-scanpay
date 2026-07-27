@@ -123,6 +123,14 @@ final class WC_Scanpay_Capture {
 	 * order automatically and the merchant can safely retry (the remaining-amount guard
 	 * prevents a double capture).
 	 *
+	 * Parking can itself fail, and mostly does so quietly: WC_Order::update_status()
+	 * catches Exception itself (class-wc-order.php:407-425) and returns false, and returns
+	 * false without doing anything at :403 for an unsaved order. Both are reported below,
+	 * because the order then keeps the status it had -- 'completed', on the
+	 * woocommerce_order_status_completed path -- and a merchant reading "capture failed"
+	 * against the documented contract would take it for parked and ship on an
+	 * authorization that was never captured.
+	 *
 	 * @return bool True if the capture succeeded, so the caller may complete the order.
 	 */
 	public static function capture_or_hold( WC_Order $wco ): bool {
@@ -157,7 +165,7 @@ final class WC_Scanpay_Capture {
 			// failing it. The next ping reconciles it via payment_complete().
 			scanpay_log( 'error', "Capture on order #$oid failed: " . $e->getMessage() );
 			try {
-				$wco->update_status(
+				$parked = $wco->update_status(
 					'on-hold',
 					sprintf(
 						/* translators: %s is the raw failure reason, which is not translated. */
@@ -166,6 +174,14 @@ final class WC_Scanpay_Capture {
 					),
 					true
 				);
+				// Says nothing about WooCommerce's own log entry on purpose. False has two
+				// sources and only one of them leaves a trail: the Exception path logs and
+				// notes the order, while the unsaved-order guard at class-wc-order.php:403
+				// returns before the try and records nothing at all. Naming an entry that may
+				// not exist would send the merchant looking for it.
+				if ( ! $parked ) {
+					scanpay_log( 'error', "Order #$oid was not parked on hold: update_status() returned false" );
+				}
 			} catch ( \Throwable $status_error ) {
 				// WooCommerce could not persist the fallback status. Nothing to retry: the
 				// capture failed either way, and this must still return the recorded false

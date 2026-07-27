@@ -328,10 +328,24 @@ function wcs_scanpay_wants_completion( array $settings, string $flow ): bool {
  *
  * $diagnostic is raw and internal; $reason is shown to the merchant on the order, so a
  * backend or database exception message must never be passed as one.
+ *
+ * An ordinary failure to write the status does not throw: WC_Order::update_status()
+ * catches Exception itself (class-wc-order.php:407-425) and returns false, and it also
+ * returns false without doing anything at :403 for an unsaved order. Only the first of
+ * those two leaves WooCommerce's own trail -- a wc_get_logger() line and an "Update
+ * status event failed." note on the order -- so both are reported here, in wording that
+ * tells the returned-false half from the escaping-Throwable half. Noticing matters:
+ * WCS calls payment_failed() only from a 'failed' transition
+ * (class-wc-subscriptions-renewal-order.php:143-145), so a missed write leaves the
+ * renewal pending, the subscription unsuspended and no retry scheduled.
  */
 function wcs_scanpay_fail_renewal( WC_Order $wco, string $diagnostic, string $reason ): void {
 	try {
-		$wco->update_status( 'failed', $reason );
+		if ( ! $wco->update_status( 'failed', $reason ) ) {
+			// Mutually exclusive with the catch below -- a return of false never throws --
+			// so the two must not read alike: this is WooCommerce declining the write.
+			$diagnostic .= ' -- and WooCommerce refused the failed status write';
+		}
 	} catch ( \Throwable $e ) {
 		$diagnostic .= ' -- and the failed status could not be saved: ' . $e->getMessage();
 	}
