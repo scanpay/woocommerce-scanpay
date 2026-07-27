@@ -12,12 +12,22 @@ defined( 'ABSPATH' ) || exit();
  * happens before completion -- and therefore before the completion emails go out. A
  * failed capture parks the order 'on-hold' with a note (never 'failed') and the order
  * is left uncompleted; see WC_Scanpay_Capture::capture_or_hold().
+ *
+ * Priority 0 also means this file sees *every* order-list row action on the site, for
+ * every status and every gateway, which is why the gate is split: the capability first,
+ * then the read-only tests that decide whether the request is ours, and the nonce last.
+ * Answering a stale nonce ourselves would replace WooCommerce's retry page with raw JSON
+ * on somebody else's PayPal order. The invariant that keeps that safe is positional --
+ * everything above the nonce check only reads; everything below it changes the request's
+ * behaviour or the order.
  */
 
-if (
-	! current_user_can( 'edit_shop_orders' ) ||
-	! check_ajax_referer( 'woocommerce-mark-order-status', false, false )
-) {
+// Capability first, before anything is parsed: an unauthenticated caller must not learn
+// from the response whether an order id is well-formed. Same property, same reason as
+// wp-ajax-wc-scanpay-capture.php:18-20. What an authenticated edit_shop_orders actor can
+// learn from the tests below -- that an order id exists, and whether it is ours -- the
+// Orders screen already shows them.
+if ( ! current_user_can( 'edit_shop_orders' ) ) {
 	wp_send_json_error( 'forbidden', 403 );
 }
 
@@ -29,11 +39,26 @@ if (
 	return;
 }
 
+/*
+ * The one JSON answer left above the nonce check, and deliberately still a die. It is
+ * unreachable from a rendered row action -- WooCommerce builds both URLs from
+ * $order->get_id() (ListTable.php:1340, :1348) -- it is not a CSRF hole, because nothing
+ * above the nonce writes, and returning instead would hand a malformed order_id to
+ * WC_AJAX::mark_order_status(), which absint()s it: order 0 silently completed, or
+ * whatever '12abc' truncates to.
+ *
+ * No (string) cast on the unslashed value. wp_unslash() of an array returns an array, and
+ * casting one is what emits "Array to string conversion"; ctype_digit( [] ) is a plain
+ * false with no diagnostic, so the cast was the whole bug. is_string() states that rule
+ * instead of relying on the reader knowing it, and upstream's absint( wp_unslash( … ) )
+ * is exactly the leniency this die exists to refuse.
+ */
 // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- ctype_digit is the validation; value is cast to int below.
-if ( ! ctype_digit( (string) wp_unslash( $_GET['order_id'] ) ) ) {
+$raw = wp_unslash( $_GET['order_id'] );
+if ( ! is_string( $raw ) || ! ctype_digit( $raw ) ) {
 	wp_send_json_error( 'invalid_order_id', 400 );
 }
-$oid = (int) $_GET['order_id'];
+$oid = (int) $raw;
 $wco = wc_get_order( $oid );
 if ( ! $wco ) {
 	return;
@@ -41,6 +66,29 @@ if ( ! $wco ) {
 
 if ( ! str_starts_with( $wco->get_payment_method( 'edit' ), 'scanpay' ) ) {
 	return; // Not a Scanpay order; fall through to WooCommerce's handler.
+}
+
+// The bulk handler's guard, for the reason it gives (wp-bulk-actions.php:41-45): the menu
+// does not offer a row action in the trash view, but the nonce is per *action*, not per
+// order -- the id rides in the query string beside it (ListTable.php:1340, :1348) -- so
+// one valid link is reusable for any id, a trashed one included. The exit differs from
+// the bulk path's: there a continue skips the order outright, here the return hands it to
+// WC_AJAX::mark_order_status(), which still completes and untrashes it. What this buys is
+// that no capture runs, so the customer is not charged; the untrash is core behaviour for
+// an order we declined and is not ours to stop from here.
+if ( in_array( $wco->get_status(), [ 'completed', 'trash' ], true ) ) {
+	return;
+}
+
+// Last, and a return rather than a die: WooCommerce's own handler runs next and checks
+// the nonce properly -- current_user_can() && check_admin_referer() at
+// class-wc-ajax.php:667 -- which answers a stale one with wp_nonce_ays(), WordPress's
+// "Are you sure you want to do this? / Please try again" page (pluggable.php:1394-1397).
+// Row actions are ordinary browser navigations, not fetch, so that page is what a human
+// has to get. The nonce is therefore verified twice on our path: by us to decide whether
+// to act, by WooCommerce to decide whether to refuse, and only its answer is rendered.
+if ( ! check_ajax_referer( 'woocommerce-mark-order-status', false, false ) ) {
+	return;
 }
 
 // This request captures explicitly, so drop the status hook: the completion below

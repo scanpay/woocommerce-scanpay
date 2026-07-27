@@ -21,11 +21,18 @@ if ( ! current_user_can( 'edit_shop_orders' ) ) {
 	wp_send_json_error( 'forbidden', 403 );
 }
 
-// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- ctype_digit is the validation; value is cast to int below.
-if ( ! isset( $_POST['oid'] ) || ! ctype_digit( (string) wp_unslash( $_POST['oid'] ) ) ) {
+if ( ! isset( $_POST['oid'] ) ) {
 	wp_send_json_error( 'invalid_order_id', 400 );
 }
-$oid = (int) $_POST['oid'];
+// No (string) cast: wp_unslash() of an array returns an array, and casting one is what
+// emits "Array to string conversion" -- ctype_digit( [] ) is a plain false with no
+// diagnostic. is_string() states that rule rather than relying on it.
+// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- ctype_digit is the validation; value is cast to int below.
+$raw = wp_unslash( $_POST['oid'] );
+if ( ! is_string( $raw ) || ! ctype_digit( $raw ) ) {
+	wp_send_json_error( 'invalid_order_id', 400 );
+}
+$oid = (int) $raw;
 
 // The nonce is per-order, so it cannot be verified until $oid is known.
 if ( ! check_ajax_referer( 'scanpay-order-' . $oid, 'nonce', false ) ) {
