@@ -176,7 +176,6 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 8 | The 2.1.3 migration cannot finish on a large shop | `upgrade.php` |
 | 9 | A site-wide menu removal contradicts our stated policy | `woocommerce-scanpay.php` |
 | 10 | Three registrations in the router that state nothing | `woocommerce-scanpay.php` |
 | 11 | The cURL extension is required and declared nowhere | `woocommerce-scanpay.php`, `gateways/abstract-wc-gateway-scanpay-base.php` |
@@ -194,72 +193,6 @@ Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 8 — The 2.1.3 migration cannot finish on a large shop
-
-**File:** `src/upgrade.php`
-**Anchor:** `version_compare( $version, '2.1.3', '<' )` (~`:100-137`)
-
-The branch runs `wc_get_orders()` over `'type' => 'shop_subscription'`,
-`'meta_key' => '_scanpay_subscriber_id'`, `'limit' => -1`, then loops
-`wcs_get_subscription( $oid )` with up to two `scanpay_meta` lookups per row.
-
-Three properties compound: `'limit' => -1` loads every matching id then builds a
-full `WC_Subscription` per row; the two in-loop lookups are
-`SELECT id FROM …scanpay_meta WHERE subid = … ORDER BY id DESC LIMIT 1`, and
-`scanpay_meta`'s only key is `PRIMARY KEY (orderid)`, so each is a full scan; and
-the whole file runs under one `set_time_limit( 60 )` at the top.
-
-A shop with enough 1.x-era subscriptions cannot complete this branch in its grant.
-The loader makes that permanent rather than slow: the `wc_scanpay_updating`
-transient is kept on failure and the version is stamped **last**, so the migration
-restarts from zero every five minutes forever and the plugin never reaches its
-current version.
-
-`docs/performance-review.md` queues a `wp_cache_flush()` inside this loop, noting
-"it runs once per upgrade". That premise is what this task challenges.
-
-**Fix.** Do items 1 and 2; do 3 only if it stays clearly readable.
-
-1. **Batch by id.** Replace `'limit' => -1` with `'limit' => 500`, `'offset' => …`,
-   `'orderby' => 'ID'`, `'order' => 'ASC'`, looping until a short page returns.
-   `uninstall.php`'s `get_sites()` loop already uses this shape; follow its comment
-   ("a short page is the last one").
-2. **Renew the grant inside the loop**, as task 5 does for the drain: every N rows
-   or every ~30 s.
-3. **Hoist the lookups**: one
-   `SELECT subid, MAX( id ) FROM …scanpay_meta GROUP BY subid` before the loop
-   answers every comparison from an array, turning 2N scans into one. It changes
-   what the branch reads, and correctness outranks scan count — if you skip it,
-   say why.
-
-The branch must stay **idempotent and restartable**. It already is (the
-`$black_subid > $subid` test re-derives its own precondition each run) and
-batching must not break that. **Do not** add a progress marker or resume cursor —
-an interrupted run re-reading fixed rows is correct, and a new option is a new
-thing to migrate.
-
-**Verify**
-
-- Confirm the `wc_get_orders()` arguments you pass are honoured by both data
-  stores — in particular `'offset'` and `'orderby' => 'ID'` alongside `'meta_key'`.
-- **Confirm offset paging cannot skip a row**: the loop writes
-  `WC_SCANPAY_URI_SUBID`, the query filters on `_scanpay_subscriber_id`, and those
-  are different meta keys, so the result set does not shrink underneath the paging.
-  State this; it is the one way batching could silently lose subscriptions.
-- State that the branch is still idempotent, quoting the `$black_subid > $subid`
-  test.
-- Confirm from `install.php`'s DDL that `scanpay_meta` has no index on `subid`, and
-  record whether you did item 3.
-
-**Handoff**
-
-- On a shop with several thousand 1.x subscriptions the upgrade completes in one
-  request, the version is stamped and the transient is gone.
-- Subscriptions whose 1.x subid is newer still get it; those whose current subid
-  already carries the newer transaction still do not.
 
 ---
 

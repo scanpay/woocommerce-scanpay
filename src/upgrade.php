@@ -98,42 +98,92 @@ if ( version_compare( $version, '2.0.0', '<' ) ) {
  *  carries the newer transaction -- in which case 1.x's copy is the stale one.
  */
 if ( $wcs_exists && version_compare( $version, '2.1.3', '<' ) ) {
-	$args    = [
-		'type'     => 'shop_subscription',
-		'status'   => 'all',
-		'return'   => 'ids',
-		'meta_key' => '_scanpay_subscriber_id', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
-		'limit'    => -1,
-	];
-	$wc_subs = wc_get_orders( $args );
-
-	foreach ( $wc_subs as $oid ) {
-		$wc_sub = wcs_get_subscription( $oid );
-		// 'edit', as every other payment-method read in the tree: a view-context read runs
-		// woocommerce_order_get_payment_method, which is a third party deciding what the
-		// stored value is while we decide whether to rewrite it.
-		if ( ! $wc_sub || ! str_starts_with( $wc_sub->get_payment_method( 'edit' ), 'scanpay' ) ) {
-			continue;
-		}
-		$subid       = (int) $wc_sub->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
-		$black_subid = (int) $wc_sub->get_meta( '_scanpay_subscriber_id', true, 'edit' );
-		if ( $black_subid > $subid ) {
-			if ( $subid ) {
-				$trn       = (int) $wpdb->get_var( "SELECT id FROM {$wpdb->prefix}scanpay_meta WHERE subid = $subid ORDER BY id DESC LIMIT 1" );
-				$black_trn = (int) $wpdb->get_var( "SELECT id FROM {$wpdb->prefix}scanpay_meta WHERE subid = $black_subid ORDER BY id DESC LIMIT 1" );
-				if ( $trn && $trn > $black_trn ) {
-					continue;
-				}
-			}
-			scanpay_log( 'info', "change subid on #$oid (from '$subid' to '$black_subid'" );
-			$wc_sub->update_meta_data( WC_SCANPAY_URI_SUBID, $black_subid );
-			// No cache invalidation of our own: WC_Data::save_meta_data() ends by deleting
-			// this object's own meta cache entry, and nothing here reads it back -- the next
-			// iteration loads a different subscription, and the two lookups above go straight
-			// to scanpay_meta through $wpdb, which never consults the object cache.
-			$wc_sub->save_meta_data();
-		}
+	/*
+	 * The newest transaction per subscriber, read once. scanpay_meta's only key is
+	 * PRIMARY KEY (orderid), so the two per-row lookups this replaces were a full table
+	 * scan each -- 2N scans, and the reason the branch could not finish on a shop with
+	 * enough 1.x subscriptions. A snapshot is sound: the loop below writes order meta,
+	 * never scanpay_meta, so nothing in it invalidates the map.
+	 *
+	 * Checked, unlike the per-row lookups it replaces: one failed query now decides every
+	 * comparison at once, and an empty map reads as "no transaction" -- which would adopt
+	 * 1.x's subid on subscriptions whose current one is in fact the newer.
+	 */
+	$max_trn = [];
+	$rows    = $wpdb->get_results( "SELECT subid, MAX(id) AS id FROM {$wpdb->prefix}scanpay_meta WHERE subid > 0 GROUP BY subid", ARRAY_A );
+	if ( $wpdb->last_error ) {
+		// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
+		throw new Exception( 'Could not read the newest transaction per subscriber: ' . $wpdb->last_error );
 	}
+	foreach ( (array) $rows as $row ) {
+		$max_trn[ (int) $row['subid'] ] = (int) $row['id'];
+	}
+
+	/*
+	 * Batched by id, the shape uninstall.php's site loop uses. 'limit' => -1 loaded every
+	 * matching id and then built a full WC_Subscription per row, so a shop with enough of
+	 * them never got through the branch -- and because the version is stamped last, it
+	 * restarted from zero on every five-minute retry instead of failing visibly.
+	 *
+	 * Paging cannot skip a subscription: the loop writes WC_SCANPAY_URI_SUBID while the
+	 * query filters on '_scanpay_subscriber_id', two different meta keys, so the result
+	 * set does not shrink underneath the offset.
+	 */
+	$page_size = 500;
+	$offset    = 0;
+	$renewed   = microtime( true );
+	do {
+		$wc_subs = wc_get_orders(
+			[
+				'type'     => 'shop_subscription',
+				'status'   => 'all',
+				'return'   => 'ids',
+				'meta_key' => '_scanpay_subscriber_id', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+				'limit'    => $page_size,
+				'offset'   => $offset,
+				'orderby'  => 'ID',
+				'order'    => 'ASC',
+			]
+		);
+		$n_found = count( $wc_subs );
+
+		foreach ( $wc_subs as $oid ) {
+			// The whole file runs under the single set_time_limit( 60 ) at :9, which this
+			// branch alone can outlast. set_time_limit() resets the counter rather than
+			// adding to it, so renewing before it is due costs nothing.
+			if ( microtime( true ) - $renewed >= 30 ) {
+				set_time_limit( 60 );
+				$renewed = microtime( true );
+			}
+			$wc_sub = wcs_get_subscription( $oid );
+			// 'edit', as every other payment-method read in the tree: a view-context read runs
+			// woocommerce_order_get_payment_method, which is a third party deciding what the
+			// stored value is while we decide whether to rewrite it.
+			if ( ! $wc_sub || ! str_starts_with( $wc_sub->get_payment_method( 'edit' ), 'scanpay' ) ) {
+				continue;
+			}
+			$subid       = (int) $wc_sub->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
+			$black_subid = (int) $wc_sub->get_meta( '_scanpay_subscriber_id', true, 'edit' );
+			if ( $black_subid > $subid ) {
+				if ( $subid ) {
+					$trn       = $max_trn[ $subid ] ?? 0;
+					$black_trn = $max_trn[ $black_subid ] ?? 0;
+					if ( $trn && $trn > $black_trn ) {
+						continue;
+					}
+				}
+				scanpay_log( 'info', "change subid on #$oid (from '$subid' to '$black_subid'" );
+				$wc_sub->update_meta_data( WC_SCANPAY_URI_SUBID, $black_subid );
+				// No cache invalidation of our own: WC_Data::save_meta_data() ends by deleting
+				// this object's own meta cache entry, and nothing here reads it back -- the next
+				// iteration loads a different subscription, and the comparison above is answered
+				// from the array built before the loop, never from the object cache.
+				$wc_sub->save_meta_data();
+			}
+		}
+		$offset += $page_size;
+		// A short page is the last one; a full page means there may be more.
+	} while ( $n_found === $page_size );
 }
 
 /*
