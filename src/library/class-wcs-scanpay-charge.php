@@ -6,6 +6,7 @@ defined( 'ABSPATH' ) || exit();
 final class WCS_Scanpay_Charge {
 	private array $settings;
 	private WC_Scanpay_Client $client;
+	private int $shopid;
 
 	public function __construct() {
 		// math.php and the client are independent requires: gating math.php on the client's
@@ -15,7 +16,12 @@ final class WCS_Scanpay_Charge {
 		require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
 		$opts           = get_option( WC_SCANPAY_URI_SETTINGS );
 		$this->settings = is_array( $opts ) ? $opts : [];
-		$this->client   = new WC_Scanpay_Client( $this->settings['apikey'] ?? '' );
+		$apikey         = (string) ( $this->settings['apikey'] ?? '' );
+		// Derived here, reported in scheduled_charge(): this constructor has no order to
+		// mark failed, and the hook memoizes the handler for the whole request, so a throw
+		// here would be per-request rather than per-renewal.
+		$this->shopid = (int) strstr( $apikey, ':', true );
+		$this->client = new WC_Scanpay_Client( $apikey );
 	}
 
 	/**
@@ -61,8 +67,9 @@ final class WCS_Scanpay_Charge {
 	 * Scheduler, or a "Process renewal" action in the admin. $wco is the renewal order.
 	 */
 	public function scheduled_charge( float $amount, WC_Order $wco ): void {
-		$oid   = $wco->get_id();
-		$subid = (int) $wco->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
+		$oid          = $wco->get_id();
+		$subid        = (int) $wco->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
+		$order_shopid = (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' );
 		if ( $subid <= 0 ) {
 			scanpay_log( 'error', "scheduled charge: invalid subscriber ID on #$oid" );
 			$wco->update_status( 'failed', 'invalid Scanpay subscriber ID' );
@@ -70,6 +77,40 @@ final class WCS_Scanpay_Charge {
 		}
 		if ( $wco->is_paid() || ! empty( $wco->get_transaction_id( 'edit' ) ) ) {
 			scanpay_log( 'debug', "scheduled charge: order #$oid already paid; skipping (subid=$subid)" );
+			return;
+		}
+		if ( $this->shopid <= 0 ) {
+			// Caught locally so the merchant reads a cause, not an opaque 401 from the API.
+			scanpay_log( 'error', "scheduled charge: invalid API key configured; cannot charge #$oid (subid=$subid)" );
+			$wco->update_status( 'failed', 'invalid Scanpay API key configured' );
+			return;
+		}
+		/*
+		 * Shop ownership. Scanpay subscriber IDs are namespaced per shop, so after a
+		 * merchant switches keys a subid that merely collides numerically resolves to a
+		 * different customer's stored card -- the API path carries no shop id, the
+		 * authenticated key does. Do not simplify this away on the assumption that
+		 * subscriber IDs are globally unique.
+		 *
+		 * A shopid column on scanpay_subs would look cheaper (idempotency_key() already
+		 * reads that row) and defends against nothing: the new shop's sync upserts the
+		 * same subid row with its own shop id. Only the subscription's own meta records
+		 * what it was created under.
+		 *
+		 * Absent or zero proceeds, deliberately, unlike WC_Scanpay_Capture, which throws
+		 * on it: a 1.x-migrated store can legitimately have no stamp. sync's subscriber()
+		 * writes WC_SCANPAY_URI_SHOPID only for subscriptions resolved from a 'wcs[]' ref
+		 * (class-wc-scanpay-sync.php:359-367), which 1.x never wrote -- it used a bare
+		 * order id -- while the scanpay_subs upsert above it (:346-351) is independent of
+		 * that parsing, so the idempotency key resolves with the stamp missing. The 2.1.3
+		 * migration (upgrade.php:57-88) backfills only the subid. Failing those renewals
+		 * would stop them with no merchant-visible cause.
+		 */
+		if ( $order_shopid <= 0 ) {
+			scanpay_log( 'warning', "scheduled charge: no shop id on #$oid; charging under shop {$this->shopid} (subid=$subid)" );
+		} elseif ( $order_shopid !== $this->shopid ) {
+			scanpay_log( 'error', "scheduled charge: shop mismatch on #$oid: order has $order_shopid, API key has {$this->shopid} (subid=$subid)" );
+			$wco->update_status( 'failed', "subscription belongs to Scanpay shop $order_shopid, not {$this->shopid}" );
 			return;
 		}
 		/*
