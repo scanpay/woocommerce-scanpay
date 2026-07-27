@@ -82,6 +82,17 @@ if ( 0 !== $shopid ) {
 	$seq = $wpdb->get_var( "SELECT seq FROM $seq_tbl WHERE shopid = $shopid" );
 	if ( null === $seq ) {
 		$wpdb->query( "INSERT INTO $seq_tbl (shopid, seq, ping, mtime) VALUES ($shopid, 0, 0, 0)" );
+		// Re-read rather than test the INSERT's return: two activations racing lose the
+		// duplicate-key race harmlessly, and it is the row's presence that matters, not
+		// who wrote it. get_var() also answers null on a read error, so this covers both.
+		// Throwing like the three CREATE TABLEs above is the point -- without the row the
+		// merchant gets a successful key save, a green settings screen, and a shop that
+		// never syncs, whose only symptom is wc_scanpay_read_cursor() logging
+		// "shop not configured" every five minutes on the ping side.
+		if ( null === $wpdb->get_var( "SELECT seq FROM $seq_tbl WHERE shopid = $shopid" ) ) {
+			scanpay_log( 'error', "Could not seed the scanpay_seq row for shop $shopid: {$wpdb->last_error}" );
+			throw new Exception( 'Could not seed the scanpay sequence row' );
+		}
 	}
 }
 
