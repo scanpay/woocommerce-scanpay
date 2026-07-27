@@ -176,7 +176,6 @@ that would otherwise re-derive all six.
 
 | # | Focus | File |
 | --- | --- | --- |
-| 9 | A site-wide menu removal contradicts our stated policy | `woocommerce-scanpay.php` |
 | 10 | Three registrations in the router that state nothing | `woocommerce-scanpay.php` |
 | 11 | The cURL extension is required and declared nowhere | `woocommerce-scanpay.php`, `gateways/abstract-wc-gateway-scanpay-base.php` |
 | 12 | The checkout stylesheet's enqueue states none of its invariants | `gateways/class-wc-gateway-scanpay-card.php` |
@@ -193,65 +192,6 @@ Files opened by more than one task: `class-wc-scanpay-capture.php` (1, 2, 3),
 `class-wc-scanpay-sync.php` (6, 7), `woocommerce-scanpay.php` (9, 10, 11),
 `class-wcs-scanpay-charge.php` (4, then 15's call site),
 `generate-payment-link.php` (16, and 15's call site).
-
----
-
-## Task 9 — A site-wide menu removal contradicts our stated policy
-
-**File:** `src/woocommerce-scanpay.php`
-**Anchor:** `function scanpay_remove_wc_payments_menu()` (~`:547-557`)
-
-`admin/settings.php` states a policy and follows it, above
-`wc_scanpay_admin_footer_text()`:
-
-> Hide WooCommerce's promotional footer text, but only on the plugin's own
-> settings screens. Blanking `admin_footer_text` globally is a site-wide UI
-> change and is flagged by the WordPress.org plugin review.
-
-The menu removal does the opposite, unconditionally, to a menu WooCommerce owns: a
-bare `remove_menu_page( 'admin.php?page=wc-settings&tab=checkout&from=PAYMENTS_MENU_ITEM' )`
-on `admin_menu` at priority 999. Every admin loses WooCommerce's top-level Payments
-entry on every admin page load, configured or not. Second problem: the slug is
-matched by exact string, and `from=PAYMENTS_MENU_ITEM` is telemetry, not a route —
-if WooCommerce changes it this silently becomes a no-op and nobody learns.
-
-**This task does not decide the UI question — it makes code and policy agree.**
-
-**Decided: keep the behaviour, document it.** Do not re-derive the history and do
-not reopen the choice. It arrived in commit `8340b9f`, "Remove WooCommerce Payments
-\"Payments\" admin menu entry for a cleaner UI", and the maintainer has confirmed
-it stays. The docblock already gives the UI rationale (the slug points at the same
-screen that already holds the gateway list, so keeping both makes the setup path
-ambiguous). What is missing is not intent but disclosure.
-
-Extend the docblock with the three things it is silent about:
-
-1. This is a deliberate **site-wide** change to another plugin's menu, applied to
-   every admin on every admin page load — the one place the plugin does what the
-   `admin_footer_text` comment refuses to do, and expected to trip the same
-   WordPress.org review that comment cites.
-2. The slug is matched as a literal string and `from=PAYMENTS_MENU_ITEM` is a
-   telemetry parameter, not a route: if WooCommerce changes it, this silently
-   becomes a no-op and the entry returns with no error and no log line.
-3. **Priority 999 is required, not decorative** — `remove_menu_page()` can only
-   remove an entry that is already registered, and WooCommerce adds its own menus
-   across priorities 9 to 70 (`class-wc-admin-menus.php:39-59`), with WooCommerce
-   Admin later still. 999 means "after every menu registration". Verified in
-   `.stubs/`; state the range so the next reader does not lower it.
-
-**Verify**
-
-- Confirm the slug against WooCommerce's own `add_menu_page()` call in `.stubs/`
-  and record whether it still matches at 11.1.0-dev. If it does not, say so — the
-  removal is already a no-op today and that is the finding, not a reason to change
-  the code here.
-- Quote the WC menu priorities backing point 3.
-- `git diff` touches comment lines only: this task changes no executable code.
-
-**Handoff**
-
-- WooCommerce's Payments entry is still absent, and the Scanpay settings screen is
-  still reachable from WooCommerce → Settings → Payments.
 
 ---
 

@@ -549,7 +549,26 @@ add_action( 'admin_init', 'wc_scanpay_admin_init', 0 );
  *
  * Its slug is the very WooCommerce > Settings > Payments screen that already holds the
  * gateway list (and our own settings), so keeping both only makes the setup path
- * ambiguous for the merchant.
+ * ambiguous for the merchant. Deliberate and confirmed; the rest of this block is
+ * disclosure, not a reopening of the choice.
+ *
+ * It is a site-wide change to another plugin's menu, applied to every admin on every
+ * admin page load. That makes it the one place this plugin does what
+ * wc_scanpay_admin_footer_text() explicitly refuses to do, and it is expected to trip the
+ * same WordPress.org plugin review that comment cites.
+ *
+ * The slug is matched as a literal string, and its from= parameter is telemetry rather
+ * than a route. It still matches at WC 11.1.0-dev: PaymentsController::add_menu()
+ * registers the entry under the same screen with the FROM_PAYMENTS_MENU_ITEM constant
+ * appended (Internal/Admin/Settings/PaymentsController.php:72, Payments.php:27). Should
+ * WooCommerce change either half, this silently becomes a no-op -- the entry comes back
+ * with no error and no log line to say so.
+ *
+ * Priority 999 is required, not decorative: remove_menu_page() can only remove an entry
+ * that is already registered, and WooCommerce spreads its own menu registrations across
+ * priorities 9 to 70 (class-wc-admin-menus.php:39-60), with this entry itself added at
+ * the default 10 (PaymentsController.php:36). 999 means "after every registration"; do
+ * not lower it.
  */
 function scanpay_remove_wc_payments_menu() {
 	remove_menu_page( 'admin.php?page=wc-settings&tab=checkout&from=PAYMENTS_MENU_ITEM' );
