@@ -33,17 +33,52 @@ rsync -am --exclude='*.css' --exclude='*.ts' "$SRC/" "$BUILD/"
 "$DIR/node_modules/.bin/sass" --style compressed --no-source-map --verbose "$SRC/admin/assets/css/":"$BUILD/admin/assets/css/"
 "$DIR/node_modules/.bin/sass" --style compressed --no-source-map --verbose "$SRC/public/assets/css/":"$BUILD/public/assets/css/"
 
-# Compile TypeScript to JavaScript (+minify)
-for file in "$SRC/admin/assets/js/"*.ts; do
-    echo "Compiling $file"
-    "$DIR/node_modules/.bin/esbuild" --bundle --minify "$file" --outfile="$BUILD/admin/assets/js/$(basename "$file" .ts).js"
-done
+# Compile TypeScript to JavaScript. Unminified for now: 'wp i18n make-pot' has no
+# TypeScript parser, so the JavaScript half of the catalog can only be extracted from
+# the built bundles -- and minified output loses the line references that make a POT
+# reviewable. They are rebuilt minified further down, so nothing extraction-only ships.
+compile_js() {
+    local dir="$1"
+    shift
+    for file in "$SRC/$dir/assets/js/"*.ts; do
+        echo "Compiling $file"
+        "$DIR/node_modules/.bin/esbuild" --bundle "$@" "$file" \
+            --outfile="$BUILD/$dir/assets/js/$(basename "$file" .ts).js"
+    done
+}
+compile_js admin
+compile_js public
 
-# Compile TypeScript to JavaScript (+minify)
-for file in "$SRC/public/assets/js/"*.ts; do
-    echo "Compiling $file"
-    "$DIR/node_modules/.bin/esbuild" --bundle --minify "$file" --outfile="$BUILD/public/assets/js/$(basename "$file" .ts).js"
+# One i18n pipeline, run on every build, so the shipped catalogs can never predate the
+# strings inside them. It extracts from $BUILD -- a plugin-shaped tree whose paths are
+# the release-relative ones WordPress hashes for load_script_textdomain() -- and writes
+# the authoritative POT back into the authored sources under src/languages/.
+#
+# Writing into src/ every build is safe only because the extraction is deterministic:
+# with Report-Msgid-Bugs-To fixed and POT-Creation-Date empty, make-pot emits a
+# byte-identical POT when nothing changed, and update-po then skips the write entirely.
+# Drop these headers and every build dirties two tracked files. A dirty src/languages/
+# after a build is therefore a signal that the strings really moved.
+"$DIR/vendor/bin/wp" i18n make-pot "$BUILD" "$SRC/languages/scanpay-for-woocommerce.pot" \
+    --headers='{"Report-Msgid-Bugs-To":"https://wordpress.org/support/plugin/scanpay-for-woocommerce","POT-Creation-Date":""}'
+#
+# make-pot is byte-stable on its own with those headers. update-po is not: it stamps a
+# fresh PO-Revision-Date on every run, even when it reports the file unchanged, so the
+# previous header is put back whenever nothing else moved.
+PO_BACKUP=$(mktemp -d)
+for po in "$SRC/languages/"*.po; do
+    cp "$po" "$PO_BACKUP/$(basename "$po")"
 done
+"$DIR/vendor/bin/wp" i18n update-po "$SRC/languages/scanpay-for-woocommerce.pot" "$SRC/languages"
+for po in "$SRC/languages/"*.po; do
+    old="$PO_BACKUP/$(basename "$po")"
+    if [ -f "$old" ] && diff -q <(grep -v '^"PO-Revision-Date:' "$old") <(grep -v '^"PO-Revision-Date:' "$po") > /dev/null; then
+        cp "$old" "$po"
+    fi
+done
+rm -rf "${PO_BACKUP:?}"
+
+rsync -am "$SRC/languages/" "$BUILD/languages/"
 
 # Generate .mo files
 "$DIR/vendor/bin/wp" i18n make-mo "$BUILD/languages"
@@ -51,6 +86,18 @@ done
 # Generate PHP translation files
 "$DIR/vendor/bin/wp" i18n make-php "$BUILD/languages"
 
+# Generate the Jed catalogs wp_set_script_translations() loads. This wp-cli no longer
+# has the --purge flag that used to strip JavaScript strings out of the source PO, so
+# the shipped PO keeps them; if a future version reintroduces it, pass --no-purge.
+"$DIR/vendor/bin/wp" i18n make-json "$BUILD/languages"
+
+# Overwrite the extraction copies with the release bundles.
+compile_js admin --minify
+compile_js public --minify
+
+# Last, and after both the minified bundles and the catalogs: earlier, and the POT
+# header would carry a concrete version and churn on every release; later, and the
+# shipped .js would keep a raw {{ VERSION }}.
 for file in $(find "$BUILD" -type f \( -name "*.php" -o -name "*.js" -o -name "*.txt" \)); do
     if grep -q "{{ VERSION }}" "$file"; then
         sed -i "s/{{ VERSION }}/$VERSION/g" "$file"

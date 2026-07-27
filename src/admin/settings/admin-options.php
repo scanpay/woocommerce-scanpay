@@ -137,7 +137,9 @@ $nav_tabs = [
 ?>
 <div id="wcsp-set-alert"
 	data-secret="<?php echo esc_attr( (string) ( $settings['secret'] ?? '' ) ); ?>"
-	data-shopid="<?php echo esc_attr( (string) $shopid ); ?>"></div>
+	data-shopid="<?php echo esc_attr( (string) $shopid ); ?>"
+	<?php // The running version as data, so the update banner's msgid stays a %s placeholder rather than changing on every release. ?>
+	data-version="<?php echo esc_attr( WC_SCANPAY_VERSION ); ?>"></div>
 
 <table class="form-table wcsp-set-<?php echo esc_attr( $gateway->id ); ?>">
 	<?php

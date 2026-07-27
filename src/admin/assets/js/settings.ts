@@ -7,6 +7,11 @@
  */
 import { getLastSync, checkVersion, isVersionGreater } from './util/compat';
 
+// The runtime WordPress already prints for the 'wp-i18n' script dependency declared at
+// the enqueue site. Taken off window rather than imported, so esbuild does not bundle a
+// second copy of @wordpress/i18n into this file.
+const { __, sprintf } = window.wp.i18n;
+
 /**
  * Render an alert into #wcsp-set-alert.
  *
@@ -144,14 +149,25 @@ document.addEventListener('visibilitychange', () => {
 
 checkVersion()
 	.then((version) => {
-		if (!isVersionGreater(version, '{{ VERSION }}')) {
+		// From the #wcsp-set-alert data attribute rather than a {{ VERSION }} token in the
+		// message: build.sh substitutes tokens in .js but not in the Jed .json catalog, so
+		// a token inside a msgid would key the catalog on the literal and the lookup would
+		// silently miss -- the string would stay English rather than look broken.
+		const current = alertBox.dataset.version ?? '';
+		if (!current || !isVersionGreater(version, current)) {
 			return;
 		}
 		// A real id, so a re-check replaces this banner instead of appending another.
 		const div = showWarning(
-			'There is a new version of the plugin available. ',
-			`Your Scanpay extension (<i>{{ VERSION }}</i>) needs to be updated to <span class="wcsp-set-version"></span>
-			(<a href="//github.com/scanpay/woocommerce-scanpay/releases" target="_blank">changelog</a>).`,
+			__('There is a new version of the plugin available. ', 'scanpay-for-woocommerce'),
+			sprintf(
+				/* translators: %1$s is the installed plugin version. The <span> is filled in with the latest version. */
+				__(
+					'Your Scanpay extension (<i>%1$s</i>) needs to be updated to <span class="wcsp-set-version"></span> (<a href="//github.com/scanpay/woocommerce-scanpay/releases" target="_blank">changelog</a>).',
+					'scanpay-for-woocommerce'
+				),
+				current
+			),
 			'version'
 		);
 		// The version comes from the GitHub API, so it goes in as text.

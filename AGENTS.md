@@ -86,9 +86,11 @@ means precise, not long: two exact sentences beat a paragraph.
 - **Money is never a float.** Decimal strings through `src/library/math.php`
   (`wc_scanpay_addmoney`, `_submoney`, `_cmpmoney`, `_money_equals`, `_is_zero`,
   `_is_money`) for all capture, charge and refund arithmetic.
-- Text domain `scanpay-for-woocommerce`, English source strings, `.pot` via
-  `pnpm i18n:po`. Settings-field *defaults* stay plain strings — `__()` cannot
-  localize a stored value.
+- Text domain `scanpay-for-woocommerce`, English source strings. `./build.sh` owns
+  extraction: it re-derives `src/languages/*.pot|*.po` from the built plugin tree on
+  every run — deterministically, so they only change when a string did — and emits the
+  MO/PHP/JSON catalogs into `build/`. There is no separate `pnpm` i18n script.
+  Settings-field *defaults* stay plain strings — `__()` cannot localize a stored value.
 - Production hosts are `*.scanpay.dk` (API, dashboard, and `betal` for the payment
   window); `build.sh` rewrites them to `*.scanpay.dev` in the test build only.
 - **Commit subjects carry no `scanpay:` prefix** — every commit here is a Scanpay

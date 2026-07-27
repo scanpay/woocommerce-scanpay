@@ -56,7 +56,8 @@ function wc_scanpay_add_meta_box_subs( $wc_order ): void {
 		return;
 	}
 	wp_enqueue_style( 'wcsp-meta', WC_SCANPAY_URL . '/admin/assets/css/meta.css', [], WC_SCANPAY_VERSION );
-	wp_enqueue_script( 'wc-scanpay-subs', WC_SCANPAY_URL . '/admin/assets/js/subs.js', [], WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
+	wp_enqueue_script( 'wc-scanpay-subs', WC_SCANPAY_URL . '/admin/assets/js/subs.js', [ 'wp-i18n' ], WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
+	wp_set_script_translations( 'wc-scanpay-subs', 'scanpay-for-woocommerce', WC_SCANPAY_DIR . '/languages' );
 	add_meta_box( 'wcsp-meta-box', 'Scanpay', 'wc_scanpay_create_meta_box_subs', null, 'side', 'high', [ $wc_order ] );
 }
 add_action( 'add_meta_boxes_woocommerce_page_wc-orders--shop_subscription', 'wc_scanpay_add_meta_box_subs', 9, 1 ); // HPOS

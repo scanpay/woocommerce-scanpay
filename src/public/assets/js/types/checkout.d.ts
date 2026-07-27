@@ -6,6 +6,14 @@ import * as wpElement from '@wordpress/element';
 declare global {
 	interface Window {
 		wp: {
+			// TypeScript merges `Window` across the whole program, so this one declaration
+			// covers the admin bundles too: wp.i18n is what they consume, guaranteed by the
+			// 'wp-i18n' script dependency declared at each enqueue site in PHP. Declaring it
+			// a second time in an admin d.ts would be a duplicate-property error, not a merge.
+			i18n: {
+				__: (text: string, domain?: string) => string;
+				sprintf: (format: string, ...args: (string | number)[]) => string;
+			};
 			element: typeof wpElement;
 			// @wordpress/data. Only the two Blocks stores we touch: 'wc/store/validation'
 			// (blocks "Place order") and 'wc/store/checkout' (carries extension data to

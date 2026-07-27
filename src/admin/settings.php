@@ -39,7 +39,10 @@ function wc_scanpay_admin_assets( string $hook_suffix ): void {
 	if ( 'woocommerce_page_wc-settings' !== $hook_suffix || ! wc_scanpay_is_settings_screen() ) {
 		return;
 	}
-	wp_enqueue_script( 'wc-scanpay-settings', WC_SCANPAY_URL . '/admin/assets/js/settings.js', [], WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
+	wp_enqueue_script( 'wc-scanpay-settings', WC_SCANPAY_URL . '/admin/assets/js/settings.js', [ 'wp-i18n' ], WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
+	// Same directory load_plugin_textdomain() reads from; the script consumes the
+	// window.wp.i18n runtime the dependency above guarantees.
+	wp_set_script_translations( 'wc-scanpay-settings', 'scanpay-for-woocommerce', WC_SCANPAY_DIR . '/languages' );
 	wp_enqueue_style( 'wc-scanpay-settings', WC_SCANPAY_URL . '/admin/assets/css/settings.css', [], WC_SCANPAY_VERSION );
 }
 add_action( 'admin_enqueue_scripts', 'wc_scanpay_admin_assets' );
