@@ -43,16 +43,38 @@ define( 'WC_SCANPAY_URL', untrailingslashit( plugins_url( '', __FILE__ ) ) );
 // $wp_plugin_paths, which wp-settings.php filled when it included this file.
 define( 'WC_SCANPAY_BASENAME', plugin_basename( __FILE__ ) );
 
-/** Write to the WooCommerce log; a silent no-op until wc_get_logger() exists. */
+/**
+ * Write to the WooCommerce log. Never throws, by design.
+ *
+ * All of it is third-party surface: wc_get_logger() instantiates whatever class
+ * woocommerce_logging_class returns, and WC_Logger::log() runs every handler from
+ * woocommerce_register_log_handlers and every message through
+ * woocommerce_logger_log_message. Neither catches, so uncontained a remote handler hitting
+ * a network blip escapes into whatever flow was writing the line -- skipping the on-hold
+ * parking on an order the customer has already paid, or pinning the sync cursor so the whole
+ * shop stops syncing on a 5-minute loop. No log line is worth either, and no caller can act
+ * on the failure.
+ *
+ * error_log() takes the message and the reason both, since the WooCommerce log is what just
+ * failed. It reaches the host's error log rather than the merchant, which is the accepted
+ * cost of never throwing: a fatal would have mailed them through WP_Fatal_Error_Handler.
+ */
 function scanpay_log( string $level, string $msg ): void {
 	static $logger = null;
-	if ( null === $logger ) {
-		if ( ! function_exists( 'wc_get_logger' ) ) {
-			return;
+	try {
+		if ( null === $logger ) {
+			if ( ! function_exists( 'wc_get_logger' ) ) {
+				return;
+			}
+			$logger = wc_get_logger();
 		}
-		$logger = wc_get_logger();
+		$logger->log( $level, $msg, [ 'source' => 'wc-scanpay' ] );
+	} catch ( \Throwable $e ) {
+		// A failure is deliberately not memoized: a handler can fail on one message and not
+		// the next, so every later call still gets its chance at the real log.
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- The WooCommerce log is what failed; this is the only channel left.
+		error_log( "scanpay [$level]: $msg -- the WooCommerce logger failed: " . $e->getMessage() );
 	}
-	$logger->log( $level, $msg, [ 'source' => 'wc-scanpay' ] );
 }
 
 /*
@@ -373,13 +395,7 @@ function wcs_scanpay_fail_renewal( WC_Order $wco, string $diagnostic, string $re
 	} catch ( \Throwable $e ) {
 		$diagnostic .= ' -- and the failed status could not be saved: ' . $e->getMessage();
 	}
-	try {
-		scanpay_log( 'error', $diagnostic );
-	} catch ( \Throwable $e ) {
-		// A broken WooCommerce logger has nowhere safer to report itself, but it must
-		// not escape to Action Scheduler either.
-		return;
-	}
+	scanpay_log( 'error', $diagnostic );
 }
 
 /**
