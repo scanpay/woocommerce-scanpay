@@ -35,8 +35,25 @@ function wc_scanpay_handle_bulk_capture( string $redirect_to, array $ids, bool $
 		return $redirect_to;
 	}
 
+	// Granted before the loop, so the threshold below races this 60 rather than a host
+	// default of 30, where the two would be equal and the renewal unreachable. Not a
+	// hypothetical here: the bailout is taken at the opcode after a 20 s cURL wait returns,
+	// which is inside capture() and never the top of the loop where the check lives.
+	set_time_limit( 60 );
+
 	$changed = 0;
+	$renewed = microtime( true );
 	foreach ( $oids as $oid ) {
+		// Merchant-supplied and unbounded, and every Scanpay order in it costs a capture the
+		// client gives 20 s plus a completed-order email that save() sends inline, so 30 is a
+		// renewal cadence and not a bound on one pass. A kill between the charge and that
+		// save() leaves a paid order uncompleted, and only capture()'s note -- written as soon
+		// as the money moves -- keeps that from being silent. set_time_limit() resets the
+		// counter rather than adding to it, so renewing before it is due costs nothing.
+		if ( microtime( true ) - $renewed >= 30 ) {
+			set_time_limit( 60 );
+			$renewed = microtime( true );
+		}
 		$wco = wc_get_order( $oid );
 		// 'trash' is the last line of defense, read in 'edit' so no filter can answer it:
 		// the menu does not offer our actions in the trash view, but the handler must not
