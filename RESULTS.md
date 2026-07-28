@@ -1,6 +1,6 @@
 # PHP review — run 3, task 20
 
-A review of `src/` as tasks 1–19 leave it, at commit `71d2367`. **No code was
+A review of `src/` as tasks 1–19 leave it, at commit `4ab693f`. **No code was
 changed by this task**; the deliverable is this file.
 
 Six findings, most severe first. Each is marked **Confirmed** (traced to a
@@ -47,11 +47,11 @@ full `WC_Order` build, a `save()`, and the transactional-email and stock hooks
 that `set_status( …, true )` fires.
 
 **Nothing in this file calls `set_time_limit()`.** That is the asymmetry:
-`grep -rn "set_time_limit" src/` returns four call sites — `upgrade.php:9` and
-`:155`, `wc-scanpay-ping.php:20` and `:329`, `wp-scanpay-fetch-meta.php:43`,
-`wp-scanpay-fetch-sub.php:43` — every one of them a loop the tree already
-recognised as able to outlast its grant. This loop is the same shape and has no
-grant management at all.
+`grep -rn "set_time_limit" src/` returns six call sites across four files —
+`upgrade.php:9` and `:155`, `wc-scanpay-ping.php:20` and `:329`,
+`wp-scanpay-fetch-meta.php:43`, `wp-scanpay-fetch-sub.php:43` — every one of them
+a loop the tree already recognised as able to outlast its grant. This loop is the
+same shape and has no grant management at all.
 
 **Failure scenario.** A merchant selects several hundred orders and runs "Capture
 and complete". PHP's execution timer expires mid-loop. Where it lands decides the
@@ -72,15 +72,22 @@ second attempt a no-op. The harm is a charged order left uncompleted and a
 merchant with no record of it.
 
 **How it was verified.** `capture()`'s 20 s timeout read at
-`class-wc-scanpay-client.php:191-193`; the four existing `set_time_limit()` sites
+`class-wc-scanpay-client.php:191-193`; the six existing `set_time_limit()` sites
 enumerated by grep; `capture_or_hold()` traced to confirm the memo is a
-`private static` per-request array. **One honest qualification, settled with
-`php -r`:** PHP's execution timer does not count time blocked in a syscall on
-Linux — `php -d max_execution_time=2 -r 'sleep(5);'` survives, while the same
-limit kills a busy loop at 2 s. So the 20 s curl waits largely do *not* consume
-the grant, and what does is the PHP-side work: building and saving N orders and
-running their hooks. That materially lowers the probability versus a naive
-wall-clock reading, and is why this is Plausible rather than Confirmed.
+`private static` per-request array. **One qualification, and it is narrower than
+it looks.** PHP's execution timer is CPU time rather than wall clock *only* on a
+build without `zend_max_execution_timers`, where `max_execution_time` is a
+`setitimer( ITIMER_PROF )`: there `php -d max_execution_time=2 -r 'sleep(5);'`
+survives while the same limit kills a busy loop at 2 s, reproduced here on PHP
+8.3.29 with `Zend Max Execution Timers => disabled`. A build configured with
+`--enable-zend-max-execution-timers` — the default under ZTS, and enabled in the
+Debian/Ubuntu packages a great many shops run — arms a POSIX timer on a monotonic
+clock instead, and there the 20 s capture waits consume the grant in full. So the
+qualification cuts both ways: on the first kind of host only the PHP-side work
+spends the budget (building and saving N orders and running their hooks), which
+lowers the estimate; on the second kind a few dozen orders suffice. Plausible
+rather than Confirmed because which build a shop runs cannot be established from
+here — not because the risk is small.
 
 **Proposed fix.** Renew the grant inside the loop exactly as task 5 did for the
 drain and task 8 for the migration — track the last renewal and call
@@ -137,7 +144,7 @@ truncation and left the time truncation open.
 
 **And it does not resume.** WordPress removes the plugin from the
 `uninstall_plugins` option *before* including the file —
-`wp-admin/includes/plugin.php:1317-1327`:
+`wp-admin/includes/plugin.php:1318-1327`:
 
 ```php
 if ( isset( $uninstallable_plugins[ $file ] ) ) {
@@ -156,10 +163,12 @@ credentials on the untouched blogs are not discoverable from the admin UI.
 `.stubs/wordpress/wp-admin/includes/plugin.php:1302-1330`; the absence of
 `set_time_limit()` confirmed by grep over `src/`; the offset paging confirmed
 safe in itself (the loop deletes options and tables, never sites, so the
-`get_sites()` result set cannot shrink underneath it). The same syscall-timing
-qualification as finding 1 applies: `DROP TABLE` blocks in a syscall and largely
-does not consume the grant, while `switch_to_blog()` — which resets caches and
-fires hooks per blog — does.
+`get_sites()` result set cannot shrink underneath it). The same timer
+qualification as finding 1 applies, with the same build dependency: where
+`max_execution_time` is CPU time, `DROP TABLE` blocks in a syscall and largely
+does not consume the grant, and what spends it is `switch_to_blog()` — which
+resets caches and fires hooks per blog; where it is wall clock, the six DDL
+statements per blog count in full as well.
 
 **Proposed fix.** Renew the grant inside the per-blog loop, the same way the ping
 drain and the 2.1.3 migration now do. Given that the failure mode is *credentials
@@ -204,7 +213,7 @@ and `secret` and leaves everything else (`wp-ajax-wc-scanpay-reset.php:118-140`)
 before the new key is entered is marked `failed` with the order note "Der er
 konfigureret en ugyldig Scanpay API-nøgle" / "Invalid Scanpay API key
 configured.", and WCS suspends the subscription on that transition
-(`subscriptions-core/includes/class-wc-subscriptions-renewal-order.php:142-144`).
+(`includes/core/class-wc-subscriptions-renewal-order.php:126-128`, WCS 8.7.1).
 The merchant is told their key is broken moments after they deliberately removed
 it, once per renewal, on subscriptions that are now in dunning.
 
@@ -260,15 +269,25 @@ not throw-free: it reaches `WC_Logger::log()`, whose class comes from the
 `woocommerce_logging_class` filter (`wc-core-functions.php:1989`), whose handlers
 come from `woocommerce_register_log_handlers` (`class-wc-logger.php:67`), and
 whose every message passes `woocommerce_logger_log_message` (`:186`) before
-`$handler->handle()` (`:188`). Neither `WC_Logger::log()` nor `scanpay_log()`
+`$handler->handle()` (`:189`). Neither `WC_Logger::log()` nor `scanpay_log()`
 catches.
 
 **Failure scenario.** A site has both a third-party note hook that throws *and* a
-log handler that throws. The note throws, the catch runs, the log throws, and the
-`Throwable` escapes into `capture_or_hold()`'s catch — restoring exactly the
-outcome task 1 removed: a paid capture memoised as failed, the order demoted to
-`on-hold`, and `false` returned to the caller. The same holds for the three
-sibling sites, whose catches have always logged unguarded.
+log handler that throws. The note throws, the catch at `:133` runs, the log
+throws, and the `Throwable` escapes `capture()` into `capture_or_hold()`'s catch.
+That catch records the memo as `false` first (`:183`) and then reports through
+`scanpay_log()` at `:187` — unguarded, and the same broken handler — so it throws
+too. Nothing parks the order: `update_status( 'on-hold' )` is never reached,
+`false` is never returned, and the `Throwable` leaves `capture_or_hold()` for a
+caller that has no handler for it (the bulk loop, the
+`woocommerce_order_status_completed` hook). The customer has been charged, the
+order keeps the status it had, and the request ends in a fatal.
+
+Only a handler that throws *selectively* — on the note-failure message but not on
+the capture-failure one — produces the milder outcome of a paid capture memoised
+as failed and demoted to `on-hold`. Either way the money moved and the capture
+reads as a failure, which is exactly what task 1 removed. The same escape exists
+at the three sibling sites, whose catches have always logged unguarded.
 
 **Why it was not fixed in task 1.** `PLAN.md` prescribed that block verbatim, and
 all three sibling sites log unguarded inside their catches, so changing one alone
@@ -276,18 +295,19 @@ would have broken the idiom task 1 was told to match. Recorded here instead, per
 the plan's "if the *code* looks wrong, that is task 20's finding".
 
 **How it was verified.** The three filters read in `.stubs/woocommerce/`;
-`scanpay_log()` read at `woocommerce-scanpay.php:43-52` and confirmed to contain
-no `try`. Note that `wcs_scanpay_fail_renewal()` (`:368-374`) *does* guard its own
-log call — so the tree already accepts this mechanism as real, which is the
-strongest argument that the four catches should too.
+`scanpay_log()` read at `woocommerce-scanpay.php:47-56` and confirmed to contain
+no `try`. Note that `wcs_scanpay_fail_renewal()` *does* guard its own log call
+(`woocommerce-scanpay.php:372-378`) — so the tree already accepts this mechanism
+as real, which is the strongest argument that the four catches should too.
 
 **Proposed fix.** One helper — a `wc_scanpay_log_safe()` in `library/functions.php`
 that wraps `scanpay_log()` in a `try`/`catch ( \Throwable ) { return; }` — used by
-every catch whose only job is to report. That is a smaller change than four
-nested `try` blocks and keeps the idiom uniform. It is a genuine design choice
-(the alternative is to accept the residual, on the grounds that a shop with two
-throwing third-party hooks has larger problems), which is why it is a proposal
-and not a patch.
+every catch whose only job is to report, `capture_or_hold()`'s own at `:187`
+included: that one is what turns a wrong status into a fatal. That is a smaller
+change than five nested `try` blocks and keeps the idiom uniform. It is a genuine
+design choice (the alternative is to accept the residual, on the grounds that a
+shop with two throwing third-party hooks has larger problems), which is why it is
+a proposal and not a patch.
 
 **Checked against:** `AGENTS.md` § *Fail loud* and § *Settled*,
 `docs/performance-review.md` §6, `HANDOFF-2.md` tasks 1 and 4 — where this was
@@ -327,19 +347,32 @@ i18n audit (untranslated log lines are out of its scope by design).
 
 **File / symbol:** `src/languages/scanpay-for-woocommerce.pot` header
 **Verdict: Confirmed** — the Danish half is now closed; the generated half is not.
+Hygiene, not a failing build.
 
-Two catalog entries carry plural translations — `<b>Synchronized:</b> %d second
-ago.` and `More than %d minute has passed…` — while `wp i18n make-pot` emits no
+Two catalog entries carry plural forms — `<b>Synchronized:</b> %d second ago.`
+and `More than %d minute has passed…` — while `wp i18n make-pot` emits no
 `Plural-Forms:` header. Task 19 added
 `Plural-Forms: nplurals=2; plural=(n != 1);` to the **`.po`**, which is
-hand-maintained and survives a rebuild byte-identically, so
-`msgfmt --check` now passes on the Danish catalog. The `.pot` is generated and
-must not be hand-edited, so it still fails the same check, and any *new* locale
-derived from it starts without the header.
+hand-maintained and survives a rebuild byte-identically, so `msgfmt --check` now
+passes on the Danish catalog. The `.pot` is generated and must not be hand-edited,
+so it still carries no header at all.
 
-**How it was verified.** `msgfmt --check` run before and after the task 19 change;
-`./build.sh` re-run afterwards and both catalogs diffed byte-for-byte to confirm
-the header persists and the `.pot` is unchanged.
+**What this is not.** The `.pot` does *not* fail `msgfmt --check`. Its
+`msgstr[0]`/`msgstr[1]` are empty, and gettext demands `Plural-Forms` only of a
+catalog whose plurals are actually translated, so the check exits 0 on the
+template with four non-fatal warnings (`Language` missing, and the default
+`Last-Translator`, `Language-Team` and `PO-Revision-Date`). Stripping the header
+back out of the `.po` is what produces `msgfmt: found 2 fatal errors` and exit 1
+— that is the check task 19 closed, and the `.pot` was never subject to it. The
+defect is therefore narrower than a failing template: any *new* locale derived
+from this `.pot` starts without the header, and its translator has to know to add
+one before the catalog will compile.
+
+**How it was verified.** `msgfmt --check` (gettext 0.23.2) run on the `.pot`, on
+the `.po`, and on a copy of the `.po` with the header stripped, to establish which
+of the three the check actually rejects; `./build.sh` re-run after the task 19
+change and both catalogs diffed byte-for-byte to confirm the header persists and
+the `.pot` is unchanged.
 
 **Proposed fix.** Pass the header through `wp i18n make-pot`'s `--headers`
 argument in `build.sh`, alongside the headers it already sets, so the `.pot` and
@@ -427,17 +460,20 @@ could have been missed there.
 
 ## Could not be settled statically, and why
 
-1. **Both time-budget findings (1 and 2) need a shop to become Confirmed.** The
-   mechanism is proven; what is not is how many orders or blogs it takes on real
-   hardware. `php -r` established that syscall wait does not consume PHP's
-   execution timer on Linux, which lowers the estimate but does not remove the
-   risk, and the PHP-side cost per order or per blog cannot be measured here.
+1. **Both time-budget findings (1 and 2) need a shop to become Confirmed**, and
+   they now carry two unknowns rather than one. The mechanism is proven; what is
+   not is how many orders or blogs it takes. `php -r` established that syscall
+   wait does not consume the execution timer on a build *without*
+   `zend_max_execution_timers` — but whether a given shop runs such a build is
+   not knowable from here, and on one that does not, the 20 s capture waits count
+   in full. Neither the build nor the PHP-side cost per order or per blog can be
+   measured here.
 2. **Everything behind the Scanpay API.** `/v1/new` with a `subscriber.ref` and
    no `items`, `/v1/subscribers/{subid}/renew` charging nothing, and the
    `Idempotency-Key` 24 h binding are backend facts settled with Scanpay and
    derivable from no stub.
-3. **Anything below the declared floors.** The stubs are WC 11.1.0-dev, WCS 7.2.1
-   and WP 7.1-alpha, while the plugin supports WC 3.6 / WP 6.3. Comments that
+3. **Anything below the declared floors.** The stubs are WC 11.1.0-dev, WCS 8.7.1
+   and WP 7.1-beta3, while the plugin supports WC 3.6 / WP 6.3. Comments that
    claim an argument or API "predates the 3.6 minimum" cannot be checked here;
    they are listed individually in `HANDOFF-2.md` under task 18.
 4. **Two open questions carried from run 2, unchanged and not re-derived:**
