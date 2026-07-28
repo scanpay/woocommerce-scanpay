@@ -17,7 +17,7 @@ $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 $secret   = (string) ( $settings['secret'] ?? '' );
 if ( '' === $secret || ! hash_equals( $secret, trim( (string) ( $_SERVER['HTTP_X_SCANPAY'] ?? '' ) ) ) ) {
 	// No die() after any wp_send_json() here: it terminates either way, through wp_die()
-	// when wp_doing_ajax() and a bare die otherwise (wp-includes/functions.php:4602-4611).
+	// when wp_doing_ajax() and a bare die otherwise (wp-includes/functions.php).
 	wp_send_json( [ 'error' => 'forbidden' ], 403 );
 }
 
@@ -41,8 +41,8 @@ if ( isset( $sub['rev'] ) && $rev >= $sub['rev'] ) {
 	// default max_execution_time of 30 once DB round-trips are added. Raise it so the
 	// endpoint answers rather than being killed mid-poll.
 	set_time_limit( 60 );
-	// Sent here, not left to wp_send_json(): that only sets the type and status
-	// `if ( ! headers_sent() )` (wp-includes/functions.php:4593-4598), and the keep-alive
+	// Sent here, not left to wp_send_json(): that only sets the type and status inside
+	// its own `! headers_sent()` guard (wp-includes/functions.php), and the keep-alive
 	// echo + flush() in the loop below has already sent them -- so the held response would
 	// answer PHP's default text/html. Outside the loop, because a second header() call
 	// after the first flush() is "headers already sent", one warning per round, in the

@@ -355,9 +355,13 @@ function wcs_scanpay_wants_completion( array $settings, string $flow ): bool {
  * those two leaves WooCommerce's own trail -- a wc_get_logger() line and an "Update
  * status event failed." note on the order -- so both are reported here, in wording that
  * tells the returned-false half from the escaping-Throwable half. Noticing matters:
- * WCS calls payment_failed() only from a 'failed' transition
- * (class-wc-subscriptions-renewal-order.php:142-144), so a missed write leaves the
- * renewal pending, the subscription unsuspended and no retry scheduled.
+ * WCS calls payment_failed() only from a 'failed' transition, and only for the
+ * subscription's last renewal order, in
+ * WC_Subscriptions_Renewal_Order::maybe_record_subscription_payment() on
+ * woocommerce_order_status_changed. Symbols, not a line number: subscriptions-core has
+ * moved between a vendored path and includes/core/ across WCS releases, so both the
+ * path and the numbering drift. A missed write therefore leaves the renewal pending,
+ * the subscription unsuspended and no retry scheduled.
  */
 function wcs_scanpay_fail_renewal( WC_Order $wco, string $diagnostic, string $reason ): void {
 	try {
