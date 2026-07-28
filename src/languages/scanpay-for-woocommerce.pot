@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Scanpay
-# This file is distributed under the GPLv3.
+# This file is distributed under the GPLv3 or later.
 msgid ""
 msgstr ""
 "Project-Id-Version: Scanpay for WooCommerce {{ VERSION }}\n"
@@ -12,6 +12,7 @@ msgstr ""
 "POT-Creation-Date: \n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Domain: scanpay-for-woocommerce\n"
 
 #. Plugin Name of the plugin
@@ -368,7 +369,7 @@ msgstr ""
 msgid "Your payment details were updated. This renewal has not been charged yet; it will be collected automatically with the new details."
 msgstr ""
 
-#: woocommerce-scanpay.php:408
+#: woocommerce-scanpay.php:412
 msgid "The Scanpay renewal could not be processed. See the WooCommerce logs for details."
 msgstr ""
 

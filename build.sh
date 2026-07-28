@@ -59,8 +59,14 @@ compile_js public
 # byte-identical POT when nothing changed, and update-po then skips the write entirely.
 # Drop these headers and every build dirties two tracked files. A dirty src/languages/
 # after a build is therefore a signal that the strings really moved.
+#
+# Plural-Forms is not part of that determinism story. make-pot emits none, so a locale
+# started by copying this POT compiles until its translator fills in the first plural,
+# and only then fails msgfmt -- mid-work, with no hint of what is missing. Seeding the
+# source language's rule costs nothing: update-po never merges headers, and msginit and
+# GlotPress both override it per locale, so a locale needing another rule keeps it.
 "$DIR/vendor/bin/wp" i18n make-pot "$BUILD" "$SRC/languages/scanpay-for-woocommerce.pot" \
-    --headers='{"Report-Msgid-Bugs-To":"https://wordpress.org/support/plugin/scanpay-for-woocommerce","POT-Creation-Date":""}'
+    --headers='{"Report-Msgid-Bugs-To":"https://wordpress.org/support/plugin/scanpay-for-woocommerce","POT-Creation-Date":"","Plural-Forms":"nplurals=2; plural=(n != 1);"}'
 #
 # make-pot is byte-stable on its own with those headers. update-po is not: it stamps a
 # fresh PO-Revision-Date on every run, even when it reports the file unchanged, so the
