@@ -40,7 +40,7 @@ msgstr ""
 msgid "https://scanpay.dk"
 msgstr ""
 
-#: admin/hooks/wp-bulk-actions.php:50
+#: admin/hooks/wp-bulk-actions.php:67
 msgid "Order status changed by bulk edit."
 msgstr ""
 
@@ -267,8 +267,8 @@ msgid "subscription terms"
 msgstr ""
 
 #: gateways/blocks/class-wc-scanpay-blocks-support.php:83
-#: woocommerce-scanpay.php:266
-#: woocommerce-scanpay.php:297
+#: woocommerce-scanpay.php:288
+#: woocommerce-scanpay.php:319
 msgid "You must accept the subscription terms to complete your purchase."
 msgstr ""
 
@@ -346,7 +346,7 @@ msgstr ""
 msgid "The zero-amount renewal could not be completed."
 msgstr ""
 
-#: library/class-wcs-scanpay-charge.php:377
+#: library/class-wcs-scanpay-charge.php:365
 msgid "The Scanpay charge failed. See the WooCommerce logs for details."
 msgstr ""
 
@@ -369,7 +369,7 @@ msgstr ""
 msgid "Your payment details were updated. This renewal has not been charged yet; it will be collected automatically with the new details."
 msgstr ""
 
-#: woocommerce-scanpay.php:412
+#: woocommerce-scanpay.php:428
 msgid "The Scanpay renewal could not be processed. See the WooCommerce logs for details."
 msgstr ""
 

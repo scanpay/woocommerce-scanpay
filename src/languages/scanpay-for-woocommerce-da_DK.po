@@ -8,7 +8,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "POT-Creation-Date: \n"
-"PO-Revision-Date: 2026-07-28T10:54:50+00:00\n"
+"PO-Revision-Date: 2026-07-28T15:39:01+00:00\n"
 "Language: da_DK\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: WP-CLI 2.11.0\n"
@@ -39,7 +39,7 @@ msgstr "Scanpay"
 msgid "https://scanpay.dk"
 msgstr "https://scanpay.dk"
 
-#: admin/hooks/wp-bulk-actions.php:50
+#: admin/hooks/wp-bulk-actions.php:67
 msgid "Order status changed by bulk edit."
 msgstr "Ordrestatus ændret via massehandling."
 
@@ -266,8 +266,8 @@ msgid "subscription terms"
 msgstr "abonnementsvilkårene"
 
 #: gateways/blocks/class-wc-scanpay-blocks-support.php:83
-#: woocommerce-scanpay.php:266
-#: woocommerce-scanpay.php:297
+#: woocommerce-scanpay.php:288
+#: woocommerce-scanpay.php:319
 msgid "You must accept the subscription terms to complete your purchase."
 msgstr "Du skal acceptere abonnementsvilkårene for at gennemføre dit køb."
 
@@ -345,7 +345,7 @@ msgstr "Fornyelsesbeløbet (%1$s) stemmer ikke overens med ordretotalen (%2$s)."
 msgid "The zero-amount renewal could not be completed."
 msgstr "Fornyelsen uden beløb kunne ikke gennemføres."
 
-#: library/class-wcs-scanpay-charge.php:377
+#: library/class-wcs-scanpay-charge.php:365
 msgid "The Scanpay charge failed. See the WooCommerce logs for details."
 msgstr "Scanpay-trækket mislykkedes. Se WooCommerce-logfilerne for detaljer."
 
@@ -368,7 +368,7 @@ msgstr "Fejl: Vi kunne ikke oprette et link til betalingsvinduet. Vent et øjebl
 msgid "Your payment details were updated. This renewal has not been charged yet; it will be collected automatically with the new details."
 msgstr "Dine betalingsoplysninger er opdateret. Denne fornyelse er endnu ikke trukket; beløbet bliver opkrævet automatisk med de nye oplysninger."
 
-#: woocommerce-scanpay.php:412
+#: woocommerce-scanpay.php:428
 msgid "The Scanpay renewal could not be processed. See the WooCommerce logs for details."
 msgstr "Scanpay-fornyelsen kunne ikke behandles. Se WooCommerce-logfilerne for detaljer."
 
