@@ -14,7 +14,7 @@
  * WC tested up to: {{ WC_TESTED }}
  * Text Domain: scanpay-for-woocommerce
  * Domain Path: /languages/
- * License: GPLv3
+ * License: GPLv3 or later
  * License URI: https://www.gnu.org/licenses/gpl-3.0.html
  *
  * Requires the PHP cURL extension on top of the fields above. WC_Scanpay_Client is built

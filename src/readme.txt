@@ -5,7 +5,7 @@ Requires at least: {{ WP_MIN }}
 Requires PHP: {{ PHP_MIN }}
 Tested up to: {{ WP_TESTED }}
 Stable tag: {{ VERSION }}
-License: GPLv3
+License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
 Accept payments in WooCommerce with a reliable and secure Scandinavian payment gateway.
@@ -25,7 +25,7 @@ This official payment plugin is developed, maintained, and supported by Scanpay.
 * Option to auto-complete orders
 * Supports HPOS and WooCommerce Blocks
 * Optimized, lightweight, and thoroughly tested
-* Dedicated support via email, phone, and [IRC](https://chat.scanpay.dev/)
+* Dedicated support via email, phone, and [IRC](https://irc.scanpay.dev/)
 
 ### Why Choose Scanpay?
 

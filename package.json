@@ -4,7 +4,7 @@
 	"version": "3.0.0",
 	"description": "Scanpay payment plugin for WordPress and WooCommerce.",
 	"author": "Scanpay",
-	"license": "GPL-2.0-or-later",
+	"license": "GPL-3.0-or-later",
 	"title": "Scanpay for WooCommerce",
 	"tested": {
 		"wordpress": "7.0",
