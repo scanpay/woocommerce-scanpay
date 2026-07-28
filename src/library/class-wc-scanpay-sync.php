@@ -319,7 +319,15 @@ final class WC_Scanpay_Sync {
 			// for eligible statuses, so save first when the status is not one of them.
 			if ( ! $this->is_payment_complete_eligible( $wco ) ) {
 				scanpay_log( 'info', "$label: Order is not eligible for payment_complete (order=$oid)" );
-				$wco->save();
+				// The result is deliberately not acted on. payment_complete() has to run
+				// either way so the hooks fire, and on an ineligible status it takes its own
+				// else branch (class-wc-order.php) -- it fires
+				// woocommerce_payment_complete_order_status_<status> and returns true without
+				// saving, so a failure here reaches neither $ok nor report_incomplete() and
+				// the log line above is the whole record. Nothing is lost for good: the write
+				// that did not land is transaction_id, so the next change on this order finds
+				// it still empty and re-enters this branch.
+				$this->save_or_report( $wco, "$label: order #$oid" );
 			}
 			/*
 			 * Force 'completed' when the accepted payment attempt asked for it -- the
@@ -412,6 +420,34 @@ final class WC_Scanpay_Sync {
 	}
 
 	/**
+	 * Persist an order this class has just edited, containing whatever the write throws.
+	 *
+	 * The ordinary failure is already contained upstream, and only that one:
+	 * WC_Abstract_Order::save() catches Exception and routes it through handle_exception(),
+	 * and WC_Order::status_transition() wraps its whole hook block the same way. Neither
+	 * catches Throwable -- the same asymmetry the payment_complete() call in sync() is
+	 * wrapped for -- so an Error out of a third-party callback escapes both.
+	 *
+	 * Uncontained it leaves sync() or subscriber(), reaches the ping handler's catch and
+	 * answers 500, so the cursor UPDATE never runs and Scanpay serves the same seq page on
+	 * every five-minute keepalive: one order's broken hook stops every other order in the
+	 * shop from syncing. Same rule as report_incomplete() -- the cursor advances either
+	 * way, and the log line is the only record the reconciliation can be built from.
+	 *
+	 * @param string $what Log context naming the object, e.g. "charge #4321: order #17".
+	 * @return bool False when the write threw, leaving the caller to decide what to skip.
+	 */
+	private function save_or_report( \WC_Order $wco, string $what ): bool {
+		try {
+			$wco->save();
+			return true;
+		} catch ( \Throwable $e ) {
+			scanpay_log( 'error', "$what could not be saved: " . $e->getMessage() );
+			return false;
+		}
+	}
+
+	/**
 	 * Syncs a Scanpay subscriber with WooCommerce. Upserts subscriber state and
 	 * updates the linked subscription and parent-order metadata.
 	 *
@@ -482,7 +518,15 @@ final class WC_Scanpay_Sync {
 			$wcs_sub->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
 			$wcs_sub->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
 			$wcs_sub->set_payment_method_title( $pm_title );
-			$wcs_sub->save();
+			if ( ! $this->save_or_report( $wcs_sub, "subscriber #$subid: subscription #" . $wcs_sub->get_id() ) ) {
+				// Everything below belongs to a subscription this iteration has just linked,
+				// so an unwritten subid is its precondition failing. Completing the parent
+				// anyway would activate a subscription whose every renewal then dies on
+				// WCS_Scanpay_Charge::scheduled_charge()'s "invalid subscriber ID" guard and
+				// gets suspended by WCS; leaving the parent pending keeps the half-finished
+				// state where the merchant can see it.
+				continue;
+			}
 
 			// Free trial or a 100% coupon: the parent order carries no payment, so nothing
 			// else will ever complete it.
@@ -509,7 +553,11 @@ final class WC_Scanpay_Sync {
 				$parent->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
 				$parent->set_payment_method_title( $pm_title );
 				$parent->set_status( 'completed', __( 'Subscription initiated without payment.', 'scanpay-for-woocommerce' ), true );
-				$parent->save();
+				// The widest third-party surface in the drain: set_status() only queues the
+				// transition, so it is this save() that runs it -- and with it
+				// woocommerce_order_status_completed, the transactional-email queue, stock
+				// and download permissions, every one of them somebody else's code.
+				$this->save_or_report( $parent, "subscriber #$subid: parent order #" . $parent->get_id() );
 			}
 		}
 	}
