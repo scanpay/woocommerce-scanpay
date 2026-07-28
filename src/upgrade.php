@@ -172,7 +172,7 @@ if ( $wcs_exists && version_compare( $version, '2.1.3', '<' ) ) {
 						continue;
 					}
 				}
-				scanpay_log( 'info', "change subid on #$oid (from '$subid' to '$black_subid'" );
+				scanpay_log( 'info', "change subid on #$oid (from '$subid' to '$black_subid')" );
 				$wc_sub->update_meta_data( WC_SCANPAY_URI_SUBID, $black_subid );
 				// No cache invalidation of our own: WC_Data::save_meta_data() ends by deleting
 				// this object's own meta cache entry, and nothing here reads it back -- the next
