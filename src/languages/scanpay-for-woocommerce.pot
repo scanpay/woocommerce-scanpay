@@ -315,33 +315,37 @@ msgstr ""
 msgid "Invalid Scanpay subscriber ID."
 msgstr ""
 
-#: library/class-wcs-scanpay-charge.php:91
+#: library/class-wcs-scanpay-charge.php:97
+msgid "No Scanpay API key is configured."
+msgstr ""
+
+#: library/class-wcs-scanpay-charge.php:106
 msgid "Invalid Scanpay API key configured."
 msgstr ""
 
 #. translators: 1: Scanpay shop ID the subscription was created under, 2: the shop ID of the configured API key.
-#: library/class-wcs-scanpay-charge.php:126
+#: library/class-wcs-scanpay-charge.php:141
 #, php-format
 msgid "This subscription belongs to Scanpay shop %1$d, not %2$d."
 msgstr ""
 
 #. translators: 1: amount supplied by WooCommerce Subscriptions, 2: the order total.
-#: library/class-wcs-scanpay-charge.php:152
+#: library/class-wcs-scanpay-charge.php:167
 #, php-format
 msgid "Invalid renewal amount (%1$s) or order total (%2$s)."
 msgstr ""
 
 #. translators: 1: amount supplied by WooCommerce Subscriptions, 2: the order total.
-#: library/class-wcs-scanpay-charge.php:168
+#: library/class-wcs-scanpay-charge.php:183
 #, php-format
 msgid "The renewal amount (%1$s) does not match the order total (%2$s)."
 msgstr ""
 
-#: library/class-wcs-scanpay-charge.php:190
+#: library/class-wcs-scanpay-charge.php:205
 msgid "The zero-amount renewal could not be completed."
 msgstr ""
 
-#: library/class-wcs-scanpay-charge.php:362
+#: library/class-wcs-scanpay-charge.php:377
 msgid "The Scanpay charge failed. See the WooCommerce logs for details."
 msgstr ""
 

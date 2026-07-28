@@ -178,7 +178,8 @@ misdetecting a fresh blog). Not previously reported.
 
 **File / symbol:** `src/library/class-wcs-scanpay-charge.php`,
 `WCS_Scanpay_Charge::scheduled_charge()` (`:86-94`)
-**Verdict: Confirmed**
+**Verdict: Confirmed — FIXED after this review, see the note at the end of this
+entry.**
 
 ```php
 if ( $this->shopid <= 0 ) {
@@ -226,6 +227,16 @@ cleared, not what may be reported), `PLAN.md`'s "Reset must not touch operating
 settings", `HANDOFF-2.md` task 3 — where this was recorded as an explicit
 observation for this review rather than fixed, because task 3's file was
 `class-wc-scanpay-capture.php`.
+
+**Fixed** after the review closed, on request, in the commit titled "Distinguish
+an absent API key from a malformed one on the renewal path". The guard is split
+exactly as proposed: an `'' === $this->settings['apikey']` branch first, reading
+the same value the constructor derived `$this->shopid` from so the two cannot
+disagree, then the existing branch for a malformed key. Both still fail the
+renewal. The new order note is a new msgid — `No Scanpay API key is configured.`
+/ `Der er ikke konfigureret nogen Scanpay API-nøgle.` — so the catalogs were
+regenerated and the Danish written in the same commit. The remaining open items
+are findings 1, 2, 4, 5 and 6.
 
 ---
 

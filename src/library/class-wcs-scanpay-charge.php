@@ -83,6 +83,21 @@ final class WCS_Scanpay_Charge {
 			scanpay_log( 'debug', "scheduled charge: order #$oid already paid; skipping (subid=$subid)" );
 			return;
 		}
+		// An absent key is the expected state after a reset -- it unsets 'apikey' and
+		// 'secret' and leaves the rest -- whereas a malformed one is a misconfiguration.
+		// Conflating them tells the merchant to repair a key they removed on purpose, once
+		// per renewal, while WCS suspends each subscription on the failed transition. Both
+		// branches still fail the renewal: one that cannot be charged must not read as paid.
+		// Same split as WC_Scanpay_Capture::init(), whose messages are exceptions rather
+		// than order notes and so are deliberately untranslated.
+		if ( '' === (string) ( $this->settings['apikey'] ?? '' ) ) {
+			wcs_scanpay_fail_renewal(
+				$wco,
+				"scheduled charge: no API key configured; cannot charge #$oid (subid=$subid)",
+				__( 'No Scanpay API key is configured.', 'scanpay-for-woocommerce' )
+			);
+			return;
+		}
 		if ( $this->shopid <= 0 ) {
 			// Caught locally so the merchant reads a cause, not an opaque 401 from the API.
 			wcs_scanpay_fail_renewal(

@@ -8,7 +8,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "POT-Creation-Date: \n"
-"PO-Revision-Date: 2026-07-27T23:21:05+00:00\n"
+"PO-Revision-Date: 2026-07-28T07:43:50+00:00\n"
 "Language: da_DK\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: WP-CLI 2.11.0\n"
@@ -315,33 +315,37 @@ msgstr "Abonnement oprettet uden betaling."
 msgid "Invalid Scanpay subscriber ID."
 msgstr "Ugyldigt Scanpay-abonnent-ID."
 
-#: library/class-wcs-scanpay-charge.php:91
+#: library/class-wcs-scanpay-charge.php:97
+msgid "No Scanpay API key is configured."
+msgstr "Der er ikke konfigureret nogen Scanpay API-nøgle."
+
+#: library/class-wcs-scanpay-charge.php:106
 msgid "Invalid Scanpay API key configured."
 msgstr "Der er konfigureret en ugyldig Scanpay API-nøgle."
 
 #. translators: 1: Scanpay shop ID the subscription was created under, 2: the shop ID of the configured API key.
-#: library/class-wcs-scanpay-charge.php:126
+#: library/class-wcs-scanpay-charge.php:141
 #, php-format
 msgid "This subscription belongs to Scanpay shop %1$d, not %2$d."
 msgstr "Dette abonnement tilhører Scanpay-butik %1$d, ikke %2$d."
 
 #. translators: 1: amount supplied by WooCommerce Subscriptions, 2: the order total.
-#: library/class-wcs-scanpay-charge.php:152
+#: library/class-wcs-scanpay-charge.php:167
 #, php-format
 msgid "Invalid renewal amount (%1$s) or order total (%2$s)."
 msgstr "Ugyldigt fornyelsesbeløb (%1$s) eller ordretotal (%2$s)."
 
 #. translators: 1: amount supplied by WooCommerce Subscriptions, 2: the order total.
-#: library/class-wcs-scanpay-charge.php:168
+#: library/class-wcs-scanpay-charge.php:183
 #, php-format
 msgid "The renewal amount (%1$s) does not match the order total (%2$s)."
 msgstr "Fornyelsesbeløbet (%1$s) stemmer ikke overens med ordretotalen (%2$s)."
 
-#: library/class-wcs-scanpay-charge.php:190
+#: library/class-wcs-scanpay-charge.php:205
 msgid "The zero-amount renewal could not be completed."
 msgstr "Fornyelsen uden beløb kunne ikke gennemføres."
 
-#: library/class-wcs-scanpay-charge.php:362
+#: library/class-wcs-scanpay-charge.php:377
 msgid "The Scanpay charge failed. See the WooCommerce logs for details."
 msgstr "Scanpay-trækket mislykkedes. Se WooCommerce-logfilerne for detaljer."
 
