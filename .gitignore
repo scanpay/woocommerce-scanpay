@@ -15,3 +15,4 @@
 # Scratch notes from a PLAN.md run: local findings, never shipped. One file per
 # run (HANDOFF.md was runs 1-2, HANDOFF-2.md is run 3), so the glob, not a list.
 /HANDOFF*.md
+/.tasks/
