@@ -1,5 +1,5 @@
 /**
- * applepay.ts: hide the Apple Pay gateway on classic checkouts that cannot pay with it.
+ * applepay.ts: remove the Apple Pay gateway from classic checkouts that cannot pay with it.
  *
  * Blocks makes this decision in checkout.ts, through the payment method's own
  * canMakePayment(). Classic checkout has no equivalent hook, so the same probe runs
@@ -62,16 +62,22 @@ function setNotice(list: HTMLElement | null, show: boolean): void {
 }
 
 /** Take the row out of the list. Returns whether it had been the selected method. */
-function hide(row: HTMLElement): boolean {
-	const radio = document.querySelector<HTMLInputElement>('#' + RADIO_ID);
-	const was_selected = radio?.checked === true;
-	row.style.display = 'none';
-	if (radio) {
-		// Disabled, not merely unchecked: a hidden but checked input still posts.
-		radio.checked = false;
-		radio.disabled = true;
-	}
+function dropRow(row: HTMLElement): boolean {
+	const was_selected = document.querySelector<HTMLInputElement>('#' + RADIO_ID)?.checked === true;
+	// Removed, not hidden. A display:none <li> still counts in :nth-child(), so a theme's
+	// striping and last-child border land on the wrong row, and its radio keeps posting
+	// unless separately disabled. Dropping the node settles both, and owes nothing to
+	// checkout.css -- which is optional (the 'stylesheet' setting) and may not be loaded.
+	row.remove();
 	return was_selected;
+}
+
+/** Move the selection onto a remaining gateway. */
+function selectMethod(next: HTMLInputElement): void {
+	next.checked = true;
+	// WooCommerce delegates 'change' on input[name="payment_method"] from
+	// document.body, so a bubbling native event is what makes it redraw the box.
+	next.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 function apply(): void {
@@ -79,23 +85,22 @@ function apply(): void {
 	if (!row || supported()) {
 		return; // Not rendered, or a device that can actually pay: leave the list alone.
 	}
-	const was_selected = hide(row);
+	// Both read before the drop: alternatives() walks row.parentElement, and the notice
+	// anchors to that same list, so neither is reachable once the node is gone.
+	const list = row.parentElement;
 	const others = alternatives(row);
+	const was_selected = dropRow(row);
 	if (!others.length) {
 		// Sole gateway. Nothing to fall back to, so say so and keep the order from being
 		// placed until a fragment refresh brings another method.
-		setNotice(row.parentElement, true);
+		setNotice(list, true);
 		setSubmitDisabled(true);
 		return;
 	}
 	setNotice(null, false);
 	setSubmitDisabled(false);
 	if (was_selected || !others.some((input) => input.checked)) {
-		const next = others[0];
-		next.checked = true;
-		// WooCommerce delegates 'change' on input[name="payment_method"] from
-		// document.body, so a bubbling native event is what makes it redraw the box.
-		next.dispatchEvent(new Event('change', { bubbles: true }));
+		selectMethod(others[0]);
 	}
 }
 
