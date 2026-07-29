@@ -150,4 +150,6 @@ answered by a comment at the line itself; read it before flagging.
   and short of uninstalling, the only thing that deletes data.
 - **Migrations stamp the version last**, so an interrupted run retries from the start, and
   they discriminate on the settings option rather than the version — 1.x wrote settings
-  but never a version.
+  but never a version. One file per version in `src/upgrade/`, run from the ordered list in
+  `upgrade.php`: the list is the gate, never a scan of the directory. There is no activation
+  hook — that same gate is the install path.
