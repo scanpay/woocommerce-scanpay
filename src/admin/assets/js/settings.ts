@@ -182,12 +182,16 @@ if (alertBox.dataset.shopid === '0') {
 	}
 } else {
 	checkMtime();
+	// Registered inside the else, under the same condition as the call above. With no key
+	// stored, ?x=ping answers 403 'invalid apikey' (wp-scanpay-fetch-ping.php), and
+	// checkMtime()'s own guard does not cover it -- install.php mints the secret at
+	// activation, long before a key is entered. The branch above hands the merchant a
+	// target="_blank" link to fetch that key, so an ungated listener would greet every
+	// first-time setup with "Error: Something went wrong" on the way back to the tab.
+	document.addEventListener('visibilitychange', () => {
+		if (document.visibilityState === 'visible') checkMtime();
+	});
 }
-
-// checkPing when the tab is visible again
-document.addEventListener('visibilitychange', () => {
-	if (document.visibilityState === 'visible') checkMtime();
-});
 
 checkVersion()
 	.then((version) => {
