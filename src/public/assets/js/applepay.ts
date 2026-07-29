@@ -36,7 +36,13 @@ function alternatives(row: HTMLElement): HTMLInputElement[] {
 }
 
 function setSubmitDisabled(state: boolean): void {
-	if (state === blocked) return;
+	// Asymmetric on purpose. Disabling always runs: updated_checkout replaces the whole
+	// payment block, #place_order included, so a fresh button needs disabling again even
+	// though the flag already records that we disabled the old one. Enabling runs only
+	// when the flag says this script was the one that disabled it -- comparing state to
+	// the flag in both directions would early-return on that re-disable and leave the
+	// replacement button live in a browser that cannot pay.
+	if (!state && !blocked) return;
 	const submit = document.getElementById('place_order') as HTMLInputElement | HTMLButtonElement | null;
 	if (submit) submit.disabled = state;
 	blocked = state;
