@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * The admin order screens: the bulk actions and the row action that capture before
+ * completing, and the Scanpay meta box. Every hook is registered for both the HPOS and the
+ * legacy post-based order list. The file is the hook list.
+ */
+
 declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
@@ -27,23 +33,20 @@ add_filter( 'handle_bulk_actions-edit-shop_order', 'wc_scanpay_handle_bulk_actio
  * are captured before completion rather than after.
  */
 function wc_scanpay_add_bulk_actions( array $actions ): array {
-	// Mirror WC's own trash-view restriction (Restore/Delete only). WP_List_Table
-	// applies this filter on top of get_bulk_actions(), so our entries would
-	// otherwise be re-added to the trash dropdown and capture a trashed order.
-	// HPOS reads 'status', the legacy list table 'post_status'.
+	// Mirror WC's own trash-view restriction. WP_List_Table applies this filter on top of
+	// get_bulk_actions(), so our entries would otherwise be re-added to the trash dropdown
+	// and capture a trashed order. HPOS reads 'status', the legacy list table 'post_status'.
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only check of which view is rendered; changes no state.
 	$view = sanitize_text_field( wp_unslash( $_REQUEST['status'] ?? $_REQUEST['post_status'] ?? '' ) );
 	if ( 'trash' === $view ) {
 		return $actions;
 	}
-	// Same principle, the other half of it: when WooCommerce has withheld its own actions
-	// entirely, ours must not be the only entry left. HPOS returns array() from
-	// get_bulk_actions() for a user without edit_others_posts
-	// (src/Internal/Admin/Orders/ListTable.php:323-327), and WP_List_Table applies this
-	// filter at class-wp-list-table.php:598 but only tests for emptiness at :605 -- so a
-	// role with edit_shop_orders but not edit_others_shop_orders would be shown a dropdown
-	// holding exactly one action, ours, which handle_bulk_actions() then rejects silently
-	// on the same capability (ListTable.php:1418-1421).
+	// The other half of the same principle: when WooCommerce has withheld its own actions
+	// entirely, ours must not be the only entry left. HPOS's get_bulk_actions() returns []
+	// for a user without edit_others_posts, and WP_List_Table applies this filter before it
+	// tests for emptiness -- so a role with edit_shop_orders but not edit_others_shop_orders
+	// would get a dropdown holding exactly one action, ours, which the same capability check
+	// in handle_bulk_actions() then rejects silently.
 	if ( ! $actions ) {
 		return $actions;
 	}
@@ -54,10 +57,9 @@ function wc_scanpay_add_bulk_actions( array $actions ): array {
 	return [ 'scanpay_capture_complete' => __( 'Capture and complete', 'scanpay-for-woocommerce' ) ] + $arr;
 }
 add_filter( 'bulk_actions-woocommerce_page_wc-orders', 'wc_scanpay_add_bulk_actions', 10, 1 ); // HPOS
-// Priority 20, not 10: WC registers its own filter from setup_screen() on
-// current_screen, which fires after admin_init, where we register. At an equal
-// priority ours would run first, on an array that does not yet hold
-// 'mark_completed', and the rename would match nothing.
+// Priority 20, not 10: WC registers its own filter from setup_screen() on current_screen,
+// which fires after admin_init, where we register. At an equal priority ours would run
+// first, on an array that does not yet hold 'mark_completed'.
 add_filter( 'bulk_actions-edit-shop_order', 'wc_scanpay_add_bulk_actions', 20, 1 ); // Legacy
 
 
@@ -71,10 +73,7 @@ function wc_scanpay_mark_order_status(): void {
 add_action( 'wp_ajax_woocommerce_mark_order_status', 'wc_scanpay_mark_order_status', 0, 0 );
 
 
-/**
- * Manual capture from the order meta box (the "Capture" button in order.ts).
- * Guarded by the per-order nonce injected into window.ScanpayOrderData.
- */
+/** Manual capture from the order meta box, guarded by a per-order nonce. */
 function wc_scanpay_ajax_capture(): void {
 	require WC_SCANPAY_DIR . '/admin/hooks/wp-ajax-wc-scanpay-capture.php';
 }
@@ -95,9 +94,8 @@ function wc_scanpay_admin_render_meta_box( $post ): void {
 	if ( ! wc_scanpay_is_scanpay_order( $wco ) ) {
 		return;
 	}
-	// The stylesheet is enqueued in wc_scanpay_add_meta_box() so it lands in the
-	// head. The script stays here, next to the inline payload it carries: both are
-	// printed in the footer, after this callback has run.
+	// The stylesheet is enqueued in wc_scanpay_add_meta_box(), so it lands in the head. The
+	// script stays here, next to the inline payload it carries: both print in the footer.
 	wp_enqueue_script( 'wc-scanpay-order', WC_SCANPAY_URL . '/admin/assets/js/order.js', [ 'wp-i18n' ], WC_SCANPAY_VERSION, [ 'strategy' => 'defer' ] );
 	wp_set_script_translations( 'wc-scanpay-order', 'scanpay-for-woocommerce', WC_SCANPAY_DIR . '/languages' );
 
@@ -106,9 +104,8 @@ function wc_scanpay_admin_render_meta_box( $post ): void {
 	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
 	$shopid   = (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' );
 	$tid      = (int) $wco->get_transaction_id( 'edit' );
-	// Refunds are performed in the Scanpay dashboard (the gateway declares
-	// can_refund_order() === false and the plugin only reflects refunds via sync),
-	// so the meta box links there rather than issuing a refund itself.
+	// Refunds are dashboard-only -- can_refund_order() is false and sync reflects them
+	// read-only -- so the meta box links there rather than issuing one itself.
 	$dashboard = ( $shopid && $tid )
 		? WC_SCANPAY_DASHBOARD . rawurlencode( (string) $shopid ) . '/' . rawurlencode( (string) $tid )
 		: '';
@@ -122,19 +119,17 @@ function wc_scanpay_admin_render_meta_box( $post ): void {
 		'dashboard'   => $dashboard,
 		'nonce'       => wp_create_nonce( 'scanpay-order-' . $oid ),
 		/*
-		 * The base for the ?x= polls. The router dispatches on the X-Scanpay header and
-		 * ?x= alone, so any URL that boots WordPress works -- but the relative path the
-		 * scripts used to hardcode only resolves through WordPress's catch-all front
-		 * controller, which on Apache is the mod_rewrite block WordPress writes only when a
-		 * permalink structure is set. With plain permalinks it is a filesystem 404 and PHP
-		 * never runs. No rewrite rule instead: that means a flush, and this endpoint
-		 * deliberately does not depend on WordPress's routing at all.
+		 * The base for the ?x= polls. The router dispatches on the X-Scanpay header and ?x=
+		 * alone, so any URL that boots WordPress works -- but a relative path only resolves
+		 * through WordPress's catch-all front controller, which on Apache is the mod_rewrite
+		 * block written only when a permalink structure is set. With plain permalinks that is
+		 * a filesystem 404 and PHP never runs. No rewrite rule instead: that means a flush,
+		 * and this endpoint deliberately does not depend on WordPress's routing.
 		 *
-		 * admin_url(), never home_url(): the poll carries a custom X-Scanpay request
-		 * header, which makes it CORS-preflighted the moment its origin differs from the
-		 * screen doing the fetching, and WordPress answers no preflight. home_url() and the
-		 * admin origin part company on ordinary setups (FORCE_SSL_ADMIN over an http home,
-		 * WP_SITEURL on its own host); admin_url() is same-origin by construction.
+		 * admin_url(), never home_url(): the custom X-Scanpay header makes the poll
+		 * CORS-preflighted the moment its origin differs from the screen fetching it, and
+		 * WordPress answers no preflight. home_url() and the admin origin part company on
+		 * ordinary setups -- FORCE_SSL_ADMIN over an http home, WP_SITEURL on its own host.
 		 * Raw, not esc_url(): wp_json_encode() below owns the escaping.
 		 */
 		'endpoint'    => admin_url( 'admin-ajax.php' ),
@@ -148,11 +143,8 @@ function wc_scanpay_admin_render_meta_box( $post ): void {
 }
 
 /**
- * Add the Scanpay meta box to the order edit screen, but only for Scanpay orders.
- *
- * Registering the box unconditionally shows an empty "Scanpay" side box on
- * PayPal/etc. orders, so gate on the payment method here (as the subscription
- * meta box in admin/subscriptions.php already does).
+ * Add the Scanpay meta box to the order edit screen, for Scanpay orders only: registering
+ * it unconditionally shows an empty "Scanpay" side box on every other gateway's orders.
  *
  * @param WP_Post|WC_Order $wc_order Current object (legacy: WP_Post, HPOS: WC_Order).
  */
@@ -166,9 +158,9 @@ function wc_scanpay_add_meta_box( $wc_order ): void {
 	if ( ! wc_scanpay_is_scanpay_order( $wc_order ) ) {
 		return;
 	}
-	// Enqueued here, not in the render callback: this hook runs before admin_head,
-	// so the stylesheet is printed in the head rather than being deferred to the
-	// footer by print_late_styles() and flashing the box unstyled.
+	// Enqueued here, not in the render callback: this hook runs before admin_head, so the
+	// stylesheet reaches the head rather than being deferred to the footer by
+	// print_late_styles() and flashing the box unstyled.
 	wp_enqueue_style( 'wcsp-meta', WC_SCANPAY_URL . '/admin/assets/css/meta.css', [], WC_SCANPAY_VERSION );
 	add_meta_box(
 		'wcsp-meta-box',

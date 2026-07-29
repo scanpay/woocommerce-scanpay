@@ -1,9 +1,12 @@
 <?php
 
 /**
- * Custom admin options for Scanpay gateways.
+ * The settings screen shared by all three gateways: setup notices, the tab bar, and
+ * WooCommerce's own field table. Replaces the default admin_options() layout.
  *
- * Overrides the default WC_Payment_Gateway::admin_options() layout.
+ * A template, not a module -- the require in WC_Gateway_Scanpay_Base::admin_options() is
+ * the render call, so it declares nothing; a second render in one request would fatally
+ * redeclare it. wc_scanpay_admin_notice() lives in admin/settings.php for that reason.
  *
  * @var WC_Gateway_Scanpay_Base $gateway The gateway whose screen is being rendered.
  */
@@ -11,10 +14,6 @@
 declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
-
-// Declares nothing on purpose: the require at WC_Gateway_Scanpay_Base::admin_options()
-// is the render call, so a second one in a request would fatally redeclare anything
-// here. wc_scanpay_admin_notice() lives in admin/settings.php for that reason.
 
 $settings = get_option( WC_SCANPAY_URI_SETTINGS, [] );
 $shopid   = (int) strstr( (string) ( $settings['apikey'] ?? '' ), ':', true );
@@ -122,14 +121,13 @@ $nav_tabs = [
 </div>
 
 <?php
-// Anchor for settings.ts: it reads the polling secret + shop id from these data
-// attributes, writes the "Synchronized N seconds ago" string into
-// #wcsp-set-nav-mtime, and appends sync / out-of-date warnings here. The secret and
-// shop id come from the primary (card) settings option on every gateway screen.
+// Anchor for settings.ts: it reads the polling secret and shop id from these attributes,
+// writes the last-sync string into #wcsp-set-nav-mtime, and appends warnings here. Both
+// values come from the primary (card) settings option on every gateway screen.
 ?>
 <div id="wcsp-set-alert"
 	data-secret="<?php echo esc_attr( (string) ( $settings['secret'] ?? '' ) ); ?>"
-	<?php // The base for the ?x=ping poll. admin_url(), never home_url(): the poll sends a custom X-Scanpay header, so a differing origin makes it a CORS preflight WordPress does not answer. See admin/orders.php. ?>
+	<?php // The base for the ?x=ping poll. admin_url(), never home_url(), for the CORS-preflight reason wc_scanpay_admin_render_meta_box() gives. ?>
 	data-endpoint="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>"
 	data-shopid="<?php echo esc_attr( (string) $shopid ); ?>"
 	<?php // The running version as data, so the update banner's msgid stays a %s placeholder rather than changing on every release. ?>
@@ -137,9 +135,9 @@ $nav_tabs = [
 
 <table class="form-table wcsp-set-<?php echo esc_attr( $gateway->id ); ?>">
 	<?php
-		// Carries no escaping suppression, and needs none: this is a method call, not an
-		// echo, so WordPress.Security.EscapeOutput cannot fire on it -- the echo happens
-		// inside generate_settings_html() (abstract-wc-settings-api.php:370-374).
+		// No escaping suppression, and none needed: this is a method call, not an echo, so
+		// WordPress.Security.EscapeOutput cannot fire on it -- generate_settings_html()
+		// does the echoing itself.
 		$gateway->generate_settings_html( $gateway->get_form_fields(), true );
 	?>
 </table>

@@ -1,39 +1,40 @@
 <?php
 
+/**
+ * Everything the plugin ever wrote, removed: the three settings options, the version and
+ * throttle, and the custom tables -- on every blog of a network, not just the one
+ * WordPress includes this file in. Credentials go first, tables second.
+ *
+ * WordPress loads this file with none of the plugin's constants, classes or helpers
+ * defined, which is why every name here is spelled out.
+ */
+
 declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 defined( 'WP_UNINSTALL_PLUGIN' ) || die();
 
-// Granted before anything runs, as upgrade.php:9 and callback/wc-scanpay-ping.php:20 do.
-// Nothing upstream supplies one: neither uninstall_plugin() nor delete_plugins() does any
-// time management of its own, so without this the run gets whatever max_execution_time
-// the host happens to set, commonly 30.
+// Nothing upstream grants one: neither uninstall_plugin() nor delete_plugins() does any
+// time management, so without this the run gets whatever max_execution_time the host sets,
+// commonly 30.
 set_time_limit( 60 );
 
 /**
  * Delete the Scanpay settings of whichever blog is active right now.
  *
- * Kept apart from the table drops, and always run first, because the two hold different
- * things: each of these options carries a live API key, the tables carry order and
- * subscriber ids and amounts. This file can be killed part-way (see the walker below), so
- * the split is what decides whether an interrupted uninstall leaves order history or a
- * credential.
- *
- * WordPress loads uninstall.php on its own, with none of the plugin's constants, classes
- * or helpers defined, so the option names are spelled out here.
+ * Kept apart from the table drops, and always run first, because these options carry live
+ * API keys while the tables carry order history. The file can be killed part-way, so the
+ * split decides which of the two an interrupted uninstall leaves behind.
  */
 function wc_scanpay_uninstall_blog_options(): void {
-	// One option per gateway: WC_Settings_API::get_option_key() is
-	// 'woocommerce_' . $gateway_id . '_settings', for ids scanpay, scanpay_mobilepay
-	// and scanpay_applepay. Each holds an API key.
+	// One option per gateway, named as WC_Settings_API::get_option_key() spells it. Each
+	// holds an API key.
 	delete_option( 'woocommerce_scanpay_settings' );
 	delete_option( 'woocommerce_scanpay_mobilepay_settings' );
 	delete_option( 'woocommerce_scanpay_applepay_settings' );
 	delete_option( 'wc_scanpay_version' );
 
-	// The upgrade throttle. Self-expires in 5 minutes, so this only matters when
-	// uninstalling in the middle of a wedged upgrade -- but leave nothing behind.
+	// The upgrade throttle: self-expiring, so this only matters mid-wedged-upgrade.
 	delete_transient( 'wc_scanpay_updating' );
 }
 
@@ -55,35 +56,28 @@ function wc_scanpay_uninstall_blog_tables(): void {
 	$wpdb->query( "DROP TABLE IF EXISTS {$prefix}scanpay_meta" );
 	$wpdb->query( "DROP TABLE IF EXISTS {$prefix}scanpay_subs" );
 
-	// Legacy 2.x tables: created only by the pre-3.x plugin, never by 3.x. Kept as
-	// harmless cleanup for sites that uninstall after upgrading from 2.x.
+	// Legacy 2.x tables, for sites that uninstall after upgrading from 2.x.
 	$wpdb->query( "DROP TABLE IF EXISTS {$prefix}woocommerce_scanpay_queuedcharges" );
 	$wpdb->query( "DROP TABLE IF EXISTS {$prefix}woocommerce_scanpay_seq" );
 
-	// Early-2.x table, never part of the 3.x schema. Do not remove this drop again:
-	// c25fa50 did, on the wrong premise that nothing ever created it -- v2.0.0..v2.1.4
-	// did (git show v2.0.0:includes/install.php), and 11c81b4 dropped the creation with no
-	// migration. Later 2.x only removed the table when an API-key change rebuilt the
-	// schema, so merchants who upgraded without changing their key still have it, holding
-	// order/subscription IDs and amounts.
+	// Do not remove this drop again on the premise that nothing created the table:
+	// v2.0.0..v2.1.4 did, and the creation was later dropped with no migration. Only an
+	// API-key change rebuilt the schema after that, so a merchant who upgraded without
+	// changing their key still has it, holding order ids and amounts.
 	$wpdb->query( "DROP TABLE IF EXISTS {$prefix}scanpay_queue" );
 }
 
 /**
  * Apply $callback to every blog on the network, between a switch_to_blog() and its restore.
  *
- * Paginated explicitly, by id: get_sites() answers at most 100 sites per call
- * (WP_Site_Query's 'number' default), so a single unbounded call would leave site 101
- * onwards untouched -- the silent truncation this loop exists to close. The offset is safe
- * because $callback deletes options and tables, never sites, so the result set cannot shrink
- * underneath it.
+ * Paginated by id, because WP_Site_Query's 'number' defaults to 100 and an unbounded
+ * get_sites() would silently leave site 101 onwards untouched. The offset is safe: the
+ * callbacks delete options and tables, never sites.
  */
 function wc_scanpay_uninstall_network( callable $callback ): void {
-	// Granted here as well as at the top of the file, so each pass starts its marker
-	// against a full 60 rather than one the previous pass already half spent -- and so the
-	// threshold below races that 60 rather than a host default of 30, where the two would
-	// be equal and the renewal unreachable. set_time_limit() resets the counter rather
-	// than adding to it, so renewing before it is due costs nothing.
+	// Granted again here so each pass starts its marker against a full 60, and so the
+	// threshold below races that 60 rather than a host default of 30, where the two would be
+	// equal and the renewal unreachable.
 	set_time_limit( 60 );
 	$renewed = microtime( true );
 
@@ -97,11 +91,10 @@ function wc_scanpay_uninstall_network( callable $callback ): void {
 				'offset'                 => $offset,
 				'orderby'                => 'id',
 				'order'                  => 'ASC',
-				// Ids are all this loop switches on; it never reads a WP_Site or its meta.
-				// Both default to true, which is two extra queries per page and every site
-				// object held in the object cache for the rest of a run already fighting for
-				// time. Costs the second pass nothing: WP_Site_Query drops both flags, and
-				// 'fields', from its cache key, so the id list is a hit either way.
+				// Ids are all this loop switches on. Both flags default to true, which is
+				// two extra queries per page and every site object held in cache for the
+				// rest of the run. Costs the second pass nothing: WP_Site_Query drops both,
+				// and 'fields', from its cache key, so the id list is a hit either way.
 				'update_site_cache'      => false,
 				'update_site_meta_cache' => false,
 			]
@@ -135,15 +128,12 @@ if ( ! is_multisite() ) {
 }
 
 /*
- * Network uninstall: WordPress includes this file once, in the context of one blog, while
- * the API keys, tables and payment metadata sit on every blog that ever activated the
- * plugin -- and activation state is not something to assume, since a deactivated blog
- * keeps all of it.
+ * WordPress includes this file once, for one blog, while the keys and tables sit on every
+ * blog that ever activated the plugin -- and a deactivated blog keeps all of it.
  *
- * Two passes over the network rather than one, because a kill leaves everything the loop
- * has not reached intact and says nothing about where it stopped. The credentials pass is
- * the cheapest one there is -- five option writes per blog, no DDL -- so completing it
- * first clears every API key on the network before the first DROP TABLE runs.
+ * Two passes rather than one, because a kill leaves everything the loop has not reached
+ * intact and says nothing about where it stopped. The credentials pass is the cheap one, so
+ * completing it first clears every API key on the network before the first DROP TABLE.
  */
 wc_scanpay_uninstall_network( 'wc_scanpay_uninstall_blog_options' );
 wc_scanpay_uninstall_network( 'wc_scanpay_uninstall_blog_tables' );

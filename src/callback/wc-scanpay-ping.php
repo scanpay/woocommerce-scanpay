@@ -1,14 +1,18 @@
 <?php
 
 /**
- * Handle Scanpay pings ("callbacks"). Pings contain a sequence number
- * indicating that there are changes to be synchronized from Scanpay.
+ * The Scanpay ping ("callback") endpoint, and the drain it drives: compare the announced
+ * sequence number against the local cursor and pull the changes in between, under
+ * Scanpay_Flock. Dispatched from woocommerce-scanpay.php before the rest of the bootstrap.
  *
  * Contract:
  * - HTTP method: POST
  * - Body: JSON object { seq: int, shopid: int }
  * - Header: X-Signature = base64(hmac_sha256(body, apikey))
  * - Pings are retried until we answer 200, and time out after ~7 s.
+ *
+ * Scanpay pings every five minutes whether or not anything changed, which is the recovery
+ * backstop for the whole design: a dropped or stranded ping self-heals within minutes.
  */
 
 declare(strict_types=1);
@@ -34,12 +38,9 @@ function wc_scanpay_respond( string $msg, int $code ): void {
 }
 
 /**
- * Read the shop's sync cursor. Fail loud: a DB error or a missing row must not
- * masquerade as seq=0 -- that would silently replay the full change history and
- * never persist a cursor.
- *
- * The returned seq is only trustworthy for as long as the caller holds the flock --
- * see the re-read in the sync loop below.
+ * Read the shop's sync cursor. Fail loud: a DB error or a missing row must not masquerade
+ * as seq=0, which would replay the full change history and never persist a cursor. The
+ * returned seq is only trustworthy while the caller holds the flock.
  *
  * @return array{seq: int, ping: int} Local cursor and the last recorded ping seq.
  */
@@ -57,27 +58,25 @@ function wc_scanpay_read_cursor( int $shopid ): array {
 	}
 	return [
 		'seq'  => (int) $row['seq'],
-		// Nullable in the DDL, but install.php seeds ping = 0 and nothing else
-		// inserts, so NULL is unreachable. Keep it that way: the busy path's
-		// "ping < $ping_seq" can never match a NULL row, and it would report 0
-		// rows rather than an error -- silently killing handoffs for that shop.
+		// Nullable in the DDL, but install.php seeds ping = 0 and nothing else inserts, so
+		// NULL is unreachable. Keep it that way: the busy path's "ping < $ping_seq" can
+		// never match a NULL row, and would report 0 rows rather than an error -- silently
+		// killing handoffs for that shop.
 		'ping' => (int) $row['ping'],
 	];
 }
 
 /*
  * Both order-cache modes must be listed: OrderCache::get_object_type() returns
- * 'order_objects' only when the HPOS datastore-caching option is 'yes' and 'orders'
- * otherwise -- and that option is off by default, so 'orders' is the active group on a
- * normal HPOS install.
+ * 'order_objects' only when HPOS datastore caching is on, 'orders' otherwise -- and that
+ * option is off by default, so 'orders' is the active group on a normal HPOS install.
  *
- * 'orders' is also the expensive one: 'order_objects' is registered non-persistent in
- * the very mode where it is used, while 'orders' is not. On a persistent drop-in
- * (Redis/Memcached) this therefore evicts full WC_Order objects site-wide, not just
- * this request's runtime cache. Accepted: it runs at most once every few sync
+ * 'orders' is also the expensive one, because 'order_objects' is registered non-persistent
+ * in the very mode where it is used and 'orders' is not. On a persistent drop-in this
+ * evicts full WC_Order objects site-wide. Accepted: it runs at most once every few sync
  * iterations and the groups are cheap to repopulate. It may equally do nothing --
- * wp_cache_flush_group() delegates straight to the drop-in, and one without
- * flush_group support leaves the backfill with no memory bound at all.
+ * wp_cache_flush_group() delegates to the drop-in, and one without flush_group support
+ * leaves the backfill with no memory bound at all.
  */
 function wc_scanpay_flush_order_runtime_cache(): void {
 	wp_cache_flush_group( 'order_objects' );
@@ -109,8 +108,7 @@ function wc_scanpay_memory_usage_debug(): void {
 	);
 
 	global $wp_object_cache;
-	// $wp_object_cache->cache is an internal of core's array cache; persistent
-	// drop-ins (Redis/Memcached) may not expose it, so bail if it is not there.
+	// An internal of core's array cache; a persistent drop-in may not expose it.
 	if ( ! is_array( $wp_object_cache->cache ?? null ) ) {
 		return;
 	}
@@ -136,9 +134,9 @@ if ( ! $shopid ) {
 }
 
 /*
- * Read and bound the body. Pings are tiny, so a hard cap at 512 bytes costs nothing
- * and keeps both memory use and the signature check cheap. Content-Length only sizes
- * the guard -- the read is verified against it below, so an inaccurate header fails.
+ * Read and bound the body. Pings are tiny, so a hard 512-byte cap costs nothing.
+ * Content-Length only sizes the guard: the read is verified against it below, so an
+ * inaccurate header fails.
  */
 $cl = (int) sanitize_text_field( wp_unslash( $_SERVER['CONTENT_LENGTH'] ?? '' ) );
 if ( $cl <= 0 ) {
@@ -152,18 +150,15 @@ if ( false === $body || strlen( $body ) !== $cl ) {
 	wc_scanpay_respond( 'body read failed', 400 );
 }
 
-/*
- * SECURITY: authenticate the ping. Base64-encoded HMAC-SHA256 over the raw body with
- * the API key, compared with hash_equals to avoid a timing leak.
- */
+// Authenticate: base64 HMAC-SHA256 over the raw body with the API key, compared with
+// hash_equals to avoid a timing leak.
 $sig = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_SIGNATURE'] ?? '' ) );
 // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Standard base64 HMAC-SHA256 signature encoding, not obfuscation.
 if ( ! hash_equals( base64_encode( hash_hmac( 'sha256', $body, $apikey, true ) ), $sig ) ) {
 	wc_scanpay_respond( 'invalid signature', 403 );
 }
 
-// Throw rather than return null on malformed JSON; the 512-byte cap already bounds the
-// nesting, so the depth argument is only a backstop.
+// The 512-byte cap already bounds the nesting, so the depth argument is only a backstop.
 try {
 	$ping = json_decode( $body, true, 16, JSON_THROW_ON_ERROR );
 } catch ( JsonException $e ) {
@@ -190,9 +185,9 @@ if ( $ping_seq < $seq ) {
 	wc_scanpay_respond( "invalid ping seq: ping ($ping_seq) < local ($seq)", 400 );
 }
 if ( $ping_seq === $seq ) {
-	// Heartbeat: nothing to sync, but record that Scanpay just reached us so the
-	// settings "last sync" indicator stays fresh. mtime is display-only, so we do
-	// not fail the ping if this update fails.
+	// Heartbeat: nothing to sync, but record that Scanpay reached us so the settings
+	// last-sync indicator stays fresh. mtime is display-only, so a failed write is not
+	// worth failing the ping over.
 	$now = time();
 	$wpdb->query( "UPDATE {$wpdb->prefix}scanpay_seq SET mtime = $now WHERE shopid = $shopid" );
 	wc_scanpay_respond( 'ok', 200 );
@@ -208,10 +203,9 @@ $flock  = new Scanpay_Flock( $shopid );
 
 
 /*
- * Concurrency control: one sync process at a time. acquire() returns false on genuine
- * contention (another worker holds the lock); it throws only when the lock file cannot
- * be created (e.g. a read-only temp dir). The latter is not contention -- no worker is
- * draining the queue -- so surface it as a retryable 503, not a success-ish "busy".
+ * One drain at a time. acquire() returns false on genuine contention and throws only when
+ * the lock file cannot be created, e.g. a read-only temp dir. That is not contention -- no
+ * worker is draining at all -- so it gets a retryable 503, not a success-ish "busy".
  */
 try {
 	$locked = $flock->acquire();
@@ -221,8 +215,8 @@ try {
 }
 
 if ( ! $locked ) {
-	// Contention: record the latest ping so the running worker drains it, then
-	// 200 so the backend stops retrying this delivery.
+	// Contention: record the latest ping so the running worker drains it, then 200 so the
+	// backend stops retrying this delivery.
 	$now      = time();
 	$res_ping = $wpdb->query(
 		"UPDATE {$wpdb->prefix}scanpay_seq
@@ -230,8 +224,8 @@ if ( ! $locked ) {
 		WHERE shopid = $shopid AND ping < $ping_seq"
 	);
 	if ( false === $res_ping ) {
-		// If we cannot hand the ping off, the running worker will not see it --
-		// fail loud so the backend retries rather than stranding the ping.
+		// An unrecorded handoff is one the running worker never sees, so fail loud and let
+		// the backend retry rather than stranding the ping.
 		scanpay_log( 'error', "failed to record pending ping: {$wpdb->last_error}" );
 		wc_scanpay_respond( 'database error', 500 );
 	}
@@ -247,20 +241,20 @@ try {
 	$limit_renewed = $start;
 	do {
 		/*
-		 * We hold the lock now, so re-read the cursor: the read that picked this branch
-		 * happened before acquire(), and an incumbent worker may have advanced it in
-		 * between. Everything below -- above all the exactly-one-row invariant of the
-		 * cursor UPDATE -- only holds for a $seq read under a continuously-held lock.
-		 * Runs after every successful acquire(): the initial one and the re-acquire below.
+		 * Re-read under the lock: the read that picked this branch happened before
+		 * acquire(), and an incumbent worker may have advanced the cursor since. Everything
+		 * below -- above all the exactly-one-row invariant of the cursor UPDATE -- only
+		 * holds for a $seq read under a continuously-held lock. Runs after every successful
+		 * acquire(), the initial one and the re-acquire below.
 		 *
 		 * $target is how far this run must get: this ping, or a newer one a busy worker
-		 * handed off in the ping column. It is the loop's single notion of "caught up",
-		 * so $ping_seq keeps meaning exactly "the seq this ping announced".
+		 * handed off in the ping column. It is the loop's single notion of "caught up", so
+		 * $ping_seq keeps meaning exactly "the seq this ping announced".
 		 *
-		 * Having nothing outstanding is deliberately not special-cased: the loop is
-		 * simply skipped and the release-and-recheck at the bottom acks. An early exit on
-		 * $target <= $seq would read the ping column exactly once, at a moment a busy
-		 * worker can still write to it -- the very race the recheck exists to close.
+		 * Nothing outstanding is deliberately not special-cased: the loop is skipped and the
+		 * release-and-recheck at the bottom acks. An early exit on $target <= $seq would
+		 * read the ping column once, at a moment a busy worker can still write to it -- the
+		 * very race the recheck exists to close.
 		 */
 		$cursor = wc_scanpay_read_cursor( $shopid );
 		$seq    = $cursor['seq'];
@@ -272,11 +266,10 @@ try {
 
 			if ( [] === $changes ) {
 				/*
-				 * Protocol violation: seq() enforces monotonicity, so empty changes
-				 * mean the backend served "you are at the end of the stream" for a
-				 * cursor the ping said had data beyond it. The pinger and /v1/seq are
-				 * consistent -- there is no visibility window -- so both cannot be
-				 * true. Fail loud instead of acking a drain that never happened.
+				 * Protocol violation: empty changes mean the backend served "end of
+				 * stream" for a cursor the ping said had data beyond it. The pinger and
+				 * /v1/seq are consistent -- there is no visibility window -- so both
+				 * cannot be true. Fail loud instead of acking a drain that never happened.
 				 */
 				throw new Exception( "backend announced seq $target but /v1/seq/$seq served no changes" );
 			}
@@ -299,11 +292,8 @@ try {
 			$res_seq = $wpdb->query(
 				"UPDATE {$wpdb->prefix}scanpay_seq SET seq = $seq, mtime = $now WHERE shopid = $shopid AND seq < $seq"
 			);
-			/*
-			 * Fail loud: the flock makes us the only writer, so an advancing cursor must
-			 * touch exactly one row. If it did not persist, do not ack -- the next ping
-			 * would replay everything from the stale cursor.
-			 */
+			// The flock makes us the only writer, so an advancing cursor must touch exactly
+			// one row. Acking an unpersisted cursor would replay everything on the next ping.
 			if ( false === $res_seq || $wpdb->rows_affected < 1 ) {
 				throw new Exception( "failed to persist sync cursor to seq $seq: {$wpdb->last_error}" );
 			}
@@ -313,15 +303,13 @@ try {
 				 * Long backfill: two bounds, on two cadences, deliberately not the same one.
 				 *
 				 * The grant is a time bound, and rounds are no proxy for it -- one round is a
-				 * /v1/seq call, whose client-side budget is WC_Scanpay_Client::request()'s
-				 * default $timeout = 40, plus a page of changes that can each build a WC_Order
-				 * and write to the database. Renewing every sixth round can therefore outlast
-				 * the 60 s last granted, and the kill lands mid-page: sync() calls
+				 * /v1/seq call with a 40 s client-side budget, plus a page of changes that can
+				 * each build a WC_Order and write to the database. Renewing every sixth round
+				 * can outlast the 60 s last granted, and the kill lands mid-page: sync() calls
 				 * payment_complete() per change while the cursor UPDATE runs only after the
 				 * whole page, so the next ping replays a page whose orders it then skips for
 				 * already carrying a transaction id -- wasted work, ending the same way, on
-				 * every keepalive. set_time_limit() resets the counter rather than adding to
-				 * it, so renewing before it is due costs nothing.
+				 * every keepalive.
 				 *
 				 * The flush is a memory bound, and there rounds are a fair proxy for allocation.
 				 */
@@ -348,10 +336,10 @@ try {
 
 		/*
 		 * Close the busy-path race: a ping recorded between the final in-loop read and
-		 * release() would otherwise be stranded -- the busy pinger already got a 200 and
-		 * will not retry. After releasing, re-read the ping column; if it names a seq we
-		 * have not reached, re-acquire and resume. If another worker took the lock
-		 * meanwhile it owns the drain (it re-reads the same column), so we can stop.
+		 * release() would otherwise be stranded, since the busy pinger already got a 200 and
+		 * will not retry. After releasing, re-read the ping column; if it names a seq we have
+		 * not reached, re-acquire and resume. If another worker took the lock meanwhile it
+		 * owns the drain, because it re-reads the same column.
 		 */
 		$flock->release();
 		$target = max( $target, wc_scanpay_read_cursor( $shopid )['ping'] );
@@ -362,9 +350,9 @@ try {
 	} while ( $flock->acquire() );
 	/*
 	 * The inner loop only exits once $seq reached $target, so "completed" holds for every
-	 * exit but one: a failed re-acquire hands an outstanding ping to the worker that took
-	 * the lock, leaving us short. That ping is always in the ping column -- $target can
-	 * only exceed $seq here by way of the re-read above -- so the new holder will see it.
+	 * exit but one: a failed re-acquire hands an outstanding ping to the worker that took the
+	 * lock. That ping is always in the ping column -- $target can only exceed $seq here by
+	 * way of the re-read above -- so the new holder will see it.
 	 */
 	if ( $seq < $target ) {
 		scanpay_log( 'info', "Sync handed off at seq $seq: another worker holds the lock for ping seq $target" );

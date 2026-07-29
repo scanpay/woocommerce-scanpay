@@ -1,4 +1,12 @@
 <?php
+
+/**
+ * Renewal charges against a Scanpay subscriber's stored payment method. Constructed once
+ * per Action Scheduler batch by wcs_scanpay_scheduled_charge(), which is the outer
+ * boundary: nothing here rethrows, every failure is reported through
+ * wcs_scanpay_fail_renewal(), and WCS owns retry scheduling.
+ */
+
 declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
@@ -9,43 +17,39 @@ final class WCS_Scanpay_Charge {
 	private int $shopid;
 
 	public function __construct() {
-		// math.php and the client are independent requires: gating math.php on the client's
-		// class would leave the money helpers undefined on any request that already loaded
-		// the client by itself (process_admin_options() does). require_once is its own guard.
+		// Independent requires: gating math.php on the client's class would leave the money
+		// helpers undefined on a request that already loaded the client by itself, as
+		// process_admin_options() does. require_once is its own guard.
 		require_once WC_SCANPAY_DIR . '/library/math.php';
 		require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
 		$opts           = get_option( WC_SCANPAY_URI_SETTINGS );
 		$this->settings = is_array( $opts ) ? $opts : [];
 		$apikey         = (string) ( $this->settings['apikey'] ?? '' );
 		// Derived here, reported in scheduled_charge(): this constructor has no order to
-		// mark failed. A throw here is per-renewal, not per-request -- the hook's memo is
-		// assigned after the constructor returns (woocommerce-scanpay.php:399), so a throw
-		// leaves $handler null and the next action in the batch constructs again.
+		// mark failed. A throw is per-renewal, not per-request -- wcs_scanpay_scheduled_charge()
+		// assigns its memo after the constructor returns, so the next action constructs again.
 		$this->shopid = (int) strstr( $apikey, ':', true );
 		$this->client = new WC_Scanpay_Client( $apikey );
 	}
 
 	/**
-	 * Build the stateless Scanpay idempotency key: orderid_rev_day.
-	 * orderid = the renewal, rev = payment-method revision (bumps on card refresh),
-	 * day = whole days since the renewal order was created. Scanpay binds keys for
-	 * 24h on both success and error, so repeats within a day dedupe: by design at
-	 * most one real charge attempt per (order, rev) per 24h day-bucket -- a card
-	 * update (rev bump) is the only way to charge again sooner.
+	 * The stateless idempotency key, orderid_rev_day: the renewal, the payment-method
+	 * revision (which bumps on a card refresh), and whole days since the renewal order was
+	 * created. Scanpay binds a key for 24h on success and error alike, so at most one real
+	 * attempt happens per (order, rev) per day-bucket, and a card update is the only way to
+	 * charge again sooner.
 	 *
-	 * The day is anchored to the order's creation time rather than the UTC calendar so
-	 * the bucket boundary -- where two concurrent attempts could get different keys and
-	 * both charge -- sits ~24h away from where attempts actually happen: the first fires
-	 * seconds after WCS creates the renewal order, and >=24h retries provably land in a
-	 * strictly later bucket, just past its start. intdiv truncation (not floor) merges
-	 * small negative DB-vs-PHP clock skew into day 0 instead of creating a boundary at
-	 * the creation time itself.
+	 * The day is anchored to the order's creation time, not the UTC calendar, so the bucket
+	 * boundary -- where two concurrent attempts could get different keys and both charge --
+	 * sits ~24h from where attempts actually happen: the first fires seconds after WCS
+	 * creates the order, and retries at >=24h land in a strictly later bucket. intdiv
+	 * truncates rather than floors, merging small negative clock skew into day 0.
 	 *
-	 * The rev is read from the local (sync-written) scanpay_subs row on purpose: it
-	 * only advances when a sync ran, which also writes the scanpay_meta already-paid
-	 * guard, so the key can never outrun that guard and double-charge.
+	 * The rev comes from the local scanpay_subs row on purpose: it only advances when a sync
+	 * ran, and that same sync writes the scanpay_meta already-paid guard, so the key can
+	 * never outrun the guard and double-charge.
 	 *
-	 * @throws Exception If the subscriber row is missing or unreadable (rev unknown).
+	 * @throws Exception If the subscriber row is missing or unreadable.
 	 */
 	private function idempotency_key( int $oid, int $subid, int $created ): string {
 		global $wpdb;
@@ -83,13 +87,9 @@ final class WCS_Scanpay_Charge {
 			scanpay_log( 'debug', "scheduled charge: order #$oid already paid; skipping (subid=$subid)" );
 			return;
 		}
-		// An absent key is the expected state after a reset -- it unsets 'apikey' and
-		// 'secret' and leaves the rest -- whereas a malformed one is a misconfiguration.
-		// Conflating them tells the merchant to repair a key they removed on purpose, once
-		// per renewal, while WCS suspends each subscription on the failed transition. Both
-		// branches still fail the renewal: one that cannot be charged must not read as paid.
-		// Same split as WC_Scanpay_Capture::init(), whose messages are exceptions rather
-		// than order notes and so are deliberately untranslated.
+		// The same absent-versus-malformed split as WC_Scanpay_Capture::init(), whose
+		// messages are exceptions rather than order notes and so stay untranslated. Both
+		// branches fail the renewal: one that cannot be charged must not read as paid.
 		if ( '' === (string) ( $this->settings['apikey'] ?? '' ) ) {
 			wcs_scanpay_fail_renewal(
 				$wco,
@@ -108,27 +108,19 @@ final class WCS_Scanpay_Charge {
 			return;
 		}
 		/*
-		 * Shop ownership. Scanpay subscriber IDs are namespaced per shop, so after a
-		 * merchant switches keys a subid that merely collides numerically resolves to a
-		 * different customer's stored card -- the API path carries no shop id, the
-		 * authenticated key does. Do not simplify this away on the assumption that
-		 * subscriber IDs are globally unique.
+		 * Shop ownership. Subscriber ids are namespaced per shop, so after a merchant
+		 * switches keys a subid that merely collides numerically resolves to a different
+		 * customer's stored card -- the API path carries no shop id, the authenticated key
+		 * does. Do not simplify this away on the assumption that subscriber ids are globally
+		 * unique. A shopid column on scanpay_subs would defend against nothing: the new
+		 * shop's sync upserts that same row with its own shop id, and only the
+		 * subscription's own meta records what it was created under.
 		 *
-		 * A shopid column on scanpay_subs would look cheaper (idempotency_key() already
-		 * reads that row) and defends against nothing: the new shop's sync upserts the
-		 * same subid row with its own shop id. Only the subscription's own meta records
-		 * what it was created under.
-		 *
-		 * Absent or zero proceeds, deliberately, unlike WC_Scanpay_Capture, which throws
-		 * on it: a 1.x-migrated store can legitimately have no stamp. Symbols, not line
-		 * numbers, because these drift: WC_Scanpay_Sync::subscriber() writes
-		 * WC_SCANPAY_URI_SHOPID only inside the foreach over find_subs_from_ref(), i.e.
-		 * only for subscriptions resolved from a 'wcs[]' ref, which 1.x never wrote -- it
-		 * used a bare order id -- while the scanpay_subs INSERT ... ON DUPLICATE KEY
-		 * UPDATE earlier in the same method is independent of that parsing, so the
-		 * idempotency key resolves with the stamp missing. The 2.1.3 branch of
-		 * upgrade.php backfills only the subid. Failing those renewals would stop them
-		 * with no merchant-visible cause.
+		 * Absent or zero proceeds, unlike WC_Scanpay_Capture, which throws on it: a
+		 * 1.x-migrated store can legitimately have no stamp. WC_Scanpay_Sync::subscriber()
+		 * writes it only for subscriptions resolved from a 'wcs[]' ref, which 1.x never
+		 * wrote, and the 2.1.3 branch of upgrade.php backfills only the subid. Failing those
+		 * renewals would stop them with no merchant-visible cause.
 		 */
 		if ( $order_shopid <= 0 ) {
 			scanpay_log( 'warning', "scheduled charge: no shop id on #$oid; charging under shop {$this->shopid} (subid=$subid)" );
@@ -146,18 +138,16 @@ final class WCS_Scanpay_Charge {
 			return;
 		}
 		/*
-		 * Both amounts are normalized and compared before anything here decides the
-		 * renewal is free. WCS imposes the float signature; every decision below is made
-		 * on the money string. A scheduler amount of zero against a positive order total
-		 * is a disagreement, not a free renewal, and must not complete the order without
-		 * charging it -- the hook is reachable off-schedule, from third-party code or a
-		 * "Process renewal" admin action.
+		 * WCS imposes the float signature; every decision below is made on the money string.
+		 * A scheduler amount of zero against a positive order total is a disagreement, not a
+		 * free renewal, and the hook is reachable off-schedule -- from third-party code or a
+		 * "Process renewal" admin action -- so both are normalized and compared before
+		 * anything decides the renewal is free.
 		 */
 		$amt_str = wc_format_decimal( $amount, wc_get_price_decimals() );
 		$tot_str = (string) $wco->get_total( 'edit' );
-		// Pre-guard before money_equals(), which throws InvalidArgumentException on non-money
-		// input. The hook contains that throw, but it would arrive as an opaque "unhandled
-		// error"; this names what was wrong. WC_Scanpay_Sync pre-guards for the same reason.
+		// Pre-guard for money_equals(), which throws on non-money input: the hook contains
+		// that throw, but it would arrive as an opaque "unhandled error".
 		if ( ! wc_scanpay_is_money( $amt_str ) || ! wc_scanpay_is_money( $tot_str ) ) {
 			wcs_scanpay_fail_renewal(
 				$wco,
@@ -171,9 +161,8 @@ final class WCS_Scanpay_Charge {
 			);
 			return;
 		}
-		// charge() builds the payload from the order total, so a scheduler amount that
-		// disagrees with it means we'd charge something other than what WCS asked for.
-		// Fail loud instead of silently charging the order total; WCS owns retry scheduling.
+		// charge() builds the payload from the order total, so a disagreeing scheduler amount
+		// would charge something other than what WCS asked for.
 		if ( ! wc_scanpay_money_equals( $amt_str, $tot_str ) ) {
 			wcs_scanpay_fail_renewal(
 				$wco,
@@ -189,15 +178,13 @@ final class WCS_Scanpay_Charge {
 		}
 		/*
 		 * WCS normally auto-completes zero-amount renewals without reaching this callback;
-		 * this covers the edge cases (a 100% discount, a proration credit). The test is
-		 * non-positive, not strictly zero: a credit whose total matches has nothing to
-		 * charge either, and wc_scanpay_is_zero() -- true for '-0.00', false for '-50.00'
-		 * -- would send that one to the API instead.
+		 * this covers a 100% discount or a proration credit. Non-positive rather than
+		 * strictly zero: a credit has nothing to charge either, and wc_scanpay_is_zero()
+		 * would send '-50.00' to the API.
 		 */
 		if ( wc_scanpay_cmpmoney( $amt_str, '0' ) <= 0 ) {
 			scanpay_log( 'debug', "scheduled charge: zero-amount renewal on #$oid; skipping charge (subid=$subid)" );
-			// Surface a completion WooCommerce could not persist: WCS must see a failed
-			// renewal rather than a silently unpaid order it believes it settled.
+			// WCS must see a failed renewal rather than a silently unpaid order it settled.
 			if ( ! $wco->payment_complete() ) {
 				wcs_scanpay_fail_renewal(
 					$wco,
@@ -213,13 +200,10 @@ final class WCS_Scanpay_Charge {
 	/**
 	 * Charge an order against the Scanpay subscriber's stored payment method.
 	 *
-	 * The whole body is inside the handler, not just the request: the payload build, the
-	 * per-line wc_scanpay_addmoney() summation and the total comparison all call money
-	 * helpers that throw InvalidArgumentException, and the per-line values are the one
+	 * The whole body sits inside the catch, not just the request: the payload build and the
+	 * per-line summation call money helpers that throw, and the per-line values are the one
 	 * input scheduled_charge() cannot pre-validate -- get_line_total() passes through the
 	 * woocommerce_order_amount_line_total filter, where a third party can return null.
-	 * Defence in depth behind the hook's own catch, which is the real boundary; this one
-	 * exists to report the failure with the context only this method has.
 	 */
 	private function charge( WC_Order $wco, int $subid ): void {
 		try {
@@ -248,8 +232,8 @@ final class WCS_Scanpay_Charge {
 				],
 			];
 
-			// $sum is checked against the order total below; $is_virtual feeds the
-			// auto-complete/autocapture decision. WC has no "all items are virtual" query.
+			// $sum is checked against the order total below; $is_virtual feeds the autocapture
+			// decision. WooCommerce has no "all items are virtual" query.
 			$sum        = '0';
 			$currency   = $wco->get_currency( 'edit' );
 			$is_virtual = 1;
@@ -274,9 +258,8 @@ final class WCS_Scanpay_Charge {
 					];
 				}
 			}
-			// Settling at Scanpay, not completing in WooCommerce: an order WooCommerce will
-			// never have to wait on may as well capture now. $is_virtual folds in
-			// wc_complete_virtual, which is why the WooCommerce completion decision below is
+			// Settling at Scanpay, not completing in WooCommerce. $is_virtual folds in
+			// wc_complete_virtual, which is why the completion decision below is
 			// wcs_scanpay_wants_completion() rather than a copy of this expression.
 			$auto_completed      = $is_virtual || 'yes' === ( $this->settings['wcs_complete_renewal'] ?? 'no' );
 			$autocapture         = $this->settings['wc_autocapture'] ?? 'completed';
@@ -301,8 +284,8 @@ final class WCS_Scanpay_Charge {
 			$found = $wpdb->query( "SELECT orderid FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid" );
 			if ( false === $found ) {
 				// A SELECT returns its row count, or false on error -- never read that as "no
-				// payment row". The catch below marks the renewal failed so WCS reschedules,
-				// and the idempotency key dedupes the retry.
+				// payment row". The catch below fails the renewal so WCS reschedules, and the
+				// idempotency key dedupes the retry.
 				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
 				throw new \RuntimeException( "scanpay_meta lookup failed: {$wpdb->last_error}" );
 			}
@@ -310,19 +293,19 @@ final class WCS_Scanpay_Charge {
 				scanpay_log( 'warning', "charge skipped on #$oid: order is already paid (subid=$subid)" );
 				return;
 			}
-			// get_date_created() is nullable; the idempotency key is anchored to it, so
-			// there is no safe fallback -- an arbitrary anchor would shift the day
-			// bucket and could let a retry through as a second real charge.
+			// get_date_created() is nullable, and the key is anchored to it, so there is no
+			// safe fallback: another anchor shifts the day bucket and could let a retry
+			// through as a second real charge.
 			$created = $wco->get_date_created( 'edit' );
 			if ( ! $created instanceof WC_DateTime ) {
 				throw new \RuntimeException( "order #$oid has no creation date" );
 			}
 			$idem = $this->idempotency_key( $oid, $subid, $created->getTimestamp() );
 			// Persisted before the charge, and after the already-paid guard so it is never
-			// written for an order this call declines to charge. Durable, because the money
-			// moves next: if the process dies here, sync still knows what this attempt asked
-			// for. A write that throws lands in the catch and fails the renewal, which is the
-			// right outcome -- an intent we could not record is one sync would not honour.
+			// written for an order this call declines to charge. If the process dies here,
+			// sync still knows what the attempt asked for. A write that throws fails the
+			// renewal, which is right: an intent we could not record is one sync would not
+			// honour.
 			$wco->add_meta_data(
 				WC_SCANPAY_URI_COMPLETE,
 				$data['autocapture'] && wcs_scanpay_wants_completion( $this->settings, 'renewal' ),
@@ -330,37 +313,31 @@ final class WCS_Scanpay_Charge {
 			);
 			/*
 			 * Which shop the attempt ran under -- the other half of that record. Absent is
-			 * legitimate here (scheduled_charge():106-116 lets a 1.x-migrated order through),
-			 * but both readers of the stamp treat absent as *another* shop's order:
-			 * WC_Scanpay_Sync::sync():258-260 drops the drained charge as a "shopid mismatch"
-			 * and WC_Scanpay_Capture::capture():55-58 throws -- with the money already moved,
-			 * while every WCS retry short-circuits on the already-paid guard above without
-			 * writing a status, so nothing fails and nothing reconciles.
+			 * legitimate for a 1.x-migrated order, which scheduled_charge() lets through, but
+			 * both readers treat absent as *another* shop's order: WC_Scanpay_Sync::sync()
+			 * drops the drained charge as a shopid mismatch and WC_Scanpay_Capture::capture()
+			 * throws, with the money already moved, while every WCS retry short-circuits on
+			 * the already-paid guard above without writing a status.
 			 *
-			 * Only when absent. A stamp that names a different shop is the mismatch
-			 * scheduled_charge() refuses at :117-129, and it must stay refused.
+			 * Only when absent. A stamp naming a different shop is the mismatch
+			 * scheduled_charge() refuses, and it must stay refused.
 			 */
 			if ( (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' ) <= 0 ) {
 				$wco->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
 			}
 			$wco->save_meta_data();
 			$res = $this->client->charge( $subid, $data, $idem );
-			// Every other outcome of a renewal writes a log line; the one that moves money
-			// wrote none. On a shop whose pings are blocked this is the only store-side
-			// record that the customer was charged. No isset() around $res['id']: the client
-			// throws unless the response carries type 'charge' and an int id
-			// (class-wc-scanpay-client.php:205-208), so a return here means both are present.
-			//
+			// On a shop whose pings are blocked this is the only store-side record that the
+			// customer was charged. No isset() around $res['id']: WC_Scanpay_Client::charge()
+			// throws unless the response carries type 'charge' and an int id.
 			scanpay_log( 'info', "charged order #$oid: charge {$res['id']} (subid=$subid)" );
 		} catch ( \Throwable $e ) {
-			// \Throwable, not \Exception: an Error or TypeError here is as fatal to the
-			// renewal as an Exception. Reported, never rethrown, so the hook's outer catch
-			// cannot report the same failure a second time. WCS owns retry scheduling; we
-			// keep no local retry or lock state.
+			// \Throwable, not \Exception: an Error here is as fatal to the renewal. Reported,
+			// never rethrown, so the hook's outer catch cannot report it a second time.
 			wcs_scanpay_fail_renewal(
 				$wco,
 				'charge failed on #' . $wco->get_id() . ': ' . trim( $e->getMessage() ),
-				// The raw message can be a database or transport error; the merchant gets a
+				// The raw message can be a database or transport error, so the merchant gets a
 				// fixed sentence and the detail goes to the log.
 				__( 'The Scanpay charge failed. See the WooCommerce logs for details.', 'scanpay-for-woocommerce' )
 			);

@@ -1,15 +1,22 @@
 <?php
 
+/**
+ * Admin-AJAX endpoint ?x=ping: when Scanpay last pinged this shop, for the settings
+ * screen. Dispatched from woocommerce-scanpay.php ahead of the rest of the bootstrap.
+ *
+ * Contract: GET, authenticated by the shared secret in the X-Scanpay header. Answers
+ * text/plain with the cursor's mtime as a Unix timestamp, or 403 on a bad secret or an
+ * unconfigured API key.
+ */
+
 declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 nocache_headers();
 
 /*
- * Shared-secret-authenticated polling endpoint (not a WP form): the request carries
- * no nonce and the secret (passed in the X-Scanpay request header, never the query
- * string) is compared with hash_equals. WordPress's nonce and input-sanitization
- * sniffs therefore do not apply here.
+ * Not a WP form: no nonce, and the secret rides in a request header rather than the query
+ * string, compared with hash_equals. The nonce and input-sanitization sniffs do not apply.
  */
 // phpcs:disable WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput
 

@@ -1,14 +1,15 @@
 <?php
 
+/**
+ * Per-shop advisory lock over the sync drain, built on flock(). Works across PHP-FPM
+ * workers sharing a host and filesystem, and releases when the handle closes or the
+ * process exits. The lock file lives in get_temp_dir(), so WP_TEMP_DIR relocates it.
+ */
+
 declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 
-/**
- * Simple file-based lock using flock(). Works across PHP-FPM workers on the same host
- * and filesystem, and is released automatically when the handle is closed or the
- * process exits. The lock file lives in get_temp_dir(), so WP_TEMP_DIR relocates it.
- */
 final class Scanpay_Flock {
 	private string $path;
 	private $handle = null; // Untyped: PHP has no type declaration for a stream resource.
@@ -22,12 +23,11 @@ final class Scanpay_Flock {
 	}
 
 	/**
-	 * Attempt to acquire the lock (non-blocking). The handle stays local until locked, so
-	 * $this->handle is always either a locked stream or null; a repeat call fails as busy.
+	 * Acquire the lock, non-blocking. The handle stays local until locked, so $this->handle
+	 * is always either a locked stream or null; a repeat call reports busy.
 	 *
-	 * Contention and setup failure are deliberately distinct: false means another process
-	 * holds the lock (retry later), while the exception means the lock file could not even
-	 * be opened -- nobody is draining, so the caller must surface that rather than "busy".
+	 * Contention and setup failure are distinct: false means another process holds the lock
+	 * and the caller should retry later, while the throw means nobody is draining at all.
 	 *
 	 * @throws RuntimeException If the lock file cannot be opened.
 	 */

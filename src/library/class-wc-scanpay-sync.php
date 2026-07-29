@@ -1,5 +1,16 @@
 <?php
 
+/**
+ * Turns Scanpay's change feed into WooCommerce state: upserts scanpay_meta and
+ * scanpay_subs, then marks orders paid and links subscriptions. Driven only by the ping
+ * drain, under Scanpay_Flock, and replay-safe -- a second drain rebuilds the same rows.
+ *
+ * The standing rule throughout: a malformed Scanpay payload throws, while a local anomaly
+ * -- a deleted order, a corrupt total, a third-party hook that fails -- is logged and
+ * skipped. Throwing on the latter pins the sync cursor, and Scanpay would serve the same
+ * seq page forever, turning one stuck order into an outage for the whole shop.
+ */
+
 declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
@@ -7,7 +18,6 @@ defined( 'ABSPATH' ) || exit();
 require_once WC_SCANPAY_DIR . '/library/math.php';
 require_once WC_SCANPAY_DIR . '/library/functions.php';
 
-/** Synchronizes Scanpay payments with WooCommerce orders and subscriptions. */
 final class WC_Scanpay_Sync {
 	private int $shopid;
 	private bool $wcs_enabled;
@@ -38,27 +48,21 @@ final class WC_Scanpay_Sync {
 	];
 
 
-	/**
-	 * Sets up the sync service.
-	 *
-	 * @param array<string, mixed> $settings Gateway settings (the woocommerce_scanpay_settings option).
-	 */
+	/** $settings is the primary woocommerce_scanpay_settings option. */
 	public function __construct( array $settings, int $shopid ) {
 		$this->shopid      = $shopid;
 		$this->wcs_enabled = class_exists( 'WC_Subscriptions', false );
 
-		// Deliberately not kept as a field: this filter is the only thing the class takes
-		// from the live settings. Every later decision reads the flag persisted on the
-		// order instead -- see the forced-completion comment in sync() -- so holding the
-		// array would invite exactly the mid-payment-window reinterpretation that avoids.
+		// Not kept as a field: this filter is the only thing the class takes from the live
+		// settings, and every later decision reads the flag persisted on the order instead.
+		// Holding the array would invite the mid-payment-window reinterpretation that avoids.
 		if ( 'yes' === ( $settings['wc_complete_virtual'] ?? 'no' ) ) {
 			add_filter( 'woocommerce_order_item_needs_processing', 'wc_scanpay_item_needs_processing', 10, 3 );
 		}
 	}
 
 	private function is_payment_complete_eligible( \WC_Order $order ): bool {
-		// Re-apply WooCommerce core's own filter (it is WC's hook, not ours) so this
-		// check cannot drift from what WC_Order::payment_complete() will accept.
+		// WC's own hook, re-applied so this cannot drift from what payment_complete() accepts.
 		$valid = apply_filters(
 			'woocommerce_valid_order_statuses_for_payment_complete',
 			self::PAYMENT_COMPLETE_STATUSES,
@@ -91,9 +95,9 @@ final class WC_Scanpay_Sync {
 	}
 
 	/**
-	 * Extract subscription IDs from Scanpay subscriber reference string.
+	 * Subscription ids out of a Scanpay subscriber reference.
 	 *
-	 * @return string[] Subscription IDs, or an empty array if $ref is not a wcs[] reference.
+	 * @return string[] Empty when $ref is not a wcs[] reference.
 	 */
 	private function find_subs_from_ref( string $ref ): array {
 		return str_starts_with( $ref, 'wcs[]' )
@@ -110,10 +114,9 @@ final class WC_Scanpay_Sync {
 	}
 
 	/**
-	 * Extract numeric amount from a currency string like "199.99 DKK".
-	 * A missing total intentionally throws (TypeError via the string param):
-	 * a malformed payload is a backend error that must halt the sync loudly,
-	 * never be skipped or defaulted.
+	 * The numeric part of a currency string like "199.99 DKK". A missing total throws a
+	 * TypeError through the string parameter, on purpose: a malformed payload is a backend
+	 * error, never something to skip or default.
 	 *
 	 * @throws \RuntimeException On a malformed amount or currency.
 	 */
@@ -138,16 +141,13 @@ final class WC_Scanpay_Sync {
 	/**
 	 * Guarded upsert of the scanpay_meta row for an order.
 	 *
-	 * The scanpay_meta table is keyed by orderid alone, so a second transaction on
-	 * the same order (e.g. two payment links, or a numeric merchant-reference
-	 * collision) would otherwise splice its rev/nacts/totals onto the first
-	 * transaction's id and authorized amount via ON DUPLICATE KEY UPDATE.
+	 * The table is keyed by orderid alone, so a second transaction on the same order -- two
+	 * payment links, or a numeric merchant-reference collision -- would otherwise splice its
+	 * rev/nacts/totals onto the first transaction's id and authorized amount.
 	 *
-	 * @param string $label Log/exception prefix, e.g. "transaction #123".
-	 * @param int    $trnid Scanpay transaction ID claiming the order.
+	 * @param string $label Log and exception prefix, e.g. "transaction #123".
 	 * @param string $sql   Prebuilt INSERT ... ON DUPLICATE KEY UPDATE statement.
-	 * @return bool True if the row is now owned by $trnid; false if another
-	 *              transaction already owns the order (caller must not proceed).
+	 * @return bool False when another transaction owns the order; the caller must stop.
 	 * @throws \RuntimeException On a database read or write error.
 	 */
 	private function upsert_meta( string $label, int $oid, int $trnid, string $sql ): bool {
@@ -159,8 +159,7 @@ final class WC_Scanpay_Sync {
 			throw new \RuntimeException( "$label: could not read payment data for order #$oid: {$wpdb->last_error}" );
 		}
 		if ( null !== $owner && (int) $owner !== $trnid ) {
-			// A different transaction already owns this order. Return (not throw):
-			// throwing would replay this change forever and wedge the sync loop.
+			// Return, not throw: another transaction owning the order is a permanent state.
 			scanpay_log( 'error', "$label: order #$oid already paid by transaction #" . (int) $owner . '; ignoring' );
 			return false;
 		}
@@ -182,13 +181,12 @@ final class WC_Scanpay_Sync {
 	}
 
 	/**
-	 * Shared worker for transaction() and charge(). Validates the payload, guard-upserts
-	 * the scanpay_meta row, then marks the order paid -- but only once ownership, shop,
-	 * currency and the authorized amount all check out.
+	 * Shared worker for transaction() and charge(): validate the payload, guard-upsert the
+	 * scanpay_meta row, then mark the order paid once ownership, shop, currency and the
+	 * authorized amount all check out.
 	 *
-	 * @param array  $c    Transaction or charge payload from Scanpay.
-	 * @param string $type Either 'transaction' or 'charge'. Sets the log labels and, for
-	 *                     charges, requires and stores the subscriber id (subid column).
+	 * @param string $type 'transaction' or 'charge'. Sets the log labels and, for charges,
+	 *                     requires and stores the subscriber id.
 	 * @throws \RuntimeException On validation, database, or payment errors.
 	 */
 	private function sync( array $c, string $type ): void {
@@ -244,17 +242,11 @@ final class WC_Scanpay_Sync {
 		// itself is what says whether it is already paid (transaction_id, set below).
 		$wco = wc_get_order( $oid );
 		if ( ! $wco instanceof WC_Order ) {
-			// Legitimate state, not a protocol violation: the order may have been deleted
-			// or the store reset while Scanpay still holds the old transaction. Log and
-			// continue -- throwing would retry the same seq forever and wedge the sync.
-			//
-			// instanceof, not a truthiness test: refunds share the order id space, and
-			// wc_get_order() resolves a refund id to a WC_Order_Refund, which extends
-			// WC_Abstract_Order and defines none of get_transaction_id(),
-			// set_transaction_id(), get_payment_method() or payment_complete() -- those are
-			// WC_Order's, and nothing in the chain defines __call. Calling one below would
-			// be an Error, which the ping handler catches as a Throwable: a 500 and the same
-			// seq page replayed forever. Same guard, same reason, as functions.php:34.
+			// A deleted order or a reset store, not a protocol violation. instanceof, not
+			// truthiness: refunds share the order id space, and a WC_Order_Refund inherits
+			// neither payment_complete() nor the transaction-id and payment-method accessors
+			// used below, with no __call in the chain. Same guard, same reason, as
+			// wc_scanpay_item_needs_processing().
 			scanpay_log( 'warning', "$label: order not found (order=$oid)" );
 			return;
 		}
@@ -271,16 +263,14 @@ final class WC_Scanpay_Sync {
 				scanpay_log( 'error', "$label: currency mismatch (order=$oid)" );
 				return;
 			}
-			// A corrupt order total is a local anomaly, not a backend protocol violation:
-			// the money helpers below throw on non-money input, and that would replay this
-			// change forever and wedge the sync loop for every order in the shop.
+			// The money helpers below throw on non-money input; a corrupt local total must
+			// not become a wedged sync loop.
 			$total = (string) $wco->get_total( 'edit' );
 			if ( ! wc_scanpay_is_money( $total ) ) {
 				scanpay_log( 'error', "$label: invalid order total '$total' (order=$oid)" );
 				return;
 			}
-			// Underpayment: should not happen with charges, but never mark the order paid
-			// on one. Log + note + return, never throw -- see the total guard above.
+			// Underpayment: unexpected on a charge, but never mark the order paid on one.
 			if ( wc_scanpay_cmpmoney( $auth, $total ) < 0 ) {
 				scanpay_log( 'error', "$label: authorized $auth does not cover order total $total (order=$oid)" );
 				try {
@@ -294,11 +284,8 @@ final class WC_Scanpay_Sync {
 						)
 					);
 				} catch ( \Throwable $note_error ) {
-					// add_order_note() runs woocommerce_new_order_note_data,
-					// wp_insert_comment() and woocommerce_order_note_added -- all third-party
-					// surface -- so the branch that promises never to throw has to say so here
-					// too. Same rule as report_incomplete(): reporting a failure must not
-					// become the failure, and the cursor advances either way.
+					// add_order_note() runs a filter, wp_insert_comment() and an action, all
+					// third-party surface. Reporting a failure must not become the failure.
 					scanpay_log( 'error', "$label: could not add the underpayment note to order #$oid: " . $note_error->getMessage() );
 				}
 				return;
@@ -311,53 +298,45 @@ final class WC_Scanpay_Sync {
 			if ( is_int( $ts ) && $ts < 10_000_000_000 ) {
 				$wco->set_date_paid( $ts );
 			}
-			// Wallets (MobilePay, Apple Pay) are card payments behind the scenes, so we
-			// consolidate them into the card gateway. The wallet is kept in the title.
+			// Wallets are card payments underneath, so they consolidate into the card
+			// gateway; the wallet name survives in the title.
 			$wco->set_payment_method( 'scanpay' );
 			$wco->set_payment_method_title( $this->parse_payment_method( $c['method'] ?? null ) );
 			// Always call payment_complete() so the hooks fire; it only persists changes
 			// for eligible statuses, so save first when the status is not one of them.
 			if ( ! $this->is_payment_complete_eligible( $wco ) ) {
 				scanpay_log( 'info', "$label: Order is not eligible for payment_complete (order=$oid)" );
-				// The result is deliberately not acted on. payment_complete() has to run
-				// either way so the hooks fire, and on an ineligible status it takes its own
-				// else branch (class-wc-order.php) -- it fires
-				// woocommerce_payment_complete_order_status_<status> and returns true without
-				// saving, so a failure here reaches neither $ok nor report_incomplete() and
-				// the log line above is the whole record. Nothing is lost for good: the write
-				// that did not land is transaction_id, so the next change on this order finds
-				// it still empty and re-enters this branch.
+				// The result is deliberately not acted on: payment_complete() then takes its
+				// else branch, which fires the hook and returns true without saving, so a
+				// failure here reaches neither $ok nor report_incomplete(). Nothing is lost
+				// for good -- the write that did not land is transaction_id, so the next
+				// change on this order finds it still empty and re-enters this branch.
 				$this->save_or_report( $wco, "$label: order #$oid" );
 			}
 			/*
-			 * Force 'completed' when the accepted payment attempt asked for it -- the
-			 * persisted flag, never the live settings, so a merchant toggling them
-			 * mid-payment-window cannot reinterpret an attempt the store already accepted.
-			 * WooCommerce writes order meta as strings, so a stored true reads back as '1';
-			 * anything else -- absent, a stored false (both ''), '0', an array -- is not a
-			 * request.
+			 * Force 'completed' when the accepted payment attempt asked for it -- the persisted
+			 * flag, never the live settings, so a merchant toggling them mid-payment-window
+			 * cannot reinterpret an attempt the store already accepted. Order meta is stored as
+			 * strings, so a stored true reads back as '1'; anything else is not a request.
 			 *
-			 * Restricted to pending/on-hold/failed. 'cancelled' is payment-complete eligible
-			 * and still transitions, but to 'processing', which leaves the merchant something
-			 * to review: forcing it would auto-fulfil an order hold-stock or the merchant
-			 * deliberately ended, and a payment landing after a stock cancellation reaches
-			 * this on a first sync, not only on a replay. 'refunded' never reaches the filter
-			 * at all -- it is not eligible, and WooCommerce applies the filter only inside
-			 * its has_status() branch, which is also why this forces through
-			 * payment_complete() rather than a set_status() call.
+			 * Restricted to pending/on-hold/failed. 'cancelled' is eligible and still
+			 * transitions, but to 'processing', which leaves the merchant something to review:
+			 * forcing it would auto-fulfil an order hold-stock or the merchant ended.
+			 * 'refunded' never reaches the filter -- WooCommerce applies it only inside the
+			 * has_status() branch, which is also why this forces through payment_complete()
+			 * rather than set_status().
 			 */
 			$want = $wco->get_meta( WC_SCANPAY_URI_COMPLETE, true, 'edit' );
 			$hook = null;
 			if ( ( true === $want || '1' === $want ) && $wco->has_status( [ 'pending', 'on-hold', 'failed' ] ) ) {
 				/*
-				 * Scoped to this one call, not standing: the same filter is applied read-only
-				 * by maybe_set_date_paid() on every order saved before it has a paid date, so
-				 * a standing callback returning 'completed' would flip that comparison for
-				 * every unpaid Scanpay order in the request. Matching the order id is the whole
-				 * guard, and it is what stops a nested third-party hook -- one completing some
-				 * other order while ours is in flight -- from picking up the forced status. No
-				 * fire-once guard: payment_complete() sets date_paid before its set_status(),
-				 * so inside this window the filter fires exactly once.
+				 * Scoped to this one call, not standing: maybe_set_date_paid() applies the
+				 * same filter read-only on every order saved before it has a paid date, so a
+				 * standing callback returning 'completed' would flip that comparison for every
+				 * unpaid Scanpay order in the request. Matching the order id is the whole
+				 * guard, and it is what stops a nested third-party hook completing some other
+				 * order from picking up the forced status. No fire-once guard needed:
+				 * payment_complete() sets date_paid first, so the filter fires exactly once.
 				 */
 				$hook = static function ( $status, $order_id ) use ( $oid ) {
 					return (int) $order_id === $oid ? 'completed' : $status;
@@ -369,10 +348,10 @@ final class WC_Scanpay_Sync {
 			try {
 				$ok = $wco->payment_complete( $txn );
 			} catch ( \Throwable $e ) {
-				// WooCommerce catches Exception, not Throwable, so an Error from a third-party
-				// callback escapes payment_complete() with neither its log entry nor its note.
-				// Held, not reported here: the forced-status filter is still installed until
-				// the finally runs, and the reporting below writes to the order.
+				// payment_complete() catches Exception, not Throwable, so an Error from a
+				// third-party callback escapes it with neither its log entry nor its note.
+				// Held, not reported here: the forced-status filter is installed until the
+				// finally runs, and the reporting below writes to the order.
 				$err = $e;
 			} finally {
 				if ( null !== $hook ) {
@@ -386,19 +365,15 @@ final class WC_Scanpay_Sync {
 	}
 
 	/**
-	 * Record an order Scanpay has paid but WooCommerce would not complete.
+	 * Record an order Scanpay has paid but WooCommerce would not complete. Best effort, and
+	 * silent to the caller.
 	 *
-	 * Best effort, and deliberately silent to the caller. Throwing would pin the cursor:
-	 * the failure is typically a third-party callback that fails the same way on every
-	 * replay, so the seq page would repeat forever and stop every other order in the shop
-	 * from syncing -- one stuck order turned into an outage. Log, note, return.
-	 *
-	 * On the false path WooCommerce has already logged and left its own generic note, so
-	 * this one complements it with what only we know: that the money is at Scanpay and
-	 * nothing will retry. On the escaping-Error path ours is the only record there is.
+	 * On the false path WooCommerce has already logged and noted the order, so this adds
+	 * what only we know: the money is at Scanpay and nothing will retry. On the
+	 * escaping-Error path this is the only record there is.
 	 *
 	 * @param string          $label Scanpay's label for the change, e.g. "charge #4321".
-	 * @param \Throwable|null $err   Set only when the Error escaped payment_complete().
+	 * @param \Throwable|null $err   Set only when an Error escaped payment_complete().
 	 */
 	private function report_incomplete( \WC_Order $wco, string $label, int $oid, ?\Throwable $err ): void {
 		$why = null === $err ? 'see the order note WooCommerce added' : trim( $err->getMessage() );
@@ -413,8 +388,7 @@ final class WC_Scanpay_Sync {
 				)
 			);
 		} catch ( \Throwable $note_error ) {
-			// Reporting a failure must not become the failure. Same rule as above: the
-			// cursor advances either way.
+			// Reporting a failure must not become the failure.
 			scanpay_log( 'error', "$label: could not add the reconciliation note to order #$oid: " . $note_error->getMessage() );
 		}
 	}
@@ -422,17 +396,10 @@ final class WC_Scanpay_Sync {
 	/**
 	 * Persist an order this class has just edited, containing whatever the write throws.
 	 *
-	 * The ordinary failure is already contained upstream, and only that one:
-	 * WC_Abstract_Order::save() catches Exception and routes it through handle_exception(),
-	 * and WC_Order::status_transition() wraps its whole hook block the same way. Neither
-	 * catches Throwable -- the same asymmetry the payment_complete() call in sync() is
-	 * wrapped for -- so an Error out of a third-party callback escapes both.
-	 *
-	 * Uncontained it leaves sync() or subscriber(), reaches the ping handler's catch and
-	 * answers 500, so the cursor UPDATE never runs and Scanpay serves the same seq page on
-	 * every five-minute keepalive: one order's broken hook stops every other order in the
-	 * shop from syncing. Same rule as report_incomplete() -- the cursor advances either
-	 * way, and the log line is the only record the reconciliation can be built from.
+	 * WC_Abstract_Order::save() and WC_Order::status_transition() both catch Exception and
+	 * not Throwable -- the same asymmetry the payment_complete() call in sync() is wrapped
+	 * for -- so an Error out of a third-party callback escapes both, reaches the ping
+	 * handler's catch and answers 500, leaving the cursor unadvanced.
 	 *
 	 * @param string $what Log context naming the object, e.g. "charge #4321: order #17".
 	 * @return bool False when the write threw, leaving the caller to decide what to skip.
@@ -448,10 +415,9 @@ final class WC_Scanpay_Sync {
 	}
 
 	/**
-	 * Syncs a Scanpay subscriber with WooCommerce. Upserts subscriber state and
-	 * updates the linked subscription and parent-order metadata.
+	 * Upserts the scanpay_subs row, then links the subscriptions named by the subscriber's
+	 * ref and, for a zero-total parent order, completes it.
 	 *
-	 * @param array $c Subscriber payload from Scanpay.
 	 * @throws \RuntimeException On validation or database errors.
 	 */
 	public function subscriber( array $c ): void {
@@ -470,9 +436,8 @@ final class WC_Scanpay_Sync {
 			return; // No reference: nothing to link this subscriber to.
 		}
 
-		// Mirror parse_payment_method()'s tolerance: a scalar method/card is malformed
-		// display data that degrades to empty here, rather than fatally accessing an
-		// offset on a non-array.
+		// Mirrors parse_payment_method()'s tolerance: a scalar method or card is malformed
+		// display data, and degrades to empty rather than indexing a non-array.
 		$method  = is_array( $c['method'] ?? null ) ? $c['method'] : [];
 		$card    = is_array( $method['card'] ?? null ) ? $method['card'] : [];
 		$pm_type = $method['type'] ?? '';
@@ -499,10 +464,10 @@ final class WC_Scanpay_Sync {
 			throw new \RuntimeException( "subscriber #$subid: could not save subscriber data: $err" );
 		}
 
-		// Only the tail below needs Subscriptions -- wcs_get_subscription() is undefined
-		// without it. The row above is not, and it holds the rev idempotency_key() builds
-		// from: seq only moves forward, so a revision skipped while WCS was deactivated is
-		// gone for good, and the shop would charge under a stale key once it comes back.
+		// Only the tail below needs Subscriptions; the row above is written regardless,
+		// because it holds the rev idempotency_key() builds from. Seq only moves forward, so
+		// a revision skipped while WCS was deactivated is gone for good, and the shop would
+		// charge under a stale key once it comes back.
 		if ( ! $this->wcs_enabled ) {
 			return;
 		}
@@ -519,29 +484,25 @@ final class WC_Scanpay_Sync {
 			$wcs_sub->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
 			$wcs_sub->set_payment_method_title( $pm_title );
 			if ( ! $this->save_or_report( $wcs_sub, "subscriber #$subid: subscription #" . $wcs_sub->get_id() ) ) {
-				// Everything below belongs to a subscription this iteration has just linked,
-				// so an unwritten subid is its precondition failing. Completing the parent
-				// anyway would activate a subscription whose every renewal then dies on
-				// WCS_Scanpay_Charge::scheduled_charge()'s "invalid subscriber ID" guard and
-				// gets suspended by WCS; leaving the parent pending keeps the half-finished
-				// state where the merchant can see it.
+				// An unwritten subid is the precondition for everything below. Completing the
+				// parent anyway would activate a subscription whose every renewal then dies
+				// on WCS_Scanpay_Charge::scheduled_charge()'s subscriber-id guard; leaving it
+				// pending keeps the half-finished state where the merchant can see it.
 				continue;
 			}
 
-			// Free trial or a 100% coupon: the parent order carries no payment, so nothing
-			// else will ever complete it.
+			// Free trial or a 100% coupon: the parent carries no payment, so nothing else
+			// will ever complete it.
 			//
-			// 'edit' because the branch writes 'completed', and it is a deliberate behaviour
-			// change: in 'view', WC_Abstract_Order::get_status() substitutes
-			// apply_filters( 'woocommerce_default_order_status', OrderStatus::PENDING ) for an
-			// empty status, so an order with no status read as 'pending' and took the branch.
-			// Under 'edit' it reads '' and is skipped, which is right -- a statusless order is
-			// not a pending one.
+			// 'edit' because the branch writes 'completed'. In 'view',
+			// WC_Abstract_Order::get_status() substitutes the woocommerce_default_order_status
+			// filter's 'pending' for an empty status, so a statusless order would take the
+			// branch; under 'edit' it reads '' and is skipped, which is right.
 			$parent = $wcs_sub->get_parent();
 			if ( ! $parent || 'pending' !== $parent->get_status( 'edit' ) ) {
 				continue;
 			}
-			// See sync(): a corrupt local total must not throw and wedge the sync loop.
+			// As in sync(): a corrupt local total must not throw.
 			$ptotal = (string) $parent->get_total( 'edit' );
 			if ( ! wc_scanpay_is_money( $ptotal ) ) {
 				scanpay_log( 'error', "subscriber #$subid: invalid total '$ptotal' on parent order #" . $parent->get_id() );
@@ -554,9 +515,8 @@ final class WC_Scanpay_Sync {
 				$parent->set_payment_method_title( $pm_title );
 				$parent->set_status( 'completed', __( 'Subscription initiated without payment.', 'scanpay-for-woocommerce' ), true );
 				// The widest third-party surface in the drain: set_status() only queues the
-				// transition, so it is this save() that runs it -- and with it
-				// woocommerce_order_status_completed, the transactional-email queue, stock
-				// and download permissions, every one of them somebody else's code.
+				// transition, so it is this save() that runs it, and with it
+				// woocommerce_order_status_completed, the emails, stock and downloads.
 				$this->save_or_report( $parent, "subscriber #$subid: parent order #" . $parent->get_id() );
 			}
 		}

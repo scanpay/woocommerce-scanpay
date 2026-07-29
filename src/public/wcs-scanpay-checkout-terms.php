@@ -1,21 +1,25 @@
 <?php
 
+/**
+ * The subscription terms checkbox on the classic checkout. A template, not a module: the
+ * require in wcs_scanpay_checkout_terms() is the render call.
+ */
+
 declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 
-// Not on the order-pay endpoint. Both templates/checkout/payment.php and
-// templates/checkout/form-pay.php include checkout/terms.php, so this hook also fires while
-// paying for an existing order -- where woocommerce_after_checkout_validation never runs, and
-// where the cart has nothing to do with what is being paid for. Rendering there would show a
-// checkbox nothing enforces.
+// Not on the order-pay endpoint. WooCommerce's pay template includes checkout/terms.php
+// too, so this hook also fires while paying for an existing order -- where
+// woocommerce_after_checkout_validation never runs and the cart is unrelated to what is
+// being paid for. Rendering there would show a checkbox nothing enforces.
 if (
 	! is_checkout_pay_page()
 	&& class_exists( 'WC_Subscriptions_Cart', false )
 	&& WC_Subscriptions_Cart::cart_contains_subscription()
 ) {
-	// wcs_scanpay_terms_url() is the shared render/validate predicate: '' unless a positive
-	// wcs_terms id points at a still-published page. See its docblock in woocommerce-scanpay.php.
+	// The shared render/validate predicate: '' unless a positive wcs_terms id points at a
+	// still-published page.
 	$url = wcs_scanpay_terms_url();
 	if ( '' !== $url ) {
 		$txt = sprintf(
@@ -37,12 +41,11 @@ if (
 		);
 		/*
 		 * The marker that says this checkbox was rendered, copied from WooCommerce's own
-		 * terms field (templates/checkout/terms.php:33). Everything here runs from
-		 * woocommerce_checkout_after_terms_and_conditions, which that template fires at
-		 * :39 -- inside the `apply_filters( 'woocommerce_checkout_show_terms', true )`
-		 * block opened at :11. A store filtering that to false, or a theme overriding
-		 * checkout/terms.php or checkout/payment.php without the hook, renders nothing,
-		 * while woocommerce_after_checkout_validation still fires; the marker is how
+		 * terms field. Everything here runs from
+		 * woocommerce_checkout_after_terms_and_conditions, which checkout/terms.php fires
+		 * inside its woocommerce_checkout_show_terms block -- so a store filtering that to
+		 * false, or a theme override without the hook, renders nothing while
+		 * woocommerce_after_checkout_validation still fires. The marker is how
 		 * wcs_scanpay_validate_terms() tells that apart from an unticked box.
 		 */
 		echo '<input type="hidden" name="wcssp-terms-field" value="1" />';

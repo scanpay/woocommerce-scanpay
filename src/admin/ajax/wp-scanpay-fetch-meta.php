@@ -1,23 +1,31 @@
 <?php
 
+/**
+ * Admin-AJAX endpoint ?x=meta: the scanpay_meta row for one order, long-polled so the
+ * order screen refreshes as soon as a ping lands.
+ *
+ * Contract: GET ?oid=<order id>&rev=<last seen revision>, authenticated by the shared
+ * secret in the X-Scanpay header. Answers JSON with the row, or { error }. When rev is
+ * already current the response is held for up to 5.5s.
+ */
+
 declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 nocache_headers();
 
 /*
- * Shared-secret-authenticated polling endpoint (not a WP form): requests carry no
- * nonce, numeric IDs are cast to int, and the secret (passed in the X-Scanpay
- * request header, never the query string) is compared with hash_equals.
- * WordPress's nonce and input-sanitization sniffs therefore do not apply here.
+ * Not a WP form: no nonce, numeric ids are cast to int, and the secret rides in a request
+ * header rather than the query string, compared with hash_equals. The nonce and
+ * input-sanitization sniffs do not apply.
  */
 // phpcs:disable WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput
 
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 $secret   = (string) ( $settings['secret'] ?? '' );
 if ( '' === $secret || ! hash_equals( $secret, trim( (string) ( $_SERVER['HTTP_X_SCANPAY'] ?? '' ) ) ) ) {
-	// No die() after any wp_send_json() here: it terminates either way, through wp_die()
-	// when wp_doing_ajax() and a bare die otherwise (wp-includes/functions.php).
+	// No die() after any wp_send_json(): it terminates either way, through wp_die() when
+	// wp_doing_ajax() and a bare die otherwise.
 	wp_send_json( [ 'error' => 'forbidden' ], 403 );
 }
 
@@ -37,16 +45,13 @@ global $wpdb;
 $meta = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}scanpay_meta WHERE orderid = $oid", ARRAY_A );
 
 if ( isset( $meta['rev'] ) && $rev >= $meta['rev'] ) {
-	// The long-poll below sleeps for up to 5.5s. That fits the usual
-	// max_execution_time of 30, but not a host that has tightened it, so ask for the
-	// headroom explicitly instead of relying on the default.
+	// The loop below sleeps for up to 5.5s, which fits the usual max_execution_time of 30
+	// but not a host that has tightened it.
 	set_time_limit( 30 );
-	// Sent here, not left to wp_send_json(): that only sets the type and status inside
-	// its own `! headers_sent()` guard (wp-includes/functions.php), and the keep-alive
-	// echo + flush() in the loop below has already sent them -- so the held response would
-	// answer PHP's default text/html. Outside the loop, because a second header() call
-	// after the first flush() is "headers already sent", one warning per round, in the
-	// middle of the body under display_errors.
+	// Sent here, not left to wp_send_json(), which sets the type only inside its own
+	// ! headers_sent() guard -- and the keep-alive flush() below has already sent them, so
+	// the held response would answer PHP's default text/html. Outside the loop, because a
+	// second header() call after that first flush() warns once per round, mid-body.
 	header( 'Content-Type: application/json; charset=UTF-8' );
 	$counter = 0;
 	do {

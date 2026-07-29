@@ -1,13 +1,19 @@
 <?php
+
+/**
+ * Creates the three custom tables, seeds this shop's sync cursor and mints the admin-AJAX
+ * secret. Idempotent, and required both from the activation hook and from the card
+ * gateway's first-key save; it needs no WooCommerce runtime. Migrations are upgrade.php's.
+ */
+
 declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 
 global $wpdb;
 
-// esc_like on all three lookups: '_' is a single-character LIKE wildcard and
-// $wpdb->prefix normally contains one ('wp_'), so an unescaped pattern can match a
-// table we did not mean.
+// esc_like on all three lookups: '_' is a single-character LIKE wildcard and $wpdb->prefix
+// normally contains one, so an unescaped pattern can match a table we did not mean.
 $seq_tbl = $wpdb->prefix . 'scanpay_seq';
 if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $seq_tbl ) ) ) !== $seq_tbl ) {
 	$res = $wpdb->query(
@@ -49,10 +55,9 @@ if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $me
 	}
 }
 
-// 'method' is the payment-method *type*, not the pretty card label the order screen
-// prints. No retry count, idempotency key or lock column, deliberately: charging is
-// lock-free, the key is derived per renewal, and WooCommerce Subscriptions owns retry
-// scheduling.
+// 'method' is the payment-method *type*, not the pretty card label the order screen prints.
+// No retry count, idempotency key or lock column, deliberately: charging is lock-free, the
+// key is derived per renewal, and WCS owns retry scheduling.
 $subs_tbl = $wpdb->prefix . 'scanpay_subs';
 if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $subs_tbl ) ) ) !== $subs_tbl ) {
 	$res = $wpdb->query(
@@ -73,11 +78,10 @@ if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $su
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 $shopid   = (int) explode( ':', (string) ( $settings['apikey'] ?? '' ) )[0];
 
-// Decide now, before the secret below creates the settings option, whether this is a
-// fresh install with nothing to migrate. Absent settings is the discriminator, not an
-// absent version: 1.x never wrote 'wc_scanpay_version' but did write the settings option,
-// so stamping a version on "no version" alone would skip upgrade.php's '< 2.0.0' branch
-// forever on a 1.x site, leaving capture_on_complete unconverted and auto-capture off.
+// Decided before the secret below creates the settings option. Absent settings is the
+// discriminator, not an absent version: 1.x never wrote 'wc_scanpay_version' but did write
+// the settings option, so stamping on "no version" alone would skip upgrade.php's '< 2.0.0'
+// branch forever on a 1.x site, leaving capture_on_complete unconverted.
 $fresh_install = false === $settings && false === get_option( 'wc_scanpay_version' );
 
 // Seed this shop's cursor at 0. The ping handler refuses to sync without the row
@@ -86,13 +90,10 @@ if ( 0 !== $shopid ) {
 	$seq = $wpdb->get_var( "SELECT seq FROM $seq_tbl WHERE shopid = $shopid" );
 	if ( null === $seq ) {
 		$wpdb->query( "INSERT INTO $seq_tbl (shopid, seq, ping, mtime) VALUES ($shopid, 0, 0, 0)" );
-		// Re-read rather than test the INSERT's return: two activations racing lose the
-		// duplicate-key race harmlessly, and it is the row's presence that matters, not
-		// who wrote it. get_var() also answers null on a read error, so this covers both.
-		// Throwing like the three CREATE TABLEs above is the point -- without the row the
-		// merchant gets a successful key save, a green settings screen, and a shop that
-		// never syncs, whose only symptom is wc_scanpay_read_cursor() logging
-		// "shop not configured" every five minutes on the ping side.
+		// Re-read rather than test the INSERT's return: two racing activations lose the
+		// duplicate-key race harmlessly, and it is the row's presence that matters, not who
+		// wrote it. Throwing matters here -- without the row the merchant gets a successful
+		// key save, a green settings screen and a shop that never syncs.
 		if ( null === $wpdb->get_var( "SELECT seq FROM $seq_tbl WHERE shopid = $shopid" ) ) {
 			scanpay_log( 'error', "Could not seed the scanpay_seq row for shop $shopid: {$wpdb->last_error}" );
 			throw new Exception( 'Could not seed the scanpay sequence row' );
@@ -100,10 +101,9 @@ if ( 0 !== $shopid ) {
 	}
 }
 
-// Mint the admin-AJAX auth secret. process_admin_options() only persists form
-// fields, and there is no 'secret' field, so without this a fresh install would
-// never get one and the lightweight ?x=meta|ping|sub endpoints would 403 forever.
-// Runs on both fresh installs and API-key changes; an existing secret is kept.
+// Mint the admin-AJAX auth secret. process_admin_options() only persists form fields, and
+// there is no 'secret' field, so without this the ?x=meta|ping|sub endpoints would 403
+// forever. An existing secret is kept.
 if ( empty( $settings['secret'] ) ) {
 	if ( ! is_array( $settings ) ) {
 		$settings = [];
@@ -112,13 +112,12 @@ if ( empty( $settings['secret'] ) ) {
 	update_option( WC_SCANPAY_URI_SETTINGS, $settings, true );
 }
 
-// Nothing to migrate: stamp the version so the loader gate does not run upgrade.php's
-// 1.x settings migration over a new install and overwrite the gateway field defaults.
-// A no-op in the reset endpoint and in the card gateway's first-key save, which run on a
-// shop that already has settings, a version, or both. Not in upgrade.php: its
-// fresh-install exit requires this file for exactly this stamp -- on a network activation
-// every blog but the activated one arrives there with neither option -- and returns above
-// the 1.x branch, so there the stamp is the point rather than a no-op.
+// Nothing to migrate: stamp the version so the loader gate does not run upgrade.php's 1.x
+// settings migration over a new install and overwrite the field defaults. A no-op in the
+// reset endpoint and the card gateway's first-key save, which run on a shop that already
+// has settings, a version or both. Not in upgrade.php, whose fresh-install exit requires
+// this file for exactly this stamp -- on a network activation every blog but the activated
+// one arrives there with neither option.
 if ( $fresh_install ) {
 	add_option( 'wc_scanpay_version', WC_SCANPAY_VERSION, '', true );
 }

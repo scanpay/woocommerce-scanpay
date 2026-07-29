@@ -1,22 +1,24 @@
 <?php
 
-/*
- *  Scanpay module client lib
- *  Version 4.1.0 (2026-07-15)
+/**
+ * The only code in the plugin that talks to api.scanpay.dk. Scanpay module client lib
+ * 4.1.0 (2026-07-15).
+ *
+ * Contract: JSON over HTTPS to https://api.scanpay.dk. HTTP Basic with the API key as the
+ * whole credential, plus X-Shop-Plugin and Accept: application/json on every call. Only
+ * 200 is success; every other status, transport failure or unparseable body throws.
  */
 
 declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 
-/** Client for the Scanpay API: the only code here that talks to api.scanpay.dk. */
 final class WC_Scanpay_Client {
 	private \CurlHandle $ch;
 	private array $headers;
 	private bool $idem         = false;
 	private string $idemstatus = '';
 
-	/** Initializes the API client. */
 	public function __construct( string $apikey ) {
 		$this->ch      = curl_init();
 		$this->headers = [
@@ -28,7 +30,6 @@ final class WC_Scanpay_Client {
 		];
 	}
 
-	/** Closes the cURL handle. */
 	public function __destruct() {
 		if ( isset( $this->ch ) ) {
 			curl_close( $this->ch );
@@ -38,7 +39,7 @@ final class WC_Scanpay_Client {
 	/**
 	 * Records the Idempotency-Status response header.
 	 *
-	 * @return int Bytes consumed; libcurl aborts the transfer on any other value.
+	 * @return int Bytes consumed; libcurl aborts the transfer on anything else.
 	 */
 	private function header_callback( \CurlHandle $ch, string $line ): int {
 		if ( stripos( $line, 'Idempotency-Status:' ) === 0 ) {
@@ -48,10 +49,7 @@ final class WC_Scanpay_Client {
 		return strlen( $line );
 	}
 
-	/**
-	 * Reduces a response body to a short, single-line error message; masks multiline
-	 * or oversized bodies (proxy/WAF error pages).
-	 */
+	/** Masks multiline or oversized bodies -- proxy and WAF error pages -- for logging. */
 	private function error_body( string $body ): string {
 		$body = rtrim( $body, "\r\n" );
 		if ( '' === $body || strlen( $body ) > 512 || false !== strpbrk( $body, "\r\n" ) ) {
@@ -61,8 +59,8 @@ final class WC_Scanpay_Client {
 	}
 
 	/**
-	 * Sends a request to the Scanpay API. $timeout is the total budget in seconds, so it
-	 * also bounds the connect phase; a non-null $data makes the request a JSON POST.
+	 * $timeout is the total budget in seconds, so it also bounds the connect phase; a
+	 * non-null $data makes the request a JSON POST.
 	 *
 	 * @throws \JsonException On invalid JSON.
 	 * @throws \RuntimeException On transport or API errors.
@@ -80,9 +78,9 @@ final class WC_Scanpay_Client {
 			CURLOPT_TIMEOUT           => $timeout,
 			CURLOPT_DNS_CACHE_TIMEOUT => 180,
 			CURLOPT_HTTP_VERSION      => CURL_HTTP_VERSION_1_1,
-			// No signals in PHP SAPIs. On sync-resolver builds (rare; threaded
-			// is the default since 2017) timeouts cannot interrupt DNS lookups;
-			// accepted over re-enabling thread-unsafe SIGALRM handling.
+			// No signals in PHP SAPIs. The cost is that on a sync-resolver libcurl
+			// build the timeout cannot interrupt a DNS lookup; accepted over
+			// thread-unsafe SIGALRM handling.
 			CURLOPT_NOSIGNAL          => 1,
 		];
 		if ( null !== $data ) {
@@ -131,15 +129,12 @@ final class WC_Scanpay_Client {
 	}
 
 	/**
-	 * Builds the X-Cardholder-IP header for the current request.
+	 * The X-Cardholder-IP header, omitted when REMOTE_ADDR is not an IP.
 	 *
-	 * REMOTE_ADDR is normally the SAPI's own TCP peer address and safe to trust, but
-	 * sites behind a CDN or proxy very commonly run a plugin that overwrites it from
-	 * a client-controlled header (X-Forwarded-For, CF-Connecting-IP) without
-	 * validating. libcurl does not sanitize header values, so a CRLF in there would
-	 * append real headers to this authenticated request -- letting a customer force
-	 * e.g. an Idempotency-Key onto a call that never expects one. Validate the
-	 * address and simply omit the header when it is not an IP.
+	 * REMOTE_ADDR is normally the SAPI's own peer address, but behind a CDN a plugin has
+	 * very commonly overwritten it from an unvalidated X-Forwarded-For. libcurl does not
+	 * sanitize header values, so a CRLF there would append headers of the customer's
+	 * choosing to this authenticated request.
 	 */
 	private function cardholder_ip_header(): array {
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- filter_var( FILTER_VALIDATE_IP ) is the validation; anything else yields false and the header is omitted.
@@ -162,7 +157,7 @@ final class WC_Scanpay_Client {
 	}
 
 	/**
-	 * Gets the changes after sequence number $n, enforcing monotonicity: the returned seq
+	 * The changes after sequence number $n. Monotonicity is enforced here: the returned seq
 	 * must advance when there are changes, and equal $n when there are none.
 	 *
 	 * @throws \JsonException On invalid JSON.
@@ -196,8 +191,8 @@ final class WC_Scanpay_Client {
 	 * Charges a subscriber under an idempotency key, which Scanpay binds for 24h.
 	 *
 	 * @throws \JsonException On invalid JSON.
-	 * @throws \RuntimeException On transport, API, or validation errors, including a
-	 *                           response that does not confirm the key was honored.
+	 * @throws \RuntimeException On transport, API or validation errors, including a response
+	 *                           that does not confirm the key was honored.
 	 */
 	public function charge( int $subid, array $data, string $idemkey ): array {
 		$hdr = [ 'Idempotency-Key' => $idemkey ];

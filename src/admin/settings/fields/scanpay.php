@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 
-// Build the "Subscription terms" page picker: "Hide checkbox" plus every published page.
-// This file is required lazily by get_form_fields() (settings screen / unconfigured store),
-// so the get_pages() cost is not incurred on normal front-end or checkout requests.
+// The "Subscription terms" page picker. get_form_fields() requires this file lazily, so the
+// unbounded get_pages() never runs on a front-end request.
 $wcs_terms_options = [ '0' => __( 'Hide checkbox', 'scanpay-for-woocommerce' ) ];
 foreach ( (array) get_pages() as $wcs_terms_page ) {
 	$wcs_terms_options[ (string) $wcs_terms_page->ID ] = $wcs_terms_page->post_title;
@@ -20,9 +19,8 @@ return [
 		'default' => 'no',
 	],
 
-	// Custom type: rendered by WC_Gateway_Scanpay_Base::generate_apikey_html() and
-	// gated by ::validate_apikey_field(). Never rendered back to the browser once
-	// stored, and only replaceable via the reset button.
+	// Custom type, rendered by WC_Gateway_Scanpay_Base::generate_apikey_html() and gated by
+	// ::validate_apikey_field(): write-once, never rendered back once stored.
 	'apikey'               => [
 		'title'       => __( 'API key', 'scanpay-for-woocommerce' ),
 		'type'        => 'apikey',
@@ -91,10 +89,9 @@ return [
 	],
 
 	// Both carry a title and a real description: generate_checkbox_html() echoes the title
-	// into the <th> and into the fieldset's screen-reader legend, so without one the row is
-	// unlabelled rather than merely grouped under the Auto-complete row above; and
-	// get_tooltip_html() returns '' for an empty description, so desc_tip alone rendered
-	// nothing at all.
+	// into the <th> and the screen-reader legend, so without one the row is unlabelled, and
+	// get_tooltip_html() returns '' for an empty description, so desc_tip alone renders
+	// nothing.
 	'wcs_complete_initial' => [
 		'title'       => __( 'Auto-complete subscriptions', 'scanpay-for-woocommerce' ),
 		'type'        => 'checkbox',

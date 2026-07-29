@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * The Apple Pay gateway. Settings live in woocommerce_scanpay_applepay_settings, but the
+ * API key it pays with is the card gateway's. Unlike the other two it also enqueues a
+ * classic-checkout script, because only the browser can say whether Apple Pay is offered.
+ */
+
 declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
@@ -12,21 +18,18 @@ final class WC_Gateway_Scanpay_ApplePay extends WC_Gateway_Scanpay_Base {
 		$this->icon               = WC_SCANPAY_URL . '/admin/assets/images/icons/apple-pay.svg';
 		parent::__construct();
 
-		// $this->enabled is initialized by the parent constructor from the saved setting,
-		// so this hooks nothing on a store that does not offer Apple Pay.
+		// The parent constructor has initialized $this->enabled from the saved setting, so
+		// this hooks nothing on a store that does not offer Apple Pay.
 		if ( 'yes' === $this->enabled ) {
 			add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_checkout_script' ] );
 		}
 	}
 
 	/**
-	 * Whether this request renders the classic (shortcode) checkout.
-	 *
-	 * Testing is_checkout() alone would be wrong: it is true on a Blocks checkout page
-	 * too, and Blocks already gates Apple Pay through canMakePayment() in checkout.ts.
-	 * The pay-for-order page is always classic, even when the configured checkout page
-	 * holds the block. WC_Blocks_Utils is guarded for the WooCommerce 3.6 floor, and its
-	 * two-argument signature is required -- has_block_in_page() takes the page.
+	 * Whether this request renders the classic (shortcode) checkout. is_checkout() alone is
+	 * true on a Blocks checkout page too, where checkout.ts already gates Apple Pay through
+	 * canMakePayment(). The pay-for-order page is always classic, even when the configured
+	 * checkout page holds the block. WC_Blocks_Utils is guarded for the WC 3.6 floor.
 	 */
 	private function is_classic_checkout(): bool {
 		if ( is_checkout_pay_page() ) {
@@ -70,14 +73,13 @@ final class WC_Gateway_Scanpay_ApplePay extends WC_Gateway_Scanpay_Base {
 
 	/** The checkout icon. $this->icon stays live for the admin Payments list. */
 	public function get_icon(): string {
-		// esc_url() as the card gateway does on the identical concatenation: WooCommerce
-		// echoes get_icon() raw (templates/checkout/payment-method.php:26), and
-		// WC_SCANPAY_URL is plugins_url()-derived, which runs a third-party filter -- so it
-		// is not a compile-time constant. PHPCS misses it because the value is returned.
+		// esc_url() because WooCommerce's payment-method template echoes get_icon() raw, and
+		// WC_SCANPAY_URL is plugins_url()-derived, so a third-party filter shapes it. PHPCS
+		// misses it because the value is returned rather than echoed.
 		$html = '<span class="wcsp-methods"><img width="45" height="20" class="wcsp-applepay" src="' .
 			esc_url( WC_SCANPAY_URL . '/public/assets/images/applepay.svg' ) . '" alt="Apple Pay" title="Apple Pay"></span>';
 		// Filtered after the markup is built, as WC_Payment_Gateway does; cast because a
-		// filter callback can return anything and this method returns string.
+		// filter callback can return anything.
 		return (string) apply_filters( 'woocommerce_gateway_icon', $html, $this->id );
 	}
 

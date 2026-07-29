@@ -1,16 +1,18 @@
 <?php
 
+/**
+ * The subscription edit screen: the payment-method title and the Scanpay meta box.
+ * Required from wc_scanpay_admin_init() only when WC_Subscriptions is loaded.
+ */
+
 declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 
 /**
- * Display the correct payment method title for Scanpay subscriptions.
- *
- * $title is deliberately untyped: this sits in a third-party filter chain, and with
- * strict_types a callback hooked earlier returning null would make the type declaration
- * an uncatchable TypeError on the subscription screens. WCS core passes a string;
- * non-Scanpay values are handed straight back. wcs_scanpay_retry_rule() does the same.
+ * The payment method title for Scanpay subscriptions. $title is untyped because this sits
+ * in a third-party filter chain, where under strict_types an earlier callback returning
+ * null would make the declaration an uncatchable TypeError on the subscription screens.
  */
 function wcs_scanpay_payment_method_to_display( $title, WC_Subscription $sub ) {
 	return $sub->get_payment_method() === 'scanpay'
@@ -31,19 +33,16 @@ function wc_scanpay_create_meta_box_subs( $post, array $args ): void {
 	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
 	$secret   = (string) ( is_array( $settings ) ? ( $settings['secret'] ?? '' ) : '' );
 	/*
-	 * Payment id and time come from the parent order when the subscription has none of
-	 * its own, which at checkout is always: the sole writer is
-	 * generate-payment-link.php's new_url() branch, which writes them on the order from
-	 * process_payment() -- and WCS has already copied the parent's meta onto the
-	 * subscription by then. It hooks woocommerce_checkout_order_processed at priority 100
-	 * (class-wc-subscriptions-checkout.php:24) and copies at :184, while WC_Checkout fires
-	 * that action at class-wc-checkout.php:1396 and only calls process_order_payment() at
-	 * :1414. Neither key is excluded from the copy; the copy simply happens first.
+	 * Payment id and time come from the parent order when the subscription has none of its
+	 * own, which at checkout is always: the sole writer is wc_scanpay_process_payment(),
+	 * and by the time it runs WCS has already copied the parent's meta. WCS hooks
+	 * woocommerce_checkout_order_processed and calls wcs_copy_order_meta() there, while
+	 * WC_Checkout fires that action before process_order_payment(). Neither key is excluded
+	 * from the copy; the copy simply happens first.
 	 *
-	 * The subscription's own value still wins where one exists. get_parent() returns
-	 * false, not null, when there is no parent (class-wc-subscription.php:2045-2054), so
-	 * the falsy test covers it. Writing these keys onto the subscription instead is not an
-	 * option: meta there is copied onto every renewal order.
+	 * The subscription's own value still wins where one exists. get_parent() returns false,
+	 * not null, with no parent, so the falsy test covers it. Writing these keys onto the
+	 * subscription instead is not an option: meta there is copied onto every renewal order.
 	 */
 	$wcs_parent = $wc_sub->get_parent();
 	$payid      = (string) $wc_sub->get_meta( WC_SCANPAY_URI_PAYID, true, 'edit' );
@@ -56,9 +55,8 @@ function wc_scanpay_create_meta_box_subs( $post, array $args ): void {
 			$ptime = (string) $wcs_parent->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' );
 		}
 	}
-	// data-endpoint is the base for the ?x=sub poll. admin_url(), never home_url(): the
-	// poll sends a custom X-Scanpay header, so a differing origin would make it a
-	// CORS-preflighted request that WordPress does not answer. See admin/orders.php.
+	// data-endpoint is the base for the ?x=sub poll. admin_url(), never home_url(), for the
+	// CORS-preflight reason wc_scanpay_admin_render_meta_box() gives.
 	echo '<div id="wcsp-meta" data-secret="' . esc_attr( $secret ) . '"
 		data-endpoint="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '"
 		data-subid="' . esc_attr( (string) $wc_sub->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ) ) . '"
@@ -70,8 +68,7 @@ function wc_scanpay_create_meta_box_subs( $post, array $args ): void {
 }
 
 /**
- * Add the Scanpay meta box to the subscription edit screen, but only for
- * Scanpay subscriptions.
+ * Add the Scanpay meta box to the subscription edit screen, for Scanpay subscriptions only.
  *
  * @param WP_Post|WC_Order $wc_order Current object (legacy: WP_Post, HPOS: WC_Order).
  */

@@ -1,4 +1,11 @@
 <?php
+
+/**
+ * Every migration, run in version order from the loader gate whenever the stored version
+ * differs from WC_SCANPAY_VERSION. Each branch is idempotent and the version is stamped
+ * last, so an interrupted run simply re-runs from the start on the next request.
+ */
+
 declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
@@ -9,32 +16,26 @@ $wcs_exists = class_exists( 'WC_Subscriptions', false );
 set_time_limit( 60 );
 
 /*
- * A blog with no history at all, which is not an upgrade. register_activation_hook()
- * fires activate_{$plugin} once however wide the activation is
- * (wp-admin/includes/plugin.php:703) -- $network_wide is an argument to the hook, not a
- * loop over the network -- so a network activation runs install.php for one blog's
- * $wpdb->prefix. Every other blog, and every blog created afterwards, first meets the
- * plugin at the loader gate with both options absent, and would fall into the '< 2.0.0'
- * branch below: 1.x defaults written over a site that never ran 1.x, and the version
- * stamped mid-migration by install.php's own $fresh_install path.
+ * A blog with no history at all, which is not an upgrade. activate_plugin() fires
+ * activate_{$plugin} once however wide the activation is -- $network_wide is an argument
+ * to the hook, not a loop over the network -- so a network activation runs install.php for
+ * one blog's prefix. Every other blog first meets the plugin at the loader gate with both
+ * options absent, and would fall into the '< 2.0.0' branch: 1.x defaults written over a
+ * site that never ran 1.x.
  *
- * Above the log line on purpose: a blog with no history must not report an upgrade
- * "from 0.0.0" it never ran, and that line is the only record of this path a merchant or
- * a support case ever sees.
+ * Above the log line on purpose: a blog with no history must not report an upgrade "from
+ * 0.0.0" it never ran, and that line is the only record of this path anyone sees.
  *
- * The options are read here rather than $version, which cannot answer the question: :7
- * defaults it to '0.0.0', so an absent version and a stored '0.0.0' are the same string
- * by the time any branch sees it. Same two reads, same order, as install.php:81, and
- * install.php:76-80 is where the reason is written down -- absent *settings* is the
- * discriminator, because 1.x wrote settings and never a version. The two must stay in
- * step; simplifying this side to a version test alone re-opens that bug.
+ * The options are read here rather than $version, which defaults to '0.0.0' and so cannot
+ * tell absent from stored. Same two reads as install.php, where the reason is written down
+ * -- absent *settings* is the discriminator. Simplifying either side to a version test
+ * alone re-opens that bug.
  */
 if ( false === get_option( WC_SCANPAY_URI_SETTINGS ) && false === get_option( 'wc_scanpay_version' ) ) {
 	// Creates this blog's tables and stamps the version through its own $fresh_install
-	// path. Re-read for the reason the tail at :261-267 gives, which this return skips:
-	// reporting a version the site does not have is worse than a retry. The throw lands
-	// in the loader's catch, which keeps the five-minute transient, and install.php is
-	// idempotent -- the retry costs three SHOW TABLES LIKE and nothing else.
+	// path. Re-read for the reason the tail of this file gives, which this return skips.
+	// The throw lands in the loader's catch, which keeps its five-minute transient, and
+	// install.php is idempotent -- the retry costs three SHOW TABLES LIKE.
 	require WC_SCANPAY_DIR . '/install.php';
 	if ( get_option( 'wc_scanpay_version' ) !== WC_SCANPAY_VERSION ) {
 		throw new Exception( 'Could not store the new plugin version' );
@@ -64,19 +65,17 @@ if ( version_compare( $version, '2.0.0', '<' ) ) {
 		'wcs_complete_initial' => 'no',
 		'wcs_complete_renewal' => $old['autocomplete_renewalorders'] ?? 'no',
 		'stylesheet'           => 'yes',
-		// Preserve an existing secret so an interrupted re-run does not invalidate the
-		// in-flight admin-AJAX auth token; only mint one on the true first run.
+		// Preserve an existing secret, or an interrupted re-run invalidates the in-flight
+		// admin-AJAX token.
 		'secret'               => $old['secret'] ?? bin2hex( random_bytes( 32 ) ),
 	];
 	update_option( WC_SCANPAY_URI_SETTINGS, $arr, true );
 } elseif ( version_compare( $version, '2.2.0', '<' ) ) {
 	// Backfill the settings added in 2.2.0; array_merge lets stored values win.
 	$old = get_option( WC_SCANPAY_URI_SETTINGS );
-	// An absent or scalar option -- a partially restored database, a wp option delete --
-	// is an array_merge() TypeError on PHP 8, not a skipped merge, and it would take down
-	// the whole file: the loader keeps its transient, so every branch below this one, the
-	// version stamp included, is retried and re-thrown every five minutes forever. Same
-	// shape as the 2.5.0 branch's guard below.
+	// An absent or scalar option -- a partially restored database, a wp option delete -- is
+	// an array_merge() TypeError, not a skipped merge, and it would take down the whole
+	// file: every branch below, the version stamp included, retried and re-thrown forever.
 	if ( ! is_array( $old ) ) {
 		$old = [];
 	}
@@ -100,14 +99,12 @@ if ( version_compare( $version, '2.0.0', '<' ) ) {
 if ( $wcs_exists && version_compare( $version, '2.1.3', '<' ) ) {
 	/*
 	 * The newest transaction per subscriber, read once. scanpay_meta's only key is
-	 * PRIMARY KEY (orderid), so the two per-row lookups this replaces were a full table
-	 * scan each -- 2N scans, and the reason the branch could not finish on a shop with
-	 * enough 1.x subscriptions. A snapshot is sound: the loop below writes order meta,
-	 * never scanpay_meta, so nothing in it invalidates the map.
+	 * PRIMARY KEY (orderid), so per-row lookups would be a full table scan each. A snapshot
+	 * is sound: the loop writes order meta, never scanpay_meta.
 	 *
-	 * Checked, unlike the per-row lookups it replaces: one failed query now decides every
-	 * comparison at once, and an empty map reads as "no transaction" -- which would adopt
-	 * 1.x's subid on subscriptions whose current one is in fact the newer.
+	 * Checked, because one failed query now decides every comparison at once: an empty map
+	 * reads as "no transaction" and would adopt 1.x's subid on subscriptions whose current
+	 * one is in fact the newer.
 	 */
 	$max_trn = [];
 	$rows    = $wpdb->get_results( "SELECT subid, MAX(id) AS id FROM {$wpdb->prefix}scanpay_meta WHERE subid > 0 GROUP BY subid", ARRAY_A );
@@ -120,14 +117,13 @@ if ( $wcs_exists && version_compare( $version, '2.1.3', '<' ) ) {
 	}
 
 	/*
-	 * Batched by id, the shape uninstall.php's site loop uses. 'limit' => -1 loaded every
-	 * matching id and then built a full WC_Subscription per row, so a shop with enough of
-	 * them never got through the branch -- and because the version is stamped last, it
-	 * restarted from zero on every five-minute retry instead of failing visibly.
+	 * Batched by id. 'limit' => -1 would build a full WC_Subscription per matching row, so a
+	 * large shop never got through the branch -- and because the version is stamped last, it
+	 * restarted from zero on every retry instead of failing visibly.
 	 *
 	 * Paging cannot skip a subscription: the loop writes WC_SCANPAY_URI_SUBID while the
-	 * query filters on '_scanpay_subscriber_id', two different meta keys, so the result
-	 * set does not shrink underneath the offset.
+	 * query filters on '_scanpay_subscriber_id', so the result set does not shrink
+	 * underneath the offset.
 	 */
 	$page_size = 500;
 	$offset    = 0;
@@ -148,17 +144,17 @@ if ( $wcs_exists && version_compare( $version, '2.1.3', '<' ) ) {
 		$n_found = count( $wc_subs );
 
 		foreach ( $wc_subs as $oid ) {
-			// The whole file runs under the single set_time_limit( 60 ) at :9, which this
-			// branch alone can outlast. set_time_limit() resets the counter rather than
-			// adding to it, so renewing before it is due costs nothing.
+			// This branch alone can outlast the file's single set_time_limit( 60 ).
+			// set_time_limit() resets the counter rather than adding to it, so renewing
+			// before it is due costs nothing.
 			if ( microtime( true ) - $renewed >= 30 ) {
 				set_time_limit( 60 );
 				$renewed = microtime( true );
 			}
 			$wc_sub = wcs_get_subscription( $oid );
-			// 'edit', as every other payment-method read in the tree: a view-context read runs
-			// woocommerce_order_get_payment_method, which is a third party deciding what the
-			// stored value is while we decide whether to rewrite it.
+			// 'edit', as every other payment-method read in the tree: in view context
+			// woocommerce_order_get_payment_method lets a third party decide what the stored
+			// value is while we decide whether to rewrite it.
 			if ( ! $wc_sub || ! str_starts_with( $wc_sub->get_payment_method( 'edit' ), 'scanpay' ) ) {
 				continue;
 			}
@@ -175,9 +171,8 @@ if ( $wcs_exists && version_compare( $version, '2.1.3', '<' ) ) {
 				scanpay_log( 'info', "change subid on #$oid (from '$subid' to '$black_subid')" );
 				$wc_sub->update_meta_data( WC_SCANPAY_URI_SUBID, $black_subid );
 				// No cache invalidation of our own: WC_Data::save_meta_data() ends by deleting
-				// this object's own meta cache entry, and nothing here reads it back -- the next
-				// iteration loads a different subscription, and the comparison above is answered
-				// from the array built before the loop, never from the object cache.
+				// this object's meta cache entry, and nothing here reads it back -- the
+				// comparison above is answered from the array built before the loop.
 				$wc_sub->save_meta_data();
 			}
 		}
@@ -195,9 +190,8 @@ if ( version_compare( $version, '2.5.0', '<' ) ) {
 	if ( ! is_array( $settings ) ) {
 		$settings = [];
 	}
-	// Idempotent: only derive wc_autocapture when it is not already set, so an
-	// interrupted re-run (capture_on_complete already unset) cannot silently flip it
-	// to 'off' and disable auto-capture.
+	// Only derive wc_autocapture when unset, so an interrupted re-run -- capture_on_complete
+	// already gone -- cannot silently flip it to 'off'.
 	if ( ! isset( $settings['wc_autocapture'] ) ) {
 		$settings['wc_autocapture'] = ( isset( $settings['capture_on_complete'] ) && 'yes' === $settings['capture_on_complete'] ) ? 'completed' : 'off';
 	}
@@ -207,25 +201,24 @@ if ( version_compare( $version, '2.5.0', '<' ) ) {
 
 /*
  *  Version: 3.0.0
- *  The released 2.x schema carries columns v3 stopped writing: scanpay_meta.method,
- *  and retries/nxt/method_id/idem on scanpay_subs from the pre-3.0 charge design.
- *  scanpay_meta.method is NOT NULL with no DEFAULT, so under a strict SQL mode every
- *  v3 insert fails outright (MySQL 1364) and the cursor cannot advance past that
- *  change. Drop them in place: rows, cursors, revisions and method data all survive.
- *  (2.x also declared UNIQUE alongside the PRIMARY KEY on all three tables, dropped
- *  in 5f4468b. Redundant, not harmful, and left alone here.)
+ *  The 2.x schema carries columns v3 stopped writing: scanpay_meta.method, and
+ *  retries/nxt/method_id/idem on scanpay_subs from the pre-3.0 charge design.
+ *  scanpay_meta.method is NOT NULL with no DEFAULT, so under a strict SQL mode every v3
+ *  insert fails (MySQL 1364) and the cursor cannot advance past that change. Dropped in
+ *  place, so rows, cursors, revisions and method data all survive. The redundant UNIQUE
+ *  keys 2.x declared alongside each PRIMARY KEY are harmless and left alone.
  */
 if ( version_compare( $version, '3.0.0', '<' ) ) {
-	// Creates from the v3 schema whichever table this site never had; a no-op for the
-	// rest. It cannot stamp the version early -- reaching this branch means settings or
-	// a version exist, either of which makes install.php's $fresh_install false.
+	// Creates whichever table this site never had, from the v3 schema. It cannot stamp the
+	// version early -- reaching this branch means settings or a version exist, either of
+	// which makes install.php's $fresh_install false.
 	require WC_SCANPAY_DIR . '/install.php';
 	require_once WC_SCANPAY_DIR . '/library/schema.php';
 
-	// Presence is re-read on every run, so a retry after an interrupted migration
-	// accepts a mixture where some columns are already gone. Not DROP COLUMN IF EXISTS:
-	// that needs MySQL 8.0.29 / MariaDB 10.5, well above the oldest server the
-	// WordPress minimum supports.
+	// Presence is re-read on every run, so a retry after an interrupted migration accepts a
+	// mixture where some columns are already gone. Not DROP COLUMN IF EXISTS: MySQL has no
+	// such clause at any version, and MariaDB's (since 10.0.2) is an extension we cannot
+	// rely on. Reading the columns first is the only portable way.
 	$obsolete = [
 		$wpdb->prefix . 'scanpay_meta' => [ 'method' ],
 		$wpdb->prefix . 'scanpay_subs' => [ 'retries', 'nxt', 'method_id', 'idem' ],
@@ -258,10 +251,10 @@ if ( version_compare( $version, '3.0.0', '<' ) ) {
 // Autoloaded, because the loader gate reads it on every request.
 update_option( 'wc_scanpay_version', WC_SCANPAY_VERSION, true );
 
-// Reread rather than trust the return: update_option() also answers false when the
-// stored value already matches, which a concurrent request can arrange. Throwing hands
-// the failure to the loader, which keeps its five-minute transient and retries the
-// whole migration -- far better than reporting a version this site does not have.
+// Reread rather than trust the return: update_option() also answers false when the stored
+// value already matches, which a concurrent request can arrange. Throwing hands the failure
+// to the loader, which keeps its transient and retries the whole migration -- better than
+// reporting a version this site does not have.
 if ( get_option( 'wc_scanpay_version' ) !== WC_SCANPAY_VERSION ) {
 	throw new Exception( 'Could not store the new plugin version' );
 }

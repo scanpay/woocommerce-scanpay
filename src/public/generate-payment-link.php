@@ -1,14 +1,23 @@
 <?php
 
+/**
+ * Checkout: turning a WooCommerce order into a Scanpay payment link. All three gateways'
+ * process_payment() end here, and so do the subscription paths -- a first subscription
+ * order, a renewal retry, a resubscribe and a payment-method change each need a different
+ * Scanpay endpoint and a different payload.
+ *
+ * Everything here runs inside WC_Checkout::process_checkout(), which catches Exception and
+ * puts the message straight in front of the shopper, so the messages thrown are written
+ * for them and the diagnostics go to the log.
+ */
+
 declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 
-// require_once on both, because they declare a class and functions and five other
-// sites require_once the same two. A bare require here includes them a second time
-// regardless of that registration, and redeclares: capture.php is the reachable case,
-// pulled in when a third party completes the order on
-// woocommerce_checkout_order_processed, which fires before process_order_payment().
+// require_once, not require: a bare require would redeclare. The reachable case is a third
+// party completing the order on woocommerce_checkout_order_processed, which fires before
+// process_order_payment() and pulls in the capture class.
 require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
 require_once WC_SCANPAY_DIR . '/library/math.php';
 
@@ -16,12 +25,11 @@ function wc_scanpay_phone_prefixer( string $phone, string $country ): string {
 	if ( ! empty( $phone ) ) {
 		$first_number = substr( $phone, 0, 1 );
 		if ( '+' !== $first_number && '0' !== $first_number ) {
-			// get_country_calling_code() returns '' -- never null -- for an absent or
-			// unknown country, so an isset() check would pass and prefix " 12345678".
-			// is_string() stays for the docblock, not for a filter: the method applies
-			// none and unwraps an array itself (includes/class-wc-countries.php:165-182),
-			// but it still declares @return string|array, and the WC 3.6 floor is a long
-			// way below the version that was read to establish that.
+			// get_country_calling_code() returns '' -- never null -- for an unknown country,
+			// so an isset() check would pass and prefix " 12345678". is_string() is for the
+			// declared @return string|array, not for a filter: the method applies none and
+			// unwraps the array itself, but the WC 3.6 floor is far below the version read
+			// to establish that.
 			$code = WC()->countries->get_country_calling_code( $country );
 			if ( is_string( $code ) && '' !== $code ) {
 				return $code . ' ' . $phone;
@@ -34,25 +42,19 @@ function wc_scanpay_phone_prefixer( string $phone, string $country ): string {
 function wc_scanpay_subref( int $oid, WC_Abstract_Order $wco ): ?string {
 	if ( wcs_scanpay_is_payment_method_change() ) {
 		/*
-		 * Switching an existing subscription to us. No new order is created here, only
-		 * the subscription's payment method changes -- so $oid is the WCS subscription
-		 * id, not an order id.
+		 * A payment-method change creates no order, so $oid is the WCS subscription id.
 		 *
-		 * Reachable only from wc_scanpay_process_payment()'s method-change branch, which
-		 * returns above the item build. The other call site sits below that return and
-		 * can never see a method change, so this branch looks dead from there: it is not,
-		 * and the call stays rather than being inlined, because this is the one place the
-		 * wcs[] ref format is written.
+		 * Reachable only from the method-change branch below, which returns above the item
+		 * build; from the other call site this looks dead. Not inlined there, because this
+		 * is the one place the wcs[] ref format is written.
 		 */
 		return 'wcs[]' . $oid;
 	}
 	/*
 	 * wc_get_orders() rather than wcs_order_contains_subscription(): the same search,
-	 * but narrowed by status.
-	 *
-	 * The fallback must be 'all', never null: null is not passed through to post_status
-	 * at all, so WP_Query falls back to public statuses only, and every order status is
-	 * non-public -- the query would match nothing.
+	 * narrowed by status. The fallback must be 'all', never null -- null never reaches
+	 * post_status, so WP_Query falls back to public statuses, and every order status is
+	 * non-public.
 	 */
 	$wcs_subs_arr = wc_get_orders(
 		[
@@ -60,10 +62,10 @@ function wc_scanpay_subref( int $oid, WC_Abstract_Order $wco ): ?string {
 			'status' => ( $wco->get_status() === 'pending' ) ? 'wc-pending' : 'all',
 			'parent' => $oid,
 			'return' => 'ids', // array of ids (an order can have multiple subs)
-			// A protocol value, not a page of results: every id here becomes part of
+			// A protocol value, not a page of results: every id becomes part of
 			// subscriber.ref, and one missing from it is a subscription sync never links,
-			// so its renewals fail forever. Without this WC_Object_Query supplies
-			// get_option( 'posts_per_page' ) -- ten on a default install.
+			// whose renewals then fail forever. Without this WC_Object_Query supplies
+			// get_option( 'posts_per_page' ), ten on a default install.
 			'limit'  => -1,
 		]
 	);
@@ -123,27 +125,23 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		$subid = (int) $wco->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
 		if ( $subid ) {
 			/*
-			 * An existing subscriber, reached three ways: a customer retrying a failed
-			 * renewal, a resubscribe, and a payment-method change. All three get the same
-			 * link, because renew() gives the same thing to all three.
+			 * An existing subscriber, reached three ways -- a retry of a failed renewal, a
+			 * resubscribe, and a payment-method change -- and renew() gives all three the
+			 * same link.
 			 *
-			 * /v1/subscribers/{subid}/renew charges nothing. It returns a page where the
-			 * customer updates their stored payment details -- a flat fact, settled with
-			 * Scanpay, that no stub states and that the endpoint's name argues against. So
-			 * this branch creates no transaction, has nothing for the return page to wait
-			 * on, and records no completion intent: there is no payment for one to describe.
-			 * The $data['autocapture'] computed above rides along inert rather than being
-			 * zeroed here, so the payload shape stays the same on every path.
+			 * /v1/subscribers/{subid}/renew charges nothing, despite its name: it returns a
+			 * page where the customer updates their stored payment details. So this branch
+			 * creates no transaction, has nothing for the return page to wait on, and
+			 * records no completion intent. The $data['autocapture'] computed above rides
+			 * along inert, so the payload shape stays the same on every path.
 			 *
-			 * $paid_renewal separates the two things that still differ: only a real order
-			 * gets the note and the stamp below. On a method change $wco is the WCS
-			 * subscription, and any key written on it is copied onto every future renewal
-			 * order by WC_Subscriptions_Data_Copier.
+			 * $paid_renewal separates what still differs: only a real order gets the note
+			 * and the stamp below. On a method change $wco is the WCS subscription, and any
+			 * key written there is copied onto every future renewal order.
 			 *
-			 * The money is collected later, by WCS's own retry, which the card update does
-			 * unblock: the subscriber rev bumps, so WCS_Scanpay_Charge::idempotency_key()
-			 * builds a new key and the next scheduled charge is not deduped against the
-			 * declined one.
+			 * The money is collected later by WCS's own retry, which the card update does
+			 * unblock: the subscriber rev bumps, so idempotency_key() builds a new key and
+			 * the next scheduled charge is not deduped against the declined one.
 			 */
 			$paid_renewal = ! wcs_scanpay_is_payment_method_change();
 			try {
@@ -153,26 +151,23 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 				throw new Exception( esc_html__( 'Error: We could not create a link to the payment window. Please wait a moment and try again.', 'scanpay-for-woocommerce' ) );
 			}
 			if ( $paid_renewal ) {
-				// Which shop the subscriber belongs to. With no money moving here, that is the
-				// stamp's whole job: a merchant who switches API keys between the card update
-				// and the retry then gets scheduled_charge()'s deliberate refusal rather than a
-				// charge against a numerically colliding subid in the new shop. Only when
-				// absent; a different shop id is a real mismatch and not ours to overwrite.
+				// Which shop the subscriber belongs to. A merchant who switches API keys
+				// between the card update and the retry then gets scheduled_charge()'s refusal
+				// rather than a charge against a numerically colliding subid in the new shop.
+				// Only when absent; a different shop id is a real mismatch.
 				if ( (int) $wco->get_meta( WC_SCANPAY_URI_SHOPID, true, 'edit' ) <= 0 ) {
 					$shopid = (int) strstr( (string) ( $settings['apikey'] ?? '' ), ':', true );
 					$wco->add_meta_data( WC_SCANPAY_URI_SHOPID, $shopid, true );
 				}
 				$wco->save_meta_data();
-				// The customer followed a link labelled "Pay now" and will be returned to an
-				// order that is still unpaid; this is the only thing that tells them what
-				// actually happened. Customer-visible (the 1), so WooCommerce lists it under
-				// "Order updates" and mails it through woocommerce_new_customer_note.
+				// The customer followed a link labelled "Pay now" and returns to an order that
+				// is still unpaid; this note is the only thing that tells them what happened.
+				// Customer-visible (the 1), so WooCommerce lists it under "Order updates" and
+				// mails it through woocommerce_new_customer_note.
 				//
-				// Contained the way WC_Scanpay_Sync::report_incomplete() contains its own:
-				// add_order_note() runs woocommerce_new_order_note_data, wp_insert_comment()
-				// and woocommerce_order_note_added, all third-party surface, and this runs
-				// inside process_payment(), where an escaping throw is put in front of the
-				// shopper by WC_Checkout instead of the link they came for.
+				// Contained, as everywhere else add_order_note() is called: it runs a filter,
+				// wp_insert_comment() and an action, all third-party surface, and an escaping
+				// throw would reach the shopper instead of the link they came for.
 				try {
 					$wco->add_order_note(
 						__( 'Your payment details were updated. This renewal has not been charged yet; it will be collected automatically with the new details.', 'scanpay-for-woocommerce' ),
@@ -189,28 +184,25 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		}
 		if ( wcs_scanpay_is_payment_method_change() ) {
 			/*
-			 * A method change on a subscription we do not know yet -- no _scanpay_subid,
-			 * so it is being moved to us from another gateway, which is what "change
-			 * payment method" is normally used for. It must register a card and charge
+			 * A method change on a subscription we do not know yet: no _scanpay_subid, so it
+			 * is being moved to us from another gateway. It must register a card and charge
 			 * nothing, and it cannot fall through to the item build below:
 			 *
-			 * - $wco is the WCS subscription, not an order. WCS zeroes the amount with the
-			 *   woocommerce_subscription_get_total filter, but WC_Data::get_prop() applies
-			 *   {hook_prefix}{prop} in the 'view' context only, so get_total( 'edit' ) and
-			 *   the get_line_total() loop below both read the real recurring total and
-			 *   would bill it now.
-			 * - Every _scanpay_* key written here would land on the subscription, and
-			 *   WC_Subscriptions_Data_Copier excludes only WC/WCS internals -- so it would
-			 *   be copied onto every renewal order WCS creates afterwards, a stored
-			 *   completion intent included.
-			 * - The successurl is the WCS-filtered My Account URL and carries no order
-			 *   key, so thank-you args appended to it are litter the wait never reads.
+			 * - $wco is the WCS subscription. WCS zeroes the amount through
+			 *   woocommerce_subscription_get_total, but WC_Data::get_prop() applies its hook
+			 *   in 'view' only, so get_total( 'edit' ) and the get_line_total() loop below
+			 *   both read the real recurring total and would bill it now.
+			 * - Every _scanpay_* key written here lands on the subscription, and
+			 *   WC_Subscriptions_Data_Copier excludes only WC/WCS internals -- so it would be
+			 *   copied onto every renewal order afterwards, a stored completion intent
+			 *   included.
+			 * - The successurl is the WCS-filtered My Account URL and carries no order key,
+			 *   so thank-you args appended to it are litter the wait never reads.
 			 *
 			 * /v1/new with a subscriber.ref and no items creates a subscriber and nothing
-			 * else: no transaction, and the orderid riding along is discarded by the
-			 * backend rather than stored, so nothing comes back through the seq. That is
-			 * why orderid and autocapture can stay as computed above -- there is nothing
-			 * to capture and nothing for sync to resolve.
+			 * else: no transaction, and the backend discards the orderid riding along, so
+			 * nothing comes back through the seq. Hence orderid and autocapture can stay as
+			 * computed above.
 			 */
 			$data['subscriber'] = [ 'ref' => wc_scanpay_subref( $oid, $wco ) ];
 			try {
@@ -227,14 +219,12 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	}
 
 	/*
-	 * The whole item build is contained, not just the two money calls. Every value read
-	 * here passes through a filter a third party owns -- get_line_total() runs
-	 * woocommerce_order_amount_line_total, and a callback returning null survives the
-	 * ">= 0" guard (PHP 8 compares null >= 0 as booleans), becomes '' in
-	 * wc_format_decimal(), and makes wc_scanpay_addmoney() throw. WC_Checkout catches
-	 * Exception and puts the message straight in front of the shopper
-	 * (class-wc-checkout.php:1419-1422), so uncontained that reads
-	 * "invalid money amount: '0' or ''" at checkout.
+	 * The whole item build is contained, not just the two money calls: every value read here
+	 * passes through a filter a third party owns. get_line_total() runs
+	 * woocommerce_order_amount_line_total, and a callback returning null survives the ">= 0"
+	 * guard -- PHP compares null >= 0 as booleans -- becomes '' in wc_format_decimal(), and
+	 * makes wc_scanpay_addmoney() throw. Uncontained, the shopper reads "invalid money
+	 * amount: '0' or ''" at checkout.
 	 */
 	try {
 		$subref   = false;
@@ -275,10 +265,9 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 			);
 		}
 	} catch ( \Throwable $e ) {
-		// \Throwable for the reason WCS_Scanpay_Charge::charge() gives: an Error out of a
-		// filter callback is as fatal to the checkout as an exception, and here it would be
-		// an uncaught fatal rather than a notice. Rethrown, never degraded -- $subref, $sum
-		// and $data['items'] must not be read half-built by the code below.
+		// \Throwable, because an Error out of a filter callback would be an uncaught fatal
+		// rather than a notice. Rethrown, never degraded: $subref, $sum and $data['items']
+		// must not be read half-built below.
 		scanpay_log( 'error', "Order #$oid: could not build the item list: " . trim( $e->getMessage() ) );
 		throw new Exception( esc_html__( 'Error: We could not create a link to the payment window. Please wait a moment and try again.', 'scanpay-for-woocommerce' ) );
 	}
@@ -288,19 +277,18 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		if ( $subref ) {
 			$data['subscriber'] = [ 'ref' => $subref ];
 			$otype              = ( $wc_totalf > 0 ) ? 'wcs' : 'wcs_free';
-			// This is the initial order of a subscription, so wcs_complete_initial applies.
-			// Settling at Scanpay and completing in WooCommerce are separate outcomes of the
-			// one setting: capture now rather than on completion, and complete the order
-			// once the payment syncs. Both need a capture, hence the 'completed' condition
-			// -- 'on' already captures, and 'off' must keep doing neither.
+			// The initial order of a subscription, so wcs_complete_initial applies. Settling
+			// at Scanpay and completing in WooCommerce are separate outcomes of the one
+			// setting, and both need a capture -- hence the 'completed' condition: 'on'
+			// already captures, and 'off' must keep doing neither.
 			$complete = wcs_scanpay_wants_completion( $settings, 'initial' );
 			if ( $complete && 'completed' === $autocapture ) {
 				$data['autocapture'] = true;
 			}
 		}
 	}
-	// The router dispatches on scanpay_thankyou + scanpay_type (plus WooCommerce's own
-	// ?key, already in the URL); scanpay_ref is what the free-trial branch polls.
+	// The router dispatches on scanpay_thankyou and scanpay_type, plus WooCommerce's own
+	// ?key already in the URL; scanpay_ref is what the free-trial branch polls.
 	$data['successurl'] = add_query_arg(
 		[
 			'scanpay_thankyou' => $oid,
@@ -316,9 +304,9 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 		$wco->add_meta_data( WC_SCANPAY_URI_PAYID, basename( $link ), true );
 		$wco->add_meta_data( WC_SCANPAY_URI_PTIME, time(), true );
 		$wco->add_meta_data( WC_SCANPAY_URI_SHOPID, $shopid, true );
-		// Rides along with the writes above: no payment can exist before new_url() returns,
-		// and $unique replaces the previous attempt's value rather than keeping it, so the
-		// newest link -- the one the customer can still pay -- is the one described here.
+		// Rides along with the writes above: no payment exists before new_url() returns, and
+		// $unique replaces the previous attempt's value, so the newest link -- the one the
+		// customer can still pay -- is the one described here.
 		$wco->add_meta_data( WC_SCANPAY_URI_COMPLETE, $complete && $data['autocapture'], true );
 		$wco->save_meta_data();
 		return [

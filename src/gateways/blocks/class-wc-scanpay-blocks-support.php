@@ -1,4 +1,11 @@
 <?php
+
+/**
+ * The WooCommerce Blocks registration for all three gateways: one script handle and one
+ * payload, from which checkout.ts renders the payment methods and the subscription terms
+ * checkbox. The class exists because the Blocks integration contract demands one.
+ */
+
 declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
@@ -24,11 +31,10 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 				// wc-blocks-checkout provides registerCheckoutBlock() and wp-data the
 				// validation/checkout stores, both used by the subscription terms block.
 				//
-				// Alone among this plugin's scripts, this one carries no 'wp-i18n' and gets no
-				// wp_set_script_translations(): checkout.ts calls __() nowhere, because every
-				// string it renders was translated on this side and travels in the payload
-				// get_payment_method_data() builds. A __() added to that bundle needs both, or
-				// it silently renders English.
+				// No 'wp-i18n' and no wp_set_script_translations(): checkout.ts calls __()
+				// nowhere, because every string it renders is translated on this side and
+				// travels in the payload. A __() added to that bundle needs both, or it
+				// silently renders English.
 				[ 'wc-blocks-registry', 'wc-blocks-checkout', 'wc-settings', 'wp-data', 'wp-element' ],
 				WC_SCANPAY_VERSION,
 				true
@@ -39,21 +45,17 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 	}
 
 	/**
-	 * The payload checkout.ts renders from. Built on three render paths, not one:
-	 * Api::init() hooks add_payment_method_script_data() to both
-	 * woocommerce_blocks_checkout_enqueue_data and woocommerce_blocks_cart_enqueue_data
-	 * (src/Blocks/Payments/Api.php:48-49), and the latter is fired by the Cart block
-	 * (BlockTypes/Cart.php:303) and the Mini Cart block (MiniCart.php:236) -- so a block
-	 * theme with a header mini-cart builds this on every page of the store. Do not gate it
-	 * on is_checkout(): the Cart block enqueues the same bundle and needs it.
+	 * The payload checkout.ts renders from. Built on three render paths, not one: Blocks'
+	 * Payments\Api hooks its script data to both woocommerce_blocks_checkout_enqueue_data and
+	 * woocommerce_blocks_cart_enqueue_data, and the Cart and Mini Cart blocks both fire the
+	 * latter -- so a block theme with a header mini-cart builds this on every page. Do not gate
+	 * it on is_checkout(); the Cart block needs the same bundle.
 	 *
-	 * Settings are read straight from the option, deliberately, not through the classic
-	 * gateways' get_title()/get_description()/get_icon(). Those apply
-	 * woocommerce_gateway_title, _description and _icon, whose callbacks may return HTML,
-	 * while checkout.ts hands the payload to React as text -- markup would render
-	 * literally. The JSON encoder plus React's text rendering are also what keep raw
-	 * settings from becoming executable markup here. If WooCommerce ever exposes a Blocks
-	 * filter contract, add it separately; do not invent one.
+	 * Settings are read straight from the option, not through the classic gateways'
+	 * get_title()/get_description()/get_icon(): those apply filters whose callbacks may return
+	 * HTML, and checkout.ts hands the payload to React as text, so markup would render
+	 * literally. If WooCommerce ever exposes a Blocks filter contract, add it separately; do
+	 * not invent one.
 	 */
 	public function get_payment_method_data(): array {
 		$settings = get_option( WC_SCANPAY_URI_SETTINGS );
@@ -61,22 +63,20 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 			'url'     => WC_SCANPAY_URL . '/public/assets/images/',
 			'methods' => [],
 		];
-		// Subscription terms checkbox. woocommerce_after_checkout_validation (classic) does not
-		// fire for the Store API checkout, so checkout.ts renders the checkbox as a forced
-		// checkout block and wcs_scanpay_blocks_validate_terms() enforces it.
+		// Subscription terms checkbox, rendered by checkout.ts as a forced checkout block and
+		// enforced by wcs_scanpay_blocks_validate_terms().
 		//
-		// Kept outside $data['methods'] and outside the 'enabled' gate on purpose: the consent
-		// belongs to the subscription in the cart, so it must cover every gateway the customer
-		// can pick and stay active while our own gateways are disabled. This runs regardless of
-		// gateway status because AbstractPaymentMethodType::is_active() defaults to true and the
-		// registry collects script data for all registered types.
+		// Outside $data['methods'] and outside the 'enabled' gate on purpose: the consent
+		// belongs to the subscription in the cart, so it covers every gateway the customer
+		// can pick and stays active while our own are disabled. It reaches the payload
+		// because AbstractPaymentMethodType::is_active() defaults to true.
 		if ( class_exists( 'WC_Subscriptions_Cart', false ) && WC_Subscriptions_Cart::cart_contains_subscription() ) {
 			$terms_url = wcs_scanpay_terms_url();
 			if ( '' !== $terms_url ) {
 				$data['terms'] = [
 					'url'   => esc_url_raw( $terms_url ),
-					// Split on %s in checkout.ts to build the link. Shared verbatim with the
-					// classic renderer so translators localize one sentence, punctuation included.
+					// Split on %s in checkout.ts to build the link. Verbatim from the classic
+					// renderer, so translators localize one sentence.
 					/* translators: %s is a link to the subscription terms page. */
 					'label' => __( 'I accept the %s.', 'scanpay-for-woocommerce' ),
 					'link'  => __( 'subscription terms', 'scanpay-for-woocommerce' ),
@@ -86,15 +86,14 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 		}
 		if ( is_array( $settings ) && ( 'yes' === ( $settings['enabled'] ?? 'no' ) ) ) {
 			$data['methods']['scanpay'] = [
-				// WC_Gateway_Scanpay_Card::default_title() is the source of this string; the
-				// two must stay in step, or the same store renders a different label in the
-				// two checkouts. Copied rather than called: instantiating the gateway would
-				// drag its settings and lazy form fields into a payload built at checkout.
+				// WC_Gateway_Scanpay_Card::default_title() is the source; the two must stay in
+				// step, or a store renders a different label in each checkout. Copied rather
+				// than called, because instantiating the gateway would drag its lazy form
+				// fields into a payload built on every page of the store.
 				'title'       => (string) ( $settings['title'] ?? 'Pay by card' ),
 				'description' => (string) ( $settings['description'] ?? '' ),
-				// WC's validate_multiselect_field() stores '' (not []) when nothing is
-				// selected, and (array) '' is [ '' ] -- a non-empty array holding an
-				// empty string, which renders one broken <img> on the Blocks checkout.
+				// WC's validate_multiselect_field() stores '' rather than [] when nothing is
+				// selected, and (array) '' is [ '' ], which renders one broken <img>.
 				// array_values() keeps this a JSON array rather than an object.
 				'icons'       => array_values( array_filter( (array) ( $settings['card_icons'] ?? [] ) ) ),
 				'supports'    => [

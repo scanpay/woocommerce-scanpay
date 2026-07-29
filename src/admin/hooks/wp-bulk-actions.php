@@ -1,17 +1,16 @@
 <?php
 
+/**
+ * Bulk "Capture and complete", and the hijacked "Mark as completed", on the orders list.
+ * WooCommerce has already checked the nonce and capabilities by the time the filter fires.
+ *
+ * Stands in for WooCommerce's own bulk mark-status loop, which never runs for our action
+ * keys, so whatever it does around the status change is replicated here, not inherited.
+ */
+
 declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
-
-/**
- * Bulk "Capture and complete" / hijacked "Mark as completed".
- * Filter: handle_bulk_actions-woocommerce_page_wc-orders (nonce and caps already checked by WC)
- *
- * Stands in for WooCommerce's own do_bulk_action_mark_orders(), which never runs for
- * our action keys, so anything it does around the status change is replicated below
- * rather than inherited.
- */
 
 require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-capture.php';
 
@@ -20,9 +19,8 @@ remove_action( 'woocommerce_order_status_completed', 'wc_scanpay_order_status_co
 
 /** Complete the selected orders, capturing first when asked to. */
 function wc_scanpay_handle_bulk_capture( string $redirect_to, array $ids, bool $capture ): string {
-	// Instantiate the gateways so their status-transition hooks are registered, as WC
-	// core does. Our bulk actions replace "Mark as completed" for every order in the
-	// list, not just Scanpay ones, so other gateways must get that chance too.
+	// Instantiate the gateways so their status-transition hooks register, as WC core does:
+	// our actions replace "Mark as completed" for every order in the list, not only ours.
 	WC()->payment_gateways();
 
 	$oids = [];
@@ -36,28 +34,26 @@ function wc_scanpay_handle_bulk_capture( string $redirect_to, array $ids, bool $
 	}
 
 	// Granted before the loop, so the threshold below races this 60 rather than a host
-	// default of 30, where the two would be equal and the renewal unreachable. Not a
-	// hypothetical here: the bailout is taken at the opcode after a 20 s cURL wait returns,
-	// which is inside capture() and never the top of the loop where the check lives.
+	// default of 30, where the two would be equal and the renewal unreachable. Not
+	// hypothetical: the bailout lands at the opcode after a 20 s cURL wait returns, inside
+	// capture() and never at the top of the loop where the check lives.
 	set_time_limit( 60 );
 
 	$changed = 0;
 	$renewed = microtime( true );
 	foreach ( $oids as $oid ) {
-		// Merchant-supplied and unbounded, and every Scanpay order in it costs a capture the
-		// client gives 20 s plus a completed-order email that save() sends inline, so 30 is a
-		// renewal cadence and not a bound on one pass. A kill between the charge and that
-		// save() leaves a paid order uncompleted, and only capture()'s note -- written as soon
-		// as the money moves -- keeps that from being silent. set_time_limit() resets the
-		// counter rather than adding to it, so renewing before it is due costs nothing.
+		// The list is merchant-supplied and unbounded, and each Scanpay order costs a 20 s
+		// capture plus an email save() sends inline, so 30 is a renewal cadence and not a
+		// bound on one pass. A kill between the charge and that save() leaves a paid order
+		// uncompleted, and only capture()'s note keeps that from being silent.
 		if ( microtime( true ) - $renewed >= 30 ) {
 			set_time_limit( 60 );
 			$renewed = microtime( true );
 		}
 		$wco = wc_get_order( $oid );
-		// 'trash' is the last line of defense, read in 'edit' so no filter can answer it:
-		// the menu does not offer our actions in the trash view, but the handler must not
-		// rely on that -- capturing a trashed order would charge the customer and untrash it.
+		// 'trash' is the last line of defense, read in 'edit' so no filter can answer it.
+		// The menu hides our actions in the trash view, but capturing a trashed order would
+		// charge the customer and untrash it, so the handler must not rely on that.
 		if ( ! $wco || in_array( $wco->get_status( 'edit' ), [ 'completed', 'trash' ], true ) ) {
 			continue;
 		}
@@ -66,9 +62,9 @@ function wc_scanpay_handle_bulk_capture( string $redirect_to, array $ids, bool $
 		}
 		$wco->set_status( 'completed', __( 'Order status changed by bulk edit.', 'scanpay-for-woocommerce' ), true );
 		$wco->save();
-		// The second fire, as upstream's own bulk loops do it. set_status( ..., true ) above
-		// already made the first, but that one runs before the write, so a listener reading
-		// the order back rather than trusting the arguments would see the pre-change status.
+		// A second fire, as upstream's own bulk loop does it: set_status( ..., true ) already
+		// made the first, but that one runs before the write, so a listener reading the order
+		// back rather than trusting the arguments would see the pre-change status.
 		do_action( 'woocommerce_order_edit_status', $oid, 'completed' );
 		++$changed;
 	}

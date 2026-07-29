@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * The card gateway, and the only one of the three that supports subscriptions. Its
+ * settings option is the primary one: it holds the shared API key and every cross-gateway
+ * setting, so this constructor runs on every front-end request, enabled or not.
+ */
+
 declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
@@ -27,20 +33,14 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 			'multiple_subscriptions',
 		];
 		// Both read $this->settings directly, for the reason init_gateway_props() documents:
-		// get_option() would force-load the lazy form fields for a key the stored option
-		// lacks, and this gateway's fields file opens with an unbounded get_pages(). The
-		// fallbacks are the field definitions' own defaults, and ?? -- not ?: -- because
-		// neither call passed an $empty_value, so a stored '' registers nothing today.
-		// The stylesheet setting is the only gate here, deliberately. checkout.css is not the
-		// card gateway's: all three gateways wrap their icons in the same
-		// <span class="wcsp-methods">, so it sizes the icons of whichever ones a shop runs,
-		// and adding 'yes' === $this->enabled would strip that from a MobilePay-only or
-		// Apple-Pay-only shop. It is registered from this constructor because the card
-		// settings are the primary/shared option, and the constructor runs whatever enabled
-		// says: WC_Payment_Gateways::init() does $gateway = new $gateway() for every class
-		// the woocommerce_payment_gateways filter returns, with no enabled test in that loop
-		// (class-wc-payment-gateways.php:110-113). That filtering happens later, in
-		// get_available_payment_gateways().
+		// get_option() would force-load the lazy form fields, and this gateway's fields file
+		// opens with an unbounded get_pages(). The fallbacks are the field defaults.
+		//
+		// The stylesheet setting is the only gate, deliberately: checkout.css is not the card
+		// gateway's -- all three wrap their icons in the same <span class="wcsp-methods"> --
+		// so adding 'yes' === $this->enabled would strip it from a MobilePay-only shop.
+		// WC_Payment_Gateways::init() constructs every registered class with no enabled test,
+		// which is what makes this constructor the right place for a shop-wide hook.
 		if ( 'yes' === ( $this->settings['stylesheet'] ?? 'yes' ) ) {
 			add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_checkout_styles' ] );
 		}
@@ -58,15 +58,12 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 	}
 
 	/**
-	 * The card icons rendered at checkout, per the 'card_icons' setting.
-	 *
-	 * This override does not make $this->icon dead: WooCommerce reads the raw
-	 * property for the admin Payments list.
+	 * The card icons rendered at checkout, per the 'card_icons' setting. Does not make
+	 * $this->icon dead: WooCommerce reads the raw property for the admin Payments list.
 	 */
 	public function get_icon(): string {
-		// array_filter for the same normalization the Blocks payload applies. Defensive
-		// consistency, not a fix: get_option()'s $empty_value already coerces a stored ''
-		// to [] before this cast, so an empty entry cannot reach the loop today.
+		// array_filter mirrors the normalization the Blocks payload applies. Consistency, not
+		// a fix: get_option()'s $empty_value already coerces a stored '' to [].
 		$cards = array_values( array_filter( (array) $this->get_option( 'card_icons', [] ) ) );
 		$html  = '';
 		if ( $cards ) {
@@ -78,8 +75,8 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 			}
 			$html .= '</span>';
 		}
-		// Filtered after our own markup is built and escaped, as WC_Payment_Gateway does.
-		// Cast: a filter callback is bound by no contract, and this method returns string.
+		// Filtered after our markup is built and escaped, as WC_Payment_Gateway does. Cast
+		// because a filter callback is bound by no contract.
 		return (string) apply_filters( 'woocommerce_gateway_icon', $html, $this->id );
 	}
 
@@ -99,14 +96,12 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 		$saved = parent::process_admin_options();
 		$new   = (int) explode( ':', (string) $this->get_option( 'apikey', '' ) )[0];
 		/*
-		 * A stored key can never be replaced here (validate_apikey_field() refuses),
-		 * so this only fires when a key is first set -- on a fresh install or after a
-		 * reset. install.php is idempotent: it creates the tables if missing and
-		 * seeds this shop's seq row at 0, which the ping handler requires before it
-		 * will sync (it responds "shop not configured" without one).
+		 * validate_apikey_field() refuses to replace a stored key, so this only fires when
+		 * one is first set: a fresh install or a post-reset save. install.php is idempotent
+		 * -- it creates the tables if missing and seeds this shop's seq row at 0, without
+		 * which the ping handler answers "shop not configured" and never syncs.
 		 *
-		 * Nothing is dropped here. Deleting data is the reset button's job alone
-		 * (admin/hooks/wp-ajax-wc-scanpay-reset.php), never a side effect of a save.
+		 * Nothing is dropped here; deleting data is the reset button's job alone.
 		 */
 		if ( $new && $new !== $old ) {
 			require WC_SCANPAY_DIR . '/install.php';
