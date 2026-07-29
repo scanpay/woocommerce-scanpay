@@ -178,17 +178,26 @@ function wc_scanpay_order_status_completed( int $oid, WC_Order $wco ): void {
  * '' folds the disabled states ('0' and a stored '') in with every stale one -- drafted,
  * private, trashed or deleted -- and keeps get_page_link()'s unguarded post dereference
  * inside that guard.
+ *
+ * Memoized: Blocks builds the payment-method payload on both the checkout and the cart enqueue
+ * hooks, and get_page_link() is a permalink build. Nothing writes the setting mid-request.
  */
 function wcs_scanpay_terms_url(): string {
+	static $url = null;
+	if ( null !== $url ) {
+		return $url;
+	}
+	$url      = '';
 	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
 	if ( ! is_array( $settings ) ) {
-		return '';
+		return $url;
 	}
 	$page_id = (int) ( $settings['wcs_terms'] ?? 0 );
 	if ( $page_id <= 0 || 'publish' !== get_post_status( $page_id ) ) {
-		return '';
+		return $url;
 	}
-	return (string) get_page_link( $page_id );
+	$url = (string) get_page_link( $page_id );
+	return $url;
 }
 
 /**
