@@ -99,6 +99,16 @@ final class WC_Scanpay_Capture {
 		// so this subtracts the gross captured amount, not the net one above.
 		$remaining_on_auth = wc_scanpay_submoney( $meta['authorized'], $meta['captured'] );
 		if ( wc_scanpay_cmpmoney( $to_capture, $remaining_on_auth ) > 0 ) {
+			// Logged before the clamp overwrites the figure, because nothing downstream says
+			// it happened: capture() returns normally, capture_or_hold() answers true, and the
+			// success note below reads exactly like a full capture. Sync's underpayment branch
+			// is the sister case and reports it, so this is the standard the file already sets.
+			scanpay_log(
+				'error',
+				"Order #$oid: capture reduced to the authorized remainder -- order owes " .
+				"$to_capture, authorization has $remaining_on_auth left. The difference will " .
+				'not be collected.'
+			);
 			$to_capture = $remaining_on_auth;
 		}
 		if ( wc_scanpay_cmpmoney( $to_capture, '0' ) <= 0 ) {
