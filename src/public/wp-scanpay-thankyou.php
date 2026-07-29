@@ -105,9 +105,13 @@ function wc_scanpay_init_thankyou(): void {
 		// own right, because order_key is nullable in the HPOS operational-data table and
 		// both branches can hand back NULL -- without that clause hash_equals( '', '' ) lets
 		// a bare "key=" through, which the router's isset() does not stop.
+		//
+		// sanitize_text_field, not a bare cast: ?key[]=x reaches here as an array, which
+		// wp_unslash() returns unchanged and (string) turns into "Array" plus a PHP warning.
+		// The router only isset()s it, so nothing upstream constrains the type.
 		if ( 0 === $i && (
 			'' === (string) $row['order_key']
-			|| ! hash_equals( (string) $row['order_key'], (string) wp_unslash( $_GET['key'] ?? '' ) )
+			|| ! hash_equals( (string) $row['order_key'], sanitize_text_field( wp_unslash( $_GET['key'] ?? '' ) ) )
 			|| ! str_starts_with( (string) $row['payment_method'], 'scanpay' )
 		) ) {
 			return;
@@ -147,7 +151,7 @@ function wcs_scanpay_init_thankyou_free(): void {
 	if (
 		! $row
 		|| '' === (string) $row['order_key']
-		|| ! hash_equals( (string) $row['order_key'], (string) wp_unslash( $_GET['key'] ?? '' ) )
+		|| ! hash_equals( (string) $row['order_key'], sanitize_text_field( wp_unslash( $_GET['key'] ?? '' ) ) )
 		|| ! str_starts_with( (string) $row['payment_method'], 'scanpay' )
 	) {
 		return;
