@@ -1,3 +1,15 @@
+/**
+ * Two independent status probes for the admin screens, each answered from a localStorage
+ * cache before the network is touched: getLastSync() polls the plugin's own ?x=ping
+ * endpoint for the last ping received from Scanpay, and checkVersion() asks the GitHub
+ * releases API for the newest release. isVersionGreater() compares the latter against the
+ * running version, for the callers that render an out-of-date banner.
+ *
+ * Caching is all the two halves share -- separate endpoints, separate TTLs (5 min against
+ * Scanpay's keepalive, 1 h against GitHub's rate-limit window) and separate failure
+ * handling. Neither is about compatibility, despite the file name.
+ */
+
 function safeJsonParse<T>(str: string | null, defaultValue: T): T {
 	if (!str) return defaultValue;
 	try {
