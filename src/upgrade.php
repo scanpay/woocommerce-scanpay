@@ -11,8 +11,7 @@ declare(strict_types=1);
 defined( 'ABSPATH' ) || exit();
 
 global $wpdb;
-$version    = (string) get_option( 'wc_scanpay_version', '0.0.0' );
-$wcs_exists = class_exists( 'WC_Subscriptions', false );
+$version = (string) get_option( 'wc_scanpay_version', '0.0.0' );
 set_time_limit( 60 );
 
 /*
@@ -88,97 +87,6 @@ if ( version_compare( $version, '2.0.0', '<' ) ) {
 		$old
 	);
 	update_option( WC_SCANPAY_URI_SETTINGS, $settings, true );
-}
-
-/*
- *  Version: 2.1.3
- *  1.x tracked the subscriber id in its own '_scanpay_subscriber_id' meta. Adopt that id
- *  when it is the higher of the two, unless the subscription's current subid already
- *  carries the newer transaction -- in which case 1.x's copy is the stale one.
- */
-if ( $wcs_exists && version_compare( $version, '2.1.3', '<' ) ) {
-	/*
-	 * The newest transaction per subscriber, read once. scanpay_meta's only key is
-	 * PRIMARY KEY (orderid), so per-row lookups would be a full table scan each. A snapshot
-	 * is sound: the loop writes order meta, never scanpay_meta.
-	 *
-	 * Checked, because one failed query now decides every comparison at once: an empty map
-	 * reads as "no transaction" and would adopt 1.x's subid on subscriptions whose current
-	 * one is in fact the newer.
-	 */
-	$max_trn = [];
-	$rows    = $wpdb->get_results( "SELECT subid, MAX(id) AS id FROM {$wpdb->prefix}scanpay_meta WHERE subid > 0 GROUP BY subid", ARRAY_A );
-	if ( $wpdb->last_error ) {
-		// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message, not browser output.
-		throw new Exception( 'Could not read the newest transaction per subscriber: ' . $wpdb->last_error );
-	}
-	foreach ( (array) $rows as $row ) {
-		$max_trn[ (int) $row['subid'] ] = (int) $row['id'];
-	}
-
-	/*
-	 * Batched by id. 'limit' => -1 would build a full WC_Subscription per matching row, so a
-	 * large shop never got through the branch -- and because the version is stamped last, it
-	 * restarted from zero on every retry instead of failing visibly.
-	 *
-	 * Paging cannot skip a subscription: the loop writes WC_SCANPAY_URI_SUBID while the
-	 * query filters on '_scanpay_subscriber_id', so the result set does not shrink
-	 * underneath the offset.
-	 */
-	$page_size = 500;
-	$offset    = 0;
-	$renewed   = microtime( true );
-	do {
-		$wc_subs = wc_get_orders(
-			[
-				'type'     => 'shop_subscription',
-				'status'   => 'all',
-				'return'   => 'ids',
-				'meta_key' => '_scanpay_subscriber_id', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- The 1.x key is the only way to find these rows, and this branch runs once per shop.
-				'limit'    => $page_size,
-				'offset'   => $offset,
-				'orderby'  => 'ID',
-				'order'    => 'ASC',
-			]
-		);
-		$n_found = count( $wc_subs );
-
-		foreach ( $wc_subs as $oid ) {
-			// This branch alone can outlast the file's single set_time_limit( 60 ).
-			// set_time_limit() resets the counter rather than adding to it, so renewing
-			// before it is due costs nothing.
-			if ( microtime( true ) - $renewed >= 30 ) {
-				set_time_limit( 60 );
-				$renewed = microtime( true );
-			}
-			$wc_sub = wcs_get_subscription( $oid );
-			// 'edit', as every other payment-method read in the tree: in view context
-			// woocommerce_order_get_payment_method lets a third party decide what the stored
-			// value is while we decide whether to rewrite it.
-			if ( ! $wc_sub || ! str_starts_with( $wc_sub->get_payment_method( 'edit' ), 'scanpay' ) ) {
-				continue;
-			}
-			$subid       = (int) $wc_sub->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' );
-			$black_subid = (int) $wc_sub->get_meta( '_scanpay_subscriber_id', true, 'edit' );
-			if ( $black_subid > $subid ) {
-				if ( $subid ) {
-					$trn       = $max_trn[ $subid ] ?? 0;
-					$black_trn = $max_trn[ $black_subid ] ?? 0;
-					if ( $trn && $trn > $black_trn ) {
-						continue;
-					}
-				}
-				scanpay_log( 'info', "change subid on #$oid (from '$subid' to '$black_subid')" );
-				$wc_sub->update_meta_data( WC_SCANPAY_URI_SUBID, $black_subid );
-				// No cache invalidation of our own: WC_Data::save_meta_data() ends by deleting
-				// this object's meta cache entry, and nothing here reads it back -- the
-				// comparison above is answered from the array built before the loop.
-				$wc_sub->save_meta_data();
-			}
-		}
-		$offset += $page_size;
-		// A short page is the last one; a full page means there may be more.
-	} while ( $n_found === $page_size );
 }
 
 /*

@@ -119,8 +119,7 @@ final class WCS_Scanpay_Charge {
 		 * Absent or zero proceeds, unlike WC_Scanpay_Capture, which throws on it: a
 		 * 1.x-migrated store can legitimately have no stamp. WC_Scanpay_Sync::subscriber()
 		 * writes it only for subscriptions resolved from a 'wcs[]' ref, which 1.x never
-		 * wrote, and the 2.1.3 branch of upgrade.php backfills only the subid. Failing those
-		 * renewals would stop them with no merchant-visible cause.
+		 * wrote. Failing those renewals would stop them with no merchant-visible cause.
 		 */
 		if ( $order_shopid <= 0 ) {
 			scanpay_log( 'warning', "scheduled charge: no shop id on #$oid; charging under shop {$this->shopid} (subid=$subid)" );

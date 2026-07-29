@@ -251,8 +251,10 @@ function wc_scanpay_plugins_loaded() {
 	}
 
 	// Version-gated install/migrations; the option is autoloaded, so the check is free. The
-	// guard above means WC core is loaded, so upgrade.php may use wc_get_orders(). The
-	// transient serializes two requests racing it; upgrade.php's steps are idempotent.
+	// guard above means WC's classes are loaded, not that its runtime is up: this is
+	// plugins_loaded, and WC()->init() builds the order factory on init. upgrade.php therefore
+	// stays on $wpdb and the options API, never WC's object layer. The transient serializes
+	// two requests racing it; upgrade.php's steps are idempotent.
 	if (
 		get_option( 'wc_scanpay_version' ) !== WC_SCANPAY_VERSION && ! get_transient( 'wc_scanpay_updating' )
 	) {
