@@ -31,9 +31,12 @@ if ( ! $shopid ) {
 		esc_url( 'https://wordpress.org/plugins/scanpay-for-woocommerce/#installation' ),
 		esc_html__( 'installation guide', 'scanpay-for-woocommerce' )
 	);
+	// esc_html__, like every other string in this call: wc_scanpay_admin_notice() echoes its
+	// argument raw and documents the parameter as pre-escaped HTML. The link is escaped above,
+	// so the order is right -- the msgid is escaped first, then the markup is substituted in.
 	$setup_text = sprintf(
 		/* translators: %s is a link to the installation guide. */
-		__( 'To get started, please complete the setup using our %s.', 'scanpay-for-woocommerce' ),
+		esc_html__( 'To get started, please complete the setup using our %s.', 'scanpay-for-woocommerce' ),
 		$guide_link
 	);
 	wc_scanpay_admin_notice(
