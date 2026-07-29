@@ -60,7 +60,6 @@ export function buildTable(arr: [string, any][]) {
 		title.className = 'wcsp-meta-li-title';
 		title.textContent = x[0] + ':';
 		const value = document.createElement('div');
-		value.className = 'wcsp-meta-li-value';
 		value.textContent = String(x[1]);
 		li.append(title, value);
 		ul.appendChild(li);
@@ -80,7 +79,7 @@ export function pluginVersionCheck() {
 			// A separate msgid from the settings-screen banner on purpose: that one names the
 			// running version, and only that screen has one to render.
 			div.innerHTML = __(
-				'Your scanpay plugin is <b class="scanpay-outdated">outdated</b>. Please update to <span class="wcsp-meta-version"></span> (<a href="//github.com/scanpay/woocommerce-scanpay/releases" target="_blank">changelog</a>)',
+				'Your scanpay plugin is <b>outdated</b>. Please update to <span class="wcsp-meta-version"></span> (<a href="//github.com/scanpay/woocommerce-scanpay/releases" target="_blank">changelog</a>)',
 				'scanpay-for-woocommerce'
 			);
 			const span = div.querySelector('.wcsp-meta-version');
