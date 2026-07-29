@@ -81,13 +81,11 @@ are listed once rather than individually.
 | wp_create_nonce, check_ajax_referer       |   2.0.3   |
 | current_user_can, get_post_status         |   2.0.0   |
 | nocache_headers, wp_cache_flush           |   2.0.0   |
-| register_activation_hook                  |   2.0.0   |
 | is_admin                                  |   1.5.1   |
 | get_option, get_pages, get_page_link      |   1.5.0   |
 | add_query_arg, load_plugin_textdomain     |   1.5.0   |
 | add_action, do_action, remove_action      |   1.2.0   |
 | delete_option                             |   1.2.0   |
-| add_option                                |   1.0.0   |
 | add_filter, apply_filters                 |   0.71    |
 | wpdb->\*                                  |   0.71    |
 
