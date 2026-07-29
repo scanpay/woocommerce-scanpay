@@ -102,9 +102,20 @@ add_action( 'woocommerce_after_checkout_validation', 'wcs_scanpay_validate_terms
  * checkout with a 400 and surfaces the message to the customer.
  *
  * Not conditioned on the payment method: the block renders once below the payment method
- * list, so the consent covers every gateway the customer can pick.
+ * list, so the consent covers every gateway the customer can pick. It is conditioned on the
+ * HTTP method, because the hook is not place-order-only -- see the body.
  */
 function wcs_scanpay_blocks_validate_terms( WC_Order $order, WP_REST_Request $request ): void {
+	// POST only. update_order_from_request() is called from two Store API routes, and the
+	// PUT/PATCH one posts a CheckoutPutData body -- additional_fields, order_notes,
+	// payment_method -- carrying no extensions at all. Enforcing there rejects a request that
+	// was never a purchase attempt: a customer who backs out of the payment window onto a live
+	// draft order and then edits a field is told to accept terms they already ticked, on that
+	// and every later interaction. The place-order route still runs this ahead of
+	// process_payment(), so nothing becomes bypassable.
+	if ( 'POST' !== $request->get_method() ) {
+		return;
+	}
 	if ( ! class_exists( 'WC_Subscriptions_Cart', false ) || ! WC_Subscriptions_Cart::cart_contains_subscription() ) {
 		return;
 	}
