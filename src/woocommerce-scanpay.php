@@ -297,17 +297,6 @@ function wc_scanpay_plugins_loaded() {
 add_action( 'plugins_loaded', 'wc_scanpay_plugins_loaded', 10 );
 
 /**
- * Installation hook; needs no WooCommerce runtime. We avoid register_activation_hook()
- * as it would add unnecessary overhead. Note that basename() does not work if the plugin is
- * symlinked under a different name in the plugins dir.
- */
-function wc_scanpay_activate(): void {
-	require WC_SCANPAY_DIR . '/install.php';
-}
-add_action( 'activate_' . basename( WC_SCANPAY_DIR ) . '/woocommerce-scanpay.php', 'wc_scanpay_activate' );
-
-
-/**
  * Declare HPOS compatibility -- the only feature worth declaring: features default to
  * compatible and WC's incompatibility notice lists explicit *negative* declarations only, so
  * the absent cart_checkout_blocks declaration is a no-op rather than an oversight.
