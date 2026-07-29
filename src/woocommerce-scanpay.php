@@ -187,13 +187,19 @@ function wcs_scanpay_terms_url(): string {
 }
 
 /**
- * Whether WCS is changing a subscription's payment method rather than paying for an order.
+ * Whether WCS is changing this order's payment method rather than paying for it. The "order"
+ * our payment code is handed on that path is the subscription itself -- hence the argument, and
+ * hence wc_scanpay_subref() reading the id as a subscription id.
  *
- * The "order" our payment code is then handed is the subscription itself -- see
- * wc_scanpay_subref(). One definition, because several callers must agree on it.
+ * The order is the proof, not a convenience: WCS raises its flag from a bare $_GET sniff on
+ * plugins_loaded, with no nonce and no ownership check, so without it a crafted
+ * ?change_payment_method on an ordinary checkout takes the register-a-card exit and hands the
+ * shopper "order received" for an order that was never charged. WC_Subscription is WCS 2.0, the
+ * declared floor, and ships in subscriptions-core, so the test holds in both configurations.
  */
-function wcs_scanpay_is_payment_method_change(): bool {
-	return class_exists( 'WC_Subscriptions_Change_Payment_Gateway', false )
+function wcs_scanpay_is_payment_method_change( WC_Abstract_Order $wco ): bool {
+	return $wco instanceof WC_Subscription
+		&& class_exists( 'WC_Subscriptions_Change_Payment_Gateway', false )
 		&& WC_Subscriptions_Change_Payment_Gateway::$is_request_to_change_payment;
 }
 

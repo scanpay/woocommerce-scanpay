@@ -40,7 +40,7 @@ function wc_scanpay_phone_prefixer( string $phone, string $country ): string {
 }
 
 function wc_scanpay_subref( int $oid, WC_Abstract_Order $wco ): ?string {
-	if ( wcs_scanpay_is_payment_method_change() ) {
+	if ( wcs_scanpay_is_payment_method_change( $wco ) ) {
 		/*
 		 * A payment-method change creates no order, so $oid is the WCS subscription id.
 		 *
@@ -143,7 +143,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 			 * unblock: the subscriber rev bumps, so idempotency_key() builds a new key and
 			 * the next scheduled charge is not deduped against the declined one.
 			 */
-			$paid_renewal = ! wcs_scanpay_is_payment_method_change();
+			$paid_renewal = ! wcs_scanpay_is_payment_method_change( $wco );
 			try {
 				$link = $client->renew( $subid, $data );
 			} catch ( Exception $e ) {
@@ -182,7 +182,7 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 				'redirect' => $link,
 			];
 		}
-		if ( wcs_scanpay_is_payment_method_change() ) {
+		if ( wcs_scanpay_is_payment_method_change( $wco ) ) {
 			/*
 			 * A method change on a subscription we do not know yet: no _scanpay_subid, so it
 			 * is being moved to us from another gateway. It must register a card and charge
