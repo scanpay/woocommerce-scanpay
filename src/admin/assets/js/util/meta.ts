@@ -1,8 +1,11 @@
-/*
-	Show a warning message in the meta box.
-	Identical messages are shown once (see showWarning).
-	Every helper no-ops when the meta box is not on the page.
-*/
+/**
+ * Rendering helpers for the Scanpay meta box, shared by the order edit screen (order.ts)
+ * and the subscription edit screen (subs.ts): alerts into #wcsp-meta-head, the figures
+ * list into #wcsp-meta-ul, and the out-of-date banner.
+ *
+ * Every helper no-ops when the meta box is not on the page. Each looks its own container
+ * up by id and returns when it is missing, so no caller has to guard.
+ */
 
 import { checkVersion, isVersionGreater } from './compat';
 import { __ } from './i18n';
