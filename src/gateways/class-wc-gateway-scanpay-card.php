@@ -62,9 +62,16 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 	 * $this->icon dead: WooCommerce reads the raw property for the admin Payments list.
 	 */
 	public function get_icon(): string {
-		// array_filter mirrors the normalization the Blocks payload applies. Consistency, not
-		// a fix: get_option()'s $empty_value already coerces a stored '' to [].
-		$cards = array_values( array_filter( (array) $this->get_option( 'card_icons', [] ) ) );
+		// $this->settings directly, for the reason the constructor and init_gateway_props()
+		// both give: WC_Settings_API::get_option() force-loads the lazy form fields for a key
+		// missing from the saved option, and this gateway's fields file opens with an
+		// unbounded get_pages() -- a query over every page on the site, here in the middle of
+		// rendering classic checkout. The fallback is the field default.
+		//
+		// array_filter because WC's validate_multiselect_field() stores '' rather than [] when
+		// nothing is selected, and (array) '' is [ '' ], which renders one broken <img>. It is
+		// load-bearing now: get_option()'s $empty_value used to do that coercion.
+		$cards = array_values( array_filter( (array) ( $this->settings['card_icons'] ?? [ 'visa', 'mastercard' ] ) ) );
 		$html  = '';
 		if ( $cards ) {
 			$html = '<span class="wcsp-methods wcsp-cards">';
