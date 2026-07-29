@@ -70,7 +70,18 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 		// belongs to the subscription in the cart, so it covers every gateway the customer
 		// can pick and stays active while our own are disabled. It reaches the payload
 		// because AbstractPaymentMethodType::is_active() defaults to true.
-		if ( class_exists( 'WC_Subscriptions_Cart', false ) && WC_Subscriptions_Cart::cart_contains_subscription() ) {
+		//
+		// WC_Subscriptions first, and not just the cart class: the validator and the Store API
+		// namespace both live in public/subscriptions.php, which the router loads behind that
+		// guard alone. subscriptions-core ships WC_Subscriptions_Cart without WC_Subscriptions,
+		// so gating on the cart class by itself renders a checkbox nothing enforces -- and the
+		// posted extensions.scanpay.terms is then dropped by an unregistered namespace rather
+		// than refused, so it fails silently in the direction that lets the order through.
+		if (
+			class_exists( 'WC_Subscriptions', false )
+			&& class_exists( 'WC_Subscriptions_Cart', false )
+			&& WC_Subscriptions_Cart::cart_contains_subscription()
+		) {
 			$terms_url = wcs_scanpay_terms_url();
 			if ( '' !== $terms_url ) {
 				$data['terms'] = [
