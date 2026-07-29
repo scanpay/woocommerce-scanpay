@@ -10,6 +10,8 @@ declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 
+require_once WC_SCANPAY_DIR . '/library/functions.php';
+
 /** Handle our custom bulk actions in the WC order list. */
 function wc_scanpay_handle_bulk_actions( string $redirect_to, string $action, array $ids ): string {
 	$capture = true;

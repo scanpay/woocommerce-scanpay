@@ -9,6 +9,8 @@ declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 
+require_once WC_SCANPAY_DIR . '/library/functions.php';
+
 /**
  * The payment method title for Scanpay subscriptions. $title is untyped because this sits
  * in a third-party filter chain, where under strict_types an earlier callback returning
