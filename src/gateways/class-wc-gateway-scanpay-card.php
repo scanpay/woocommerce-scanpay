@@ -3,7 +3,7 @@
 /**
  * The card gateway, and the only one of the three that supports subscriptions. Its
  * settings option is the primary one: it holds the shared API key and every cross-gateway
- * setting, so this constructor runs on every front-end request, enabled or not.
+ * setting.
  */
 
 declare(strict_types=1);

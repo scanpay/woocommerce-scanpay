@@ -2,8 +2,8 @@
 
 /**
  * Column introspection for our own tables, for upgrade.php and the reset endpoint.
- * Kept out of library/functions.php, which the card gateway loads on every front-end
- * request.
+ * Kept out of library/functions.php, which far more code loads: only these two need a
+ * column list.
  */
 
 declare(strict_types=1);

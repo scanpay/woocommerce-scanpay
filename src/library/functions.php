@@ -1,8 +1,8 @@
 <?php
 
 /**
- * Helpers shared by the card gateway, the capture service and the sync service, so the
- * three cannot drift apart. Loaded on every front-end request.
+ * Helpers shared by the card gateway, capture, sync and the admin order screens, so they
+ * cannot drift apart. Each requires this file itself; none inherits it from another.
  */
 
 declare(strict_types=1);
