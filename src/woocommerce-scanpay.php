@@ -16,9 +16,6 @@
  * Domain Path: /languages/
  * License: GPLv3 or later
  * License URI: https://www.gnu.org/licenses/gpl-3.0.html
- *
- * Also requires ext-curl: WC_Scanpay_Client has no fallback transport. No plugin-header
- * field covers PHP extensions, hence the prose.
  */
 
 declare(strict_types=1);
@@ -115,17 +112,10 @@ if ( isset( $_SERVER['HTTP_X_SCANPAY'], $_GET['x'] ) ) {
 }
 
 /**
- * Register the three gateways.
- *
- * The requires belong here, not in wc_scanpay_plugins_loaded(): WC_Payment_Gateways::init()
- * applies this filter immediately before its own class_exists()/new loop, so the four class
- * files are parsed only on the requests that build a gateway list -- classic checkout, the
- * add-payment-method page, the order screens, transactional mail, REST, and any Cart or Mini
- * Cart block -- rather than on every request to the site. WC_SCANPAY_URL, which the
- * constructors read, is defined three lines before this filter is registered.
- *
- * require_once, not require: WC_Settings_Payment_Gateways::save() calls init() a second time
- * after a save, so this filter fires twice in that one request.
+ * Register the three gateways. The requires sit here, not in wc_scanpay_plugins_loaded():
+ * WC_Payment_Gateways::init() applies this filter just before its class_exists()/new loop, so
+ * the classes load only on requests that build a gateway list. require_once because
+ * WC_Settings_Payment_Gateways::save() calls init() again, firing this filter twice.
  */
 function wc_scanpay_register_gateways( array $methods ): array {
 	require_once WC_SCANPAY_DIR . '/gateways/abstract-wc-gateway-scanpay-base.php';
@@ -170,10 +160,6 @@ function wc_scanpay_order_status_completed( int $oid, WC_Order $wco ): void {
  * The single predicate behind both renderers (classic and Blocks) and both validators, so the
  * checkbox is never enforced unrendered, or the reverse. Gateway-independent: the consent
  * belongs to the subscription in the cart, so it covers third-party gateways too.
- *
- * Here, not in public/subscriptions.php, which loads only with the full WC_Subscriptions
- * plugin: the Blocks payload builder guards on WC_Subscriptions_Cart, which subscriptions-core
- * ships alone, so behind that guard this would be a fatal.
  *
  * '' folds the disabled states ('0' and a stored '') in with every stale one -- drafted,
  * private, trashed or deleted -- and keeps get_page_link()'s unguarded post dereference
