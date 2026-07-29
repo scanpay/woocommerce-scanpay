@@ -6,7 +6,7 @@
  * action plus a link to the Scanpay dashboard (where refunds are performed).
  */
 
-import { showError, showWarning, buildTable, pluginVersionCheck } from './util/meta';
+import { renderShell, showError, showWarning, buildTable, pluginVersionCheck } from './util/meta';
 import { __, sprintf } from './util/i18n';
 
 const dom = document.getElementById('wcsp-meta');
@@ -47,13 +47,6 @@ function isZeroMoney(raw: string): boolean {
 /** A well-formed money field is a non-empty decimal string. */
 function isMoney(raw: unknown): raw is string {
 	return typeof raw === 'string' && /^-?\d+(\.\d+)?$/.test(raw.trim());
-}
-
-function renderShell(): void {
-	(dom as HTMLElement).innerHTML =
-		'<div id="wcsp-meta-head"></div>' +
-		'<ul id="wcsp-meta-ul" class="wcsp-meta-ul"></ul>' +
-		'<div id="wcsp-meta-foot"></div>';
 }
 
 function renderFigures(meta: MetaRow, currency: string, decimals: number): void {

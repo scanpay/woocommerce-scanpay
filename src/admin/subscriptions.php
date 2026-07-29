@@ -57,16 +57,15 @@ function wc_scanpay_create_meta_box_subs( $post, array $args ): void {
 			$ptime = (string) $wcs_parent->get_meta( WC_SCANPAY_URI_PTIME, true, 'edit' );
 		}
 	}
+	// The container and its data only: renderShell() (util/meta.ts) owns the markup inside,
+	// for this screen and the order screen both, so the ids it fills exist in one place.
 	// data-endpoint is the base for the ?x=sub poll. admin_url(), never home_url(), for the
 	// CORS-preflight reason wc_scanpay_admin_render_meta_box() gives.
 	echo '<div id="wcsp-meta" data-secret="' . esc_attr( $secret ) . '"
 		data-endpoint="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '"
 		data-subid="' . esc_attr( (string) $wc_sub->get_meta( WC_SCANPAY_URI_SUBID, true, 'edit' ) ) . '"
 		data-payid="' . esc_attr( $payid ) . '"
-		data-ptime="' . esc_attr( $ptime ) . '">
-		<div id="wcsp-meta-head"></div>
-		<ul id="wcsp-meta-ul" class="wcsp-meta-ul"></ul>
-	</div>';
+		data-ptime="' . esc_attr( $ptime ) . '"></div>';
 }
 
 /**

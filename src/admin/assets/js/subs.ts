@@ -9,7 +9,7 @@
  * are no retries/idempotency/nxt columns, so the box surfaces only those fields.
  */
 
-import { showWarning, buildTable, pluginVersionCheck } from './util/meta';
+import { renderShell, showWarning, buildTable, pluginVersionCheck } from './util/meta';
 import { __, sprintf } from './util/i18n';
 
 interface SubRow {
@@ -99,6 +99,8 @@ async function load(): Promise<void> {
 // All inside the box guard: the version banner has nowhere to render without it.
 // order.ts nests it the same way.
 if (box) {
+	// First: everything below renders into the containers this creates.
+	renderShell();
 	if (subid) {
 		load();
 	} else {

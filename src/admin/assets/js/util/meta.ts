@@ -1,7 +1,8 @@
 /**
  * Rendering helpers for the Scanpay meta box, shared by the order edit screen (order.ts)
- * and the subscription edit screen (subs.ts): alerts into #wcsp-meta-head, the figures
- * list into #wcsp-meta-ul, and the out-of-date banner.
+ * and the subscription edit screen (subs.ts): renderShell() builds the box's inner
+ * markup, then alerts and the out-of-date banner go into #wcsp-meta-head and the figures
+ * list into #wcsp-meta-ul.
  *
  * Every helper no-ops when the meta box is not on the page. Each looks its own container
  * up by id and returns when it is missing, so no caller has to guard.
@@ -9,6 +10,23 @@
 
 import { checkVersion, isVersionGreater } from './compat';
 import { __ } from './i18n';
+
+/**
+ * Build the box's inner markup, replacing whatever is there. The sole owner of the ids
+ * the helpers below look up, which is why both server-side renderers print an empty
+ * #wcsp-meta and nothing inside it (orders.php, subscriptions.php). The foot stays empty
+ * on the subscription screen, which has no actions to offer.
+ */
+export function renderShell(): void {
+	const box = document.getElementById('wcsp-meta');
+	if (!box) {
+		return;
+	}
+	box.innerHTML =
+		'<div id="wcsp-meta-head"></div>' +
+		'<ul id="wcsp-meta-ul" class="wcsp-meta-ul"></ul>' +
+		'<div id="wcsp-meta-foot"></div>';
+}
 
 /** The alert container, or null when the meta box was not rendered. */
 function alertHead(): HTMLElement | null {

@@ -141,6 +141,7 @@ function wc_scanpay_admin_render_meta_box( $post ): void {
 		'window.ScanpayOrderData = ' . wp_json_encode( $props, JSON_UNESCAPED_SLASHES ) . ';',
 		'before'
 	);
+	// The container only: renderShell() (util/meta.ts) owns the markup inside it.
 	echo '<div id="wcsp-meta"></div>';
 }
 
