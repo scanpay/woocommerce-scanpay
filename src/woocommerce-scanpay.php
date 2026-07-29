@@ -289,8 +289,11 @@ function wc_scanpay_plugins_loaded() {
 	add_filter( 'woocommerce_payment_gateways', 'wc_scanpay_register_gateways' );
 	// Priority 5 is load-bearing: every WooCommerce listener here runs at 10 or later -- the
 	// transactional emails, wc_downloadable_product_permissions, the stock and sales counts.
-	// Capturing first parks a failure 'on-hold' before the customer is mailed "completed" and
-	// granted downloads for unpaid goods. WC's own PayPal gateway captures at 10; we do not.
+	// It buys order, not prevention. do_action() runs its whole chain whatever a callback does
+	// to the order, and neither the "completed" mail nor the download grant re-checks the
+	// status, so a failed capture still mails and still hands over the goods. What priority 5
+	// guarantees is that the 'on-hold' parking and its note are written first, so the merchant
+	// reads the true state. WC's own PayPal gateway captures at 10; we do not.
 	add_action( 'woocommerce_order_status_completed', 'wc_scanpay_order_status_completed', 5, 2 );
 	add_action( 'woocommerce_blocks_payment_method_type_registration', 'wc_scanpay_register_blocks' );
 
