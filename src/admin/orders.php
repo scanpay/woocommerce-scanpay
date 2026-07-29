@@ -136,9 +136,13 @@ function wc_scanpay_admin_render_meta_box( $post ): void {
 		 */
 		'endpoint'    => admin_url( 'admin-ajax.php' ),
 	];
+	// Default flags, and no JSON_UNESCAPED_SLASHES: escaping '/' as '\/' is the only thing
+	// stopping a string value that contains '</script>' from ending the element, since '<' and
+	// '>' are left alone without JSON_HEX_TAG. JSON.parse() reads both spellings alike, so the
+	// escape costs nothing on the other end.
 	wp_add_inline_script(
 		'wc-scanpay-order',
-		'window.ScanpayOrderData = ' . wp_json_encode( $props, JSON_UNESCAPED_SLASHES ) . ';',
+		'window.ScanpayOrderData = ' . wp_json_encode( $props ) . ';',
 		'before'
 	);
 	// The container only: renderShell() (util/meta.ts) owns the markup inside it.
