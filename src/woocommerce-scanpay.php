@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 
+const WC_SCANPAY_DIR          = __DIR__;
 const WC_SCANPAY_VERSION      = '{{ VERSION }}';
 const WC_SCANPAY_DASHBOARD    = 'https://dashboard.scanpay.dk/';
 const WC_SCANPAY_URI_SETTINGS = 'woocommerce_scanpay_settings';
@@ -34,19 +35,11 @@ const WC_SCANPAY_URI_PTIME    = '_scanpay_payid_time';
 const WC_SCANPAY_URI_SUBID    = '_scanpay_subid';
 const WC_SCANPAY_URI_COMPLETE = '_scanpay_complete';
 
-define( 'WC_SCANPAY_DIR', __DIR__ );
-define( 'WC_SCANPAY_URL', untrailingslashit( plugins_url( '', __FILE__ ) ) );
-// The get_plugins() and plugin_action_links_ key. Derived, so a renamed directory or a
-// checkout symlinked into plugins/ still resolves through $wp_plugin_paths.
-define( 'WC_SCANPAY_BASENAME', plugin_basename( __FILE__ ) );
-
 /**
- * Write to the WooCommerce log. Never throws, by design.
- *
- * The logging class, the handlers and the message filter are all pluggable, and none of them
- * catch. Uncontained, a handler hitting a network blip escapes into whatever flow was writing
- * the line -- skipping the on-hold parking of a paid order, or pinning the sync cursor. No
- * caller can act on that, so error_log() takes the message and the reason both.
+ * Write to the WooCommerce log. Never throws: the logger, its handlers and the message filter
+ * are all pluggable and none of them catch, so a failing handler would escape into the flow
+ * that was writing the line -- skipping a paid order's on-hold parking, or pinning the sync
+ * cursor. No caller can act on that, so error_log() takes the message and the reason both.
  */
 function scanpay_log( string $level, string $msg ): void {
 	static $logger = null;
@@ -74,7 +67,7 @@ if ( isset( $_SERVER['HTTP_X_SIGNATURE'] ) ) {
 	function wc_scanpay_handle_ping(): void {
 		// Not left to wc_scanpay_init(): the return below skips the bootstrap. Sync writes
 		// three translated order notes from this request, which no later one repairs.
-		load_plugin_textdomain( 'scanpay-for-woocommerce', false, dirname( WC_SCANPAY_BASENAME ) . '/languages' );
+		load_plugin_textdomain( 'scanpay-for-woocommerce', false, basename( WC_SCANPAY_DIR ) . '/languages' );
 		require WC_SCANPAY_DIR . '/callback/wc-scanpay-ping.php';
 	}
 	// Since WC 9.0 fired on parse_request by LegacyRestApiStub, not the removed WC_API.
@@ -98,15 +91,13 @@ if ( isset( $_GET['scanpay_thankyou'], $_GET['scanpay_type'], $_GET['key'] ) && 
 }
 
 /*
- * Lightweight admin AJAX endpoints (bypass WP/WC bootstrap).
- *
- * The shared secret rides in the X-Scanpay header, not the query string, so it stays out of
- * access logs, history and Referer. Dispatch gate only; each endpoint re-verifies it with
- * hash_equals(). A secret rather than a capability because plugin load precedes pluggable.php,
- * and deferring would buy the very bootstrap this exists to skip. Unscoped because the screens
- * that print it already require order-editing access, all-or-nothing on a WooCommerce shop,
- * and the endpoints expose a read-only subset of them. Settled: reopen only for a role
- * granting *partial* order access.
+ * Lightweight admin AJAX endpoints, bypassing the WP/WC bootstrap. The shared secret rides in
+ * the X-Scanpay header, not the query string, so it stays out of access logs, history and
+ * Referer. Dispatch gate only; each endpoint re-verifies it with hash_equals(). A secret
+ * rather than a capability because plugin load precedes pluggable.php, and deferring would buy
+ * the very bootstrap this exists to skip. Unscoped because the screens that print it already
+ * require order-editing access, all-or-nothing on a WooCommerce shop, and the endpoints expose
+ * a read-only subset of them. Settled: reopen only for a role granting *partial* order access.
  */
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Routing only; the endpoints authenticate with the secret, as above.
 if ( isset( $_SERVER['HTTP_X_SCANPAY'], $_GET['x'] ) ) {
@@ -159,17 +150,17 @@ function wc_scanpay_order_status_completed( int $oid, WC_Order $wco ): void {
 /**
  * The subscription-terms page URL, or '' when the checkbox must not be shown.
  *
- * The single predicate behind both renderers (classic and Blocks) and both validators, so
- * the checkbox is never enforced unrendered, or the reverse. Gateway-independent: the
- * consent belongs to the subscription in the cart, so it covers third-party gateways too.
+ * The single predicate behind both renderers (classic and Blocks) and both validators, so the
+ * checkbox is never enforced unrendered, or the reverse. Gateway-independent: the consent
+ * belongs to the subscription in the cart, so it covers third-party gateways too.
  *
  * Here, not in public/subscriptions.php, which loads only with the full WC_Subscriptions
- * plugin: the Blocks payload builder guards on WC_Subscriptions_Cart, which
- * subscriptions-core ships alone, so behind that guard this would be a fatal.
+ * plugin: the Blocks payload builder guards on WC_Subscriptions_Cart, which subscriptions-core
+ * ships alone, so behind that guard this would be a fatal.
  *
- * '' folds the disabled states ('0' and a stored '') in with every stale one: the id goes
- * stale once the page is drafted, made private, trashed or deleted. Returning the URL keeps
- * get_page_link()'s unguarded post dereference inside that guard.
+ * '' folds the disabled states ('0' and a stored '') in with every stale one -- drafted,
+ * private, trashed or deleted -- and keeps get_page_link()'s unguarded post dereference
+ * inside that guard.
  */
 function wcs_scanpay_terms_url(): string {
 	$settings = get_option( WC_SCANPAY_URI_SETTINGS );
@@ -200,10 +191,10 @@ function wcs_scanpay_is_payment_method_change(): bool {
  *
  * Request-time policy, persisted in WC_SCANPAY_URI_COMPLETE by the three paths that create a
  * payment attempt; sync obeys the persisted value, so toggling the setting mid-payment cannot
- * reinterpret an attempt the store already accepted. Deliberately not the payload's
- * autocapture expression, which folds in wc_complete_virtual: mirroring it would complete
- * every virtual renewal with the setting off. Callers AND this with the attempt's autocapture
- * flag -- an uncaptured order must never be completed.
+ * reinterpret an attempt the store already accepted. Deliberately not the payload's autocapture
+ * expression, which folds in wc_complete_virtual: mirroring it would complete every virtual
+ * renewal with the setting off. Callers AND this with the attempt's autocapture flag -- an
+ * uncaptured order must never be completed.
  *
  * @param string $flow 'renewal' for either renewal path, anything else for an initial payment.
  */
@@ -213,12 +204,12 @@ function wcs_scanpay_wants_completion( array $settings, string $flow ): bool {
 }
 
 /**
- * Mark a renewal failed, and log why, without ever throwing.
+ * Mark a renewal failed without ever throwing.
  *
  * The one place in the renewal flow that writes 'failed'. Action Scheduler reads an escaping
- * Throwable as a failed action, leaving the renewal neither charged nor marked failed -- so
- * even a failing status write is contained here, appended to the same log entry. $diagnostic
- * is internal; $reason is shown to the merchant, so never pass a backend message.
+ * Throwable as a failed action, leaving the renewal neither charged nor marked failed, so even
+ * a failing status write is contained here and appended to the same log entry. $diagnostic is
+ * internal; $reason reaches the merchant, so never pass a backend message.
  *
  * update_status() also fails without throwing: it catches Exception itself (leaving a logger
  * line and an "Update status event failed." note) and returns false outright for an unsaved
@@ -270,6 +261,10 @@ function wc_scanpay_plugins_loaded() {
 	require WC_SCANPAY_DIR . '/gateways/class-wc-gateway-scanpay-mobilepay.php';
 	require WC_SCANPAY_DIR . '/gateways/class-wc-gateway-scanpay-applepay.php';
 
+	// Down here: ping, payment return and admin AJAX all return before this, and never read a
+	// URL. plugins_url(), not WP_PLUGIN_URL . basename(): mu-plugins, symlinks, https proxies.
+	define( 'WC_SCANPAY_URL', untrailingslashit( plugins_url( '', __FILE__ ) ) );
+
 	add_filter( 'allowed_redirect_hosts', 'wc_scanpay_allowed_redirect_hosts' );
 	add_filter( 'woocommerce_payment_gateways', 'wc_scanpay_register_gateways' );
 	// Priority 5 is load-bearing: every WooCommerce listener here runs at 10 or later -- the
@@ -311,9 +306,14 @@ function wc_scanpay_before_woocommerce_init() {
 add_action( 'before_woocommerce_init', 'wc_scanpay_before_woocommerce_init' );
 
 
-/** Load the translations. 'init' is the earliest load_plugin_textdomain() may run. */
+/**
+ * Load the translations on 'init', the earliest load_plugin_textdomain() may run. The
+ * directory is basename( WC_SCANPAY_DIR ), not plugin_basename( __FILE__ ): they differ only
+ * for a checkout symlinked into plugins/ under another name, which README.md tells developers
+ * to avoid. Neither that fix nor caching the result is worth its per-request cost.
+ */
 function wc_scanpay_init() {
-	load_plugin_textdomain( 'scanpay-for-woocommerce', false, dirname( WC_SCANPAY_BASENAME ) . '/languages' );
+	load_plugin_textdomain( 'scanpay-for-woocommerce', false, basename( WC_SCANPAY_DIR ) . '/languages' );
 }
 add_action( 'init', 'wc_scanpay_init', 0 );
 
@@ -339,8 +339,9 @@ add_action( 'admin_init', 'wc_scanpay_admin_init', 0 );
  *
  * The slug is matched literally (from= is telemetry, not a route) and still matches at WC
  * 11.1 via PaymentsController::add_menu(); should either half change, this becomes a silent
- * no-op. Priority 999 because remove_menu_page() needs the entry registered, and WooCommerce
- * spreads its own registrations across priorities 9 to 70. Do not lower it.
+ * no-op. Priority 999 because remove_menu_page() needs the entry registered: the entry itself
+ * is added at the default 10, but WooCommerce spreads its admin_menu registrations across 1 to
+ * 99, so leave the margin. Do not lower it.
  */
 function scanpay_remove_wc_payments_menu() {
 	remove_menu_page( 'admin.php?page=wc-settings&tab=checkout&from=PAYMENTS_MENU_ITEM' );
