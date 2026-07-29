@@ -22,10 +22,16 @@ if (
 	// still-published page.
 	$url = wcs_scanpay_terms_url();
 	if ( '' !== $url ) {
-		$txt = sprintf(
-			/* translators: %s is a link to the subscription terms page. */
-			__( 'I accept the %s.', 'scanpay-for-woocommerce' ),
-			'<a href="' . esc_url( $url ) . '">' . esc_html__( 'subscription terms', 'scanpay-for-woocommerce' ) . '</a>'
+		// One sentence shared with the Blocks renderer, which feeds this msgid to
+		// createInterpolateElement(). Only the opening tag is rewritten, so a translation that
+		// drops it degrades to plain text with no link, exactly as Blocks degrades.
+		// target=_blank keeps the customer from navigating away from a filled-in checkout.
+		// No escaping here: woocommerce_form_field() runs wp_kses_post() on the label.
+		$txt = str_replace(
+			'<a>',
+			'<a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">',
+			/* translators: keep the <a> tags around the link text; they become the link to the subscription terms page. */
+			__( 'I accept the <a>subscription terms</a>.', 'scanpay-for-woocommerce' )
 		);
 
 		woocommerce_form_field(

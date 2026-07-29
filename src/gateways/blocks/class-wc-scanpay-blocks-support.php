@@ -75,11 +75,11 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 			if ( '' !== $terms_url ) {
 				$data['terms'] = [
 					'url'   => esc_url_raw( $terms_url ),
-					// Split on %s in checkout.ts to build the link. Verbatim from the classic
-					// renderer, so translators localize one sentence.
-					/* translators: %s is a link to the subscription terms page. */
-					'label' => __( 'I accept the %s.', 'scanpay-for-woocommerce' ),
-					'link'  => __( 'subscription terms', 'scanpay-for-woocommerce' ),
+					// Fed to createInterpolateElement() in checkout.ts, which swaps the <a> tag for
+					// a real element. Verbatim from the classic renderer, which rewrites the same
+					// tag in PHP, so translators localize one sentence for both checkouts.
+					/* translators: keep the <a> tags around the link text; they become the link to the subscription terms page. */
+					'label' => __( 'I accept the <a>subscription terms</a>.', 'scanpay-for-woocommerce' ),
 					'error' => __( 'You must accept the subscription terms to complete your purchase.', 'scanpay-for-woocommerce' ),
 				];
 			}

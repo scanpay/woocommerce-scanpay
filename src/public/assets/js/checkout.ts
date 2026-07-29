@@ -8,7 +8,7 @@
  */
 import { WooPaymentMethodData } from './types/checkout';
 
-const { createElement, Fragment, useState, useEffect } = window.wp.element;
+const { createElement, createInterpolateElement, Fragment, useState, useEffect } = window.wp.element;
 const { dispatch, useSelect } = window.wp.data;
 const data = window.wc.wcSettings.getSetting('scanpay_data') as WooPaymentMethodData;
 
@@ -96,10 +96,7 @@ if (terms) {
 	const errorId = 'wcssp-terms';
 	// Unpacked here rather than read through `terms` inside Terms(): a hoisted function
 	// declaration loses the narrowing that the `if` above establishes.
-	const { url, link, error: errorText } = terms;
-	// One translated sentence shared with the classic renderer, split on its %s placeholder.
-	// A translation that drops %s degrades to plain text with no link, never to a broken one.
-	const [before, after] = terms.label.split('%s');
+	const { url, label, error: errorText } = terms;
 
 	function Terms() {
 		const [accepted, setAccepted] = useState(false);
@@ -133,9 +130,14 @@ if (terms) {
 					onChange: (e: { target: { checked: boolean } }) => setAccepted(e.target.checked),
 				}),
 				' ',
-				before,
-				createElement('a', { href: url, target: '_blank', rel: 'noopener noreferrer' }, link),
-				after
+				// One translated sentence shared with the classic renderer, which rewrites the
+				// same <a> tag in PHP. A translation that drops or mangles the tag renders as
+				// plain text with no link -- every malformed-string path in
+				// createInterpolateElement() falls through to its text branch. It throws only on
+				// a bad conversion map, and ours is the constant below.
+				createInterpolateElement(label, {
+					a: createElement('a', { href: url, target: '_blank', rel: 'noopener noreferrer' }),
+				})
 			),
 			// Same markup as WooCommerce's ValidationInputError so the message picks up core
 			// styling, without binding to a component that may move between versions.

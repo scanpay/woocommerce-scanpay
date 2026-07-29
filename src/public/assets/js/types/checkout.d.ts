@@ -74,8 +74,7 @@ interface WooPaymentMethodData {
 	// checkout, so it is rendered once, outside any gateway.
 	terms?: {
 		url: string;
-		label: string; // Sentence with a %s placeholder for the link.
-		link: string;
+		label: string; // Sentence with an <a> tag around the link text; see checkout.ts.
 		error: string;
 	};
 }

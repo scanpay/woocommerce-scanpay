@@ -254,16 +254,10 @@ msgstr ""
 msgid "Error: The Scanpay API key is malformed. It should look like \"1234:xxxxxxxx\"."
 msgstr ""
 
-#. translators: %s is a link to the subscription terms page.
+#. translators: keep the <a> tags around the link text; they become the link to the subscription terms page.
 #: gateways/blocks/class-wc-scanpay-blocks-support.php:81
-#: public/wcs-scanpay-checkout-terms.php:23
-#, php-format
-msgid "I accept the %s."
-msgstr ""
-
-#: gateways/blocks/class-wc-scanpay-blocks-support.php:82
-#: public/wcs-scanpay-checkout-terms.php:24
-msgid "subscription terms"
+#: public/wcs-scanpay-checkout-terms.php:29
+msgid "I accept the <a>subscription terms</a>."
 msgstr ""
 
 #: gateways/blocks/class-wc-scanpay-blocks-support.php:83

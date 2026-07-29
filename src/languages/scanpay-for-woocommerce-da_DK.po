@@ -253,17 +253,11 @@ msgstr "Fejl: Scanpay API-nøglen kan ikke udskiftes. Slet først de lokale Scan
 msgid "Error: The Scanpay API key is malformed. It should look like \"1234:xxxxxxxx\"."
 msgstr "Fejl: Scanpay API-nøglen har et forkert format. Den skal se ud som \"1234:xxxxxxxx\"."
 
-#. translators: %s is a link to the subscription terms page.
+#. translators: keep the <a> tags around the link text; they become the link to the subscription terms page.
 #: gateways/blocks/class-wc-scanpay-blocks-support.php:81
-#: public/wcs-scanpay-checkout-terms.php:23
-#, php-format
-msgid "I accept the %s."
-msgstr "Jeg accepterer %s."
-
-#: gateways/blocks/class-wc-scanpay-blocks-support.php:82
-#: public/wcs-scanpay-checkout-terms.php:24
-msgid "subscription terms"
-msgstr "abonnementsvilkårene"
+#: public/wcs-scanpay-checkout-terms.php:29
+msgid "I accept the <a>subscription terms</a>."
+msgstr "Jeg accepterer <a>abonnementsvilkårene</a>."
 
 #: gateways/blocks/class-wc-scanpay-blocks-support.php:83
 #: woocommerce-scanpay.php:288
