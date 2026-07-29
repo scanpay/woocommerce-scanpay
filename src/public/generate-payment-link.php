@@ -130,7 +130,11 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 				$sum             = wc_scanpay_addmoney( $sum, $line_str );
 				$data['items'][] = [
 					'name'     => $item->get_name( 'edit' ),
-					'quantity' => $item->get_quantity(),
+					// 'edit' like every other read in this payload. Only WC_Order_Item_Product
+					// declares the context parameter; the fee and shipping items inherit
+					// WC_Order_Item::get_quantity(), which takes none -- PHP discards a surplus
+					// argument to a userland method, so both kinds read the stored value.
+					'quantity' => $item->get_quantity( 'edit' ),
 					'total'    => $line_str . ' ' . $currency,
 				];
 			}
