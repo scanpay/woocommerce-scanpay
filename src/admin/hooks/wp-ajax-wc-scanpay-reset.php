@@ -30,10 +30,9 @@ if (
 
 global $wpdb;
 
-// The admin bootstrap loads the gateways, not these two: the flock's only other caller is
-// the ping handler, and the column read is admin-only by design.
+// The admin bootstrap loads the gateways, not this one: the flock's only other caller is
+// the ping handler.
 require_once WC_SCANPAY_DIR . '/library/class-scanpay-flock.php';
-require_once WC_SCANPAY_DIR . '/library/schema.php';
 
 $wcsp_tables = [ 'scanpay_seq', 'scanpay_meta', 'scanpay_subs' ];
 $wcsp_lock   = null;
@@ -162,7 +161,10 @@ $wcsp_schema = [
 ];
 foreach ( $wcsp_schema as $wcsp_tbl => $wcsp_want ) {
 	$wcsp_full = $wpdb->prefix . $wcsp_tbl;
-	$wcsp_have = wc_scanpay_table_columns( $wcsp_full );
+	// %i binds the identifier; it is WP 6.2 and so under the floor, needing no guard. A
+	// missing table is MySQL error 1146 and yields [], which the last_error read below tells
+	// apart from a failed one.
+	$wcsp_have = $wpdb->get_col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', $wcsp_full ) );
 	sort( $wcsp_have );
 	if ( $wcsp_have !== $wcsp_want ) {
 		$wcsp_fail( 'verify_failed', 500, "$wcsp_full is missing or does not carry the current schema (" . implode( ', ', $wcsp_have ) . ") {$wpdb->last_error}" );
