@@ -189,7 +189,7 @@ function wcs_scanpay_terms_url(): string {
 /**
  * Whether WCS is changing this order's payment method rather than paying for it. The "order"
  * our payment code is handed on that path is the subscription itself -- hence the argument, and
- * hence wc_scanpay_subref() reading the id as a subscription id.
+ * hence wcs_scanpay_subref() reading the id as a subscription id.
  *
  * The order is the proof, not a convenience: WCS raises its flag from a bare $_GET sniff on
  * plugins_loaded, with no nonce and no ownership check, so without it a crafted
@@ -248,16 +248,18 @@ function wcs_scanpay_fail_renewal( WC_Order $wco, string $diagnostic, string $re
 }
 
 function wc_scanpay_plugins_loaded() {
-	if ( defined( 'WC_SCANPAY_LOADED' ) ) {
-		return; // Already initialized.
-	}
-	define( 'WC_SCANPAY_LOADED', true );
 	if ( ! class_exists( 'WC_Payment_Gateway', false ) ) {
 		return; // WooCommerce not active.
 	}
-
-	// Version-gated install/migrations; the option is autoloaded, so the check is free. The
-	// guard above means WC's classes are loaded, not that its runtime is up: this is
+	// Version-gated install and migrations, and the only path to either: activation is not
+	// hooked, so the first request that loads the plugin with WooCommerce active is what
+	// creates the tables. One request later than an activate_{$plugin} hook would be, and in
+	// exchange a failure is caught below instead of fatalling the activation screen, a plugin
+	// directory symlinked under another name cannot miss its own hook name, and fresh install,
+	// extra multisite blog and update all take one path. The option is autoloaded, so the
+	// check is free.
+	//
+	// The guard above means WC's classes are loaded, not that its runtime is up: this is
 	// plugins_loaded, and WC()->init() builds the order factory on init. upgrade.php therefore
 	// stays on $wpdb and the options API, never WC's object layer. The transient serializes
 	// two requests racing it; upgrade.php's steps are idempotent.
@@ -291,7 +293,7 @@ function wc_scanpay_plugins_loaded() {
 
 	// The full WCS plugin, not subscriptions-core: see that file's header.
 	if ( class_exists( 'WC_Subscriptions', false ) ) {
-		require WC_SCANPAY_DIR . '/public/subscriptions.php';
+		require_once WC_SCANPAY_DIR . '/public/subscriptions.php';
 	}
 }
 add_action( 'plugins_loaded', 'wc_scanpay_plugins_loaded', 10 );
@@ -333,19 +335,12 @@ function wc_scanpay_admin_init() {
 add_action( 'admin_init', 'wc_scanpay_admin_init', 0 );
 
 /**
- * Drop the duplicate top-level "Payments" admin menu entry.
+ * Remove WooCommerce's top-level "Payments" admin menu. It links to the same
+ * WooCommerce > Settings > Payments screen as the gateway list, making setup
+ * ambiguous.
  *
- * Its slug is the very WooCommerce > Settings > Payments screen that already holds the gateway
- * list, so keeping both only makes the setup path ambiguous. Deliberate and confirmed; the
- * rest is disclosure, not a reopening. It is a site-wide change to another plugin's menu on
- * every admin page load -- the one place this plugin does what wc_scanpay_admin_footer_text()
- * refuses to, and expected to trip the same WordPress.org review that comment cites.
- *
- * The slug is matched literally (from= is telemetry, not a route) and still matches at WC
- * 11.1 via PaymentsController::add_menu(); should either half change, this becomes a silent
- * no-op. Priority 999 because remove_menu_page() needs the entry registered: the entry itself
- * is added at the default 10, but WooCommerce spreads its admin_menu registrations across 1 to
- * 99, so leave the margin. Do not lower it.
+ * The literal slug matches WC 11.1; if WooCommerce changes it, this becomes a
+ * silent no-op. Priority 999 ensures the menu has already been registered.
  */
 function scanpay_remove_wc_payments_menu() {
 	remove_menu_page( 'admin.php?page=wc-settings&tab=checkout&from=PAYMENTS_MENU_ITEM' );
