@@ -374,8 +374,8 @@ msgstr "Scanpay-fornyelsen kunne ikke behandles. Se WooCommerce-logfilerne for d
 
 #: admin/assets/js/order.js:105
 #: admin/assets/js/subs.js:102
-msgid "Your scanpay plugin is <b class=\"scanpay-outdated\">outdated</b>. Please update to <span class=\"wcsp-meta-version\"></span> (<a href=\"//github.com/scanpay/woocommerce-scanpay/releases\" target=\"_blank\">changelog</a>)"
-msgstr "Dit Scanpay-plugin er <b class=\"scanpay-outdated\">forældet</b>. Opdater til <span class=\"wcsp-meta-version\"></span> (<a href=\"//github.com/scanpay/woocommerce-scanpay/releases\" target=\"_blank\">ændringslog</a>)"
+msgid "Your scanpay plugin is <b>outdated</b>. Please update to <span class=\"wcsp-meta-version\"></span> (<a href=\"//github.com/scanpay/woocommerce-scanpay/releases\" target=\"_blank\">changelog</a>)"
+msgstr "Dit Scanpay-plugin er <b>forældet</b>. Opdater til <span class=\"wcsp-meta-version\"></span> (<a href=\"//github.com/scanpay/woocommerce-scanpay/releases\" target=\"_blank\">ændringslog</a>)"
 
 #: admin/assets/js/order.js:122
 msgid "Authorized"
