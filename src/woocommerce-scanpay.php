@@ -261,8 +261,11 @@ function wc_scanpay_plugins_loaded() {
 	//
 	// The guard above means WC's classes are loaded, not that its runtime is up: this is
 	// plugins_loaded, and WC()->init() builds the order factory on init. upgrade.php therefore
-	// stays on $wpdb and the options API, never WC's object layer. The transient serializes
-	// two requests racing it; upgrade.php's steps are idempotent.
+	// stays on $wpdb and the options API, never WC's object layer. The transient does not
+	// serialize: the read and the write below are not atomic, so two requests racing it both
+	// see false and both proceed. What it does buy is a throttle -- one attempt per five
+	// minutes after a failure -- and an overlap is harmless because upgrade.php's steps are
+	// idempotent, each migration re-reading the schema rather than assuming it.
 	if (
 		get_option( 'wc_scanpay_version' ) !== WC_SCANPAY_VERSION && ! get_transient( 'wc_scanpay_updating' )
 	) {
