@@ -17,6 +17,10 @@ declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 
+// Required here rather than inherited from admin/orders.php, which happens to have loaded it
+// already: that file states the rule, and the capture class below is required the same way.
+require_once WC_SCANPAY_DIR . '/library/functions.php';
+
 // Capability first, before anything is parsed: an unauthenticated caller must not learn
 // from the response whether an order id is well-formed. What an authenticated
 // edit_shop_orders actor learns from the tests below, the Orders screen already shows them.
@@ -54,7 +58,7 @@ if ( ! $wco ) {
 	return;
 }
 
-if ( ! str_starts_with( $wco->get_payment_method( 'edit' ), 'scanpay' ) ) {
+if ( ! wc_scanpay_is_scanpay_order( $wco ) ) {
 	return; // Not a Scanpay order; fall through to WooCommerce's handler.
 }
 

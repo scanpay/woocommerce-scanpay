@@ -13,6 +13,10 @@ declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit();
 
+// Required here rather than inherited from admin/orders.php, which happens to have loaded it
+// already: that file states the rule, and the capture class below is required the same way.
+require_once WC_SCANPAY_DIR . '/library/functions.php';
+
 // Capability first, before anything is parsed: an unauthenticated caller should not learn
 // from the response whether an order id is well-formed.
 if ( ! current_user_can( 'edit_shop_orders' ) ) {
@@ -38,7 +42,7 @@ if ( ! check_ajax_referer( 'scanpay-order-' . $oid, 'nonce', false ) ) {
 }
 
 $wco = wc_get_order( $oid );
-if ( ! $wco || ! str_starts_with( (string) $wco->get_payment_method( 'edit' ), 'scanpay' ) ) {
+if ( ! $wco || ! wc_scanpay_is_scanpay_order( $wco ) ) {
 	wp_send_json_error( 'not_a_scanpay_order', 400 );
 }
 
