@@ -189,14 +189,30 @@ Subscriptions' own retry interval.
 
 The plugin owns `scanpay_seq`, `scanpay_meta` and `scanpay_subs` outright, so it issues
 its own DDL in `install.php` and reaches them through `$wpdb` — see the `phpcs.xml`
-exclusions for why. WordPress's own floor (`$required_mysql_version`, still 5.5.5 on
-trunk) is therefore ours too; nothing below uses anything newer.
+exclusions for why. Nothing below uses anything newer than WordPress's own floor
+(`$required_mysql_version`, still 5.5.5 on trunk), so we add no requirement of our own.
+
+The effective floor on a real shop is WooCommerce's: **MySQL 8.0 or MariaDB 10.6**, with
+MySQL 5.6 / MariaDB 10.4 kept as a legacy note and marked End-Of-Life. We inherit that
+number rather than add to it, and it moves without us — Core's June 2025 database policy
+makes only LTS releases eligible as future minimums, so the next step is MariaDB 10.11
+and nothing in between.
+
+PHP 8.0 does not move it either way. mysqlnd speaks the 4.1 protocol, so no PHP version
+rules out an old server, and the one coupling that exists runs upward:
+`caching_sha2_password`, MySQL 8.0's default authentication, has been supported since PHP
+7.4 — already below our floor. Declaring a higher floor of our own would be unenforceable
+anyway, since WordPress has no `Requires MySQL` plugin header, and MariaDB prefixes its
+version string with `5.5.5-`, so `$wpdb->db_version()` reports 5.5.5 for every MariaDB
+10.x and a real check would have to parse `db_server_info()`.
 
 | SQL feature                                | MySQL | MariaDB |
 | :----------------------------------------- | :---: | :-----: |
 | INSERT … ON DUPLICATE KEY UPDATE           |  4.1  |   5.1   |
 | VALUES() inside the UPDATE clause          |  4.1  |   5.1   |
 | SHOW TABLES LIKE, DROP TABLE IF EXISTS     |  3.23 |   5.1   |
+| SHOW COLUMNS, SHOW INDEX                   |  3.23 |   5.1   |
+| ALTER TABLE … DROP COLUMN / DROP INDEX     |  3.23 |   5.1   |
 | LEFT JOIN, MAX( CASE WHEN … )              |  3.23 |   5.1   |
 | `CHARSET = latin1`                         |  3.23 |   5.1   |
 
@@ -208,7 +224,24 @@ charset would only cost index bytes.
 of MySQL 8.0.20** and subject to removal; it still works in 8.4. The replacement, a row
 alias (`… AS new … SET rev = new.rev`), needs MySQL 8.0.19 and is not supported by
 MariaDB at all, so adopting it would raise this floor from 5.5.5 to 8.0.19 and break
-MariaDB hosts. The deprecated form stays until MySQL actually removes it.
+MariaDB hosts. The deprecated form stays until MySQL actually removes it — and the escape
+then is not the alias but repeating the bound value in the UPDATE clause, which
+`subscriber()` already does on the `scanpay_subs` upsert. That is a code change, not a
+floor bump.
+
+The 3.0.0 migration's `ALTER TABLE` carries **no `ALGORITHM=` clause**: the clause arrived
+in MySQL 5.6, below which it is a syntax error, and an explicit `INSTANT` is an error
+wherever it does not apply rather than a fallback — so the server chooses, and it chooses
+the fastest it has. The migration drops columns and keys in separate statements to leave it
+that choice: from MySQL 8.0.29 and MariaDB 10.4 a lone `DROP COLUMN` is instant and a
+`DROP INDEX` is metadata-only, while one statement carrying both falls back to an in-place
+rebuild. Raising the floor would buy no more than that, since none of it needs to be asked
+for by name.
+
+Separately, the migration reads `SHOW COLUMNS` and `SHOW INDEX` before it drops anything:
+`DROP COLUMN IF EXISTS` exists in MariaDB (10.0.2) but in **no** MySQL version, 8.4
+included, so introspection is the only portable way — and being a read of the live schema
+it makes a re-run idempotent, which a version test would not.
 
 ## libcurl
 
