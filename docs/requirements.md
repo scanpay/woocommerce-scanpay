@@ -147,12 +147,16 @@ explicit `class_exists()` / `function_exists()` check, or a hook that only fires
 the subsystem is present — so none of them raises a floor. Keep it that way: a new
 modern API needs a guard, not a version bump.
 
+`WC_Blocks_Utils` is dated by the `@version` on the class, not by an `@since` on the
+method: it carries none, and the stubs keep neither tag.
+
 | API                                             |  Since   | Guard                                                    |
 | :---------------------------------------------- | :------: | :------------------------------------------------------- |
 | FeaturesUtil::declare_compatibility (HPOS)      | WC 7.1.0 | `class_exists( …, true )` — autoloads, we may load before WC |
 | OrderUtil::custom_orders_table_usage_is_enabled | WC 7.0.0 | `class_exists()`                                         |
 | `wc_orders`, `wc_order_operational_data` (SQL)  | WC 7.1.0 | only read once `custom_orders_table_usage_is_enabled()` says HPOS is on |
 | `*-woocommerce_page_wc-orders` admin hooks      | WC 7.1.0 | HPOS-only screens; the legacy `*-shop_order` twin is registered alongside |
+| WC_Blocks_Utils::has_block_in_page               | WC 5.0.0 | `class_exists()`, falling back to "classic" when absent   |
 | AbstractPaymentMethodType (Blocks)              | Blocks 3.0.0 | only loaded from `woocommerce_blocks_payment_method_type_registration` |
 | woocommerce_store_api_register_endpoint_data    | Blocks 7.2.0 | `function_exists()`                                  |
 | StoreApi\Exceptions\RouteException              | Blocks   | only reachable from a Store API checkout hook            |
