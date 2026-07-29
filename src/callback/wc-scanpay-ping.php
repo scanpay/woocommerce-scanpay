@@ -193,6 +193,18 @@ if ( $ping_seq === $seq ) {
 	wc_scanpay_respond( 'ok', 200 );
 }
 
+/*
+ * Version guard: the loader gate that runs upgrade.php never fires on this request --
+ * woocommerce-scanpay.php returns before plugins_loaded -- so between a plugin update and the
+ * next ordinary request this is new code over the old schema, and draining wedges the cursor.
+ * Nothing is recorded on the way out; the five-minute keepalive re-announces the same seq.
+ * Below the heartbeat, which needs nothing the migration can have changed.
+ */
+if ( get_option( 'wc_scanpay_version' ) !== WC_SCANPAY_VERSION ) {
+	scanpay_log( 'warning', 'ping deferred until the plugin finishes upgrading' );
+	wc_scanpay_respond( 'upgrade pending', 503 );
+}
+
 require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-client.php';
 require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-sync.php';
 require_once WC_SCANPAY_DIR . '/library/class-scanpay-flock.php';
