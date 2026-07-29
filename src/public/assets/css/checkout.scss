@@ -9,8 +9,16 @@
     ~150px tall.
 */
 
+/*
+    Both this row and .wcsp-icons below wrap: the card gateway renders up to
+    nine icons (the card_icons setting), and title plus icons overflows a
+    phone-width label row unless the icons can drop to a second line. Classic
+    checkout needs no equivalent -- .wcsp-methods holds plain inline images,
+    which wrap on their own.
+*/
 .wcsp-label {
 	display: flex;
+	flex-wrap: wrap;
 }
 
 .wcsp-title {
@@ -25,9 +33,16 @@
 */
 .wcsp-icons {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 0.3em;
 	align-items: center;
 
+	/*
+	    !important on both, aimed at themes and at Blocks' own payment-icon rules,
+	    which outrank a lone class here. max-height is not a duplicate of height:
+	    it clamps the computed height whatever `height` says, so a theme's lower
+	    max-height would still shrink the icon past height: 22px !important.
+	*/
 	> img {
 		height: 22px !important;
 		max-height: 22px !important;

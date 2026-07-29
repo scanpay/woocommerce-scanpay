@@ -57,7 +57,7 @@ if ( ! $shopid ) {
 			'Add this synchronization URL in your Scanpay dashboard so we can keep your orders in sync:',
 			'scanpay-for-woocommerce'
 		) .
-		'<br><input type="text" class="wcsp-setup-url" style="width:100%;max-width:34em;margin:6px 0;"' .
+		'<br><input type="text" class="wcsp-setup-url"' .
 			' value="' . esc_url( $ping_url ) . '" readonly onclick="this.select();">' .
 		'<br><a class="button button-primary" target="_blank" rel="noopener" href="' . esc_url( $callback_url ) . '">' .
 			esc_html__( 'Add URL in the Scanpay dashboard', 'scanpay-for-woocommerce' ) .

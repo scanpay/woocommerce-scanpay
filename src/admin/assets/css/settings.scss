@@ -7,6 +7,13 @@
 	margin-top: 1.5em;
 }
 
+/* The synchronization URL in the setup notice, wide enough to show it all. */
+.wcsp-setup-url {
+	width: 100%;
+	max-width: 34em;
+	margin: 6px 0;
+}
+
 /*
     Row padding tweaks, keyed to each field rather than to its position.
 
@@ -24,13 +31,29 @@
     it carries a real row class -- it has to, since it renders no input at all
     once a key is stored.
 
+    .wcsp-set-scanpay is never a literal: admin-options.php builds the table
+    class as 'wcsp-set-' . $gateway->id, so grepping for it finds nothing and
+    every rule below it dies silently if the card gateway's id changes. The
+    scope is what keeps these off the MobilePay and Apple Pay screens; the
+    fields they key on exist only in fields/scanpay.php.
+
     :has() is load-bearing here and degrades to WooCommerce's own row padding,
     never to a broken layout.
 */
 
-/* Reduce padding between Enable and API-key */
-.wcsp-set-scanpay .wcsp-set-row-apikey > * {
+/*
+    Reduce padding between Enable and API-key. No gateway scope needed: the
+    apikey field type is declared only in fields/scanpay.php, so the card screen
+    is the only one that ever renders this row.
+*/
+.wcsp-set-row-apikey > * {
 	padding-top: 5px;
+}
+
+/* Appended into the API-key cell by settings.ts, after WC's own <fieldset>. */
+.wcsp-set-api-info {
+	display: block;
+	margin-top: 6px;
 }
 
 /*

@@ -56,7 +56,14 @@
 	border-color: #d19898;
 }
 
-/* Meta box */
+/*
+    Meta box.
+
+    !important is aimed at the host, not at anything here: the box renders
+    inside the WP/WC order screen, whose ul styling outranks a lone class of
+    ours, and without it the rows come back bulleted and indented. Dropping it
+    needs a look at a real order screen -- a lint run cannot tell.
+*/
 .wcsp-meta-ul {
 	margin: 10px 0 0;
 	padding: 0 12px 5px;
