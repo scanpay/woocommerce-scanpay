@@ -310,37 +310,42 @@ try {
 				throw new Exception( "failed to persist sync cursor to seq $seq: {$wpdb->last_error}" );
 			}
 
-			if ( $target > $seq ) {
-				/*
-				 * Long backfill: two bounds, on two cadences, deliberately not the same one.
-				 *
-				 * The grant is a time bound, and rounds are no proxy for it -- one round is a
-				 * /v1/seq call with a 40 s client-side budget, plus a page of changes that can
-				 * each build a WC_Order and write to the database. Renewing every sixth round
-				 * can outlast the 60 s last granted, and the kill lands mid-page: sync() calls
-				 * payment_complete() per change while the cursor UPDATE runs only after the
-				 * whole page, so the next ping replays a page whose orders it then skips for
-				 * already carrying a transaction id -- wasted work, ending the same way, on
-				 * every keepalive.
-				 *
-				 * The flush is a memory bound, and there rounds are a fair proxy for allocation.
-				 */
-				if ( microtime( true ) - $limit_renewed >= 30 ) {
-					set_time_limit( 60 );
-					$limit_renewed = microtime( true );
-				}
-				if ( ++$n > 5 ) {
-					wc_scanpay_memory_usage_debug();
-					wc_scanpay_flush_order_runtime_cache();
-					$n = 0;
-				}
-			} else {
+			if ( $target <= $seq ) {
 				// Caught up: check if we blocked a newer ping while syncing.
 				$blocked_ping = wc_scanpay_read_cursor( $shopid )['ping'];
 				if ( $blocked_ping > $seq ) {
 					scanpay_log( 'debug', "Resuming sync to blocked ping seq $blocked_ping (current seq $seq)" );
 					$target = $blocked_ping;
 				}
+			}
+
+			/*
+			 * Long backfill: two bounds, on two cadences, deliberately not the same one.
+			 *
+			 * The grant is a time bound, and rounds are no proxy for it -- one round is a
+			 * /v1/seq call with a 40 s client-side budget, plus a page of changes that can
+			 * each build a WC_Order and write to the database. Renewing every sixth round
+			 * can outlast the 60 s last granted, and the kill lands mid-page: sync() calls
+			 * payment_complete() per change while the cursor UPDATE runs only after the
+			 * whole page, so the next ping replays a page whose orders it then skips for
+			 * already carrying a transaction id -- wasted work, ending the same way, on
+			 * every keepalive.
+			 *
+			 * The flush is a memory bound, and there rounds are a fair proxy for allocation.
+			 *
+			 * Outside the caught-up branch, which is not a loop exit: it raises $target from
+			 * the ping column and falls back into the while. A drain that keeps emptying its
+			 * outstanding interval in one round and being extended again would otherwise loop
+			 * through that branch renewing neither bound.
+			 */
+			if ( microtime( true ) - $limit_renewed >= 30 ) {
+				set_time_limit( 60 );
+				$limit_renewed = microtime( true );
+			}
+			if ( ++$n > 5 ) {
+				wc_scanpay_memory_usage_debug();
+				wc_scanpay_flush_order_runtime_cache();
+				$n = 0;
 			}
 			$elapsed = microtime( true ) - $start;
 			scanpay_log( 'debug', "Sync loop: updated to seq $seq; elapsed time: $elapsed" );
