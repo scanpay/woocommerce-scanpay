@@ -137,8 +137,10 @@ foreach ( $wcsp_tables as $wcsp_tbl ) {
 }
 
 try {
-	// Recreate the tables empty: the order meta box and the polling endpoints still query
-	// scanpay_meta for old Scanpay orders even with no key configured.
+	// Recreate the tables empty: the order meta box queries scanpay_meta on every old Scanpay
+	// order whether or not a key is configured, so a dropped table means a database error per
+	// order screen. Not the polling endpoints -- with the key gone they answer 'invalid
+	// shopid' or 403 before they reach the table.
 	require WC_SCANPAY_DIR . '/install.php';
 } catch ( Throwable $e ) {
 	$wcsp_fail( 'install_failed', 500, 'could not recreate the tables: ' . $e->getMessage() );
