@@ -3,8 +3,32 @@
 Kort resumé. Det fulde review med mekanisme, fejlscenarie, efterprøvning og
 rettelsesforslag for hvert fund står i [`RESULTS.md`](RESULTS.md).
 
-**Omfang:** alle 35 PHP-filer i `src/` (5.953 linjer) ved commit `095fa64` plus det
-uncommitterede arbejdstræ. 15 fund og 13 mindre punkter. Ingen kode ændret.
+**Omfang:** alle 35 PHP-filer i `src/` (5.953 linjer) ved commit `d342427`.
+**16 fund og 12 mindre punkter. Ingen kode ændret.**
+
+---
+
+## Status ved denne revision
+
+Reviewet blev oprindeligt skrevet mod `095fa64` plus et uncommitteret arbejdstræ. Det
+arbejde er nu committet som `b2f0be2`, HEAD er `d342427`, og arbejdstræet er rent.
+`git diff 095fa64..HEAD -- src/` rører én fil med præcis den `save_or_report()`-ændring,
+reviewet allerede dækkede.
+
+**Intet fund er derfor blevet rettet, og intet er fjernet af den grund.** Hvert fund er i
+stedet efterprøvet linje for linje igen mod `src/` ved HEAD og mod `.stubs/`. Resultatet:
+
+- **Alle 15 oprindelige fund står.** Mekanismerne holdt; det var linjenumre og et par
+  rækkeviddepåstande, der skulle rettes.
+- **Ét nyt fund (16):** tretten drevne linjehenvisninger i kommentarerne, seks af dem
+  *internt* i pluginnet. Erstatter det tidligere mindre punkt 9, som både var for snævert
+  og selv indeholdt en forkert påstand.
+- **Én påstand trukket tilbage:** den oprindelige rapport skrev, at kommentarernes
+  linjehenvisninger var stikprøvet og holdt "næsten overalt", og nævnte fire som eksempler,
+  der i virkeligheden er drevet. Alle er nu slået op enkeltvis frem for stikprøvet.
+- Fund 7, 13 og 14 fik nyt materiale (flere nåelige tilstande, to yderligere tabte
+  indstillinger, en beslægtet svaghed i søstergrenen); mindre punkt 1, 8 og 12 fik
+  præciseret hhv. rækkevidde, belæg og omfang.
 
 ---
 
@@ -16,7 +40,8 @@ invarianter der spænder over filgrænser, hvor fil-for-fil-reviews typisk fejle
 
 Hvert fund er derefter efterprøvet mod upstream-kilden i `.stubs/`, ikke overtaget på
 tro. Fire fund overlevede ikke den kontrol i den rapporterede form og er enten nedgraderet
-til mindre punkter eller omformuleret.
+til mindre punkter eller omformuleret. Ved denne revision er hele upstream-kontrollen kørt
+om mod `.stubs/` som træet står i dag (WC 11.1.0-dev, WCS 8.7.1, WP 7.1-beta3).
 
 ---
 
@@ -27,7 +52,9 @@ til mindre punkter eller omformuleret.
 først på `init`:0 — fatal `Error`. Loaderen fanger den, transienten bevares bevidst, og
 versionen stemples sidst, så porten åbner igen hvert 5. minut i det uendelige.
 Migrationerne `< 2.5.0` og `< 3.0.0` nås aldrig, hvilket slår autocapture tavst fra og
-under strict SQL mode kan standse al betalingsregistrering.
+under strict SQL mode kan standse al betalingsregistrering. Efterprøvet i begge
+datastores: løkken nås reelt, fordi hverken CPT- eller HPOS-forespørgslen afhænger af
+WCS' typeregistrering.
 
 Fundet står i skarp komplementaritet til den kendte, stadig åbne finding om samme gren:
 uden WCS springes migrationen permanent over, med WCS og data fataler den evigt. Grenen
@@ -35,9 +62,10 @@ fuldfører kun korrekt, når der intet er at migrere.
 
 **2. Thankyou-gaten er en uautentificeret "sluk pluginnet"-kontakt.**
 `woocommerce-scanpay.php:109` dispatcher på parametre alene, aldrig på requestens art. Et
-Store API-checkout POSTet til `?scanpay_thankyou=0&scanpay_type=wc&key=` slår resten af
-bootstrappet fra — og dermed Blocks-valideringen af abonnementsvilkår, som docblocken
-netop kalder streng. Ping-gaten har samme form.
+Store API-checkout POSTet til `?scanpay_thankyou=0&scanpay_type=wc&key=` rammer et `return`
+på filniveau, så `add_action( 'plugins_loaded', … )` aldrig nås — og dermed heller ikke
+Blocks-valideringen af abonnementsvilkår, som docblocken netop kalder streng. Ping-gaten
+har samme form.
 
 **3. MobilePay og Apple Pay kan oprette abonnements-subscribere.**
 WCS' gateway-filter springer eksplicit order-pay-endpointet over, og
@@ -51,7 +79,7 @@ kasseres tavst, og `enabled` skrives med `update_option()` uden om `process_admi
 
 ---
 
-## To ting værd at fremhæve
+## Tre ting værd at fremhæve
 
 **Kommentarer der lover noget koden ikke leverer.** I dette projekt er kommentarerne
 test-suiten, så en drevet kommentar er en brudt test. To af dem blev fundet uafhængigt af
@@ -63,11 +91,16 @@ to reviewere ad forskellige veje:
 - "Det næste ping afstemmer ordren automatisk" holder ikke for nogen ordre, hvis betaling
   er synkroniseret: sync gater på tom `transaction_id`, og den er sat længe før.
 
-**Gårsdagens rettelse er ufuldstændig.** De to fund der rammer den uncommitterede
-`save_or_report()`-helper: `set_status(…, true)` fyrer `woocommerce_order_edit_status`
-synkront *uden for* try-blokken, og `WC_Abstract_Order::save()` sluger `Exception` selv —
-så returværdien er `true` også når skrivningen fejlede, og `continue`-vagten dækker kun
-`Error`-delmængden.
+**Kommentarer der peger det forkerte sted hen (fund 16).** Tretten linjehenvisninger er
+drevet. De seks værste er interne — `class-wcs-scanpay-charge.php` peger fire gange på
+linjer i pluginnets egne filer, som er flyttet siden. Filen indeholder selv reglen, der
+ville have forhindret det: *"Symbols, not line numbers, because these drift."*
+
+**Rettelsen fra det forrige review er ufuldstændig.** De to fund der rammer
+`save_or_report()`-helperen (nu committet som `b2f0be2`): `set_status(…, true)` fyrer
+`woocommerce_order_edit_status` synkront *uden for* try-blokken, og
+`WC_Abstract_Order::save()` sluger `Exception` selv — så returværdien er `true` også når
+skrivningen fejlede, og `continue`-vagten dækker kun `Error`-delmængden.
 
 ---
 
@@ -82,8 +115,8 @@ så returværdien er `true` også når skrivningen fejlede, og `continue`-vagten
   ikke, API-nøglen kan ikke lække eller injicere, header-injektion i `X-Cardholder-IP`
   afvist.
 - Konventionerne holder undtagelsesfrit: alle 35 filer har `declare(strict_types=1)` og
-  `ABSPATH`-guard, og alle 83 oversatte strenge bruger ét tekstdomæne.
+  `ABSPATH`-guard, og alle oversatte strenge bruger ét tekstdomæne.
 
-**Intet er afprøvet på en kørende shop.** Alle fund hviler på kildelæsning af `src/` og af
-upstream i `.stubs/` (WC 11.1.0-dev, WCS 8.7.1, WP 7.1-beta3), mens pluginnet understøtter
-WC 3.6 / WP 6.3.
+**Intet er afprøvet på en kørende shop.** Alle fund hviler på kildelæsning af `src/` ved
+`d342427` og af upstream i `.stubs/` (WC 11.1.0-dev, WCS 8.7.1, WP 7.1-beta3), mens
+pluginnet understøtter WC 3.6 / WP 6.3.
