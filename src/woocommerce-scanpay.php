@@ -303,14 +303,14 @@ function wc_scanpay_plugins_loaded() {
 add_action( 'plugins_loaded', 'wc_scanpay_plugins_loaded', 10 );
 
 /**
- * Create the custom tables on activation; install.php needs no WooCommerce runtime.
- * Migrations are left to wc_scanpay_plugins_loaded(), which stays the primary path because
- * activation does not fire on auto-updates.
+ * Installation hook; needs no WooCommerce runtime. We avoid register_activation_hook()
+ * as it would add unnecessary overhead. Note that basename() does not work if the plugin is
+ * symlinked under a different name in the plugins dir.
  */
 function wc_scanpay_activate(): void {
 	require WC_SCANPAY_DIR . '/install.php';
 }
-register_activation_hook( __FILE__, 'wc_scanpay_activate' );
+add_action( 'activate_' . basename( WC_SCANPAY_DIR ) . '/woocommerce-scanpay.php', 'wc_scanpay_activate' );
 
 
 /**
