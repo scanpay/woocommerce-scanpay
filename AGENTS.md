@@ -62,11 +62,12 @@ that has drifted is a broken test.
 **Write** the constraint, the protocol quirk, the reason behind a deliberate omission,
 the failure the line prevents — whatever a reviewer would ask "why is this here?" about.
 **Never write** a restatement of the next line, a change log, or a `@param`/`@return`
-block repeating types the signature already states. Dense means precise, not long: two
-exact sentences beat a paragraph.
+block repeating types the signature already states. **Keep them short.** Dense means
+precise, not long: one exact sentence beats two, and two beat a paragraph.
 
-- **File header:** `/** … */` between `<?php` and `declare`. One paragraph on what the
-  file is for, plus a `Contract:` list when it speaks a wire protocol (method, body
+- **File header — required, except in `woocommerce-scanpay.php` and files whose purpose
+  is self-evident:** `/** … */` between `<?php` and `declare`. A sentence or two on what
+  the file is for, plus a `Contract:` list when it speaks a wire protocol (method, body
   shape, headers).
 - **Function docblock:** `/** … */` prose. Add `@return array{…}` when the shape is not
   obvious, `@throws` for what a caller must catch, `@internal` outside the module's

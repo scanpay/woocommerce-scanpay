@@ -42,6 +42,8 @@ composer install  # dev-only tooling; nothing from vendor/ is shipped
 
 `./build.sh` ends by asking whether to push the result to Scanpay's internal test server. Answer `N`.
 
+If you symlink a checkout into a WordPress install's `wp-content/plugins/` instead of copying `build/` there, **name the symlink after the directory it points at**. The plugin derives its own directory name from the resolved path, so a symlink under a different name leaves it looking for translations and its Plugins-screen entry under the wrong name: strings stay English and the "Settings" link disappears. Symlinking `wp-content` itself, or the plugin directory under its own name, is fine.
+
 There is no test suite — the linters are the validation, and all four should be clean before you open a pull request:
 
 ```bash
