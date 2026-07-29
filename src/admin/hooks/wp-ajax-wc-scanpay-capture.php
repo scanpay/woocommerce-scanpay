@@ -46,6 +46,15 @@ if ( ! $wco || ! wc_scanpay_is_scanpay_order( $wco ) ) {
 	wp_send_json_error( 'not_a_scanpay_order', 400 );
 }
 
+// The position the row action and the bulk handler both take, and for the outcome rather than
+// for their own threat model: capturing a trashed order charges the customer for one the
+// merchant has thrown away. Their nonce is per-action and so replayable for any id; this one
+// is per-order, so reaching here needs a tab left open on an order trashed since -- narrower,
+// but it produces the same charge. 'edit' so no filter can answer the status.
+if ( 'trash' === $wco->get_status( 'edit' ) ) {
+	wp_send_json_error( 'order_trashed', 409 );
+}
+
 require_once WC_SCANPAY_DIR . '/library/class-wc-scanpay-capture.php';
 
 // capture_or_hold() turns a failure into an 'on-hold' status and an order note; the
