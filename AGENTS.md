@@ -26,7 +26,8 @@ does belongs in that file's comments, not here. Per-tool entry points such as
   a runtime guard. `pnpm phpcs` enforces the PHP floor (PHPCompatibilityWP); the WP and
   WC floors are yours to check, and `vendor/php-stubs/` carries the `@since` tags, so
   read the stub instead of trusting memory. `docs/requirements.md` has the rationale for
-  each minimum.
+  each minimum. The full WP/WC/WCS trees are symlinked into `.stubs/` when a claim turns
+  on a method body the stub does not carry — cite that path, not the target it resolves to.
 
 ## Code style: procedural and modular, not OOP
 
