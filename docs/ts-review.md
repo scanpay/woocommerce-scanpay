@@ -209,8 +209,8 @@ Så næste review ikke bruger tid på det igen.
 
 - **Terms-checkboxen når vores egne gateways er slået fra.** Så først ud til at falde
   bort med dem, siden `$data['terms']` rejser i betalingsmetodens payload. Det gør den
-  ikke: `get_payment_method_data()` sætter nøglen uden for `enabled`-gaten
-  (`class-wc-scanpay-blocks-support.php:60-86`), og
+  ikke: `get_payment_method_data()` sætter nøglen før gatewayløkkens `is_available()`-gate,
+  og
   `AbstractPaymentMethodType::is_active()` defaulter til `true`, så handlet registreres
   uanset. Kommentaren på stedet siger det allerede. **Cart-level-invarianten holder.**
 

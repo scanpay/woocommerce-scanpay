@@ -105,7 +105,9 @@ payment-return page, and the admin AJAX endpoints (authenticated by a shared sec
 lives inside the settings option). Each gate states its own reasoning in place.
 
 Otherwise it registers three gateways — card, MobilePay, Apple Pay — all extending
-`WC_Gateway_Scanpay_Base`. **Only the card gateway supports subscriptions.** Card
+`WC_Gateway_Scanpay_Base`. **Card and Apple Pay can be selected for subscription payments
+when the full WooCommerce Subscriptions plugin is active; MobilePay cannot.** Sync
+consolidates Apple Pay into the card gateway, which alone owns later renewal logic. Card
 settings are the primary/shared option holding the API key; the other two use the usual
 `woocommerce_{id}_settings`.
 

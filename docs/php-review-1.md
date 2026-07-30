@@ -1,16 +1,16 @@
-# PHP-review af `src/` — 18 åbne fund, efterprøvet mod `23fc08e`
+# PHP-review af `src/` — 16 åbne fund, efterprøvet mod `23fc08e`
 
 Et uafhængigt gennemløb af alle PHP-filer i `src/`, delt i felter efter arkitekturens
 flowgrænser. Hvert fund bærer citat, konkret fejlscenarie, et modargument, et `Alternativ` — en
 anden vej til samme resultat — og en `Anbefaling` af hvilken af de to der bør vælges.
-Anbefalingen falder på alternativet i 13 tilfælde og på den oprindelige rettelse i fire.
+Anbefalingen falder på alternativet i 11 tilfælde og på den oprindelige rettelse i fire.
 
 **Dokumentet er en arbejdsliste, ikke en rapport.** Kun åbne fund står her: et fund fjernes fra
 filen når det er lukket i træet. Nummereringen er den oprindelige, og et hul i rækken er et
-lukket fund, ikke et glemt — `git log -p -- docs/php-review-1.md` bærer historikken for de 26
+lukket fund, ikke et glemt — `git log -p -- docs/php-review-1.md` bærer historikken for de 28
 der er væk.
 
-Hvert af de 18 er efterprøvet linje for linje i kilden på `23fc08e`, og linjehenvisningerne
+Hvert af de 16 er efterprøvet linje for linje i kilden på `23fc08e`, og linjehenvisningerne
 herunder er dem der gælder dér.
 
 To fund står uden for formen. **Fund 5** er halvt lukket: dets kommentarhalvdel er rettet, mens
@@ -38,9 +38,6 @@ især:
 - `WC_Settings_API` læser egenskaben `$this->form_fields` **kun** i `get_form_fields()`
   (`abstract-wc-settings-api.php:67`); alle syv andre steder kalder metoden. Det er hvad gør
   fund 7's alternativ sikkert.
-- `WC_Subscriptions_Change_Payment_Gateway::get_available_payment_gateways()` fjerner enhver
-  gateway der ikke svarer `true` på `supports( 'subscription_payment_method_change_customer' )`
-  (`:603-604`, hooket på `:48`) — fund 3's alternativ.
 - `WC_Email::is_enabled()` anvender `woocommerce_email_enabled_{$id}` med ordren som andet
   argument (`class-wc-email.php:827`), og `send_notification()` gater på det (`:1140-1152`) —
   fund 5's alternativ. Samme fil viser at WC 11.1 hooker **enten** `queue_transactional_email`
@@ -62,18 +59,17 @@ af de områder, angår det implementeringen, aldrig designet.
 
 ## Oversigt
 
-De 18 åbne fund, sorteret efter **alvor** og derefter efter nummer. `Afsnit` peger på hvor
+De 16 åbne fund, sorteret efter **alvor** og derefter efter nummer. `Afsnit` peger på hvor
 fundet står nedenfor, da rækkefølgen her ikke følger brødteksten.
 
 | # | Fund | Alvor | Tillid | Afsnit |
 |---|------|-------|--------|--------|
-| 3 | Metodeskift opkræver et helt abonnementsbeløb på en `subscriptions-core`-butik | høj | Udledt | Ret nu |
 | 5 | Kunden får mail og downloads for ubetalte varer når capture fejler | høj | Verificeret | Ret nu |
 | 15 | Med `set_time_limit()` slået fra virker alt uden for `upgrade.php` stadig ikke | høj | Verificeret | Bør rettes |
 | 7 | WooCommerces REST API ser slet ingen gateway-indstillinger | middel | Verificeret | Bør rettes |
 | 9 | Fejlet tabeloprettelse efter nøglegemning giver kritisk fejlside og en butik der aldrig synkroniserer | middel | Verificeret | Bør rettes |
 | 10 | `wc_autocapture` læses med to modstridende fallbacks | middel | Udledt | Bør rettes |
-| 18, 21, 23–27, 29, 37–39 | Mindre ting — se nedenfor | lav | blandet | Mindre ting |
+| 18, 21, 23, 25–27, 29, 37–39 | Mindre ting — se nedenfor | lav | blandet | Mindre ting |
 | 43 | `scanpay_meta`-rækken skrives før ordren er bekræftet som vores | — | Uverificeret | Hazard |
 
 `Alvor` beskriver konsekvensen hvis fundet udløses, ikke hvor sandsynligt det er — `Tillid`
@@ -84,11 +80,10 @@ Afsnittene nedenfor grupperer derimod efter **hvor hurtigt der bør handles**, o
 rækkefølger afviger ét sted: fund 15 har høj alvor, men ligger i "Bør rettes", fordi udløseren
 er en værtskonfiguration frem for en kodesti enhver butik går ad.
 
-**"Ret nu" rummer kun to fund, og begge kræver en beslutning før kode.** Fund 3 er en
-fejlopkrævning, fund 5 en udlevering af varer der ikke er betalt for — det der skal afgøres er
-hvorvidt metodeskift skal understøttes på en core-only butik, og hvad en forbigående API-fejl
-skal koste kunden. De to er samtidig de eneste tilbage med brugersynlig forkert adfærd på en
-normalt opsat butik: fund 5 verificeret mod upstream-kilden, fund 3 udledt.
+**"Ret nu" rummer kun ét fund, og det kræver en beslutning før kode.** Fund 5 er en udlevering
+af varer der ikke er betalt for; det der skal afgøres er hvad en forbigående API-fejl skal
+koste kunden. Det er samtidig det eneste tilbage med brugersynlig forkert adfærd på en normalt
+opsat butik, verificeret mod upstream-kilden.
 
 ### Anbefalinger samlet
 
@@ -97,7 +92,6 @@ veje der anbefales, ikke hvor sikker den er.
 
 | # | Anbefalet vej | Valg |
 |---|---------------|------|
-| 3 | Erklær ikke abonnementsfeatures uden `WC_Subscriptions` — WCS' eget gatewayfilter gør stien uopnåelig | alternativ |
 | 5 | `woocommerce_email_enabled_customer_completed_order`, ordre-scopet, frem for `remove_action()` på mailkøen. Adfærdsvalget står stadig åbent | alternativ |
 | 7 | Giv `get_form_fields()` sin egen cache, så `form_fields` bliver REST's alene | alternativ |
 | 9 | Fang lokalt og `delete_option( 'wc_scanpay_version' )`, så loaderen er retryen | alternativ |
@@ -106,7 +100,6 @@ veje der anbefales, ikke hvor sikker den er.
 | 18 | Ret translator-noten; rettelsen ville føre penge gennem en `float` | alternativ |
 | 21 | `WC_SCANPAY_URI_PTIME`, som fundet foreslår | rettelse |
 | 23 | `is_admin() && ! wp_doing_ajax()` | rettelse |
-| 24 | Én kilde til de fire defaults, ikke fire literaler | alternativ |
 | 25 | Oversæt backend-beskeden ved kilden, ikke i `capture_or_hold()` | alternativ |
 | 26 | `currency` i `SELECT`, som fundet foreslår | rettelse |
 | 27 | Nul-total-gren i `capture()` før meta-opslaget, plus kommentarrettelsen | alternativ |
@@ -138,121 +131,6 @@ ikke rejses igen:
 ---
 
 ## Ret nu
-
-### 3. Metodeskift opkræver et helt abonnementsbeløb på en `subscriptions-core`-butik
-
-`src/public/generate-payment-link.php:100-109` mod
-`src/public/wcs-generate-payment-link.php:43-45`, `:177-206` — **Udledt**
-
-Begge metodeskift-udgange ligger i den WCS-specifikke fil, mens gaten foran dem er
-`wcs_scanpay_active()`, kaldt ét sted:
-
-```php
-// generate-payment-link.php:100
-$wcs = wcs_scanpay_active();
-if ( $wcs ) {
-	$link = wcs_scanpay_payment_link( $oid, $wco, $settings, $data, $client );
-
-// wcs-generate-payment-link.php:44
-return class_exists( 'WC_Subscriptions', false ) && method_exists( 'WC_Subscriptions_Product', 'is_subscription' );
-```
-
-Begge udgange for et metodeskift ligger stadig **bag** den gate, som kræver det fulde
-`WC_Subscriptions`-plugin. Men prædikatet der gør metodeskiftet nåeligt —
-`wcs_scanpay_is_payment_method_change()` — kræver kun `WC_Subscription` og
-`WC_Subscriptions_Change_Payment_Gateway`. Efterprøvet: `WC_Subscriptions` deklareres alene
-i det betalte plugins rodfil (`woocommerce-subscriptions.php:73`), mens de to andre ligger i
-`includes/core/` — altså i `subscriptions-core`, som følger med andre udvidelser uden det
-fulde plugin. På sådan en butik er `$wcs` falsk, `wcs_scanpay_payment_link()` kaldes aldrig,
-og kontrollen når præcis den item-bygning kommentaren siger den aldrig må nå.
-
-**Fejlscenarie.** Butikken kører WooPayments' medfølgende abonnementer. WCS kalder
-`process_payment( $subscription->get_id() )`. `$wco` er nu `WC_Subscription`; løkken læser
-de gentagne linjebeløb; `get_total( 'edit' )` returnerer det u-nulstillede beløb, fordi WCS'
-nulstilling er filteret `woocommerce_subscription_get_total`
-(`class-wc-subscriptions-change-payment-gateway.php:33`), som `WC_Data::get_prop()` kun
-anvender i `view`-kontekst. Kunden, der bad om at opdatere sit kort, **opkræves én hel
-abonnementsperiode**, der oprettes ingen Scanpay-subscriber, og `_scanpay_payid` m.fl.
-skrives på abonnementet, hvorfra WCS' datakopiering fører dem videre til hver fremtidig
-fornyelsesordre. Kortgatewayen overlever WCS' eget `get_available_payment_gateways()`-filter,
-fordi den erklærer `subscription_payment_method_change_customer`
-(`class-wc-gateway-scanpay-card.php:31`), og subscriptions-core bærer det filter.
-
-**Modargument.** `wcs_scanpay_active()`s docblock behandler
-core-only-butikken eksplicit: *"a shop running core alone -- WooPayments' bundled
-subscriptions -- answers false here and pays every order the ordinary way."* Beslutningen er
-altså truffet og skrevet ned, ikke overset. Men sætningen er også fundet: for et metodeskift
-er "the ordinary way" netop at opkræve den gentagne total. Docblocken beskriver et udfald den
-ikke har efterprøvet for den ene sti hvor "ordinær betaling" ikke er en degradering, men en
-fejlopkrævning — og efter guiden er en kommentar der overdriver sin invariant det der er
-under test. Det samme sted i `wcs-generate-payment-link.php:183-186` angiver præcis hvorfor
-grenen findes: `get_total( 'edit' )` og `get_line_total()`-løkken *"both read the real
-recurring total and would bill it now."*
-
-**Rettelse.** Metodeskift-udgangen skal ikke ligge bag `wcs_scanpay_active()`. Præcis nok til
-kun at ramme de berørte tilfælde:
-
-```php
-// generate-payment-link.php:100
-$wcs = wcs_scanpay_active();
-if ( $wcs || wcs_scanpay_is_payment_method_change( $wco ) ) {
-	$link = wcs_scanpay_payment_link( $oid, $wco, $settings, $data, $client );
-```
-
-`$wcs` gater derefter uændret resten — `wcs_scanpay_item_is_subscription()` i item-løkken og
-`wcs_scanpay_initial_payment()` bagefter. Kun den første af de to rører
-`WC_Subscriptions_Product`, som er hele grunden til at `wcs_scanpay_active()` tester på den;
-`wcs_scanpay_initial_payment()` går gennem `wcs_scanpay_subref()` og dermed `wc_get_orders()`,
-men den bør blive hvor den er, fordi et abonnements-*køb* uden fornyelseshåndtering er den
-degradering docblocken beskriver, ikke en fejlopkrævning.
-
-Det mere vidtgående alternativ — at kalde `wcs_scanpay_payment_link()` ubetinget — virker
-også: begge dens grene rører kun `WC_Subscription` og `WC_Subscriptions_Change_Payment_Gateway`,
-og filen er allerede requiret ubetinget. Men det åbner samtidig `$subid`-grenen på en
-core-only butik, så en ordinær ordre der bærer et `_scanpay_subid` fra tidligere ville gå til
-`/v1/subscribers/{subid}/renew` i stedet for at blive betalt. Prædikatet ovenfor undgår den
-bivirkning uden at koste noget.
-
-Hvis "ikke understøttet" derimod er det ønskede udfald, er den anden vej at afvise
-metodeskiftet højlydt frem for at prise det som en ordinær betaling. Det der ikke kan blive
-stående, er at det stille bliver til en opkrævning.
-
-**Alternativ — erklær ikke abonnementsfeatures uden det fulde plugin.** Rettelsen ovenfor gør
-stien *virksom*; denne gør den *uopnåelig*, og den bruger WCS' egen mekanisme til det. Efterprøvet
-i subscriptions-core: `WC_Subscriptions_Change_Payment_Gateway::get_available_payment_gateways()`
-(hooket på `class-wc-subscriptions-change-payment-gateway.php:48`) løber gatewaylisten igennem og
-fjerner hver gateway hvor `true !== $gateway->supports( 'subscription_payment_method_change_customer' )`
-(`:603-604`). Erklæringen er altså det ene der holder kortgatewayen på metodeskift-skærmen, og den
-er ubetinget i konstruktøren:
-
-```php
-// class-wc-gateway-scanpay-card.php:23
-$this->supports = [ 'products', 'subscriptions', … ];
-```
-
-Betinges den, forsvinder hele stien:
-
-```php
-// Only with the full plugin. The renewal handler lives behind the same guard --
-// public/subscriptions.php is required on WC_Subscriptions -- so declaring these on a
-// core-only shop offers WCS a gateway it can register a card for and never charge, and it
-// is the change-payment declaration that keeps the method-change path reachable at all.
-if ( class_exists( 'WC_Subscriptions', false ) ) {
-	$this->supports = [ 'products', 'subscriptions', … ];
-}
-```
-
-**Anbefaling: alternativet.** Rettelsen ovenfor lukker fejlopkrævningen, men efterlader et halvt
-understøttet abonnement: `public/subscriptions.php` — og dermed
-`woocommerce_scheduled_subscription_payment_scanpay` — loades kun når `WC_Subscriptions` findes
-(`woocommerce-scanpay.php:301-303`), så en core-only butik har ingen fornyelseshåndtering. Kunden
-ville få opdateret sit kort på et abonnement hvis fornyelser aldrig kan opkræves. Alternativet er
-én betingelse i én konstruktør, kræver ingen ændring i checkout-stien, og lukker samtidig den
-bredere inkonsistens: at erklære `subscriptions` uden at kunne fornye. Prisen er den docblocken
-allerede har besluttet — en core-only butik bruger ikke Scanpay til abonnementer — og de to ville
-for første gang sige det samme. Uverificeret på en kørende shop, som alt andet her.
-
----
 
 ### 5. Kunden får mail og downloads for ubetalte varer når capture fejler
 
@@ -373,6 +251,14 @@ den produktbeslutning fundet beskriver, og den er uændret. Bemærk at den small
 (downloads afkobles, mailen sendes) er inkonsistent på en anden måde: kunden får en
 "gennemført"-mail og et download-link der ikke virker. Vælges alternativet, hører de to sammen.
 
+**Reviewnote.** Mailfilteret er ordre-scopet, men det foreslåede `remove_action()` for
+downloads er request-scopet. Når den første fejlede capture fjerner callbacket, mister
+enhver senere ordre der bliver `completed` i samme request også sine downloadrettigheder
+— netop bulk-/automationsformen som mailalternativet tager højde for. Callbacket skal
+gendannes efter den aktuelle statusovergang, eller download-undertrykkelsen skal have sit
+eget ordre-scopede værn; ellers flytter anbefalingen bare den brede bivirkning fra mail til
+downloads.
+
 ---
 
 ## Bør rettes
@@ -427,9 +313,11 @@ Den nærliggende genvej — at tilføje en `validate_setting_apikey_field()` og 
 finde den — **virker ikke**. De metoder er `WC_REST_Controller`s egne, ikke gatewayens:
 `validate_setting_text_field()` og dens søskende er deklareret på controlleren, og V3's
 `WC_REST_Payment_Gateways_Controller` overskriver `validate_setting_multiselect_field()` samme
-sted. (Bekræftet i `vendor/php-stubs/woocommerce-stubs`; dispatch-kroppen kunne ikke
-efterprøves igen, se *Udgangspunkt*.) Vi ejer ingen af de klasser, så at fjerne feltet er den
-eneste håndtag der er.
+sted. Bekræftet i
+`.stubs/woocommerce/includes/rest-api/Controllers/Version2/class-wc-rest-payment-gateways-v2-controller.php:178-181`
+og
+`.stubs/woocommerce/includes/rest-api/Controllers/Version3/class-wc-rest-payment-gateways-controller.php:234`.
+Vi ejer ingen af de klasser, så at fjerne feltet er den eneste håndtag der er.
 
 **Rettelse.**
 
@@ -679,6 +567,15 @@ kan læses to måder, og at `v2-5-0.php`s kommentar har måttet skrive tilstande
 navigerer udenom. En delt læser fjerner muligheden frem for den aktuelle instans, og den er stedet
 hvor defaulten kan begrundes én gang. Prisen er én funktion og én require-linje.
 
+**Reviewnote.** Opgørelsen af requires er forkert: hverken
+`public/generate-payment-link.php` eller `library/class-wcs-scanpay-charge.php` requirer
+`library/functions.php` direkte. Den første får den i praksis via gatewayklassernes
+load-rækkefølge; den anden kan få den via `WC()->payment_gateways()`, men
+`woocommerce_scheduled_subscription_payment_scanpay` kan også fyres direkte af tredjepart,
+som klassens egen kommentar forudser. Anbefalingen må derfor enten give de to moduler deres
+egen eksplicitte dependency eller loade hjælperen centralt før hooket registreres; én ny
+require-linje i `woocommerce-scanpay.php` er ikke i sig selv hele prisen.
+
 ---
 
 ### 15. På en vært der har slået `set_time_limit()` fra, virker alt uden for `upgrade.php` stadig ikke
@@ -876,64 +773,6 @@ se admin-titlen er nok til at fundet er behandlet frem for overset.
 om — billigere end den kommentar der skulle forklare hvorfor den ikke er der. Bemærk at fundet ikke
 rører branding-beslutningen selv, som er afgjort.
 
-### 24. Blocks-payloadens `description`- og `card_icons`-fallbacks spejler ikke gatewayens defaults
-
-`src/gateways/blocks/class-wc-scanpay-blocks-support.php:104-109`, `:127-128`, `:138-139` —
-**Verificeret** (divergensen) / **Udledt** (nåelighed). Fundet uafhængigt af to reviewere.
-
-Kommentaren to linjer over forpligter payloaden på at holde trit med gatewayens defaults; det
-holder for `title` alene:
-
-| nøgle | klassisk fallback | Blocks-fallback |
-| :-- | :-- | :-- |
-| `description` (kort) | `'Pay with a payment card via Scanpay.'` | `''` |
-| `description` (MobilePay) | `'Pay with MobilePay.'` | `''` |
-| `description` (Apple Pay) | `'Pay with Apple Pay.'` | `''` |
-| `card_icons` | `[ 'visa', 'mastercard' ]` | `[]` |
-
-Kun ved en *fraværende* nøgle; tom værdi håndteres ens på begge sider. Nåeligheden er tynd —
-den eneste fundne vej er REST-controllerens `update_item()` med `{"enabled": true}` på en
-butik hvis option stadig er det `[ 'secret' => … ]`-array `install.php:108-114` mønter. Den
-tilstand er ikke blevet sjældnere med omskrivningen: der er ingen aktiveringshook, så
-`install.php` mønter hemmeligheden ved det første loader-gennemløb, og optionen bærer da den
-ene nøgle indtil købmanden gemmer indstillingsskærmen første gang.
-
-**`card_icons`-rækken er den letteste at rette.** Den klassiske fallback står som en literal i
-`get_icon()`, så de to sider er to literaler man kan holde op mod hinanden — præcis den form
-fundet beder om.
-
-**Rettelse.** Brug samme literaler som `default_description()`, eller drop `??`-fallbacksene
-helt. Kravet er at de to stemmer. For `card_icons` er der nu tre steder at holde i sync —
-feltfilens `'default'`, `get_icon()`s literal og Blocks-payloaden — hvilket taler for at lade
-Blocks-siden bruge samme literal frem for at tilføje en fjerde stavning.
-
-**Alternativ — én kilde til de fire defaults, ikke fire literaler der skal stemme.** Rettelsen
-ovenfor bringer stavningerne i overensstemmelse; den efterlader dem stavninger, og `card_icons` har
-allerede vist at antallet vokser. Guiden praktiserer det modsatte i nabofilen:
-`get_form_fields()` *injicerer* `title` og `description`-defaults i feltfilen frem for at lade den
-stave dem, netop *"so property and form cannot disagree on the default"*
-(`abstract-wc-gateway-scanpay-base.php:77-79`). Samme princip, bare med en læser mere:
-
-```php
-// library/functions.php
-/**
- * The shipped title, description and card icons for a gateway id. The one source: three
- * readers want them without a gateway instance -- the field files, get_icon(), and the Blocks
- * payload, which must not instantiate a gateway because that drags the lazy form fields into
- * a payload built on every page of the store.
- */
-function wc_scanpay_gateway_defaults( string $id ): array { … }
-```
-
-`default_title()` og `default_description()` bliver da to linjer der læser den, og Blocks-payloadens
-`??`-fallbacks peger samme sted som den klassiske gateway.
-
-**Anbefaling: alternativet.** Fundet er ikke at fire literaler står forkert — det er at to sider
-lover at holde trit uden at have noget der holder dem til det, og at `card_icons` allerede er gået
-fra to stavninger til tre. En delt kilde fjerner muligheden; at rette literalerne fjerner denne
-instans. Prisen er én funktion og en `require_once` i Blocks-filen, som ikke har `library/functions.php`
-i dag.
-
 ### 25. Rå backend-diagnostik havner i ordrenoten ved fejlet capture
 
 `src/library/class-wc-scanpay-capture.php:181-195` — **Verificeret** (mekanisme)
@@ -978,6 +817,14 @@ er "sikkert nok til en ordrenote" at holde ajour, når en fremtidig `throw` føj
 desuden præcis det mønster `WCS_Scanpay_Charge` allerede overholder for søsterflowet, og som
 `woocommerce-scanpay.php:230` skriver som regel — så rettelsen bringer capture i overensstemmelse
 med en politik der findes, frem for at opfinde en anden.
+
+**Reviewnote.** Alternativet indpakker kun DB-opslaget og klientkaldet, men den ydre
+`catch ( \Throwable )` kan også modtage rå fejl fra pengelagets validering og fra
+WooCommerce-kald som `get_refunds()`. De vil fortsat blive skrevet ordret i ordrenoten.
+Opgørelsen af de lokale domænebeskeder er desuden ufuldstændig:
+`ShopID mismatch for order …` er en femte lokal `RuntimeException`. Der skal derfor være
+en udtrykkelig købmandsvendt fejlkategori eller en sikker oversættelsesgrænse omkring hele
+primitiven; de to foreslåede wrappers etablerer ikke alene den lovede invariant.
 
 ### 26. Valutaen kontrolleres ikke før capture
 
@@ -1268,8 +1115,8 @@ Standardkørslen er derfor ikke-streng: værdien klippes til 4.294.967.295 med a
 skrivningen lykkes, `$wpdb->last_error` forbliver tom, og `$wpdb->query()` returnerer ikke
 `false`. Ingen af pluginnets fejlkontroller fanger det.
 
-Egenskabsdeklarationen er bekræftet igen mod `vendor/php-stubs/wordpress-stubs`; kun
-linjenummeret i `class-wpdb.php` stammer fra det fulde træ og kunne ikke efterprøves nu.
+Egenskabsdeklarationen og linjenummeret er bekræftet i
+`.stubs/wordpress/wp-includes/class-wpdb.php:644-651`.
 Samme præmis vender den anden vej i `v3-0-0.php`: dér er det en manglende værdi til en
 `NOT NULL`-kolonne uden `DEFAULT`, som bliver advarsel 1364 frem for en fejl.
 
@@ -1348,6 +1195,15 @@ nu; resten venter på ét svar. Skrives den store `ALTER` alligevel, bør den ha
 logline per tabel som `v3-0-0.php` gør, så et retry efter et timeout fortsætter ved næste tabel
 frem for at starte forfra.
 
+**Reviewnote.** Anbefalingen behandler samme værdi inkonsistent:
+`scanpay_seq.shopid` foreslås udvidet nu, mens `scanpay_meta.shopid` aldrig skal udvides,
+fordi den er butikkens id fra API-nøglen. Begge kolonner gemmer netop det id; hvis den
+semantiske begrundelse udelukker den ene, udelukker den også den anden. En eventuel
+forsigtighedsudvidelse alene fordi `scanpay_seq` er billig bør kaldes det, ikke begrundes
+som et andet id-rum. Det bærende Go-citat kan heller ikke reproduceres:
+`/code/snare/go-scanpay/api_types.go` ligger uden for repoet og findes ikke i det aktuelle
+workspace, så afsnittet kan ikke samtidig kalde det belæg »her i træet«.
+
 ---
 
 ## Hazard uden foreslået rettelse
@@ -1400,6 +1256,15 @@ dokumentation — "én API-nøgle per butik" — og at alt andet er en designæn
 rettelse er stadig værd at gøre synligt, og gaten der opdager kollisionen er allerede på plads. Det
 er den billigste halvdel af et fund der ellers ikke har nogen.
 
+**Reviewnote.** En note »i samme gren« gentager ejerskabsproblemet: `upsert_meta()` har
+kun det numeriske ordre-id, og `wc_get_order()` samt Scanpay-ejerskabstesten ligger efter
+en vellykket upsert. Uden en særskilt `wc_scanpay_is_scanpay_order()`-gate kan noten derfor
+lande på en lokal ordre fra en anden gateway, som blot deler nummer med den fremmede
+transaktion. `add_order_note()` skal samtidig ligge i sin egen `try/catch`; ellers gør en
+fejlet diagnostik den permanente kollision til et kast, som kan forhindre cursoren i at
+rykke. Med de to værn kan supplementet være semantikneutralt; uden dem er det ikke de
+lovede fem linjer.
+
 ---
 
 ## Efterprøvet og fundet i orden
@@ -1437,8 +1302,19 @@ kald forhindrer et tidligere kald i at svække dem. `CURLOPT_FOLLOWLOCATION` er 
 undtagelsesbesked. `Idempotency-Key` er stabil på tværs af retries af samme charge og distinkt
 på tværs af forskellige.
 
+**Reviewnote.** Sidste sætning er for absolut. Nøglen indeholder både subscriberens
+revision og hele dage siden ordrens oprettelse, så samme fornyelsesordre får bevidst en ny
+nøgle efter et døgn eller en kortopdatering. Den er stabil inden for samme
+`(order, rev, day)`-bucket, ikke på tværs af alle retries af samme charge.
+
 **HMAC-verifikationen** beregnes over de rå `php://input`-bytes, med `hash_equals()` i korrekt
 argumentrækkefølge, og *før* `json_decode()`, før al DB-adgang og før låsen røres.
+
+**Reviewnote.** »Før al DB-adgang« holder ikke: ping-filen kalder
+`get_option( WC_SCANPAY_URI_SETTINGS )` før HMAC-kontrollen, og det kan være et
+databaseopslag når optionen ikke allerede ligger i object cache. Det nødvendige og korrekte
+udsagn er smallere: HMAC'en ligger før cursor-/synkroniseringstabellerne, før
+`json_decode()` og før låsen.
 
 **Ping-versionsgatens placering** (`wc-scanpay-ping.php:211-228`). Efterprøvet mod begge
 fejlmåder den kunne have haft, og den har ingen af dem. Den sidder efter HMAC-kontrollen, så en
@@ -1504,13 +1380,14 @@ WooCommerce dispatche det — så der er intet tredje input at typesikre.
 **`WC_SCANPAY_URL`.** Alle forbrugere ligger i gateway-konstruktører, Blocks-support og
 admin-enqueue — ingen af dem nås på de tre tidlige returstier.
 
-**`supports[]` matcher implementeringen.** Kun kortgatewayen erklærer abonnementsfeatures;
-MobilePay og Apple Pay arver basens `[ 'products' ]`. `'refunds'` optræder i ingen af dem,
-hvilket stemmer med `can_refund_order(): false`.
+**`supports[]` matcher implementeringen.** Kort og Apple Pay erklærer abonnementsfeatures
+kun med det fulde WCS-plugin; MobilePay bliver på basens `[ 'products' ]`. Sync
+konsoliderer Apple Pay-abonnementet til kortgatewayen, som alene ejer de senere fornyelser.
+`'refunds'` optræder i ingen af dem, hvilket stemmer med `can_refund_order(): false`.
 
-**Blocks-payloaden lækker intet.** `get_payment_method_data()` kopierer præcis `title`,
-`description`, `card_icons` og vilkårsstrengene ud af de tre option-arrays. Hverken `apikey`
-eller `secret` — som bor i samme array — nævnes nogensinde, og arrayet spredes aldrig.
+**Blocks-payloaden lækker intet.** `get_payment_method_data()` kopierer gatewayinstansernes
+normaliserede `title`, `description` og `supports`, kortgatewayens `card_icons` samt
+vilkårsstrengene. Hverken `apikey` eller `secret` læses, og intet settings-array spredes.
 
 **Implementeringen af den write-once API-nøgle.** `validate_apikey_field()` dispatches før
 `validate_{$type}_field`, tomt POST returnerer den lagrede værdi frem for at slette,

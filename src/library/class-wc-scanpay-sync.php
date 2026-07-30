@@ -482,6 +482,9 @@ final class WC_Scanpay_Sync {
 			scanpay_log( 'debug', 'sub order: #' . $wcs_sub->get_id() );
 			$wcs_sub->add_meta_data( WC_SCANPAY_URI_SUBID, $subid, true );
 			$wcs_sub->add_meta_data( WC_SCANPAY_URI_SHOPID, $this->shopid, true );
+			// Wallets are only the checkout selection. Renewals charge the underlying card,
+			// so every linked subscription belongs to the one gateway that owns that handler.
+			$wcs_sub->set_payment_method( 'scanpay' );
 			$wcs_sub->set_payment_method_title( $pm_title );
 			if ( ! $this->save_or_report( $wcs_sub, "subscriber #$subid: subscription #" . $wcs_sub->get_id() ) ) {
 				// An unwritten subid is the precondition for everything below. Completing the

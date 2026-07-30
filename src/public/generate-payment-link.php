@@ -98,6 +98,13 @@ function wc_scanpay_process_payment( int $oid, array $settings ): array {
 	 * half has already written whatever meta and order note its path calls for.
 	 */
 	$wcs = wcs_scanpay_active();
+	if ( ! $wcs && wcs_scanpay_is_payment_method_change( $wco ) ) {
+		// WooCommerce filters this gateway out through its subscription support declaration.
+		// Refuse anyway if third-party code bypasses that list: falling through would build
+		// items from the recurring total and turn a method move into a payment.
+		scanpay_log( 'error', "Order #$oid: refused a subscription payment-method change without the full WC_Subscriptions plugin." );
+		throw new Exception( esc_html__( 'Error: Scanpay cannot update the payment method for this subscription. Please choose another payment method or contact support.', 'scanpay-for-woocommerce' ) );
+	}
 	if ( $wcs ) {
 		$link = wcs_scanpay_payment_link( $oid, $wco, $settings, $data, $client );
 		if ( null !== $link ) {

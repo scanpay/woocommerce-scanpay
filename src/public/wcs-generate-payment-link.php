@@ -35,10 +35,12 @@ defined( 'ABSPATH' ) || exit();
  *
  * The subscriptions-core package ships WC_Subscription and
  * WC_Subscriptions_Change_Payment_Gateway without WC_Subscriptions, so a shop running core
- * alone -- WooPayments' bundled subscriptions -- answers false here and pays every order the
- * ordinary way. It is the test
- * woocommerce-scanpay.php loads public/subscriptions.php on, so such a shop carries no
- * renewal handler either.
+ * alone -- WooPayments' old bundled subscriptions -- answers false here. The card and
+ * Apple Pay gateways advertise no subscription features in that state, and
+ * generate-payment-link.php refuses a method change if third-party code bypasses
+ * WooCommerce's gateway list. It is also the test woocommerce-scanpay.php loads
+ * public/subscriptions.php on, so the capability declaration and card renewal handler share
+ * the same full-plugin boundary.
  */
 function wcs_scanpay_active(): bool {
 	return class_exists( 'WC_Subscriptions', false ) && method_exists( 'WC_Subscriptions_Product', 'is_subscription' );

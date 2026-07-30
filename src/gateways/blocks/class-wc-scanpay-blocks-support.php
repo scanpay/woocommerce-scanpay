@@ -51,14 +51,14 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 	 * latter -- so a block theme with a header mini-cart builds this on every page. Do not gate
 	 * it on is_checkout(); the Cart block needs the same bundle.
 	 *
-	 * Settings are read straight from the option, not through the classic gateways'
-	 * get_title()/get_description()/get_icon(): those apply filters whose callbacks may return
-	 * HTML, and checkout.ts hands the payload to React as text, so markup would render
-	 * literally. If WooCommerce ever exposes a Blocks filter contract, add it separately; do
-	 * not invent one.
+	 * WooCommerce builds the gateway collection for Blocks' sort order immediately before it
+	 * asks integrations for this payload, so resolving the singleton below reuses those
+	 * instances. Read their normalized public properties, not get_title()/get_description():
+	 * those apply filters whose callbacks may return HTML, and checkout.ts renders the values
+	 * as text.
 	 */
 	public function get_payment_method_data(): array {
-		$settings = get_option( WC_SCANPAY_URI_SETTINGS );
+		$gateways = WC()->payment_gateways()->payment_gateways();
 		$data     = [
 			'url'     => WC_SCANPAY_URL . '/public/assets/images/',
 			'methods' => [],
@@ -66,10 +66,10 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 		// Subscription terms checkbox, rendered by checkout.ts as a forced checkout block and
 		// enforced by wcs_scanpay_blocks_validate_terms().
 		//
-		// Outside $data['methods'] and outside the 'enabled' gate on purpose: the consent
-		// belongs to the subscription in the cart, so it covers every gateway the customer
-		// can pick and stays active while our own are disabled. It reaches the payload
-		// because AbstractPaymentMethodType::is_active() defaults to true.
+		// Outside $data['methods'] and outside the per-gateway availability gate on purpose:
+		// the consent belongs to the subscription in the cart, so it covers every gateway the
+		// customer can pick and stays active while our own are unavailable. It reaches the
+		// payload because AbstractPaymentMethodType::is_active() defaults to true.
 		//
 		// WC_Subscriptions first, and not just the cart class: the validator and the Store API
 		// namespace both live in public/subscriptions.php, which the router loads behind that
@@ -95,52 +95,24 @@ final class WC_Scanpay_Blocks_Support extends AbstractPaymentMethodType {
 				];
 			}
 		}
-		if ( is_array( $settings ) && ( 'yes' === ( $settings['enabled'] ?? 'no' ) ) ) {
-			$data['methods']['scanpay'] = [
-				// WC_Gateway_Scanpay_Card::default_title() is the source; the two must stay in
-				// step, or a store renders a different label in each checkout. Copied rather
-				// than called, because instantiating the gateway would drag its lazy form
-				// fields into a payload built on every page of the store.
-				'title'       => (string) ( $settings['title'] ?? 'Pay by card' ),
-				'description' => (string) ( $settings['description'] ?? '' ),
-				// WC's validate_multiselect_field() stores '' rather than [] when nothing is
-				// selected, and (array) '' is [ '' ], which renders one broken <img>.
-				// array_values() keeps this a JSON array rather than an object.
-				'icons'       => array_values( array_filter( (array) ( $settings['card_icons'] ?? [] ) ) ),
-				'supports'    => [
-					'products',
-					'subscriptions',
-					'subscription_cancellation',
-					'subscription_suspension',
-					'subscription_reactivation',
-					'subscription_amount_changes',
-					'subscription_date_changes',
-					'subscription_payment_method_change_customer',
-					'subscription_payment_method_change_admin',
-					'multiple_subscriptions',
-				],
-			];
-		}
-		$mobilepay = get_option( 'woocommerce_scanpay_mobilepay_settings' );
-		if ( is_array( $mobilepay ) && ( 'yes' === ( $mobilepay['enabled'] ?? 'no' ) ) ) {
-			$data['methods']['scanpay_mobilepay'] = [
-				'title'       => (string) ( $mobilepay['title'] ?? 'MobilePay' ),
-				'description' => (string) ( $mobilepay['description'] ?? '' ),
-				'icons'       => [ 'mobilepay' ],
-				'supports'    => [
-					'products',
-				],
-			];
-		}
-		$applepay = get_option( 'woocommerce_scanpay_applepay_settings' );
-		if ( is_array( $applepay ) && ( 'yes' === ( $applepay['enabled'] ?? 'no' ) ) ) {
-			$data['methods']['scanpay_applepay'] = [
-				'title'       => (string) ( $applepay['title'] ?? 'Apple Pay' ),
-				'description' => (string) ( $applepay['description'] ?? '' ),
-				'icons'       => [ 'applepay' ],
-				'supports'    => [
-					'products',
-				],
+		foreach ( [ 'scanpay', 'scanpay_mobilepay', 'scanpay_applepay' ] as $id ) {
+			$gateway = $gateways[ $id ] ?? null;
+			if ( ! $gateway instanceof WC_Gateway_Scanpay_Base || ! $gateway->is_available() ) {
+				continue;
+			}
+			// WC's validate_multiselect_field() stores '' rather than [] when nothing is
+			// selected, and (array) '' is [ '' ], which would render one broken card icon.
+			// array_values() keeps every branch a JSON array rather than an object.
+			$icons = match ( $id ) {
+				'scanpay'           => array_values( array_filter( (array) ( $gateway->settings['card_icons'] ?? [ 'visa', 'mastercard' ] ) ) ),
+				'scanpay_mobilepay' => [ 'mobilepay' ],
+				'scanpay_applepay'  => [ 'applepay' ],
+			};
+			$data['methods'][ $id ] = [
+				'title'       => (string) $gateway->title,
+				'description' => (string) $gateway->description,
+				'icons'       => $icons,
+				'supports'    => array_values( (array) $gateway->supports ),
 			];
 		}
 		return $data;

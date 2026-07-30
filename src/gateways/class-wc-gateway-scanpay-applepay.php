@@ -2,8 +2,9 @@
 
 /**
  * The Apple Pay gateway. Settings live in woocommerce_scanpay_applepay_settings, but the
- * API key it pays with is the card gateway's. Unlike the other two it also enqueues a
- * classic-checkout script, because only the browser can say whether Apple Pay is offered.
+ * API key it pays with is the card gateway's. It can be selected for subscription payments
+ * when the full WC_Subscriptions plugin is active, and unlike the other two it also enqueues a
+ * classic-checkout script because only the browser can say whether Apple Pay is offered.
  */
 
 declare(strict_types=1);
@@ -18,6 +19,23 @@ final class WC_Gateway_Scanpay_ApplePay extends WC_Gateway_Scanpay_Base {
 		$this->icon               = WC_SCANPAY_URL . '/admin/assets/images/icons/apple-pay.svg';
 		parent::__construct();
 
+		$this->supports = [ 'products' ];
+		if ( class_exists( 'WC_Subscriptions', false ) ) {
+			// Sync consolidates the wallet into the card gateway before later renewals; the
+			// full plugin is what provides that gateway's renewal handler.
+			$this->supports = [
+				'products',
+				'subscriptions',
+				'subscription_cancellation',
+				'subscription_suspension',
+				'subscription_reactivation',
+				'subscription_amount_changes',
+				'subscription_date_changes',
+				'subscription_payment_method_change_customer',
+				'subscription_payment_method_change_admin',
+				'multiple_subscriptions',
+			];
+		}
 		// The parent constructor has initialized $this->enabled from the saved setting, so
 		// this hooks nothing on a store that does not offer Apple Pay.
 		if ( 'yes' === $this->enabled ) {

@@ -1,9 +1,9 @@
 <?php
 
 /**
- * The card gateway, and the only one of the three that supports subscriptions. Its
- * settings option is the primary one: it holds the shared API key and every cross-gateway
- * setting.
+ * The card gateway. It supports subscriptions when the full WC_Subscriptions plugin is
+ * active, and its settings option is the primary one: it holds the shared API key and
+ * every cross-gateway setting.
  */
 
 declare(strict_types=1);
@@ -20,18 +20,23 @@ final class WC_Gateway_Scanpay_Card extends WC_Gateway_Scanpay_Base {
 		$this->icon               = WC_SCANPAY_URL . '/admin/assets/images/icons/scanpay.svg';
 		parent::__construct();
 
-		$this->supports = [
-			'products',
-			'subscriptions',
-			'subscription_cancellation',
-			'subscription_suspension',
-			'subscription_reactivation',
-			'subscription_amount_changes',
-			'subscription_date_changes',
-			'subscription_payment_method_change_customer',
-			'subscription_payment_method_change_admin',
-			'multiple_subscriptions',
-		];
+		$this->supports = [ 'products' ];
+		if ( class_exists( 'WC_Subscriptions', false ) ) {
+			// subscriptions-core alone exposes payment-method changes but carries no renewal
+			// handler for us, so it must not make the subscription features reachable.
+			$this->supports = [
+				'products',
+				'subscriptions',
+				'subscription_cancellation',
+				'subscription_suspension',
+				'subscription_reactivation',
+				'subscription_amount_changes',
+				'subscription_date_changes',
+				'subscription_payment_method_change_customer',
+				'subscription_payment_method_change_admin',
+				'multiple_subscriptions',
+			];
+		}
 		// Both read $this->settings directly, for the reason init_gateway_props() documents:
 		// get_option() would force-load the lazy form fields, and this gateway's fields file
 		// opens with an unbounded get_pages(). The fallbacks are the field defaults.
