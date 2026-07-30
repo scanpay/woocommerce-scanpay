@@ -88,6 +88,33 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 	}
 
 	/**
+	 * Whether the customer may pick this gateway. Two things the parent cannot know, both of
+	 * which would otherwise be discovered at the far end of a checkout:
+	 *
+	 * Without ext-curl, WC_Scanpay_Client::__construct() throws and
+	 * generate-payment-link.php:61 constructs it outside any try -- so a shopper choosing us
+	 * gets an error page rather than a payment window. The extension can also disappear after
+	 * the key was stored, which process_admin_options() cannot catch: it only runs on a save.
+	 *
+	 * An unstamped version means the install or a migration has not finished. The ping path
+	 * answers 503 on the same condition (wc-scanpay-ping.php:211-228), so both ends of the shop
+	 * agree on when it is out of service -- taking the order while the drain is refusing to run
+	 * would create a payment at Scanpay with no schema to record it in. The option is
+	 * autoloaded, and the loader gate stamps it on plugins_loaded, long before any gateway list
+	 * is built, so a successful upgrade is never visible here.
+	 *
+	 * Only the customer-facing list is filtered: WC_Payment_Gateways::payment_gateways() hands
+	 * back every registered gateway regardless, so the settings screen, the meta box and the
+	 * admin diagnostics are untouched. Renewals do not pass through here at all -- their guards
+	 * are in wcs_scanpay_scheduled_charge() and the client's constructor.
+	 */
+	public function is_available(): bool {
+		return function_exists( 'curl_init' )
+			&& get_option( 'wc_scanpay_version' ) === WC_SCANPAY_VERSION
+			&& parent::is_available();
+	}
+
+	/**
 	 * The checkout display title, e.g. "Pay by card". The branding decision only;
 	 * sanitization and the woocommerce_gateway_title filter stay the parent's. Casts on both
 	 * branches, because a filter result is unconstrained and strict_types would turn a
@@ -158,10 +185,11 @@ abstract class WC_Gateway_Scanpay_Base extends WC_Payment_Gateway {
 			return true;
 		}
 
-		// Without ext-curl the client's constructor fatals on curl_init(), and the catch
-		// below cannot soften it: an undefined function raises an Error, which does not
-		// extend Exception, so saving this form would be a white screen instead of a notice.
-		// Reported, not repaired -- the parent has already stored the settings.
+		// Ahead of the key check, for the message rather than for safety: the client's
+		// constructor throws a RuntimeException without ext-curl, which the catch below would
+		// report as an invalid API key -- sending the merchant to re-check a key that is fine.
+		// Reported, not repaired: the parent has already stored the settings, and is_available()
+		// is what keeps the gateway off checkout until the extension is there.
 		if ( ! function_exists( 'curl_init' ) ) {
 			WC_Admin_Settings::add_error(
 				__( 'Error: Scanpay requires the PHP cURL extension, which is not installed on this server.', 'scanpay-for-woocommerce' )

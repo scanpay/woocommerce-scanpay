@@ -19,7 +19,20 @@ final class WC_Scanpay_Client {
 	private bool $idem         = false;
 	private string $idemstatus = '';
 
+	/**
+	 * One curl handle and the headers every call carries, for the lifetime of this object.
+	 *
+	 * @throws \RuntimeException When ext-curl is missing.
+	 */
 	public function __construct( string $apikey ) {
+		// ext-curl is not guaranteed on a WooCommerce host, and an undefined curl_init() raises
+		// an Error -- which does not extend Exception, so none of the catches around our callers
+		// soften it. Thrown here instead, so every caller gets something it already handles:
+		// checkout shows WooCommerce's message rather than a white page, and capture and the
+		// renewal charge take their existing failure paths.
+		if ( ! function_exists( 'curl_init' ) ) {
+			throw new \RuntimeException( 'The PHP cURL extension is required and is not installed' );
+		}
 		$this->ch      = curl_init();
 		$this->headers = [
 			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- HTTP Basic credentials, which RFC 7617 defines as base64; not obfuscation.

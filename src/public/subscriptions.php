@@ -23,6 +23,26 @@ defined( 'ABSPATH' ) || exit();
  * missing class file is the one case it cannot contain -- a compile error, not a Throwable.
  */
 function wcs_scanpay_scheduled_charge( float $amount, WC_Order $wco ): void {
+	/*
+	 * A shop that has not finished upgrading must not charge. The ping path answers 503 on this
+	 * exact condition (wc-scanpay-ping.php:211-228), so the money would move at Scanpay with
+	 * nothing able to record it: the customer charged for a renewal that stays unpaid locally.
+	 * The checkout gateways are covered by is_available(), which a scheduled charge never passes
+	 * through -- hence the second copy of the test rather than a shared one.
+	 *
+	 * Failed rather than a silent return: WCS only reschedules an attempt it was told about, and
+	 * wcs_scanpay_retry_rule() puts that retry at least 25 h out, by which time the loader -- which
+	 * retries the migration every five minutes -- has either succeeded or is a standing error in
+	 * the log.
+	 */
+	if ( get_option( 'wc_scanpay_version' ) !== WC_SCANPAY_VERSION ) {
+		wcs_scanpay_fail_renewal(
+			$wco,
+			'scheduled charge: refused on #' . $wco->get_id() . ' -- the plugin has not finished upgrading',
+			__( 'The renewal could not be charged because the payment plugin is still updating. It will be retried automatically.', 'scanpay-for-woocommerce' )
+		);
+		return;
+	}
 	static $handler = null;
 	try {
 		if ( null === $handler ) {
