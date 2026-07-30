@@ -5,11 +5,17 @@
  *
  * What changed: the 2.x tables carry columns 3.x stopped writing -- scanpay_meta.method, and
  * retries/nxt/method_id/idem on scanpay_subs from the pre-3.0 charge design -- plus a UNIQUE key
- * declared alongside each table's PRIMARY KEY. Only scanpay_meta.method actually blocks 3.x: it
- * is NOT NULL with no DEFAULT, so under a strict SQL mode every insert fails (MySQL 1364) and the
- * cursor cannot advance past that change. The rest is dead weight, dropped so that a migrated
- * shop and a fresh one carry one schema between them -- three SELECT * readers put these rows on
- * the wire, against types that document the column list field for field.
+ * declared alongside each table's PRIMARY KEY.
+ *
+ * None of it is an acute data fix, and scanpay_meta.method is the only column that can block 3.x
+ * at all: it is NOT NULL with no DEFAULT, so a strict SQL mode fails every insert (MySQL 1364)
+ * and the cursor cannot advance past that change. Most shops do not run in one --
+ * wpdb::set_sql_mode() strips STRICT_TRANS_TABLES and STRICT_ALL_TABLES from every connection --
+ * and there 1364 is a warning: the insert succeeds with the type's implicit default. A host can
+ * put the strictness back through the incompatible_sql_modes filter or an init_command, which is
+ * who this column drop is for. The rest is dead weight, dropped so that a migrated shop and a
+ * fresh one carry one schema between them -- three SELECT * readers put these rows on the wire,
+ * against types that document the column list field for field.
  *
  * Dropped in place, never DROP TABLE: rows, cursors and revisions all survive. That is what keeps
  * the change free of a re-drain, of a window where capture finds no payment row and renewals find

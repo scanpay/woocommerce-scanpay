@@ -56,35 +56,39 @@ function scanpay_log( string $level, string $msg ): void {
 }
 
 /*
- * Ping (callback) endpoint: /wc-api/wc_scanpay/ or ?wc-api=wc_scanpay. The bootstrap is
- * skipped only when the URI really is that endpoint -- an X-Signature header elsewhere
- * must still get a normal plugin load.
+ * Ping (callback) endpoint: /wc-api/wc_scanpay/ or ?wc-api=wc_scanpay. Registered on every
+ * request carrying the header; WooCommerce decides whether the URI really is that endpoint, so
+ * an X-Signature header elsewhere simply never reaches the handler.
+ *
+ * The bootstrap below is deliberately *not* skipped for a ping. woocommerce_api_wc_scanpay
+ * fires from parse_request, so WooCommerce is fully loaded either way and the only thing an
+ * early return saves is our own plugins_loaded callback -- the version gate that runs
+ * upgrade.php included. Skipping that left the drain answering 503 while it waited for an
+ * ordinary request, which never comes on a shop whose only traffic is pings; now the migration
+ * runs first, in this request. The handler drops our completed-status listener in exchange,
+ * for the reason it states.
  */
 if ( isset( $_SERVER['HTTP_X_SIGNATURE'] ) ) {
 	function wc_scanpay_handle_ping(): void {
-		// Not left to wc_scanpay_init(): the return below skips the bootstrap. Sync writes
-		// three translated order notes from this request, which no later one repairs.
-		load_plugin_textdomain( 'scanpay-for-woocommerce', false, basename( WC_SCANPAY_DIR ) . '/languages' );
 		require WC_SCANPAY_DIR . '/callback/wc-scanpay-ping.php';
 	}
 	// Since WC 9.0 fired on parse_request by LegacyRestApiStub, not the removed WC_API.
 	add_action( 'woocommerce_api_wc_scanpay', 'wc_scanpay_handle_ping' );
-	// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- Only compared with str_ends_with(); never echoed, stored or put in a query.
-	$uri = $_SERVER['REQUEST_URI'] ?? '';
-	if ( str_ends_with( $uri, 'wc_scanpay/' ) || str_ends_with( $uri, 'wc_scanpay' ) ) {
-		return;
-	}
 }
 
 /*
  * Payment-return ("thank you") page. A genuine return carries all three params and a known
- * type; anything else falls through to a normal load. The handler verifies order-key
- * ownership before it polls.
+ * type; the handler verifies order-key ownership before it polls.
+ *
+ * No return here either, and here it is load-bearing: all three params are attacker-supplied
+ * and unauthenticated, so an early return was a way to ask for a request with none of this
+ * plugin's hooks -- the subscription-terms validator among them. The file registers a
+ * woocommerce_init hook and nothing else, and init:0 is later than plugins_loaded, so the
+ * ordinary bootstrap reaches it in time.
  */
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Routing only; the handler checks the order key first.
 if ( isset( $_GET['scanpay_thankyou'], $_GET['scanpay_type'], $_GET['key'] ) && in_array( $_GET['scanpay_type'], [ 'wc', 'wcs', 'wcs_free' ], true ) ) {
 	require WC_SCANPAY_DIR . '/public/wp-scanpay-thankyou.php';
-	return;
 }
 
 /*
@@ -281,8 +285,10 @@ function wc_scanpay_plugins_loaded() {
 		}
 	}
 
-	// Down here: ping, payment return and admin AJAX all return before this, and never read a
-	// URL. plugins_url(), not WP_PLUGIN_URL . basename(): mu-plugins, symlinks, https proxies.
+	// Down here because the admin-AJAX endpoints -- the one dispatch gate that still returns
+	// before it -- never read a URL. The ping and payment-return paths do reach it now, which
+	// costs them one plugins_url() call and removes them as a special case.
+	// plugins_url(), not WP_PLUGIN_URL . basename(): mu-plugins, symlinks, https proxies.
 	define( 'WC_SCANPAY_URL', untrailingslashit( plugins_url( '', __FILE__ ) ) );
 
 	add_filter( 'allowed_redirect_hosts', 'wc_scanpay_allowed_redirect_hosts' );

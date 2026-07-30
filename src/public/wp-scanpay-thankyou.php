@@ -1,11 +1,15 @@
 <?php
 
 /**
- * The payment-return ("thank you") page, dispatched from woocommerce-scanpay.php before the
- * rest of the bootstrap. Both handlers hold the request until sync has written what the page
- * renders -- a transaction id for a paid order, an activated subscription for a free trial --
- * so it does not render half-finished. The wait overlaps the redirect from the payment window,
- * so the customer rarely sees it.
+ * The payment-return ("thank you") page, required from woocommerce-scanpay.php's routing gate.
+ * Both handlers hold the request until sync has written what the page renders -- a transaction id
+ * for a paid order, an activated subscription for a free trial -- so it does not render
+ * half-finished. The wait overlaps the redirect from the payment window, so the customer rarely
+ * sees it.
+ *
+ * The gate does not skip the rest of the bootstrap, and this file must not assume it does: it
+ * registers a hook and defines functions, and nothing here runs at require time. What the hook
+ * *does* need is to run early, which is a separate matter -- see the numbered list below.
  *
  * Contract: GET scanpay_thankyou, scanpay_type and WooCommerce's own key. No nonce -- the
  * customer arrives from an external site -- so the order key is the authentication.

@@ -3,7 +3,9 @@
 /**
  * The Scanpay ping ("callback") endpoint, and the drain it drives: compare the announced
  * sequence number against the local cursor and pull the changes in between, under
- * Scanpay_Flock. Dispatched from woocommerce-scanpay.php before the rest of the bootstrap.
+ * Scanpay_Flock. Reached from woocommerce-scanpay.php's woocommerce_api_wc_scanpay hook, which
+ * WooCommerce fires from parse_request -- so the plugin's own bootstrap has already run and the
+ * version gate below is about a migration that failed, not one that never got the chance.
  *
  * Contract:
  * - HTTP method: POST
@@ -22,6 +24,19 @@ defined( 'ABSPATH' ) || exit();
 // Keep draining after Scanpay gives up and disconnects.
 ignore_user_abort( true );
 set_time_limit( 60 );
+
+/*
+ * Sync completes orders itself, and every order it completes was autocaptured at Scanpay --
+ * wc_scanpay_process_payment() only stores the completion intent when the payload's autocapture
+ * is on. So the listener has nothing to settle on this path, and running it would spend a client
+ * and a lookup per completed order. Worse, in the window before Scanpay's own capture shows in
+ * the feed it would send a capture whose act index no longer matches, and park a fully paid order
+ * on-hold with a note claiming the payment failed. Same removal wp-bulk-actions.php:18 makes.
+ *
+ * Registered on plugins_loaded and dropped here, which is later: this file is required from
+ * parse_request.
+ */
+remove_action( 'woocommerce_order_status_completed', 'wc_scanpay_order_status_completed', 5 );
 
 $settings = get_option( WC_SCANPAY_URI_SETTINGS );
 $apikey   = $settings['apikey'] ?? '';
@@ -194,11 +209,18 @@ if ( $ping_seq === $seq ) {
 }
 
 /*
- * Version guard: the loader gate that runs upgrade.php never fires on this request --
- * woocommerce-scanpay.php returns before plugins_loaded -- so between a plugin update and the
- * next ordinary request this is new code over the old schema, and draining wedges the cursor.
- * Nothing is recorded on the way out; the five-minute keepalive re-announces the same seq.
- * Below the heartbeat, which needs nothing the migration can have changed.
+ * Version guard. The loader gate has already run on this request, so an unstamped version means
+ * the upgrade failed or is throttled after a failure -- not that it is still pending. Refusing to
+ * drain is insurance rather than a known fix: the one 3.x-over-2.x mismatch that exists is only a
+ * hard error under a strict SQL mode, which wpdb::set_sql_mode() strips from every connection, so
+ * on a default install those inserts would silently take MySQL's implicit defaults. What makes
+ * the guard worth its cost is the general case -- a future migration adding a column this code's
+ * INSERT names would wedge the cursor whatever the SQL mode, and draining new code over an
+ * unknown old schema is not something to reason about per migration.
+ *
+ * Nothing is recorded on the way out; the five-minute keepalive re-announces the same seq, and
+ * the loader retries the migration on the next one. Below the heartbeat, which needs nothing a
+ * migration can have changed.
  */
 if ( get_option( 'wc_scanpay_version' ) !== WC_SCANPAY_VERSION ) {
 	scanpay_log( 'warning', 'ping deferred until the plugin finishes upgrading' );
