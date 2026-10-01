@@ -53,6 +53,16 @@
 	font-size: 1.05em;
 }
 
+.wcsp-set-alert--info {
+	background: #f0f6fc;
+	border-left-color: #72aee6;
+}
+
+.wcsp-set-alert > p {
+	font-size: 1em;
+	margin: 0.4em 0;
+}
+
 .wcsp-set-api-info {
 	font-style: italic;
 	color: #555;

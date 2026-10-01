@@ -1,41 +1,41 @@
-# Copyright (C) 2025 Scanpay
+# Copyright (C) 2026 Scanpay
 # This file is distributed under the GPLv3.
 msgid ""
 msgstr ""
 "Project-Id-Version: Scanpay for WooCommerce {{ VERSION }}\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/src\n"
-"Last-Translator: \n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-02-04T12:41:11+00:00\n"
+"POT-Creation-Date: 2026-10-01T14:50:21+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"X-Generator: WP-CLI 2.11.0\n"
+"X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: scanpay-for-woocommerce\n"
 
 #. Plugin Name of the plugin
-#: woocommerce-scanpay.php
+#: woocommerce-scanpay.php:4
 msgid "Scanpay for WooCommerce"
 msgstr ""
 
 #. Plugin URI of the plugin
-#: woocommerce-scanpay.php
+#: woocommerce-scanpay.php:5
 msgid "https://wordpress.org/plugins/scanpay-for-woocommerce/"
 msgstr ""
 
 #. Description of the plugin
-#: woocommerce-scanpay.php
+#: woocommerce-scanpay.php:6
 msgid "Accept payments in WooCommerce with a secure payment gateway."
 msgstr ""
 
 #. Author of the plugin
-#: woocommerce-scanpay.php
+#: woocommerce-scanpay.php:7
 msgid "Scanpay"
 msgstr ""
 
 #. Author URI of the plugin
-#: woocommerce-scanpay.php
+#: woocommerce-scanpay.php:8
 msgid "https://scanpay.dk"
 msgstr ""
 
@@ -106,7 +106,13 @@ msgstr ""
 
 #. translators: %s is a link to the installation guide
 #: includes/admin-options.php:54
+#, php-format
 msgid "Please follow the instructions in the %s."
+msgstr ""
+
+#: includes/admin-options.php:64
+#: includes/gjold-notice.php:40
+msgid "Scanpay is becoming Gjold"
 msgstr ""
 
 #: includes/form-fields.php:9
@@ -169,6 +175,24 @@ msgstr ""
 msgid "Hide checkbox"
 msgstr ""
 
-#: woocommerce-scanpay.php:250
+#: includes/gjold-notice.php:18
+msgid "Scanpay is changing its name to Gjold. This version of the plugin already uses our new gjold.com domain. No action is required."
+msgstr ""
+
+#. translators: %1$s is the current dashboard address, %2$s is the new dashboard address
+#: includes/gjold-notice.php:21
+#, php-format
+msgid "You can continue to use the dashboard at %1$s. In a few days, it will also be available at %2$s, and both addresses will work. Over the coming weeks, we will phase out %1$s, so please switch to %2$s once it is available."
+msgstr ""
+
+#: includes/gjold-notice.php:25
+msgid "In a few weeks, we will also release a new and much improved Gjold plugin for WooCommerce. We will let you know when it is ready."
+msgstr ""
+
+#: includes/gjold-notice.php:42
+msgid "Dismiss this notice"
+msgstr ""
+
+#: woocommerce-scanpay.php:267
 msgid "Settings"
 msgstr ""

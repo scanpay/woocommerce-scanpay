@@ -47,7 +47,7 @@ class WC_Scanpay_Client {
 	private function request( string $path, ?array $opts, ?array $data ): array {
 		$this->idemstatus = '';
 		$curlopts         = [
-			CURLOPT_URL               => 'https://api.scanpay.dk' . $path,
+			CURLOPT_URL               => 'https://api.gjold.com' . $path,
 			CURLOPT_TCP_KEEPALIVE     => 1,
 			CURLOPT_RETURNTRANSFER    => 1,
 			CURLOPT_CONNECTTIMEOUT    => 20,

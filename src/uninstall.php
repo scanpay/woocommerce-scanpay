@@ -20,3 +20,6 @@ delete_option( 'woocommerce_scanpay_settings' );
 delete_option( 'woocommerce_scanpay_mobilepay_settings' );
 delete_option( 'woocommerce_scanpay_applepay_settings' );
 delete_option( 'wc_scanpay_version' );
+
+// Delete dismissed notices (all users)
+delete_metadata( 'user', 0, 'wc_scanpay_dismissed_notice', '', true );

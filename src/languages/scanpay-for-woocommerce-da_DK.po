@@ -7,34 +7,34 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-02-03T15:43:17+00:00\n"
 "POT-Creation-Date: 2025-02-04T14:39:00+00:00\n"
+"PO-Revision-Date: 2026-10-01T14:50:21+00:00\n"
 "Language: da_DK\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: scanpay-for-woocommerce\n"
 
 #. Plugin Name of the plugin
-#: woocommerce-scanpay.php
+#: woocommerce-scanpay.php:4
 msgid "Scanpay for WooCommerce"
 msgstr "Scanpay for WooCommerce"
 
 #. Plugin URI of the plugin
-#: woocommerce-scanpay.php
+#: woocommerce-scanpay.php:5
 msgid "https://wordpress.org/plugins/scanpay-for-woocommerce/"
 msgstr "https://wordpress.org/plugins/scanpay-for-woocommerce/"
 
 #. Description of the plugin
-#: woocommerce-scanpay.php
+#: woocommerce-scanpay.php:6
 msgid "Accept payments in WooCommerce with a secure payment gateway."
 msgstr "Accepter betalinger i WooCommerce med en sikker betalingsgateway."
 
 #. Author of the plugin
-#: woocommerce-scanpay.php
+#: woocommerce-scanpay.php:7
 msgid "Scanpay"
 msgstr "Scanpay"
 
 #. Author URI of the plugin
-#: woocommerce-scanpay.php
+#: woocommerce-scanpay.php:8
 msgid "https://scanpay.dk"
 msgstr "https://scanpay.dk"
 
@@ -105,8 +105,14 @@ msgstr "installationsvejledning"
 
 #. translators: %s is a link to the installation guide
 #: includes/admin-options.php:54
+#, php-format
 msgid "Please follow the instructions in the %s."
 msgstr "Følg venligst instruktionerne i %s."
+
+#: includes/admin-options.php:64
+#: includes/gjold-notice.php:40
+msgid "Scanpay is becoming Gjold"
+msgstr "Scanpay bliver til Gjold"
 
 #: includes/form-fields.php:9
 msgid "Enable Scanpay in the checkout."
@@ -164,10 +170,28 @@ msgstr "Abonnementsbetingelser"
 msgid "Add a checkbox for Subscription Terms and Conditions."
 msgstr "Tilføj en checkbox for abonnementsbetingelser."
 
-#: woocommerce-scanpay.php:250
-msgid "Settings"
-msgstr "Indstillinger"
-
 #: includes/form-fields.php:92
 msgid "Hide checkbox"
 msgstr "Skjul checkbox"
+
+#: includes/gjold-notice.php:18
+msgid "Scanpay is changing its name to Gjold. This version of the plugin already uses our new gjold.com domain. No action is required."
+msgstr "Scanpay skifter navn til Gjold. Denne version af pluginet bruger allerede vores nye domæne, gjold.com. Du skal ikke foretage dig noget."
+
+#. translators: %1$s is the current dashboard address, %2$s is the new dashboard address
+#: includes/gjold-notice.php:21
+#, php-format
+msgid "You can continue to use the dashboard at %1$s. In a few days, it will also be available at %2$s, and both addresses will work. Over the coming weeks, we will phase out %1$s, so please switch to %2$s once it is available."
+msgstr "Du kan fortsat bruge dashboardet på %1$s. Om få dage vil det også være tilgængeligt på %2$s, og begge adresser vil virke. I løbet af de kommende uger udfaser vi %1$s, så skift venligst til %2$s, når det er tilgængeligt."
+
+#: includes/gjold-notice.php:25
+msgid "In a few weeks, we will also release a new and much improved Gjold plugin for WooCommerce. We will let you know when it is ready."
+msgstr "Om nogle uger lancerer vi også et nyt og markant forbedret Gjold-plugin til WooCommerce. Vi giver besked, når det er klar."
+
+#: includes/gjold-notice.php:42
+msgid "Dismiss this notice"
+msgstr "Skjul denne besked"
+
+#: woocommerce-scanpay.php:267
+msgid "Settings"
+msgstr "Indstillinger"

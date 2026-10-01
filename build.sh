@@ -65,6 +65,8 @@ if [ "$answer" != "${answer#[Yy]}" ]; then
         sed -i 's/dashboard\.scanpay\.dk/dashboard\.scanpay\.dev/' "$file"
         sed -i 's/betal\.scanpay\.dk/betal\.scanpay\.dev/' "$file"
         sed -i 's/api\.scanpay\.dk/api\.scanpay\.dev/g' "$file"
+        sed -i 's/pay\.gjold\.com/betal\.scanpay\.dev/g' "$file"
+        sed -i 's/api\.gjold\.com/api\.scanpay\.dev/g' "$file"
         touch -d "$mtime" "$file"
     done
 

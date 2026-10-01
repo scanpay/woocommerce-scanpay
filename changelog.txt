@@ -1,5 +1,10 @@
 Update – Bump version numbers etc.
 
+= 2.10.0 - 2026-10-01 =
+* Update - Scanpay is becoming Gjold: API requests now go to api.gjold.com
+* Update - Allow redirects to the new payment page at pay.gjold.com
+* Add - Notice about the rebranding from Scanpay to Gjold
+
 = 2.9.4 - 2026-05-05 =
 * Add - Add ApplePay Subscriptions support
 

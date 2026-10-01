@@ -180,6 +180,18 @@ function scanpay_admin_hooks() {
 		return $settings;
 	} );
 
+	// [hook] Notice: Scanpay is becoming Gjold
+	add_action( 'admin_notices', function () {
+		require_once WC_SCANPAY_DIR . '/includes/gjold-notice.php';
+		wc_scanpay_gjold_admin_notice();
+	}, 10, 0 );
+	if ( isset( $_GET['wcsp_dismiss_notice'] ) ) {
+		add_action( 'admin_init', function () {
+			require_once WC_SCANPAY_DIR . '/includes/gjold-notice.php';
+			wc_scanpay_gjold_notice_dismiss();
+		}, 10, 0 );
+	}
+
 	global $pagenow;
 	if ( 'admin.php' === $pagenow ) {
 		// Add CSS and JavaScript to the settings page
@@ -289,7 +301,8 @@ add_action( 'plugins_loaded', function () {
 	}
 
 	add_filter( 'allowed_redirect_hosts', function ( array $hosts ) {
-		$hosts[] = 'betal.scanpay.dk';
+		$hosts[] = 'pay.gjold.com';
+		$hosts[] = 'betal.scanpay.dk'; // Legacy payment page (Scanpay is becoming Gjold)
 		return $hosts;
 	} );
 

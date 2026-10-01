@@ -58,6 +58,13 @@ echo wp_kses_post( wpautop( $this->get_method_description() ) );
 	<?php endif; ?>
 </div>
 
+<!-- Scanpay is becoming Gjold -->
+<?php require_once WC_SCANPAY_DIR . '/includes/gjold-notice.php'; ?>
+<div class="wcsp-set-alert wcsp-set-alert--info">
+	<h4><?php echo esc_html__( 'Scanpay is becoming Gjold', 'scanpay-for-woocommerce' ); ?></h4>
+	<?php echo wc_scanpay_gjold_notice_body(); ?>
+</div>
+
 <?php
 
 $class_name = 'form-table wcsp-set-' . $this->id;

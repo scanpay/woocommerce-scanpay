@@ -93,6 +93,11 @@ Yes, this plugin supports MobilePay. You must enable MobilePay in both the plugi
 You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us on IRC.
 
 == Changelog ==
+= 2.10.0 - 2026-10-01 =
+* Update - Scanpay is becoming Gjold: API requests now go to api.gjold.com
+* Update - Allow redirects to the new payment page at pay.gjold.com
+* Add - Notice about the rebranding from Scanpay to Gjold
+
 = 2.9.4 - 2026-05-05 =
 * Add - Add ApplePay Subscriptions support
 
@@ -139,3 +144,8 @@ You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us
 * Performance - Save needs_processing transient (WCS)
 
 [See changelog for all versions](https://raw.githubusercontent.com/scanpay/woocommerce-scanpay/master/changelog.txt).
+
+== Upgrade Notice ==
+
+= 2.10.0 =
+Scanpay is becoming Gjold. This update connects to our new domain (api.gjold.com). You can keep using dashboard.scanpay.dk for now; dashboard.gjold.com will be available in a few days.
