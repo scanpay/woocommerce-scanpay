@@ -92,5 +92,29 @@ if ( version_compare( $version, '2.5.0', '<' ) ) {
 	update_option( WC_SCANPAY_URI_SETTINGS, $settings, true );
 }
 
+/*
+	Version: 2.10.0
+	* Subscriptions always use the 'scanpay' gateway. Rename 'scanpay_applepay' (2.9.4) to 'scanpay' on subscriptions
+	and unpaid (renewal) orders. Paid orders are not touched (1.x did not rename them). We use SQL, because
+	WC_Subscription::set_payment_method() looks up the gateways, and WC is loading the gateways right now.
+*/
+if ( $wcs_exists && version_compare( $version, '2.10.0', '<' ) ) {
+	$n = $wpdb->query(
+		"UPDATE {$wpdb->postmeta} pm JOIN {$wpdb->posts} p ON p.ID = pm.post_id SET pm.meta_value = 'scanpay'
+		WHERE pm.meta_key = '_payment_method' AND pm.meta_value = 'scanpay_applepay'
+		AND ( p.post_type = 'shop_subscription' OR p.post_status IN ( 'wc-pending', 'wc-failed' ) )"
+	);
+	if ( $wpdb->get_var( "SHOW TABLES LIKE '{$wpdb->prefix}wc_orders'" ) ) {
+		$n += $wpdb->query(
+			"UPDATE {$wpdb->prefix}wc_orders SET payment_method = 'scanpay' WHERE payment_method = 'scanpay_applepay'
+			AND ( type = 'shop_subscription' OR status IN ( 'wc-pending', 'wc-failed' ) )"
+		);
+	}
+	if ( $n > 0 ) {
+		scanpay_log( 'info', "Renamed payment method 'scanpay_applepay' to 'scanpay' ($n rows)" );
+		wp_cache_flush();
+	}
+}
+
 update_option( 'wc_scanpay_version', WC_SCANPAY_VERSION, true ); // with autoload
 scanpay_log( 'info', 'Scanpay plugin upgrade complete' );

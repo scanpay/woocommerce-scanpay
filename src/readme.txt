@@ -97,6 +97,7 @@ You can e-mail us at support@scanpay.dk, call us at +45 32727232 or chat with us
 * Update - Scanpay is becoming Gjold: API requests now go to api.gjold.com
 * Update - Allow redirects to the new payment page at pay.gjold.com
 * Add - Notice about the rebranding from Scanpay to Gjold
+* Fix - Apple Pay subscriptions now renew via the Scanpay gateway (WCS only)
 
 = 2.9.4 - 2026-05-05 =
 * Add - Add ApplePay Subscriptions support

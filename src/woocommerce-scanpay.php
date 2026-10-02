@@ -96,6 +96,21 @@ add_filter('woocommerce_subscription_payment_method_to_display', function ( $s, 
 	return $sub->get_payment_method() === 'scanpay' ? $sub->get_payment_method_title() : $s;
 }, 10, 2);
 
+/*
+	Subscriptions always use the 'scanpay' gateway, so all renewals go through the same flow and the
+	customer can choose any payment method. Apple Pay etc. (scanpay_*) are only shortcuts at checkout.
+*/
+add_action( 'woocommerce_before_subscription_object_save', function ( $sub ) {
+	if ( str_starts_with( $sub->get_payment_method( 'edit' ), 'scanpay_' ) ) {
+		// set_payment_method() looks up the gateway and resets these, so keep what WCS decided
+		$manual = $sub->get_requires_manual_renewal( 'edit' );
+		$title  = $sub->get_payment_method_title( 'edit' );
+		$sub->set_payment_method( 'scanpay' );
+		$sub->set_requires_manual_renewal( $manual );
+		$sub->set_payment_method_title( $title );
+	}
+}, 10, 1 );
+
 // Meta box
 function wc_scanpay_add_meta_box( $wc_order ) {
 	if ( ! $wc_order instanceof WC_Order ) {
